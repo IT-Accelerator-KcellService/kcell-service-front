@@ -1,7 +1,6 @@
 "use client"
 
 import { Input } from "@/components/ui/input"
-
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,8 +23,22 @@ import {
   Filter,
   LogOut,
 } from "lucide-react"
+import axios from 'axios'
+import dynamic from "next/dynamic";
 
-const API_BASE_URL = "http://localhost:8080/api" // Базовый URL для вашего бэкенда
+const API_BASE_URL = "http://localhost:8080/api"
+
+const MapView = dynamic(() => import('@/app/map/MapView'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
+})
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+})
 
 export default function ClientDashboard() {
   const [activeTab, setActiveTab] = useState("requests")
@@ -42,105 +55,59 @@ export default function ClientDashboard() {
   const [currentChatRequestId, setCurrentChatRequestId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [authToken, setAuthToken] = useState("")
+  const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [requestLocation, setRequestLocation] = useState("")
+  const [categoryName, setCategoryName] = useState("")
   const [requestLocationDetails, setRequestLocationDetails] = useState("")
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [requestTitle, setRequestTitle] = useState("")
-  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
 
   const chatMessagesEndRef = useRef<HTMLDivElement>(null)
-
   const [requests, setRequests] = useState<any[]>([])
 
-  // Функция загрузки заявок вынесена в отдельную функцию
   const fetchRequests = async () => {
     try {
-      const headers: HeadersInit = {
-        "Content-Type": "application/json"
-      };
-      
-      // Добавляем токен авторизации, если он есть
-      if (authToken) {
-        headers["Authorization"] = `Bearer ${authToken}`;
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/requests`, {
-        headers
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setRequests(data);
+      const response = await api.get('/requests')
+      setRequests(response.data)
     } catch (error) {
-      console.error("Failed to fetch requests:", error);
-      setRequests([
-        {
-          id: "REQ-001",
-          type: "Обычная",
-          title: "Не работает кондиционер",
-          status: "В обработке",
-          location: "Офис 301, Тимирязева 2Г",
-          date: "2024-01-15",
-          executor: "Петров А.И.",
-          rating: null,
-          description:
-            "Кондиционер в офисе 301 не охлаждает воздух, только гоняет его. Требуется диагностика и ремонт.",
-          photos: [],
-          category: "КТО",
-        },
-        {
-          id: "REQ-002",
-          type: "Экстренная",
-          title: "Протечка в санузле",
-          status: "Завершено",
-          location: "Санузел 2 этаж, Алимжанова 51",
-          date: "2024-01-14",
-          executor: "Сидоров В.П.",
-          rating: 5,
-          description: "Сильная протечка из потолка в санузле на втором этаже. Вода капает на пол.",
-          photos: ["/placeholder.svg?height=100&width=100&text=Photo1"],
-          category: "Сантехника",
-        },
-      ]);
+      console.error("Failed to fetch requests:", error)
     }
-  };
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/service-categories`);
+  }
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setServiceCategories(data);
-        if (data.length > 0) {
-          setSelectedCategoryId(data[0].id); // Set first category as default
-        }
-      } catch (error) {
-        console.error("Failed to fetch categories:", error);
-        setServiceCategories([{id: 1, name: "Cleaning"}]);
-        setSelectedCategoryId(1);
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/service-categories')
+      setServiceCategories(response.data)
+      if (response.data.length > 0) {
+        setSelectedCategoryId(response.data[0].id)
       }
-    };
-
-    if (isLoggedIn) {
-      fetchCategories();
+    } catch (error) {
+      console.error("Failed to fetch categories:", error)
     }
-  }, [isLoggedIn]);
-  // Обновляем эффект для загрузки заявок, чтобы он зависел от токена
+  }
+
   useEffect(() => {
     if (isLoggedIn) {
-      fetchRequests();
+      fetchCategories()
+      fetchRequests()
     }
-  }, [isLoggedIn]);
-
-  // Auto-scroll to the bottom of the chat when messages change
+  }, [isLoggedIn])
+  useEffect(() => {
+    if (selectedRequest?.category_id) {
+      api
+          .get(`service-categories/${Number(selectedRequest.category_id)}`)
+          .then((response) => {
+            setCategoryName(response.data.name)
+          })
+          .catch((error) => {
+            console.error("Ошибка при получении категории:", error)
+            setCategoryName("Неизвестно")
+          })
+    }
+  }, [selectedRequest?.category_id])
   useEffect(() => {
     if (chatMessagesEndRef.current) {
       chatMessagesEndRef.current.scrollIntoView({ behavior: "smooth" })
@@ -149,12 +116,16 @@ export default function ClientDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "draft":
       case "Черновик":
         return "bg-gray-500"
+      case "in_progress":
       case "В обработке":
         return "bg-blue-500"
+      case "in_execution":
       case "Исполнение":
         return "bg-orange-500"
+      case "completed":
       case "Завершено":
         return "bg-green-500"
       default:
@@ -164,10 +135,14 @@ export default function ClientDashboard() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
+      case "urgent":
       case "Экстренная":
         return "bg-red-500"
+      case "normal":
+      case "regular":
       case "Обычная":
         return "bg-blue-500"
+      case "planned":
       case "Плановая":
         return "bg-green-500"
       default:
@@ -178,7 +153,8 @@ export default function ClientDashboard() {
   const handlePhotoUpload = () => {
     setPhotos([...photos, `/placeholder.svg?height=100&width=100&text=Photo${photos.length + 1}`])
   }
-  const handleDetectLocation = () => {
+
+  const handleOpenCreateRequest = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -187,7 +163,7 @@ export default function ClientDashboard() {
           },
           (error) => {
             console.error("Ошибка геолокации:", error);
-            alert("Не удалось определить местоположение. Разрешите доступ к геолокации в браузере.");
+            setRequestLocation("Не удалось определить местоположение");
           },
           {
             enableHighAccuracy: true,
@@ -196,130 +172,79 @@ export default function ClientDashboard() {
           }
       );
     } else {
-      alert("Ваш браузер не поддерживает геолокацию.");
+      setRequestLocation("Ваш браузер не поддерживает геолокацию");
     }
+
+    setShowCreateRequest(true);
   };
 
+// В коде кнопки "Создать заявку" заменяем:
   const handleCreateRequest = async () => {
     if (!selectedCategoryId) {
-      alert("Пожалуйста, выберите категорию услуги");
-      return;
+      alert("Пожалуйста, выберите категорию услуги")
+      return
     }
-
-    const newRequestPayload = {
-      title: requestTitle,
-      description: "fix light and clear",
-      office_id: 1,
-      request_type: requestType === "emergency" ? "emergency" : "normal",
-      location: requestLocation,
-      location_detail: requestLocationDetails,
-      category_id: selectedCategoryId,
-      status: "in_progress"
-    };
 
     try {
-      const headers: HeadersInit = {
-        "Content-Type": "application/json"
-      };
+      const response = await api.post('/requests', {
+        title: requestTitle,
+        description: "fix light and clear",
+        office_id: 1,
+        request_type: requestType === "urgent" ? "urgent" : "normal",
+        location: requestLocation,
+        location_detail: requestLocationDetails,
+        category_id: selectedCategoryId,
+        status: "in_progress"
+      })
 
-      if (authToken) {
-        headers["Authorization"] = `Bearer ${authToken}`;
-      }
-
-      const response = await fetch(`${API_BASE_URL}/requests`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(newRequestPayload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const createdRequest = await response.json();
-      setRequests((prev) => [createdRequest, ...prev]);
-      setShowCreateRequest(false);
-      // Reset form fields
-      setRequestType("");
-      setRequestTitle("");
-      setRequestLocation("");
-      setRequestLocationDetails("");
-      alert("Заявка успешно создана!");
+      setRequests(prev => [response.data, ...prev])
+      setShowCreateRequest(false)
+      setRequestType("")
+      setRequestTitle("")
+      setRequestLocation("")
+      setRequestLocationDetails("")
+      alert("Заявка успешно создана!")
     } catch (error) {
-      console.error("Failed to create request:", error);
-      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.");
+      console.error("Failed to create request:", error)
+      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
     }
-  };
+  }
 
   const handleRateExecutor = async () => {
     if (requestToRate && ratingValue > 0) {
-      const updatedRequestPayload = {
-        rating: ratingValue,
-        status: "Завершено", // Assuming rating implies completion
-      }
-
       try {
-        const headers: HeadersInit = {
-          "Content-Type": "application/json"
-        };
-        
-        // Добавляем токен авторизации, если он есть
-        if (authToken) {
-          headers["Authorization"] = `Bearer ${authToken}`;
-        }
-        
-        const response = await fetch(`${API_BASE_URL}/requests/${requestToRate.id}`, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify(updatedRequestPayload),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const updatedRequest = await response.json()
-        setRequests(requests.map((req) => (req.id === updatedRequest.id ? { ...req, ...updatedRequest } : req)))
+        const response = await api.post(`/ratings`, {
+          rating: ratingValue,
+          request_id: requestToRate.id
+        })
+        setRequests(requests.map(req => req.id === response.data.id ? response.data : req))
         setShowRatingModal(false)
         setRatingValue(0)
         setRequestToRate(null)
-        alert("Оценка успешно отправлена и заявка завершена!")
+        alert("Оценка успешно отправлена!")
       } catch (error) {
-        console.error("Failed to rate executor or update request:", error)
-        alert("Не удалось обновить заявку. Пожалуйста, попробуйте еще раз.")
+        console.error("Failed to rate executor:", error)
+        alert("Не удалось отправить оценку.")
       }
     }
   }
-
-  const handleSendMessage = () => {
-    if (chatInput.trim()) {
-      const currentTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      setChatMessages((prev) => [...prev, { sender: "Вы", text: chatInput, time: currentTime }])
-      setChatInput("")
-      // Simulate a response
-      setTimeout(() => {
-        const responseTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        setChatMessages((prev) => [
-          ...prev,
-          { sender: "Исполнитель", text: "Сообщение получено. Скоро отвечу.", time: responseTime },
-        ])
-      }, 1500)
-    }
-  }
-
   const filteredRequests = requests.filter((request) => {
     const statusMatch = filterStatus === "all" || request.status === filterStatus
-    const typeMatch = filterType === "all" || request.type === filterType
+
+    const requestType = request.request_type || request.type
+    const typeMatch = filterType === "all" || requestType === filterType
+
     return statusMatch && typeMatch
   })
-
-  // Функция выхода из аккаунта
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    setAuthToken("");
-    setIsLoggedIn(false);
-    window.location.href = "/";
-  };
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout')
+      setIsLoggedIn(false)
+      window.location.href = "/"
+    } catch (error) {
+      console.error("Logout failed:", error)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -363,7 +288,7 @@ export default function ClientDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Активные заявки</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {requests.filter((r) => r.status !== "Завершено").length}
+                    {requests.filter((r) => r.status !== "completed").length}
                   </p>
                 </div>
               </div>
@@ -378,7 +303,7 @@ export default function ClientDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Завершено</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {requests.filter((r) => r.status === "Завершено").length}
+                    {requests.filter((r) => r.status === "completed").length}
                   </p>
                 </div>
               </div>
@@ -426,7 +351,7 @@ export default function ClientDashboard() {
                   <TabsTrigger value="requests">Мои заявки</TabsTrigger>
                   <TabsTrigger value="statistics">Статистика</TabsTrigger>
                 </TabsList>
-                <Button onClick={() => setShowCreateRequest(true)} className="bg-violet-600 hover:bg-violet-700">
+                <Button onClick={handleOpenCreateRequest} className="bg-violet-600 hover:bg-violet-700">
                   <Plus className="w-4 h-4 mr-2" />
                   Создать заявку
                 </Button>
@@ -445,9 +370,9 @@ export default function ClientDashboard() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Все</SelectItem>
-                        <SelectItem value="В обработке">В обработке</SelectItem>
-                        <SelectItem value="Исполнение">Исполнение</SelectItem>
-                        <SelectItem value="Завершено">Завершено</SelectItem>
+                        <SelectItem value="in_progress">В обработке</SelectItem>
+                        <SelectItem value="execution">Исполнение</SelectItem>
+                        <SelectItem value="completed">Завершено</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={filterType} onValueChange={setFilterType}>
@@ -456,9 +381,9 @@ export default function ClientDashboard() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Все</SelectItem>
-                        <SelectItem value="Обычная">Обычная</SelectItem>
-                        <SelectItem value="Экстренная">Экстренная</SelectItem>
-                        <SelectItem value="Плановая">Плановая</SelectItem>
+                        <SelectItem value="normal">Обычная</SelectItem>
+                        <SelectItem value="urgent">Экстренная</SelectItem>
+                        <SelectItem value="planed">Плановая</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -473,7 +398,7 @@ export default function ClientDashboard() {
                         <div className="flex justify-between items-start mb-4">
                           <div>
                             <div className="flex items-center space-x-2 mb-2">
-                              <Badge className={getTypeColor(request.type)}>{request.type}</Badge>
+                              <Badge className={getTypeColor(request.request_type)}>{request.request_type}</Badge>
                               <Badge variant="outline" className={getStatusColor(request.status)}>
                                 {request.status}
                               </Badge>
@@ -483,12 +408,19 @@ export default function ClientDashboard() {
                             <div className="flex items-center text-sm text-gray-600 space-x-4">
                               <div className="flex items-center">
                                 <MapPin className="w-4 h-4 mr-1" />
-                                {request.location}
+                                {request.location_detail}
                               </div>
                               <div className="flex items-center">
                                 <Clock className="w-4 h-4 mr-1" />
-                                {request.date}
+                                {new Date(request.created_date).toLocaleString("ru-RU", {
+                                  day: "2-digit",
+                                  month: "long",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
                               </div>
+
                             </div>
                           </div>
                           <div className="flex space-x-2">
@@ -510,7 +442,7 @@ export default function ClientDashboard() {
                             >
                               <MessageCircle className="w-4 h-4" />
                             </Button>
-                            {request.status === "Завершено" && !request.rating && (
+                            {request.status === "completed" && !request.rating && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -601,7 +533,7 @@ export default function ClientDashboard() {
                   variant="outline"
                   className="w-full justify-start"
                   onClick={() => {
-                    setRequestType("emergency")
+                    setRequestType("urgent")
                     setShowCreateRequest(true)
                   }}
                 >
@@ -664,7 +596,7 @@ export default function ClientDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="regular">Обычная</SelectItem>
-                    <SelectItem value="emergency">Экстренная</SelectItem>
+                    <SelectItem value="urgent">Экстренная</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -677,14 +609,12 @@ export default function ClientDashboard() {
 
               <div>
                 <Label>Локация</Label>
-                <Input placeholder="Введите расположение" value={requestLocation} onChange={e => setRequestLocation(e.target.value)} />
-                <Button
-                    variant="outline"
-                    onClick={handleDetectLocation}
-                    title="Определить локацию"
-                >
-                  📍
-                </Button>
+                <Input
+                    placeholder="Определение вашего местоположения..."
+                    value={requestLocation}
+                    readOnly
+                    className="bg-gray-100 cursor-not-allowed"
+                />
               </div>
               <div>
                 <Label>Расположение в офисе</Label>
@@ -769,7 +699,7 @@ export default function ClientDashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Тип заявки</Label>
-                  <Badge className={getTypeColor(selectedRequest.type)}>{selectedRequest.type}</Badge>
+                  <Badge className={getTypeColor(selectedRequest.request_type)}>{selectedRequest.request_type}</Badge>
                 </div>
                 <div>
                   <Label>Статус</Label>
@@ -784,25 +714,62 @@ export default function ClientDashboard() {
 
               <div>
                 <Label>Локация</Label>
-                <p className="text-sm">{selectedRequest.location}</p>
+                <p className="text-sm">{selectedRequest.location_detail}</p>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Парсим координаты из строки локации
+                        const locText = selectedRequest.location;
+                        const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
+                        const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
+                        const accMatch = locText.match(/±(\d+) м/);
+
+                        if (latMatch && lonMatch && accMatch) {
+                          setMapLocation({
+                            lat: parseFloat(latMatch[1]),
+                            lon: parseFloat(lonMatch[1]),
+                            accuracy: parseInt(accMatch[1])
+                          });
+                          setShowMapModal(true);
+                        } else {
+                          alert("Не удалось определить координаты из локации");
+                        }
+                      }}
+                  >
+                    <MapPin className="w-4 h-4 mr-1" />
+                    Показать на карте
+                  </Button>
+                </div>
               </div>
 
-              <div>
-                <Label>Дата подачи</Label>
-                <p className="text-sm">{selectedRequest.date}</p>
+              <div className="flex items-center">
+                <Clock className="w-4 h-4 mr-1" />
+                {new Date(selectedRequest.created_date).toLocaleString("ru-RU", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                })}
               </div>
+
 
               {selectedRequest.executor && (
                 <div>
                   <Label>Исполнитель</Label>
-                  <p className="text-sm">{selectedRequest.executor}</p>
+                  <p className="text-sm">{selectedRequest.executor || "не назначена"}</p>
                 </div>
               )}
 
               <div>
                 <Label>Категория услуги</Label>
-                <p className="text-sm">{selectedRequest.category}</p>
+                <p className="text-sm">{categoryName}</p>
               </div>
+
 
               <div>
                 <Label>Описание проблемы</Label>
@@ -847,7 +814,7 @@ export default function ClientDashboard() {
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Чат
                 </Button>
-                {selectedRequest.status === "Завершено" && !selectedRequest.rating && (
+                {selectedRequest.status === "completed" && !selectedRequest.rating && (
                   <Button
                     onClick={() => {
                       setRequestToRate(selectedRequest)
@@ -864,7 +831,35 @@ export default function ClientDashboard() {
           </Card>
         </div>
       )}
-
+      {/* Map Modal */}
+      {showMapModal && (
+          <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+              onClick={() => setShowMapModal(false)}
+          >
+            <Card
+                className="w-full max-w-4xl h-[90vh] max-h-[90vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+            >
+              <CardHeader>
+                <CardTitle>Локация заявки</CardTitle>
+                <CardDescription>Точное местоположение проблемы</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-hidden">
+                <MapView
+                    lat={mapLocation.lat}
+                    lon={mapLocation.lon}
+                    accuracy={mapLocation.accuracy}
+                />
+              </CardContent>
+              <div className="p-4 flex justify-end border-t">
+                <Button onClick={() => setShowMapModal(false)}>
+                  Закрыть
+                </Button>
+              </div>
+            </Card>
+          </div>
+      )}
       {/* Rating Modal */}
       {showRatingModal && requestToRate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
