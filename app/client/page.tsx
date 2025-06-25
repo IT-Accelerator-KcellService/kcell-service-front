@@ -44,7 +44,8 @@ export default function ClientDashboard() {
   const [activeTab, setActiveTab] = useState("requests")
   const [showCreateRequest, setShowCreateRequest] = useState(false)
   const [requestType, setRequestType] = useState("")
-  const [photos, setPhotos] = useState<string[]>([])
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [ratingValue, setRatingValue] = useState(0)
@@ -64,6 +65,28 @@ export default function ClientDashboard() {
   const [requestTitle, setRequestTitle] = useState("")
   const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const fileArray = Array.from(files);
+    const remainingSlots = 3 - photoPreviews.length;
+
+    const selectedFiles = fileArray.slice(0, remainingSlots);
+
+    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
+
+    setPhotos((prev) => [...prev, ...selectedFiles]);
+    setPhotoPreviews((prev) => [...prev, ...previewUrls]);
+
+    event.target.value = '';
+  };
 
   const chatMessagesEndRef = useRef<HTMLDivElement>(null)
   const [requests, setRequests] = useState<any[]>([])
@@ -150,10 +173,6 @@ export default function ClientDashboard() {
     }
   }
 
-  const handlePhotoUpload = () => {
-    setPhotos([...photos, `/placeholder.svg?height=100&width=100&text=Photo${photos.length + 1}`])
-  }
-
   const handleOpenCreateRequest = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -197,6 +216,32 @@ export default function ClientDashboard() {
         status: "in_progress"
       })
 
+      const requestId = response.data.id;
+
+      console.log("Created request ID:", requestId);
+
+      if (photos.length > 0) {
+        const formData = new FormData();
+        photos.forEach((photo) => {
+          formData.append('photos', photo);
+        });
+        formData.append('type', 'before');
+
+        try {
+          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+            withCredentials: true
+          });
+
+          console.log("Фотографии успешно загружены");
+        } catch (photoUploadError) {
+          await api.delete(`/requests/${requestId}`);
+          console.error("Ошибка при загрузке фото. Заявка удалена.");
+          alert("Ошибка при загрузке фото. Заявка не была создана.");
+          return;
+        }
+
+        console.log("Фотографии успешно загружены");
+      }
       setRequests(prev => [response.data, ...prev])
       setShowCreateRequest(false)
       setRequestType("")
@@ -648,7 +693,7 @@ export default function ClientDashboard() {
               <div>
                 <Label>Фотографии (до 3 шт.)</Label>
                 <div className="flex flex-wrap gap-4 mt-2">
-                  {photos.map((photo, index) => (
+                  {photoPreviews.map((photo, index) => (
                     <div key={index} className="relative">
                       <img
                         src={photo || "/placeholder.svg"}
@@ -656,20 +701,30 @@ export default function ClientDashboard() {
                         className="w-20 h-20 object-cover rounded-lg"
                       />
                       <button
-                        onClick={() => setPhotos(photos.filter((_, i) => i !== index))}
+                        onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
                       >
                         ×
                       </button>
                     </div>
                   ))}
-                  {photos.length < 3 && (
+                  {photoPreviews.length < 3 && (
+
                     <button
-                      onClick={handlePhotoUpload}
-                      className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
+                        type="button"
+                        onClick={handleButtonClick}
+                        className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
                     >
-                      <Camera className="w-6 h-6 text-gray-400" />
-                    </button>
+                      <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          ref={fileInputRef}
+                          onChange={handleFileChange}
+                          className="hidden"
+                      />
+                    <Camera className="w-6 h-6 text-gray-400" />
+                   </button>
                   )}
                 </div>
               </div>
@@ -780,10 +835,10 @@ export default function ClientDashboard() {
                 <div>
                   <Label>Фотографии</Label>
                   <div className="flex space-x-2 mt-2">
-                    {selectedRequest.photos.map((photo: string, index: number) => (
+                    {selectedRequest.photos.map((photo: any, index: number) => (
                       <img
                         key={index}
-                        src={photo || "/placeholder.svg"}
+                        src={photo.photo_url || "/placeholder.svg"}
                         alt={`Photo ${index + 1}`}
                         className="w-24 h-24 object-cover rounded-lg"
                       />
