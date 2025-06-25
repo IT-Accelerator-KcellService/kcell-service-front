@@ -200,6 +200,27 @@ export default function ClientDashboard() {
   const handlePhotoUpload = () => {
     setPhotos([...photos, `/placeholder.svg?height=100&width=100&text=Photo${photos.length + 1}`])
   }
+  const handleDetectLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude, accuracy } = position.coords;
+            setRequestLocation(`Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`);
+          },
+          (error) => {
+            console.error("Ошибка геолокации:", error);
+            alert("Не удалось определить местоположение. Разрешите доступ к геолокации в браузере.");
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+      );
+    } else {
+      alert("Ваш браузер не поддерживает геолокацию.");
+    }
+  };
 
   const handleCreateRequest = async () => {
     // Placeholder values for form inputs
@@ -668,49 +689,17 @@ export default function ClientDashboard() {
                 <Input placeholder="Введите название заявки" value={requestTitle} onChange={e => setRequestTitle(e.target.value)} />
               </div>
 
-              <div>
-                <Label>Город</Label>
-                <Select value={requestCity} onValueChange={setRequestCity}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите город" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Астана">Астана</SelectItem>
-                    <SelectItem value="Алматы">Алматы</SelectItem>
-                    <SelectItem value="Шымкент">Шымкент</SelectItem>
-                    <SelectItem value="Актобе">Актобе</SelectItem>
-                    <SelectItem value="Караганда">Караганда</SelectItem>
-                    <SelectItem value="Тараз">Тараз</SelectItem>
-                    <SelectItem value="Павлодар">Павлодар</SelectItem>
-                    <SelectItem value="Усть-Каменогорск">Усть-Каменогорск</SelectItem>
-                    <SelectItem value="Семей">Семей</SelectItem>
-                    <SelectItem value="Костанай">Костанай</SelectItem>
-                    <SelectItem value="Кызылорда">Кызылорда</SelectItem>
-                    <SelectItem value="Атырау">Атырау</SelectItem>
-                    <SelectItem value="Петропавловск">Петропавловск</SelectItem>
-                    <SelectItem value="Уральск">Уральск</SelectItem>
-                    <SelectItem value="Темиртау">Темиртау</SelectItem>
-                    <SelectItem value="Туркестан">Туркестан</SelectItem>
-                    <SelectItem value="Экибастуз">Экибастуз</SelectItem>
-                    <SelectItem value="Жезказган">Жезказган</SelectItem>
-                    <SelectItem value="Балхаш">Балхаш</SelectItem>
-                    <SelectItem value="Риддер">Риддер</SelectItem>
-                    <SelectItem value="Актау">Актау</SelectItem>
-                    <SelectItem value="Кокшетау">Кокшетау</SelectItem>
-                    <SelectItem value="Талдыкорган">Талдыкорган</SelectItem>
-                    <SelectItem value="Талгар">Талгар</SelectItem>
-                    <SelectItem value="Сатпаев">Сатпаев</SelectItem>
-                    <SelectItem value="Аксай">Аксай</SelectItem>
-                    <SelectItem value="Жанаозен">Жанаозен</SelectItem>
-                    <SelectItem value="Шу">Шу</SelectItem>
-                    <SelectItem value="Щучинск">Щучинск</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
 
               <div>
                 <Label>Расположение в офисе</Label>
                 <Input placeholder="Введите расположение" value={requestLocation} onChange={e => setRequestLocation(e.target.value)} />
+                <Button
+                    variant="outline"
+                    onClick={handleDetectLocation}
+                    title="Определить локацию"
+                >
+                  📍
+                </Button>
               </div>
 
               <div>
