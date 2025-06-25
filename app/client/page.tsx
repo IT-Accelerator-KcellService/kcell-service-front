@@ -25,7 +25,7 @@ import {
   LogOut,
 } from "lucide-react"
 
-const API_BASE_URL = "http://localhost:3001/api" // Базовый URL для вашего бэкенда
+const API_BASE_URL = "http://localhost:8080/api" // Базовый URL для вашего бэкенда
 
 export default function ClientDashboard() {
   const [activeTab, setActiveTab] = useState("requests")
@@ -45,6 +45,7 @@ export default function ClientDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [authToken, setAuthToken] = useState("")
   const [requestLocation, setRequestLocation] = useState("")
+  const [requestLocationDetails, setRequestLocationDetails] = useState("")
   const [requestTitle, setRequestTitle] = useState("")
   const [requestCity, setRequestCity] = useState("")
 
@@ -691,7 +692,7 @@ export default function ClientDashboard() {
 
 
               <div>
-                <Label>Расположение в офисе</Label>
+                <Label>Локация</Label>
                 <Input placeholder="Введите расположение" value={requestLocation} onChange={e => setRequestLocation(e.target.value)} />
                 <Button
                     variant="outline"
@@ -700,6 +701,10 @@ export default function ClientDashboard() {
                 >
                   📍
                 </Button>
+              </div>
+              <div>
+                <Label>Расположение в офисе</Label>
+                <Input placeholder="Введите расположение" value={requestLocationDetails} onChange={e => setRequestLocationDetails(e.target.value)} />
               </div>
 
               <div>
