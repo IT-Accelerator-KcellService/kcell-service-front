@@ -11,12 +11,44 @@ import { Building2, Users } from "lucide-react"
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
   const [userRole, setUserRole] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
 
-  const handleLogin = () => {
-    if (userRole) {
-      window.location.href = `/${userRole.toLowerCase().replace(" ", "-")}`
+  const handleLogin = async () => {
+    if (!email || !password) {
+      alert("Пожалуйста, введите email и пароль");
+      return;
     }
-  }
+
+    try {
+      const response = await fetch("http://localhost:8080/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert("Ошибка: " + error.message);
+        return;
+      }
+
+      const data = await response.json();
+
+      // Если роль возвращается после логина
+      const role = data.role || "client";
+      window.location.href = `/${role.toLowerCase().replace(" ", "-")}`;
+
+    } catch (err) {
+      console.error("Ошибка логина:", err);
+      alert("Произошла ошибка при входе.");
+    }
+  };
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-600 via-purple-600 to-violet-800 flex items-center justify-center p-4">
@@ -44,11 +76,22 @@ export default function LoginPage() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="your.email@kcell.kz" />
+                <Input
+                    id="email"
+                    type="email"
+                    placeholder="your.email@kcell.kz"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
               <div>
                 <Label htmlFor="password">Пароль</Label>
-                <Input id="password" type="password" />
+                <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
 
               {!isLogin && (

@@ -47,57 +47,12 @@ export default function ClientDashboard() {
   const [requestLocation, setRequestLocation] = useState("")
   const [requestLocationDetails, setRequestLocationDetails] = useState("")
   const [requestTitle, setRequestTitle] = useState("")
-  const [requestCity, setRequestCity] = useState("")
+  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
   const chatMessagesEndRef = useRef<HTMLDivElement>(null)
 
   const [requests, setRequests] = useState<any[]>([])
-
-  // Проверяем наличие токена при загрузке компонента
-  useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      setAuthToken(token);
-      setIsLoggedIn(true);
-    } else {
-      // Если токена нет, выполняем автоматический вход
-      handleLogin();
-    }
-  }, []);
-
-  // Функция для входа в систему
-  const handleLogin = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: "client@kcell.kz",
-          password: "password123" // Предполагаем, что это пароль из тестовых данных
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const token = data.token;
-      
-      localStorage.setItem('authToken', token);
-      setAuthToken(token);
-      setIsLoggedIn(true);
-      
-      // После успешного входа загружаем заявки
-      fetchRequests();
-    } catch (error) {
-      console.error("Failed to login:", error);
-      // В случае ошибки логина все равно пытаемся загрузить заявки
-      fetchRequests();
-    }
-  };
 
   // Функция загрузки заявок вынесена в отдельную функцию
   const fetchRequests = async () => {
@@ -123,7 +78,6 @@ export default function ClientDashboard() {
       setRequests(data);
     } catch (error) {
       console.error("Failed to fetch requests:", error);
-      // Fallback to dummy data if backend is not available
       setRequests([
         {
           id: "REQ-001",
@@ -155,7 +109,30 @@ export default function ClientDashboard() {
       ]);
     }
   };
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/service-categories`);
 
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setServiceCategories(data);
+        if (data.length > 0) {
+          setSelectedCategoryId(data[0].id); // Set first category as default
+        }
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+        setServiceCategories([{id: 1, name: "Cleaning"}]);
+        setSelectedCategoryId(1);
+      }
+    };
+
+    if (isLoggedIn) {
+      fetchCategories();
+    }
+  }, [isLoggedIn]);
   // Обновляем эффект для загрузки заявок, чтобы он зависел от токена
   useEffect(() => {
     if (isLoggedIn) {
@@ -224,27 +201,31 @@ export default function ClientDashboard() {
   };
 
   const handleCreateRequest = async () => {
-    // Placeholder values for form inputs
-    const newRequestPayload = {
-      type: requestType === "regular" ? "Обычная" : "Экстренная",
-      title: requestTitle,
-      location: requestLocation,
-      city: requestCity,
-      description: "Описание новой заявки, созданной через фронтенд.",
-      photos: photos,
-      category: "Общее",
+    if (!selectedCategoryId) {
+      alert("Пожалуйста, выберите категорию услуги");
+      return;
     }
+
+    const newRequestPayload = {
+      title: requestTitle,
+      description: "fix light and clear",
+      office_id: 1,
+      request_type: requestType === "emergency" ? "emergency" : "normal",
+      location: requestLocation,
+      location_detail: requestLocationDetails,
+      category_id: selectedCategoryId,
+      status: "in_progress"
+    };
 
     try {
       const headers: HeadersInit = {
         "Content-Type": "application/json"
       };
-      
-      // Добавляем токен авторизации, если он есть
+
       if (authToken) {
         headers["Authorization"] = `Bearer ${authToken}`;
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/requests`, {
         method: "POST",
         headers,
@@ -252,20 +233,23 @@ export default function ClientDashboard() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const createdRequest = await response.json()
-      setRequests((prev) => [createdRequest, ...prev]) // Add new request to local state
-      setShowCreateRequest(false)
-      setRequestType("")
-      setPhotos([])
-      alert("Заявка успешно создана!")
+      const createdRequest = await response.json();
+      setRequests((prev) => [createdRequest, ...prev]);
+      setShowCreateRequest(false);
+      // Reset form fields
+      setRequestType("");
+      setRequestTitle("");
+      setRequestLocation("");
+      setRequestLocationDetails("");
+      alert("Заявка успешно создана!");
     } catch (error) {
-      console.error("Failed to create request:", error)
-      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+      console.error("Failed to create request:", error);
+      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.");
     }
-  }
+  };
 
   const handleRateExecutor = async () => {
     if (requestToRate && ratingValue > 0) {
@@ -709,14 +693,19 @@ export default function ClientDashboard() {
 
               <div>
                 <Label>Категория услуги</Label>
-                <Select>
+                <Select
+                    value={selectedCategoryId?.toString() || ""}
+                    onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Выберите категорию" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cleaning">Клининг</SelectItem>
-                    <SelectItem value="maintenance">КТО</SelectItem>
-                    <SelectItem value="it">IT поддержка</SelectItem>
+                    {serviceCategories.map((category) => (
+                        <SelectItem key={category.id} value={category.id.toString()}>
+                          {category.name}
+                        </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
