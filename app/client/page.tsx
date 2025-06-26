@@ -71,10 +71,10 @@ export default function ClientDashboard() {
   const [requestType, setRequestType] = useState("")
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<any>(null)
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [ratingValue, setRatingValue] = useState(0)
-  const [requestToRate, setRequestToRate] = useState<any>(null)
+  const [requestToRate, setRequestToRate] = useState<Request | null>(null)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
@@ -91,6 +91,8 @@ export default function ClientDashboard() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
+  const [showProfile, setShowProfile] = useState(false)
+
 
   const fetchComments = async () => {
     if (!selectedRequest?.id) return;
@@ -147,8 +149,6 @@ export default function ClientDashboard() {
       console.error("Ошибка при отправке комментария", err);
     }
   };
-  const [showProfile, setShowProfile] = useState(false)
-
 
   const handleButtonClick = () => {
     fileInputRef.current?.click();
@@ -170,7 +170,6 @@ export default function ClientDashboard() {
 
     event.target.value = '';
   };
-
 
   const fetchRequests = async () => {
     try {
@@ -220,6 +219,7 @@ export default function ClientDashboard() {
       fetchRequests()
     }
   }, [isLoggedIn])
+
   useEffect(() => {
     if (selectedRequest?.category_id) {
       api
@@ -370,6 +370,7 @@ export default function ClientDashboard() {
       }
     }
   }
+
   const filteredRequests = requests.filter((request) => {
     const statusMatch = filterStatus === "all" || request.status === filterStatus
     const requestType = request.request_type
@@ -398,169 +399,168 @@ export default function ClientDashboard() {
         />
         <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Clock className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Активные заявки</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {requests.filter((r) => r.status !== "completed").length}
-                    </p>
-                  </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Clock className="w-6 h-6 text-blue-600" />
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Завершено</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {requests.filter((r) => r.status === "completed").length}
-                    </p>
-                  </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Активные заявки</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {requests.filter((r) => r.status !== "completed").length}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <Star className="w-6 h-6 text-yellow-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Средняя оценка</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {(
-                          requests.filter((r) => r.rating !== null).reduce((acc, r) => acc + r.rating!, 0) /
-                          requests.filter((r) => r.rating !== null).length || 0
-                      ).toFixed(1)}
-                    </p>
-                  </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <AlertTriangle className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                    <p className="text-2xl font-bold text-gray-900">Gold</p>
-                  </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Завершено</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {requests.filter((r) => r.status === "completed").length}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <Star className="w-6 h-6 text-yellow-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Средняя оценка</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {(
+                      requests.filter((r) => r.rating !== null).reduce((acc, r) => acc + r.rating!, 0) /
+                        requests.filter((r) => r.rating !== null).length || 0
+                    ).toFixed(1)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <AlertTriangle className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Рейтинг</p>
+                  <p className="text-2xl font-bold text-gray-900">Gold</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <div className="flex justify-between items-center mb-6">
-                    <TabsList>
-                      <TabsTrigger value="requests">Мои заявки</TabsTrigger>
-                      <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                    </TabsList>
-                    <Button onClick={handleOpenCreateRequest} className="bg-violet-600 hover:bg-violet-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Создать заявку
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <div className="flex justify-between items-center mb-6">
+                <TabsList>
+                  <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                  <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                </TabsList>
+                <Button onClick={handleOpenCreateRequest} className="bg-violet-600 hover:bg-violet-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Создать заявку
+                </Button>
+              </div>
+
+              <TabsContent value="requests">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <Button variant="outline" size="sm">
+                      <Filter className="w-4 h-4 mr-2" />
+                      Фильтр
                     </Button>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Статус" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все</SelectItem>
+                        <SelectItem value="in_progress">В обработке</SelectItem>
+                        <SelectItem value="execution">Исполнение</SelectItem>
+                        <SelectItem value="completed">Завершено</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Тип заявки" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все</SelectItem>
+                        <SelectItem value="normal">Обычная</SelectItem>
+                        <SelectItem value="urgent">Экстренная</SelectItem>
+                        <SelectItem value="planed">Плановая</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  <TabsContent value="requests">
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-4 mb-4">
-                        <Button variant="outline" size="sm">
-                          <Filter className="w-4 h-4 mr-2" />
-                          Фильтр
-                        </Button>
-                        <Select value={filterStatus} onValueChange={setFilterStatus}>
-                          <SelectTrigger className="w-48">
-                            <SelectValue placeholder="Статус" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Все</SelectItem>
-                            <SelectItem value="in_progress">В обработке</SelectItem>
-                            <SelectItem value="execution">Исполнение</SelectItem>
-                            <SelectItem value="completed">Завершено</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={filterType} onValueChange={setFilterType}>
-                          <SelectTrigger className="w-48">
-                            <SelectValue placeholder="Тип заявки" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Все</SelectItem>
-                            <SelectItem value="normal">Обычная</SelectItem>
-                            <SelectItem value="urgent">Экстренная</SelectItem>
-                            <SelectItem value="planed">Плановая</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                  {filteredRequests.map((request) => (
-                    <Card
-                      key={request.id}
-                      className="hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => setSelectedRequest(request)}
-                    >
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Badge className={getTypeColor(request.request_type)}>{request.request_type}</Badge>
-                              <Badge variant="outline" className={getStatusColor(request.status)}>
-                                {request.status}
-                              </Badge>
-                              <span className="text-sm text-gray-500">#{request.id}</span>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
-                            <div className="flex items-center text-sm text-gray-600 space-x-4">
-                              <div className="flex items-center">
-                                <MapPin className="w-4 h-4 mr-1" />
-                                {request.location_detail}
+                      {filteredRequests.map((request) => (
+                          <Card
+                              key={request.id}
+                              className="hover:shadow-md transition-shadow cursor-pointer"
+                              onClick={() => setSelectedRequest(request)}
+                          >
+                            <CardContent className="p-6">
+                              <div className="flex justify-between items-start mb-4">
+                                <div>
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <Badge className={getTypeColor(request.request_type)}>{request.request_type}</Badge>
+                                    <Badge variant="outline" className={getStatusColor(request.status)}>
+                                      {request.status}
+                                    </Badge>
+                                    <span className="text-sm text-gray-500">#{request.id}</span>
+                                  </div>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
+                                  <div className="flex items-center text-sm text-gray-600 space-x-4">
+                                    <div className="flex items-center">
+                                      <MapPin className="w-4 h-4 mr-1" />
+                                      {request.location_detail}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Clock className="w-4 h-4 mr-1" />
+                                      {new Date(request.created_date).toLocaleString("ru-RU", {
+                                        day: "2-digit",
+                                        month: "long",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit"
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex space-x-2">
+                                  {request.status === "completed" && !userRatings[request.id] && (
+                                      <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setRequestToRate(request)
+                                            setShowRatingModal(true)
+                                          }}
+                                      >
+                                        <Star className="w-4 h-4" />
+                                      </Button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center">
-                                <Clock className="w-4 h-4 mr-1" />
-                                {new Date(request.created_date).toLocaleString("ru-RU", {
-                                  day: "2-digit",
-                                  month: "long",
-                                  year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit"
-                                })}
-                              </div>
-
-                            </div>
-                          </div>
-                          <div className="flex space-x-2">
-                            {request.status === "completed" && !request.rating && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setRequestToRate(request)
-                                  setShowRatingModal(true)
-                                }}
-                              >
-                                <Star className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
 
                               {request.executor && (
                                   <div className="flex items-center justify-between">
@@ -904,79 +904,80 @@ export default function ClientDashboard() {
                     <p className="text-sm">{selectedRequest.description}</p>
                   </div>
 
-              {selectedRequest.photos && selectedRequest.photos.length > 0 && (
-                <div>
-                  <Label>Фотографии</Label>
-                  <div className="flex space-x-2 mt-2">
-                    {selectedRequest.photos.map((photo: any, index: number) => (
-                      <img
-                        key={index}
-                        src={photo.photo_url || "/placeholder.svg"}
-                        alt={`Photo ${index + 1}`}
-                        className="w-24 h-24 object-cover rounded-lg"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Секция для комментариев */}
-              <Card className="mt-2">
-                <CardContent className="p-4">
-                  <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
-                  {comments.map((c: any) => (
-                      <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
-                        <div className="flex justify-between items-center">
-                          <div className="text-sm text-gray-800 font-medium">{c.user.full_name}</div>
-                          <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
-                        </div>
-                        <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
-                        <div className="mt-2 flex gap-3 text-xs text-blue-500">
-                          <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">
-                            ✏️ Изменить
-                          </button>
-                          <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">
-                            🗑 Удалить
-                          </button>
+                  {selectedRequest.photos && selectedRequest.photos.length > 0 && (
+                      <div>
+                        <Label>Фотографии</Label>
+                        <div className="flex space-x-2 mt-2">
+                          {selectedRequest.photos.map((photo: any, index: number) => (
+                              <img
+                                  key={index}
+                                  src={photo.photo_url || "/placeholder.svg"}
+                                  alt={`Photo ${index + 1}`}
+                                  className="w-24 h-24 object-cover rounded-lg"
+                              />
+                          ))}
                         </div>
                       </div>
-                  ))}
-                  <div className="mt-3 flex items-center space-x-2">
-                    <input
-                        type="text"
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Написать комментарий..."
-                        className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <Button size="sm" onClick={handleSend}>
-                      Отправить
+                  )}
+
+                  {/* Секция для комментариев */}
+                  <Card className="mt-2">
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
+                      {comments.map((c: any) => (
+                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                            <div className="flex justify-between items-center">
+                              <div className="text-sm text-gray-800 font-medium">{c.user.full_name}</div>
+                              <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
+                            </div>
+                            <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+                            <div className="mt-2 flex gap-3 text-xs text-blue-500">
+                              <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">
+                                ✏️ Изменить
+                              </button>
+                              <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">
+                                🗑 Удалить
+                              </button>
+                            </div>
+                          </div>
+                      ))}
+                      <div className="mt-3 flex items-center space-x-2">
+                        <input
+                            type="text"
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            placeholder="Написать комментарий..."
+                            className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <Button size="sm" onClick={handleSend}>
+                          Отправить
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setSelectedRequest(null)}>
+                      Закрыть
                     </Button>
+                    {selectedRequest.status === "completed" && !userRatings[selectedRequest.id] && (
+                        <Button
+                            onClick={() => {
+                              setRequestToRate(selectedRequest)
+                              setShowRatingModal(true)
+                              setSelectedRequest(null)
+                            }}
+                        >
+                          <Star className="w-4 h-4 mr-2" />
+                          Оценить
+                        </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
+            </div>
+        )}
 
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setSelectedRequest(null)}>
-                  Закрыть
-                </Button>
-                {selectedRequest.status === "completed" && !selectedRequest.rating && (
-                  <Button
-                    onClick={() => {
-                      setRequestToRate(selectedRequest)
-                      setShowRatingModal(true)
-                      setSelectedRequest(null)
-                    }}
-                  >
-                    <Star className="w-4 h-4 mr-2" />
-                    Оценить
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
       {/* Map Modal */}
       {showMapModal && (
           <div
