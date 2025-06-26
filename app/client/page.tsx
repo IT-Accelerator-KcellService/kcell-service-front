@@ -71,14 +71,10 @@ export default function ClientDashboard() {
   const [requestType, setRequestType] = useState("")
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
+  const [selectedRequest, setSelectedRequest] = useState<any>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [ratingValue, setRatingValue] = useState(0)
-  const [requestToRate, setRequestToRate] = useState<Request | null>(null)
-  const [showChatModal, setShowChatModal] = useState(false)
-  const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; time: string }[]>([])
-  const [chatInput, setChatInput] = useState("")
-  const [currentChatRequestId, setCurrentChatRequestId] = useState<string | null>(null)
+  const [requestToRate, setRequestToRate] = useState<any>(null)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
@@ -93,6 +89,64 @@ export default function ClientDashboard() {
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
   const [requests, setRequests] = useState<Request[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [comment, setComment] = useState("");
+  const [comments, setComments] = useState([]);
+
+  const fetchComments = async () => {
+    if (!selectedRequest?.id) return;
+    try {
+      const res = await api.get(`/comments/request/${selectedRequest.id}`);
+      setComments(res.data);
+    } catch (err) {
+      console.error("Ошибка при загрузке комментариев", err);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Удалить комментарий?")) return;
+    try {
+      await api.delete(`/comments/${id}`);
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при удалении", err);
+    }
+  };
+
+  const handleEdit = (id: number, oldComment: string) => {
+    const newComment = prompt("Изменить комментарий:", oldComment);
+    if (newComment && newComment.trim()) {
+      api.put(`/comments/${id}`, {
+        comment: newComment.trim(),
+        request_id: selectedRequest.id,
+      })
+          .then(() => fetchComments())
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    }
+  };
+
+  useEffect(() => {
+    if (selectedRequest?.id) {
+      fetchComments();
+    }
+  }, [selectedRequest]);
+
+  const handleSend = async () => {
+    if (!comment.trim()) return;
+
+    try {
+      await api.post(
+          `/comments`,
+          {
+            request_id: selectedRequest.id,
+            comment,
+          }
+      );
+      setComment("");
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при отправке комментария", err);
+    }
+  };
   const [showProfile, setShowProfile] = useState(false)
 
 
@@ -117,7 +171,6 @@ export default function ClientDashboard() {
     event.target.value = '';
   };
 
-  const chatMessagesEndRef = useRef<HTMLDivElement>(null)
 
   const fetchRequests = async () => {
     try {
@@ -167,7 +220,6 @@ export default function ClientDashboard() {
       fetchRequests()
     }
   }, [isLoggedIn])
-
   useEffect(() => {
     if (selectedRequest?.category_id) {
       api
@@ -181,12 +233,6 @@ export default function ClientDashboard() {
           })
     }
   }, [selectedRequest?.category_id])
-
-  useEffect(() => {
-    if (chatMessagesEndRef.current) {
-      chatMessagesEndRef.current.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [chatMessages])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -324,19 +370,6 @@ export default function ClientDashboard() {
       }
     }
   }
-
-  const handleSendMessage = () => {
-    if (chatInput.trim() && currentChatRequestId) {
-      const newMessage = {
-        sender: "Вы",
-        text: chatInput,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      }
-      setChatMessages([...chatMessages, newMessage])
-      setChatInput("")
-    }
-  }
-
   const filteredRequests = requests.filter((request) => {
     const statusMatch = filterStatus === "all" || request.status === filterStatus
     const requestType = request.request_type
@@ -477,74 +510,57 @@ export default function ClientDashboard() {
                         </Select>
                       </div>
 
-                      {filteredRequests.map((request) => (
-                          <Card
-                              key={request.id}
-                              className="hover:shadow-md transition-shadow cursor-pointer"
-                              onClick={() => setSelectedRequest(request)}
-                          >
-                            <CardContent className="p-6">
-                              <div className="flex justify-between items-start mb-4">
-                                <div>
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <Badge className={getTypeColor(request.request_type)}>{request.request_type}</Badge>
-                                    <Badge variant="outline" className={getStatusColor(request.status)}>
-                                      {request.status}
-                                    </Badge>
-                                    <span className="text-sm text-gray-500">#{request.id}</span>
-                                  </div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
-                                  <div className="flex items-center text-sm text-gray-600 space-x-4">
-                                    <div className="flex items-center">
-                                      <MapPin className="w-4 h-4 mr-1" />
-                                      {request.location_detail}
-                                    </div>
-                                    <div className="flex items-center">
-                                      <Clock className="w-4 h-4 mr-1" />
-                                      {new Date(request.created_date).toLocaleString("ru-RU", {
-                                        day: "2-digit",
-                                        month: "long",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit"
-                                      })}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex space-x-2">
-                                  <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        setShowChatModal(true)
-                                        setCurrentChatRequestId(request.id.toString())
-                                        setChatMessages([
-                                          {
-                                            sender: "Система",
-                                            text: `Чат по заявке #${request.id} открыт.`,
-                                            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                                          },
-                                        ])
-                                      }}
-                                  >
-                                    <MessageCircle className="w-4 h-4" />
-                                  </Button>
-                                  {request.status === "completed" && !userRatings[request.id] && (
-                                      <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setRequestToRate(request)
-                                            setShowRatingModal(true)
-                                          }}
-                                      >
-                                        <Star className="w-4 h-4" />
-                                      </Button>
-                                  )}
-                                </div>
+                  {filteredRequests.map((request) => (
+                    <Card
+                      key={request.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => setSelectedRequest(request)}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Badge className={getTypeColor(request.request_type)}>{request.request_type}</Badge>
+                              <Badge variant="outline" className={getStatusColor(request.status)}>
+                                {request.status}
+                              </Badge>
+                              <span className="text-sm text-gray-500">#{request.id}</span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
+                            <div className="flex items-center text-sm text-gray-600 space-x-4">
+                              <div className="flex items-center">
+                                <MapPin className="w-4 h-4 mr-1" />
+                                {request.location_detail}
                               </div>
+                              <div className="flex items-center">
+                                <Clock className="w-4 h-4 mr-1" />
+                                {new Date(request.created_date).toLocaleString("ru-RU", {
+                                  day: "2-digit",
+                                  month: "long",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit"
+                                })}
+                              </div>
+
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            {request.status === "completed" && !request.rating && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setRequestToRate(request)
+                                  setShowRatingModal(true)
+                                }}
+                              >
+                                <Star className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
 
                               {request.executor && (
                                   <div className="flex items-center justify-between">
@@ -888,62 +904,79 @@ export default function ClientDashboard() {
                     <p className="text-sm">{selectedRequest.description}</p>
                   </div>
 
-                  {selectedRequest.photos && selectedRequest.photos.length > 0 && (
-                      <div>
-                        <Label>Фотографии</Label>
-                        <div className="flex space-x-2 mt-2">
-                          {selectedRequest.photos.map((photo: any, index: number) => (
-                              <img
-                                  key={index}
-                                  src={photo.photo_url || "/placeholder.svg"}
-                                  alt={`Photo ${index + 1}`}
-                                  className="w-24 h-24 object-cover rounded-lg"
-                              />
-                          ))}
+              {selectedRequest.photos && selectedRequest.photos.length > 0 && (
+                <div>
+                  <Label>Фотографии</Label>
+                  <div className="flex space-x-2 mt-2">
+                    {selectedRequest.photos.map((photo: any, index: number) => (
+                      <img
+                        key={index}
+                        src={photo.photo_url || "/placeholder.svg"}
+                        alt={`Photo ${index + 1}`}
+                        className="w-24 h-24 object-cover rounded-lg"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Секция для комментариев */}
+              <Card className="mt-2">
+                <CardContent className="p-4">
+                  <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
+                  {comments.map((c: any) => (
+                      <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                        <div className="flex justify-between items-center">
+                          <div className="text-sm text-gray-800 font-medium">{c.user.full_name}</div>
+                          <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
+                        </div>
+                        <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+                        <div className="mt-2 flex gap-3 text-xs text-blue-500">
+                          <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">
+                            ✏️ Изменить
+                          </button>
+                          <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">
+                            🗑 Удалить
+                          </button>
                         </div>
                       </div>
-                  )}
-
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setSelectedRequest(null)}>
-                      Закрыть
+                  ))}
+                  <div className="mt-3 flex items-center space-x-2">
+                    <input
+                        type="text"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Написать комментарий..."
+                        className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <Button size="sm" onClick={handleSend}>
+                      Отправить
                     </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowChatModal(true)
-                          setCurrentChatRequestId(selectedRequest.id.toString())
-                          setChatMessages([
-                            {
-                              sender: "Система",
-                              text: `Чат по заявке #${selectedRequest.id} открыт.`,
-                              time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                            },
-                          ])
-                          setSelectedRequest(null)
-                        }}
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Чат
-                    </Button>
-                    {selectedRequest.status === "completed" && !userRatings[selectedRequest.id] && (
-                        <Button
-                            onClick={() => {
-                              setRequestToRate(selectedRequest)
-                              setShowRatingModal(true)
-                              setSelectedRequest(null)
-                            }}
-                        >
-                          <Star className="w-4 h-4 mr-2" />
-                          Оценить
-                        </Button>
-                    )}
                   </div>
                 </CardContent>
               </Card>
-            </div>
-        )}
 
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setSelectedRequest(null)}>
+                  Закрыть
+                </Button>
+                {selectedRequest.status === "completed" && !selectedRequest.rating && (
+                  <Button
+                    onClick={() => {
+                      setRequestToRate(selectedRequest)
+                      setShowRatingModal(true)
+                      setSelectedRequest(null)
+                    }}
+                  >
+                    <Star className="w-4 h-4 mr-2" />
+                    Оценить
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       {/* Map Modal */}
       {showMapModal && (
           <div
@@ -1012,54 +1045,6 @@ export default function ClientDashboard() {
                 Отмена
               </Button>
             </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Chat Modal */}
-      {showChatModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md max-h-[90vh] flex flex-col">
-            <CardHeader className="border-b pb-4">
-              <CardTitle className="text-xl">Чат по заявке #{currentChatRequestId}</CardTitle>
-              <CardDescription>Общайтесь с исполнителем или администратором</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-3">
-              {chatMessages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.sender === "Вы" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[75%] p-3 rounded-xl shadow-sm ${
-                      msg.sender === "Вы"
-                        ? "bg-violet-600 text-white rounded-br-none"
-                        : "bg-gray-200 text-gray-800 rounded-bl-none"
-                    }`}
-                  >
-                    <p className="text-sm">{msg.text}</p>
-                    <span className={`block text-xs mt-1 ${msg.sender === "Вы" ? "text-violet-100" : "text-gray-500"}`}>
-                      {msg.time}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              <div ref={chatMessagesEndRef} /> {/* For auto-scrolling */}
-            </CardContent>
-            <div className="p-4 flex space-x-2 border-t pt-4">
-              <Input
-                placeholder="Введите сообщение..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") handleSendMessage()
-                }}
-                className="flex-1"
-              />
-              <Button onClick={handleSendMessage} className="bg-violet-600 hover:bg-violet-700">
-                Отправить
-              </Button>
-              <Button variant="outline" onClick={() => setShowChatModal(false)}>
-                Закрыть
-              </Button>
-            </div>
           </Card>
         </div>
       )}
