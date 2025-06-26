@@ -50,10 +50,6 @@ export default function ClientDashboard() {
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [ratingValue, setRatingValue] = useState(0)
   const [requestToRate, setRequestToRate] = useState<any>(null)
-  const [showChatModal, setShowChatModal] = useState(false)
-  const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; time: string }[]>([])
-  const [chatInput, setChatInput] = useState("")
-  const [currentChatRequestId, setCurrentChatRequestId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
@@ -66,6 +62,64 @@ export default function ClientDashboard() {
   const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [comment, setComment] = useState("");
+  const [comments, setComments] = useState([]);
+
+  const fetchComments = async () => {
+    if (!selectedRequest?.id) return;
+    try {
+      const res = await api.get(`/comments/request/${selectedRequest.id}`);
+      setComments(res.data);
+    } catch (err) {
+      console.error("Ошибка при загрузке комментариев", err);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Удалить комментарий?")) return;
+    try {
+      await api.delete(`/comments/${id}`);
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при удалении", err);
+    }
+  };
+
+  const handleEdit = (id: number, oldComment: string) => {
+    const newComment = prompt("Изменить комментарий:", oldComment);
+    if (newComment && newComment.trim()) {
+      api.put(`/comments/${id}`, {
+        comment: newComment.trim(),
+        request_id: selectedRequest.id,
+      })
+          .then(() => fetchComments())
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    }
+  };
+
+  useEffect(() => {
+    if (selectedRequest?.id) {
+      fetchComments();
+    }
+  }, [selectedRequest]);
+
+  const handleSend = async () => {
+    if (!comment.trim()) return;
+
+    try {
+      await api.post(
+          `/comments`,
+          {
+            request_id: selectedRequest.id,
+            comment,
+          }
+      );
+      setComment("");
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при отправке комментария", err);
+    }
+  };
 
   const handleButtonClick = () => {
     fileInputRef.current?.click();
@@ -88,7 +142,6 @@ export default function ClientDashboard() {
     event.target.value = '';
   };
 
-  const chatMessagesEndRef = useRef<HTMLDivElement>(null)
   const [requests, setRequests] = useState<any[]>([])
 
   const fetchRequests = async () => {
@@ -131,11 +184,6 @@ export default function ClientDashboard() {
           })
     }
   }, [selectedRequest?.category_id])
-  useEffect(() => {
-    if (chatMessagesEndRef.current) {
-      chatMessagesEndRef.current.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [chatMessages])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -469,24 +517,6 @@ export default function ClientDashboard() {
                             </div>
                           </div>
                           <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setShowChatModal(true)
-                                setCurrentChatRequestId(request.id) // Set current chat request ID
-                                setChatMessages([
-                                  {
-                                    sender: "Система",
-                                    text: `Чат по заявке #${request.id} открыт.`,
-                                    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                                  },
-                                ])
-                              }}
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                            </Button>
                             {request.status === "completed" && !request.rating && (
                               <Button
                                 variant="outline"
@@ -847,27 +877,45 @@ export default function ClientDashboard() {
                 </div>
               )}
 
+              {/* Секция для комментариев */}
+              <Card className="mt-2">
+                <CardContent className="p-4">
+                  <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
+                  {comments.map((c: any) => (
+                      <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                        <div className="flex justify-between items-center">
+                          <div className="text-sm text-gray-800 font-medium">{c.user.full_name}</div>
+                          <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
+                        </div>
+                        <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+                        <div className="mt-2 flex gap-3 text-xs text-blue-500">
+                          <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">
+                            ✏️ Изменить
+                          </button>
+                          <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">
+                            🗑 Удалить
+                          </button>
+                        </div>
+                      </div>
+                  ))}
+                  <div className="mt-3 flex items-center space-x-2">
+                    <input
+                        type="text"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Написать комментарий..."
+                        className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <Button size="sm" onClick={handleSend}>
+                      Отправить
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setSelectedRequest(null)}>
                   Закрыть
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowChatModal(true)
-                    setCurrentChatRequestId(selectedRequest.id) // Set current chat request ID
-                    setChatMessages([
-                      {
-                        sender: "Система",
-                        text: `Чат по заявке #${selectedRequest.id} открыт.`,
-                        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                      },
-                    ])
-                    setSelectedRequest(null)
-                  }}
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Чат
                 </Button>
                 {selectedRequest.status === "completed" && !selectedRequest.rating && (
                   <Button
@@ -954,54 +1002,6 @@ export default function ClientDashboard() {
                 Отмена
               </Button>
             </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Chat Modal */}
-      {showChatModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md max-h-[90vh] flex flex-col">
-            <CardHeader className="border-b pb-4">
-              <CardTitle className="text-xl">Чат по заявке #{currentChatRequestId}</CardTitle>
-              <CardDescription>Общайтесь с исполнителем или администратором</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-3">
-              {chatMessages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.sender === "Вы" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[75%] p-3 rounded-xl shadow-sm ${
-                      msg.sender === "Вы"
-                        ? "bg-violet-600 text-white rounded-br-none"
-                        : "bg-gray-200 text-gray-800 rounded-bl-none"
-                    }`}
-                  >
-                    <p className="text-sm">{msg.text}</p>
-                    <span className={`block text-xs mt-1 ${msg.sender === "Вы" ? "text-violet-100" : "text-gray-500"}`}>
-                      {msg.time}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              <div ref={chatMessagesEndRef} /> {/* For auto-scrolling */}
-            </CardContent>
-            <div className="p-4 flex space-x-2 border-t pt-4">
-              <Input
-                placeholder="Введите сообщение..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") handleSendMessage()
-                }}
-                className="flex-1"
-              />
-              <Button onClick={handleSendMessage} className="bg-violet-600 hover:bg-violet-700">
-                Отправить
-              </Button>
-              <Button variant="outline" onClick={() => setShowChatModal(false)}>
-                Закрыть
-              </Button>
-            </div>
           </Card>
         </div>
       )}
