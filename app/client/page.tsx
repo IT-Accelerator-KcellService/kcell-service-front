@@ -64,6 +64,7 @@ export default function ClientDashboard() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const fetchComments = async () => {
     if (!selectedRequest?.id) return;
@@ -862,19 +863,39 @@ export default function ClientDashboard() {
               </div>
 
               {selectedRequest.photos && selectedRequest.photos.length > 0 && (
-                <div>
-                  <Label>Фотографии</Label>
-                  <div className="flex space-x-2 mt-2">
-                    {selectedRequest.photos.map((photo: any, index: number) => (
-                      <img
-                        key={index}
-                        src={photo.photo_url || "/placeholder.svg"}
-                        alt={`Photo ${index + 1}`}
-                        className="w-24 h-24 object-cover rounded-lg"
-                      />
-                    ))}
+                  <div>
+                    {selectedRequest.photos && selectedRequest.photos.length > 0 && (
+                        <div>
+                          <Label>Фотографии</Label>
+                          <div className="flex space-x-2 mt-2">
+                            {selectedRequest.photos.map((photo: any, index: number) => (
+                                <img
+                                    key={index}
+                                    src={photo.photo_url || "/placeholder.svg"}
+                                    alt={`Photo ${index + 1}`}
+                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer"
+                                    onClick={() => setSelectedPhoto(photo.photo_url)}
+                                />
+                            ))}
+                          </div>
+                        </div>
+                    )}
+
+                    {/* Модальное окно */}
+                    {selectedPhoto && (
+                        <div
+                            className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+                            onClick={() => setSelectedPhoto(null)} // Закрытие при клике
+                        >
+                          <img
+                              src={selectedPhoto}
+                              alt="Увеличенное фото"
+                              className="max-w-full max-h-full rounded-lg"
+                              onClick={(e) => e.stopPropagation()} // Не закрывать при клике по фото
+                          />
+                        </div>
+                    )}
                   </div>
-                </div>
               )}
 
               {/* Секция для комментариев */}
