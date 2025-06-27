@@ -133,7 +133,8 @@ export default function DepartmentHeadDashboard() {
         const response = await api.get("/users/me"); // обязательный параметр для cookie
         const user = response.data;
 
-        if (!user || user.role !== "client") {
+        if (!user || user.role !== "department-head") {
+          console.log(response)
           window.location.href = '/login';
         } else {
           setIsLoggedIn(true);

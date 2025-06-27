@@ -28,7 +28,7 @@ import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
 import axios from "axios";
 import {Request} from "@/app/client/page";
-import MapView from "@/app/map/MapView";
+import dynamic from "next/dynamic";
 
 const API_BASE_URL = "http://localhost:8080/api"
 
@@ -40,8 +40,14 @@ const api = axios.create({
   }
 })
 
+const MapView = dynamic(() => import('@/app/map/MapView'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
+})
+
 export default function ExecutorDashboard() {
   const [assignedRequests, setAssignedRequests] = useState<any>([])
+  const [myRequests, setMyRequests] = useState<any>([])
   const [completedRequests, setCompletedRequests] = useState<any>([])
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [showMapModal, setShowMapModal] = useState(false);
@@ -66,7 +72,75 @@ export default function ExecutorDashboard() {
   const [requestLocation, setRequestLocation] = useState("")
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [description, setDescription] = useState("");
+  const [comment, setComment] = useState("");
+  const [comments, setComments] = useState([]);
+  const [completedRequestComment, setCompletedRequestComment] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all")
+  const [filterType, setFilterType] = useState("all")
 
+  const filteredRequests = myRequests.filter((request:any) => {
+    const statusMatch = filterStatus === "all" || request.status === filterStatus
+    const requestType = request.request_type
+    const typeMatch = filterType === "all" || requestType === filterType
+    return statusMatch && typeMatch
+  })
+
+
+  const fetchComments = async () => {
+    if (!selectedTaskDetails?.id) return;
+    try {
+      const res = await api.get(`/comments/request/${selectedTaskDetails.id}`);
+      setComments(res.data);
+    } catch (err) {
+      console.error("Ошибка при загрузке комментариев", err);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Удалить комментарий?")) return;
+    try {
+      await api.delete(`/comments/${id}`);
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при удалении", err);
+    }
+  };
+
+  const handleEdit = (id: number, oldComment: string) => {
+    const newComment = prompt("Изменить комментарий:", oldComment);
+    if (newComment && newComment.trim()) {
+      api.put(`/comments/${id}`, {
+        comment: newComment.trim(),
+        request_id: selectedTaskDetails.id,
+      })
+          .then(() => fetchComments())
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    }
+  };
+
+  useEffect(() => {
+    if (selectedTaskDetails?.id) {
+      fetchComments();
+    }
+  }, [selectedTaskDetails]);
+
+  const handleSend = async () => {
+    if (!comment.trim()) return;
+
+    try {
+      await api.post(
+          `/comments`,
+          {
+            request_id: selectedTaskDetails.id,
+            comment,
+          }
+      );
+      setComment("");
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при отправке комментария", err);
+    }
+  };
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -239,6 +313,7 @@ export default function ExecutorDashboard() {
       const response = await api.get('requests/executor/me')
       setCompletedRequests(response.data.completedRequests);
       setAssignedRequests(response.data.assignedRequests);
+      setMyRequests(response.data.myRequests);
 
     } catch (error) {
       console.error("Failed to fetch requests:", error)
@@ -286,18 +361,42 @@ export default function ExecutorDashboard() {
     }
   }
 
-  const handleStartTask = (taskId: string) => {
-    setAssignedRequests((prevTasks:any) =>
-      prevTasks.map((task:any) => (task.id === taskId ? { ...task, status: "execution" } : task)),
+  const handleStartTask = async (taskId: string) => {
+    await api.patch(`/requests/${taskId}/execute`)
+    setAssignedRequests((prevTasks: any) =>
+        prevTasks.map((task: any) => (task.id === taskId ? {...task, status: "execution"} : task)),
     )
     console.log("Starting task:", taskId)
   }
 
-  const handleCompleteTask = (taskId: string) => {
-    setAssignedRequests((prevTasks:any) => {
-      const taskToComplete = prevTasks.find((task:any) => task.id === taskId);
+  const handleCompleteTask = async (taskId: string) => {
+    const response: any = await api.patch(`/requests/${taskId}/complete`, {
+      comment: completedRequestComment
+    })
+    if (photos.length > 0) {
+      const formData = new FormData();
+      photos.forEach((photo) => {
+        formData.append('photos', photo);
+      });
+      formData.append('type', 'after');
+
+      try {
+        await axios.post(`${API_BASE_URL}/request-photos/${response.data.id}/photos`, formData, {
+          withCredentials: true
+        });
+
+        console.log("Фотографии успешно загружены");
+      } catch (photoUploadError) {
+        await api.delete(`/requests/${response.data.id}`);
+        console.error("Ошибка при загрузке фото. Заявка удалена.");
+        alert("Ошибка при загрузке фото. Заявка не была создана.");
+        return;
+      }
+    }
+    setAssignedRequests((prevTasks: any) => {
+      const taskToComplete = prevTasks.find((task: any) => task.id === taskId);
       if (taskToComplete) {
-        setCompletedRequests((prevCompleted:any) => [
+        setCompletedRequests((prevCompleted: any) => [
           {
             ...taskToComplete,
             status: "completed",
@@ -307,7 +406,7 @@ export default function ExecutorDashboard() {
           },
           ...prevCompleted,
         ]);
-        return prevTasks.filter((task:any) => task.id !== taskId);
+        return prevTasks.filter((task: any) => task.id !== taskId);
       }
       return prevTasks;
     });
@@ -406,6 +505,7 @@ export default function ExecutorDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <TabsList>
                   <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
+                  <TabsTrigger value="myTasks">Мои задачи</TabsTrigger>
                   <TabsTrigger value="completed">Завершенные</TabsTrigger>
                   <TabsTrigger value="statistics">Статистика</TabsTrigger>
                 </TabsList>
@@ -559,6 +659,86 @@ export default function ExecutorDashboard() {
                         </div>
                       </CardContent>
                     </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="myTasks">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <Button variant="outline" size="sm">
+                      <Filter className="w-4 h-4 mr-2" />
+                      Фильтр
+                    </Button>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Статус" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все</SelectItem>
+                        <SelectItem value="in_progress">В обработке</SelectItem>
+                        <SelectItem value="execution">Исполнение</SelectItem>
+                        <SelectItem value="completed">Завершено</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Тип заявки" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все</SelectItem>
+                        <SelectItem value="normal">Обычная</SelectItem>
+                        <SelectItem value="urgent">Экстренная</SelectItem>
+                        <SelectItem value="planed">Плановая</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {filteredRequests.map((request: any) => (
+                      <Card
+                          key={request.id}
+                          className="hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => setSelectedTaskDetails(request)}
+                      >
+                        <CardContent className="p-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Badge className={getTypeColor(request.request_type)}>{request.request_type}</Badge>
+                                <Badge variant="outline" className={getStatusColor(request.status)}>
+                                  {request.status}
+                                </Badge>
+                                <span className="text-sm text-gray-500">#{request.id}</span>
+                              </div>
+                              <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
+                              <div className="flex items-center text-sm text-gray-600 space-x-4">
+                                <div className="flex items-center">
+                                  <MapPin className="w-4 h-4 mr-1" />
+                                  Локация: {request.location_detail}
+                                </div>
+                                <div className="flex items-center">
+                                  <Clock className="w-4 h-4 mr-1" />Время:
+                                  {new Date(request.created_date).toLocaleString("ru-RU", {
+                                    day: "2-digit",
+                                    month: "long",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit"
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {request.executor && (
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm text-gray-600">
+                                  Исполнитель: <span className="font-medium">{request.executor}</span>
+                                </div>
+                              </div>
+                          )}
+                        </CardContent>
+                      </Card>
                   ))}
                 </div>
               </TabsContent>
@@ -760,7 +940,13 @@ export default function ExecutorDashboard() {
 
               <div>
                 <label className="block text-sm font-medium mb-2">Комментарий к выполненной работе</label>
-                <Textarea placeholder="Опишите выполненную работу..." className="min-h-[100px]" />
+                <Textarea
+                    placeholder="Опишите выполненную работу..."
+                    className="min-h-[100px]"
+                    value={completedRequestComment}
+                    onChange={(e) => setCompletedRequestComment(e.target.value)}
+                    required={true}
+                />
               </div>
 
               <div>
@@ -1074,6 +1260,42 @@ export default function ExecutorDashboard() {
                           />
                         </div>
                     )}
+
+                    {/* Секция для комментариев */}
+                    <Card className="mt-2">
+                      <CardContent className="p-4">
+                        <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
+                        {comments.map((c: any) => (
+                            <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                              <div className="flex justify-between items-center">
+                                <div className="text-sm text-gray-800 font-medium">{c.user.full_name}</div>
+                                <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
+                              </div>
+                              <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+                              <div className="mt-2 flex gap-3 text-xs text-blue-500">
+                                <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">
+                                  ✏️ Изменить
+                                </button>
+                                <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">
+                                  🗑 Удалить
+                                </button>
+                              </div>
+                            </div>
+                        ))}
+                        <div className="mt-3 flex items-center space-x-2">
+                          <input
+                              type="text"
+                              value={comment}
+                              onChange={(e) => setComment(e.target.value)}
+                              placeholder="Написать комментарий..."
+                              className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <Button size="sm" onClick={handleSend}>
+                            Отправить
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
               )}
               <div className="flex justify-end mt-6">
