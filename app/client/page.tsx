@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Star,
-  Filter,
+  Filter, Loader2,
 } from "lucide-react"
 import axios from 'axios'
 import dynamic from "next/dynamic";
@@ -88,12 +88,34 @@ export default function ClientDashboard() {
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [showProfile, setShowProfile] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [requestDescription,setrequestDescription]=useState("");
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await api.get("/users/me"); // обязательный параметр для cookie
+        const user = response.data;
+
+        if (!user || user.role !== "client") {
+          window.location.href = '/login';
+        } else {
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error("Ошибка при проверке авторизации", error);
+        window.location.href = '/login'
+      }
+    };
+
+    checkAuth();
+  }, []);
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -224,8 +246,6 @@ export default function ClientDashboard() {
     try {
       const response = await api.get('/requests/user')
       setRequests(response.data)
-
-      // Проверяем оценки для завершенных заявок
       response.data.forEach((request: Request) => {
         if (request.status === "completed") {
           checkUserRating(request.id);
@@ -344,15 +364,24 @@ export default function ClientDashboard() {
   };
 
   const handleCreateRequest = async () => {
-    if (!selectedCategoryId) {
-      alert("Пожалуйста, выберите категорию услуги")
-      return
+    if (
+        !requestType ||
+        !requestTitle.trim() ||
+        !requestLocation.trim() ||
+        !requestDescription.trim() ||
+        !selectedCategoryId
+    ) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
     }
+
+    setIsSubmitting(true);
+    setFormErrors(null);
 
     try {
       const response = await api.post('/requests', {
         title: requestTitle,
-        description: "fix light and clear",
+        description: requestDescription,
         office_id: 1,
         request_type: requestType === "urgent" ? "urgent" : "normal",
         location: requestLocation,
@@ -376,11 +405,8 @@ export default function ClientDashboard() {
           await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true
           });
-
-          console.log("Фотографии успешно загружены");
         } catch (photoUploadError) {
           await api.delete(`/requests/${requestId}`);
-          console.error("Ошибка при загрузке фото. Заявка удалена.");
           alert("Ошибка при загрузке фото. Заявка не была создана.");
           return;
         }
@@ -391,10 +417,11 @@ export default function ClientDashboard() {
       setRequestTitle("")
       setRequestLocation("")
       setRequestLocationDetails("")
-      alert("Заявка успешно создана!")
     } catch (error) {
       console.error("Failed to create request:", error)
-      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+    }finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -431,7 +458,7 @@ export default function ClientDashboard() {
     try {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
-      window.location.href = "/"
+      window.location.href = "/login"
     } catch (error) {
       console.error("Logout failed:", error)
     }
@@ -767,8 +794,8 @@ export default function ClientDashboard() {
 
         {/* Create Request Modal */}
         {showCreateRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowCreateRequest(false)}>
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать заявку</CardTitle>
                   <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
@@ -827,7 +854,7 @@ export default function ClientDashboard() {
 
                   <div>
                     <Label>Описание проблемы</Label>
-                    <Textarea placeholder="Опишите проблему подробно..." className="min-h-[100px]" />
+                    <Textarea placeholder="Опишите проблему подробно..." className="min-h-[100px]" value={requestDescription} onChange={e => setrequestDescription(e.target.value)} />
                   </div>
 
                   <div>
@@ -867,10 +894,21 @@ export default function ClientDashboard() {
                       )}
                     </div>
                   </div>
-
+                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                   <div className="flex space-x-4">
-                    <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700">
-                      Отправить заявку
+                    <Button
+                        onClick={handleCreateRequest}
+                        className="flex-1 bg-violet-600 hover:bg-violet-700"
+                        disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Отправка...
+                          </>
+                      ) : (
+                          "Отправить заявку"
+                      )}
                     </Button>
                     <Button variant="outline" onClick={() => setShowCreateRequest(false)} className="flex-1">
                       Отмена
@@ -883,8 +921,8 @@ export default function ClientDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedRequest(false)}>
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
                   <CardDescription>Подробная информация о вашей заявке</CardDescription>
@@ -985,8 +1023,7 @@ export default function ClientDashboard() {
                     <p className="text-sm">{selectedRequest.description}</p>
                   </div>
 
-              {selectedRequest.photos && selectedRequest.photos.length > 0 && (
-                  <div>
+
                     {selectedRequest.photos && selectedRequest.photos.length > 0 && (
                         <div>
                           <Label>Фотографии</Label>
@@ -1018,8 +1055,6 @@ export default function ClientDashboard() {
                           />
                         </div>
                     )}
-                  </div>
-              )}
 
                   {/* Секция для комментариев */}
                   <Card className="mt-2">
@@ -1110,8 +1145,8 @@ export default function ClientDashboard() {
       )}
       {/* Rating Modal */}
       {showRatingModal && requestToRate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowRatingModal(false)} >
+          <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <CardTitle>Оценить исполнителя</CardTitle>
               <CardDescription>Пожалуйста, оцените работу по заявке #{requestToRate.id}</CardDescription>
