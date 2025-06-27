@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Star,
-  Filter,
+  Filter, Loader2,
 } from "lucide-react"
 import axios from 'axios'
 import dynamic from "next/dynamic";
@@ -88,9 +88,10 @@ export default function ClientDashboard() {
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [showProfile, setShowProfile] = useState(false)
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-
+  const [requestDescription,setrequestDescription]=useState("");
   const fetchComments = async () => {
     if (!selectedRequest?.id) return;
     try {
@@ -292,10 +293,19 @@ export default function ClientDashboard() {
   };
 
   const handleCreateRequest = async () => {
-    if (!selectedCategoryId) {
-      alert("Пожалуйста, выберите категорию услуги")
-      return
+    if (
+        !requestType ||
+        !requestTitle.trim() ||
+        !requestLocation.trim() ||
+        !requestDescription.trim() ||
+        !selectedCategoryId
+    ) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
     }
+
+    setIsSubmitting(true);
+    setFormErrors(null);
 
     try {
       const response = await api.post('/requests', {
@@ -324,11 +334,8 @@ export default function ClientDashboard() {
           await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true
           });
-
-          console.log("Фотографии успешно загружены");
         } catch (photoUploadError) {
           await api.delete(`/requests/${requestId}`);
-          console.error("Ошибка при загрузке фото. Заявка удалена.");
           alert("Ошибка при загрузке фото. Заявка не была создана.");
           return;
         }
@@ -342,7 +349,9 @@ export default function ClientDashboard() {
       alert("Заявка успешно создана!")
     } catch (error) {
       console.error("Failed to create request:", error)
-      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+    }finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -743,7 +752,7 @@ export default function ClientDashboard() {
 
                   <div>
                     <Label>Описание проблемы</Label>
-                    <Textarea placeholder="Опишите проблему подробно..." className="min-h-[100px]" />
+                    <Textarea placeholder="Опишите проблему подробно..." className="min-h-[100px]" value={requestDescription} onChange={e => setrequestDescription(e.target.value)} />
                   </div>
 
                   <div>
@@ -783,10 +792,21 @@ export default function ClientDashboard() {
                       )}
                     </div>
                   </div>
-
+                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                   <div className="flex space-x-4">
-                    <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700">
-                      Отправить заявку
+                    <Button
+                        onClick={handleCreateRequest}
+                        className="flex-1 bg-violet-600 hover:bg-violet-700"
+                        disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Отправка...
+                          </>
+                      ) : (
+                          "Отправить заявку"
+                      )}
                     </Button>
                     <Button variant="outline" onClick={() => setShowCreateRequest(false)} className="flex-1">
                       Отмена

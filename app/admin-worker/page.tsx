@@ -26,7 +26,7 @@ import {
   Plus,
   Camera,
   Calendar,
-  MapPin,
+  MapPin, Loader2,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
@@ -109,17 +109,29 @@ export default function AdminWorkerDashboard() {
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<any[]>([]);
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
 
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files).slice(0, 3 - photoPreviews.length);
-      const newPreviews = files.map(file => URL.createObjectURL(file));
-      setPhotoPreviews([...photoPreviews, ...newPreviews]);
-    }
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const fileArray = Array.from(files);
+    const remainingSlots = 3 - photoPreviews.length;
+
+    const selectedFiles = fileArray.slice(0, remainingSlots);
+
+    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
+
+    setPhotos((prev) => [...prev, ...selectedFiles]);
+    setPhotoPreviews((prev) => [...prev, ...previewUrls]);
+
+    event.target.value = '';
   };
 
   const fetchRequests = async () => {
@@ -234,8 +246,25 @@ export default function AdminWorkerDashboard() {
     }
   };
   const handleCreateNewRequest = async () => {
+    // Валидация
+    if (
+        !newRequestType ||
+        !newRequestTitle.trim() ||
+        !newRequestLocation.trim() ||
+        !newRequestDescription.trim() ||
+        !newRequestCategory ||
+        (newRequestType === "planned" && !newRequestPlannedDate)
+    ) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFormErrors(null);
+
     try {
-      await api.post('/requests', {
+      // Создание заявки
+      const response = await api.post('/requests', {
         title: newRequestTitle,
         description: newRequestDescription,
         request_type: newRequestType,
@@ -244,23 +273,55 @@ export default function AdminWorkerDashboard() {
         category_id: serviceCategories.find(c => c.name === newRequestCategory)?.id,
         status: "awaiting_assignment",
         complexity: newRequestComplexity,
-        sla: newRequestSLA
+        sla: newRequestSLA,
+        planned_date: newRequestPlannedDate || null,
       });
+
+      const requestId = response.data.id;
+
+      // Загрузка фото (если есть)
+      if (photos.length > 0) {
+        const formData = new FormData();
+        photos.forEach((photo) => {
+          formData.append('photos', photo);
+        });
+        formData.append('type', 'before');
+
+        try {
+          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+            withCredentials: true,
+          });
+          console.log("Фотографии успешно загружены");
+        } catch (photoUploadError) {
+          // Откат заявки, если фото не загрузились
+          await api.delete(`/requests/${requestId}`);
+          console.error("Ошибка при загрузке фото. Заявка удалена.");
+          alert("Ошибка при загрузке фото. Заявка не была создана.");
+          return;
+        }
+      }
+
       fetchRequests();
       setShowCreateRequestModal(false);
       setNewRequestTitle("");
       setNewRequestDescription("");
       setNewRequestLocation("");
       setNewRequestType("normal");
-      setNewRequestLocationDetails("")
+      setNewRequestLocationDetails("");
       setNewRequestCategory("");
       setNewRequestPlannedDate("");
       setNewRequestComplexity("simple");
       setNewRequestSLA("1h");
+      setPhotos([]);
+      setPhotoPreviews([]);
     } catch (error) {
-      console.error("Failed to create request:", error);
+      console.error("Ошибка при создании заявки:", error);
+      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
   const checkUserRating = async (requestId: number) => {
     try {
       const response = await api.get(`/ratings/user/${requestId}`);
@@ -1187,21 +1248,21 @@ export default function AdminWorkerDashboard() {
                       )}
                     </div>
                   </div>
-
+                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                   <div className="flex space-x-4">
                     <Button
                         onClick={handleCreateNewRequest}
                         className="flex-1 bg-violet-600 hover:bg-violet-700"
-                        disabled={
-                            !newRequestType ||
-                            !newRequestTitle ||
-                            !newRequestLocation ||
-                            !newRequestDescription ||
-                            !newRequestCategory ||
-                            (newRequestType === "planned" && !newRequestPlannedDate)
-                        }
+                        disabled={isSubmitting}
                     >
-                      Отправить заявку
+                      {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Отправка...
+                          </>
+                      ) : (
+                          "Отправить заявку"
+                      )}
                     </Button>
                     <Button
                         variant="outline"
