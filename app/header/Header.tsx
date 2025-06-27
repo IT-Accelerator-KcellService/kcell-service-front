@@ -17,7 +17,7 @@ interface HeaderProps {
     role?: string;
 }
 
-const API_BASE_URL = "http://localhost:8080/api"
+const API_BASE_URL = "https://kcell-service.onrender.com/api"
 
 const api = axios.create({
     baseURL: API_BASE_URL,

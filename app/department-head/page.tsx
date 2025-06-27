@@ -36,7 +36,7 @@ import UserProfile from "@/app/client/UserProfile"
 import axios from 'axios'
 import dynamic from "next/dynamic"
 
-const API_BASE_URL = "http://localhost:8080/api"
+const API_BASE_URL = "https://kcell-service.onrender.com/api"
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -133,7 +133,8 @@ export default function DepartmentHeadDashboard() {
         const response = await api.get("/users/me"); // обязательный параметр для cookie
         const user = response.data;
 
-        if (!user || user.role !== "client") {
+        if (!user || user.role !== "department-head") {
+          console.log(response)
           window.location.href = '/login';
         } else {
           setIsLoggedIn(true);

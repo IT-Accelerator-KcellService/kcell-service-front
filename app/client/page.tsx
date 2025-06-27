@@ -24,7 +24,7 @@ import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
 
-const API_BASE_URL = "http://localhost:8080/api"
+const API_BASE_URL = "https://kcell-service.onrender.com/api"
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -470,7 +470,7 @@ export default function ClientDashboard() {
         <Header
             setShowProfile={setShowProfile}
             handleLogout={handleLogout}
-            notificationCount={3}
+            notificationCount={notifications.length}
             role="Клиент"
         />
         <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
