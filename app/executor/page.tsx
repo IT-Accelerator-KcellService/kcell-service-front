@@ -24,161 +24,236 @@ import {
   MapPin,
   Calendar,
 } from "lucide-react"
+import Header from "@/app/header/Header";
+import UserProfile from "@/app/client/UserProfile";
+import axios from "axios";
+import {Request} from "@/app/client/page";
+import MapView from "@/app/map/MapView";
+
+const API_BASE_URL = "http://localhost:8080/api"
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+})
 
 export default function ExecutorDashboard() {
+  const [assignedRequests, setAssignedRequests] = useState<any>([])
+  const [completedRequests, setCompletedRequests] = useState<any>([])
+  const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
+  const [showMapModal, setShowMapModal] = useState(false);
   const [activeTab, setActiveTab] = useState("tasks")
-  const [photos, setPhotos] = useState<string[]>([])
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null)
-  const [selectedTaskDetails, setSelectedTaskDetails] = useState<any>(null) // New state for task details modal
-
-  // State for creating new requests
+  const [selectedTaskDetails, setSelectedTaskDetails] = useState<any>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
   const [newRequestType, setNewRequestType] = useState("")
   const [newRequestTitle, setNewRequestTitle] = useState("")
   const [newRequestLocation, setNewRequestLocation] = useState("")
-  const [newRequestCategory, setNewRequestCategory] = useState("Клининг") // Default category for new requests
-  const [newRequestComplexity, setNewRequestComplexity] = useState("Простая") // Default complexity for new requests
-  const [newRequestSLA, setNewRequestSLA] = useState("4 часа") // Default SLA for new requests
-  const [newRequestDescription, setNewRequestDescription] = useState("")
-  const [newRequestPhotos, setNewRequestPhotos] = useState<string[]>([])
-  const [newRequestPlannedDate, setNewRequestPlannedDate] = useState("2024-02-01") // Default planned date for new requests
+  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
+  const [showProfile, setShowProfile] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(true)
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedNotification, setSelectedNotification] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [requestLocation, setRequestLocation] = useState("")
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [description, setDescription] = useState("");
 
-  // State for chat
-  const [showChatModal, setShowChatModal] = useState(false)
-  const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; time: string }[]>([])
-  const [chatInput, setChatInput] = useState("")
-  const [currentChatRequestId, setCurrentChatRequestId] = useState<string | null>(null)
-  const chatMessagesEndRef = useRef<HTMLDivElement>(null)
 
-  const [assignedTasks, setAssignedTasks] = useState([
-    {
-      id: "REQ-008",
-      type: "Экстренная",
-      title: "Устранение протечки в серверной",
-      location: "Серверная, Алимжанова 51",
-      deadline: "2024-01-16 14:00",
-      priority: 1,
-      client: "Системный администратор",
-      description: "Обнаружена протечка воды в серверной комнате, требуется немедленное устранение",
-      status: "Назначена",
-      estimatedTime: "2 часа",
-      category: "IT поддержка", // Added for consistency
-      complexity: "Сложная", // Added for consistency
-      sla: "1 час", // Added for consistency
-      plannedDate: null, // Added for consistency
-      photos: [],
-    },
-    {
-      id: "REQ-009",
-      type: "Обычная",
-      title: "Замена лампочек в коридоре",
-      location: "Коридор 3 этаж, Тимирязева 2Г",
-      deadline: "2024-01-16 17:00",
-      priority: 2,
-      client: "Петрова М.А.",
-      description: "Не работают 3 лампочки в коридоре третьего этажа",
-      status: "В работе",
-      estimatedTime: "1 час",
-      category: "Электрика", // Added for consistency
-      complexity: "Простая", // Added for consistency
-      sla: "4 часа", // Added for consistency
-      plannedDate: null, // Added for consistency
-      photos: ["/placeholder.svg?height=100&width=100&text=Lamp1"],
-    },
-    {
-      id: "REQ-010",
-      type: "Плановая",
-      title: "Техническое обслуживание кондиционеров",
-      location: "Офисы 301-305, Тимирязева 2Г",
-      deadline: "2024-01-17 12:00",
-      priority: 3,
-      client: "Административный отдел",
-      description: "Плановое ТО кондиционеров в офисах 301-305",
-      status: "Запланирована",
-      estimatedTime: "4 часа",
-      category: "Техническое обслуживание", // Added for consistency
-      complexity: "Средняя", // Added for consistency
-      sla: "1 неделя", // Added for consistency
-      plannedDate: "2024-01-17", // Added for consistency
-      photos: [],
-    },
-  ])
-
-  const [completedTasks, setCompletedTasks] = useState([
-    {
-      id: "REQ-007",
-      type: "Обычная",
-      title: "Ремонт принтера",
-      location: "Офис 205",
-      completedDate: "2024-01-15",
-      rating: 5,
-      client: "Иванов И.И.",
-      category: "IT поддержка",
-      complexity: "Средняя",
-      sla: "8 часов",
-      plannedDate: null,
-      photos: ["/placeholder.svg?height=100&width=100&text=PrinterFix"],
-    },
-    {
-      id: "REQ-006",
-      type: "Экстренная",
-      title: "Устранение короткого замыкания",
-      location: "Электрощитовая",
-      completedDate: "2024-01-14",
-      rating: 4,
-      client: "Безопасность",
-      category: "Электрика",
-      complexity: "Сложная",
-      sla: "1 час",
-      plannedDate: null,
-      photos: [],
-    },
-  ])
-
-  // Auto-scroll to the bottom of the chat when messages change
   useEffect(() => {
-    if (chatMessagesEndRef.current) {
-      chatMessagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    if (isLoggedIn) {
+      fetchCategories()
+      fetchNotifications()
+      fetchRequests()
     }
-  }, [chatMessages])
+  }, [isLoggedIn])
 
-  // Set default values for new request modal based on type
-  useEffect(() => {
-    if (newRequestType === "Плановая") {
-      setNewRequestCategory("Техническое обслуживание")
-      setNewRequestComplexity("Средняя")
-      setNewRequestSLA("1 неделя")
-      // Set a default planned date for next month (simple simulation)
-      const today = new Date()
-      const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
-      setNewRequestPlannedDate(nextMonth.toISOString().slice(0, 10))
-    } else if (newRequestType === "Экстренная") {
-      setNewRequestCategory("IT поддержка") // Example default
-      setNewRequestComplexity("Простая") // Example default
-      setNewRequestSLA("1 час") // Example default
-      setNewRequestPlannedDate("") // Clear planned date for non-planned types
-    } else if (newRequestType === "Обычная") {
-      setNewRequestCategory("Клининг") // Example default
-      setNewRequestComplexity("Простая") // Example default
-      setNewRequestSLA("4 часа") // Example default
-      setNewRequestPlannedDate("") // Clear planned date for non-planned types
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/service-categories')
+      setServiceCategories(response.data)
+      if (response.data.length > 0) {
+        setSelectedCategoryId(response.data[0].id)
+      }
+    } catch (error) {
+      console.error("Failed to fetch categories:", error)
+    }
+  }
+
+  const handleCreateRequest = async () => {
+    if (!selectedCategoryId) {
+      alert("Пожалуйста, выберите категорию услуги")
+      return
+    }
+
+    try {
+      const response = await api.post('/requests', {
+        title: newRequestTitle,
+        description: description,
+        office_id: 1,
+        request_type: newRequestType === "urgent" ? "urgent" : "normal",
+        location: requestLocation,
+        location_detail: newRequestLocation,
+        category_id: selectedCategoryId,
+        status: "in_progress"
+      })
+
+      const requestId = response.data.id;
+
+      console.log("Created request ID:", requestId);
+
+      if (photos.length > 0) {
+        const formData = new FormData();
+        photos.forEach((photo) => {
+          formData.append('photos', photo);
+        });
+        formData.append('type', 'before');
+
+        try {
+          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+            withCredentials: true
+          });
+
+          console.log("Фотографии успешно загружены");
+        } catch (photoUploadError) {
+          await api.delete(`/requests/${requestId}`);
+          console.error("Ошибка при загрузке фото. Заявка удалена.");
+          alert("Ошибка при загрузке фото. Заявка не была создана.");
+          return;
+        }
+      }
+      setAssignedRequests((prev: any) => [response.data, ...prev])
+      setShowCreateRequestModal(false)
+      setNewRequestType("")
+      setNewRequestTitle("")
+      setRequestLocation("")
+      setNewRequestLocation("")
+      setDescription("")
+      alert("Заявка успешно создана!")
+    } catch (error) {
+      console.error("Failed to create request:", error)
+      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+    }
+  }
+
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const fileArray = Array.from(files);
+    const remainingSlots = 3 - photoPreviews.length;
+
+    const selectedFiles = fileArray.slice(0, remainingSlots);
+
+    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
+
+    setPhotos((prev) => [...prev, ...selectedFiles]);
+    setPhotoPreviews((prev) => [...prev, ...previewUrls]);
+
+    event.target.value = '';
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await api.get("/notifications/me")
+      setNotifications(response.data)
+    } catch (error) {
+      console.error("Ошибка при загрузке уведомлений", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleNotificationClick = async (notification:any) => {
+    if (!notification.is_read) {
+      try {
+        const response = await api.patch(`/notifications/${notification.id}/read`)
+        const updated = response.data
+
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === updated.id ? { ...n, is_read: true } : n))
+        )
+      } catch (error) {
+        console.error("Ошибка при пометке уведомления как прочитано", error)
+      }
+    }
+
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
+  }
+
+  const getBgColor = (title:any) => {
+    if (title.includes("принята")) return "bg-blue-50"
+    if (title.includes("завершена")) return "bg-green-50"
+    if (title.includes("просрочена")) return "bg-red-50"
+    return "bg-gray-100"
+  }
+
+  const formatTimeAgo = (dateStr:any) => {
+    const date = new Date(dateStr)
+    const diff = (Date.now() - date.getTime()) / 1000
+    if (diff < 60) return "только что"
+    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
+    return `${Math.floor(diff / 86400)} дней назад`
+  }
+
+  const handleOpenCreateRequest = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude, accuracy } = position.coords;
+            setRequestLocation(`Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`);
+          },
+          (error) => {
+            console.error("Ошибка геолокации:", error);
+            setRequestLocation("Не удалось определить местоположение");
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+      );
     } else {
-      setNewRequestCategory("")
-      setNewRequestComplexity("")
-      setNewRequestSLA("")
-      setNewRequestPlannedDate("")
+      setRequestLocation("Ваш браузер не поддерживает геолокацию");
     }
-  }, [newRequestType])
+
+    setShowCreateRequestModal(true);
+  };
+
+  const fetchRequests = async () => {
+    try {
+      const response = await api.get('requests/executor/me')
+      setCompletedRequests(response.data.completedRequests);
+      setAssignedRequests(response.data.assignedRequests);
+
+    } catch (error) {
+      console.error("Failed to fetch requests:", error)
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Назначена":
+      case "assigned":
         return "bg-yellow-500"
-      case "В работе":
+      case "execution":
         return "bg-blue-500"
-      case "Запланирована":
+      case "planned":
         return "bg-purple-500"
-      case "Завершена":
+      case "completed":
         return "bg-green-500"
       default:
         return "bg-gray-500"
@@ -187,161 +262,81 @@ export default function ExecutorDashboard() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "Экстренная":
+      case "urgent":
         return "bg-red-500"
-      case "Обычная":
+      case "normal":
         return "bg-blue-500"
-      case "Плановая":
+      case "planned":
         return "bg-green-500"
       default:
         return "bg-gray-500"
     }
   }
 
-  const getPriorityColor = (priority: number) => {
-    switch (priority) {
-      case 1:
-        return "text-red-600"
-      case 2:
-        return "text-orange-600"
-      case 3:
-        return "text-green-600"
-      default:
-        return "text-gray-600"
-    }
-  }
-
   const getTaskTypeOrder = (type: string) => {
     switch (type) {
-      case "Экстренная":
+      case "urgent":
         return 1
-      case "Обычная":
+      case "normal":
         return 2
-      case "Плановая":
+      case "planned":
         return 3
       default:
-        return 99 // Fallback for unknown types
+        return 99
     }
   }
 
   const handleStartTask = (taskId: string) => {
-    setAssignedTasks((prevTasks) =>
-      prevTasks.map((task) => (task.id === taskId ? { ...task, status: "В работе" } : task)),
+    setAssignedRequests((prevTasks:any) =>
+      prevTasks.map((task:any) => (task.id === taskId ? { ...task, status: "execution" } : task)),
     )
     console.log("Starting task:", taskId)
   }
 
   const handleCompleteTask = (taskId: string) => {
-    setAssignedTasks((prevTasks) => {
-      const taskToComplete = prevTasks.find((task) => task.id === taskId)
+    setAssignedRequests((prevTasks:any) => {
+      const taskToComplete = prevTasks.find((task:any) => task.id === taskId);
       if (taskToComplete) {
-        setCompletedTasks((prevCompleted) => [
-          { ...taskToComplete, status: "Завершена", completedDate: new Date().toISOString().slice(0, 10), rating: 5 }, // Default rating for now
+        setCompletedRequests((prevCompleted:any) => [
+          {
+            ...taskToComplete,
+            status: "completed",
+            completedDate: new Date().toISOString(),
+            rating: 0,
+            plannedDate: null
+          },
           ...prevCompleted,
-        ])
-        return prevTasks.filter((task) => task.id !== taskId)
+        ]);
+        return prevTasks.filter((task:any) => task.id !== taskId);
       }
-      return prevTasks
-    })
-    setSelectedTask(null)
-    setPhotos([])
-    console.log("Completing task:", taskId)
-  }
+      return prevTasks;
+    });
 
-  const handlePhotoUpload = () => {
-    setPhotos([...photos, `/placeholder.svg?height=100&width=100&text=Photo${photos.length + 1}`])
-  }
-
-  const handleNewRequestPhotoUpload = () => {
-    setNewRequestPhotos((prev) => [...prev, `/placeholder.svg?height=100&width=100&text=Photo${prev.length + 1}`])
-  }
-
-  const handleCreateNewRequest = () => {
-    const allRequests = [...assignedTasks, ...completedTasks]
-    const newReq = {
-      id: `REQ-${(allRequests.length + 1).toString().padStart(3, "0")}`,
-      type: newRequestType,
-      title: newRequestTitle,
-      client: "Исполнителев И.И.", // Executor is the client for self-created requests
-      location: newRequestLocation,
-      date: new Date().toISOString().slice(0, 10),
-      description: newRequestDescription,
-      photos: newRequestPhotos,
-      status: "Назначена", // New requests from Executor go directly to assigned
-      category: newRequestCategory,
-      complexity: newRequestComplexity,
-      sla: newRequestSLA,
-      executor: "Исполнителев И.И.", // Assign to self for simplicity
-      estimatedTime: "N/A", // Placeholder
-      priority: 3, // Default priority
-      plannedDate: newRequestType === "Плановая" ? newRequestPlannedDate : null,
-    }
-    setAssignedTasks((prev) => [newReq, ...prev]) // Add to assigned tasks
-    setShowCreateRequestModal(false)
-    // Reset form fields
-    setNewRequestType("")
-    setNewRequestTitle("")
-    setNewRequestLocation("")
-    setNewRequestCategory("")
-    setNewRequestComplexity("")
-    setNewRequestSLA("")
-    setNewRequestDescription("")
-    setNewRequestPhotos([])
-    setNewRequestPlannedDate("")
-    console.log("New request created by Executor:", newReq)
-  }
-
-  const handleSendMessage = () => {
-    if (chatInput.trim()) {
-      const currentTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      setChatMessages((prev) => [...prev, { sender: "Вы", text: chatInput, time: currentTime }])
-      setChatInput("")
-      // Simulate a response
-      setTimeout(() => {
-        const responseTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        setChatMessages((prev) => [
-          ...prev,
-          { sender: "Система", text: "Сообщение получено. Скоро отвечу.", time: responseTime },
-        ])
-      }, 1500)
-    }
-  }
-
-  // Функция выхода из аккаунта
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    window.location.href = "/";
+    setSelectedTask(null);
+    setPhotos([]);
+    console.log("Completing task:", taskId);
   };
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout')
+      setIsLoggedIn(false)
+      window.location.href = "/"
+    } catch (error) {
+      console.error("Logout failed:", error)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold">K</span>
-              </div>
-              <span className="font-bold text-xl text-gray-900">Kcell Service</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm">
-                <Bell className="w-5 h-5" />
-                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">2</span>
-              </Button>
-              <div className="flex items-center space-x-2">
-                <User className="w-5 h-5 text-gray-600" />
-                <span className="text-sm font-medium">Исполнителев И.И.</span>
-                <Badge variant="secondary">Исполнитель</Badge>
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
-                  <LogOut className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header
+          setShowProfile={setShowProfile}
+          handleLogout={handleLogout}
+          notificationCount={notifications.length}
+          role="Клиент"
+      />
+      <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Stats */}
@@ -368,7 +363,7 @@ export default function ExecutorDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">В работе</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {assignedTasks.filter((r) => r.status === "В работе").length}
+                    {assignedRequests?.filter((r:any) => r.status === "В работе").length}
                   </p>
                 </div>
               </div>
@@ -383,7 +378,7 @@ export default function ExecutorDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Завершено сегодня</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {completedTasks.filter((r) => r.completedDate === new Date().toISOString().slice(0, 10)).length}
+                    {completedRequests?.filter((r:any) => r.completedDate === new Date().toISOString().slice(0, 10)).length}
                   </p>
                 </div>
               </div>
@@ -416,8 +411,9 @@ export default function ExecutorDashboard() {
                 </TabsList>
                 <Button
                   onClick={() => {
-                    setNewRequestType("Обычная") // Default to "Обычная" when opening
+                    setNewRequestType("normal")
                     setShowCreateRequestModal(true)
+                    handleOpenCreateRequest()
                   }}
                   className="bg-violet-600 hover:bg-violet-700"
                 >
@@ -436,17 +432,14 @@ export default function ExecutorDashboard() {
                     <Badge variant="outline">Сортировка: По приоритету</Badge>
                   </div>
 
-                  {assignedTasks
-                    .sort((a, b) => {
+                  {assignedRequests
+                    ?.sort((a: any, b: any) => {
                       const typeOrderA = getTaskTypeOrder(a.type)
                       const typeOrderB = getTaskTypeOrder(b.type)
 
-                      if (typeOrderA !== typeOrderB) {
-                        return typeOrderA - typeOrderB
-                      }
-                      return a.priority - b.priority
+                      return typeOrderA - typeOrderB
                     })
-                    .map((task) => (
+                    .map((task: any) => (
                       <Card
                         key={task.id}
                         className="hover:shadow-md transition-shadow cursor-pointer"
@@ -456,52 +449,31 @@ export default function ExecutorDashboard() {
                           <div className="flex justify-between items-start mb-4">
                             <div className="flex-1">
                               <div className="flex items-center space-x-2 mb-2">
-                                <Badge className={getTypeColor(task.type)}>{task.type}</Badge>
+                                <Badge className={getTypeColor(task.request_type)}>{task.request_type}</Badge>
                                 <Badge variant="outline" className={getStatusColor(task.status)}>
                                   {task.status}
                                 </Badge>
                                 <span className="text-sm text-gray-500">#{task.id}</span>
-                                <span className={`text-sm font-medium ${getPriorityColor(task.priority)}`}>
-                                  Приоритет {task.priority}
-                                </span>
                               </div>
                               <h3 className="text-lg font-semibold text-gray-900 mb-1">{task.title}</h3>
                               <div className="text-sm text-gray-600 space-y-1">
                                 <div className="flex items-center">
                                   <MapPin className="w-4 h-4 mr-1" />
-                                  {task.location}
+                                  {task.location_detail}
                                 </div>
                                 <div className="flex items-center">
                                   <Clock className="w-4 h-4 mr-1" />
-                                  Дедлайн: {task.deadline}
+                                  Создано: {task.created_date}
                                 </div>
                                 <div className="flex items-center">
                                   <Calendar className="w-4 h-4 mr-1" />
-                                  Время выполнения: {task.estimatedTime}
+                                  SLA: {task.sla}
                                 </div>
-                                <p>Клиент: {task.client}</p>
+                                <p>Клиент: {task.client.full_name}</p>
                               </div>
                             </div>
                             <div className="flex space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setShowChatModal(true)
-                                  setCurrentChatRequestId(task.id)
-                                  setChatMessages([
-                                    {
-                                      sender: "Система",
-                                      text: `Чат по заявке #${task.id} открыт.`,
-                                      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                                    },
-                                  ])
-                                }}
-                              >
-                                <MessageCircle className="w-4 h-4" />
-                              </Button>
-                              {task.status === "Назначена" && (
+                              {task.status === "assigned" && (
                                 <Button
                                   size="sm"
                                   className="bg-blue-600 hover:bg-blue-700"
@@ -513,7 +485,7 @@ export default function ExecutorDashboard() {
                                   Начать
                                 </Button>
                               )}
-                              {task.status === "В работе" && (
+                              {task.status === "execution" && (
                                 <Button
                                   size="sm"
                                   className="bg-green-600 hover:bg-green-700"
@@ -530,7 +502,7 @@ export default function ExecutorDashboard() {
 
                           <p className="text-sm text-gray-700 mb-3">{task.description}</p>
 
-                          {task.type === "Экстренная" && (
+                          {task.request_type === "urgent" && (
                             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                               <div className="flex items-center">
                                 <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
@@ -548,7 +520,7 @@ export default function ExecutorDashboard() {
 
               <TabsContent value="completed">
                 <div className="space-y-4">
-                  {completedTasks.map((task) => (
+                  {completedRequests?.map((task: any) => (
                     <Card
                       key={task.id}
                       className="hover:shadow-md transition-shadow cursor-pointer"
@@ -558,7 +530,7 @@ export default function ExecutorDashboard() {
                         <div className="flex justify-between items-start mb-4">
                           <div>
                             <div className="flex items-center space-x-2 mb-2">
-                              <Badge className={getTypeColor(task.type)}>{task.type}</Badge>
+                              <Badge className={getTypeColor(task.request_type)}>{task.request_type}</Badge>
                               <Badge variant="outline" className="bg-green-500">
                                 Завершена
                               </Badge>
@@ -566,9 +538,9 @@ export default function ExecutorDashboard() {
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-1">{task.title}</h3>
                             <div className="text-sm text-gray-600 space-y-1">
-                              <p>Локация: {task.location}</p>
+                              <p>Локация: {task.location_detail}</p>
                               <p>Завершено: {task.completedDate}</p>
-                              <p>Клиент: {task.client}</p>
+                              <p>Клиент: {task.client.full_name}</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
@@ -697,18 +669,54 @@ export default function ExecutorDashboard() {
                 <CardTitle className="text-lg">Уведомления</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="p-3 bg-red-50 rounded-lg">
-                    <p className="text-sm font-medium">Новая экстренная задача</p>
-                    <p className="text-xs text-gray-600">5 минут назад</p>
-                  </div>
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm font-medium">Сообщение от клиента</p>
-                    <p className="text-xs text-gray-600">30 минут назад</p>
-                  </div>
-                </div>
+                {loading ? (
+                    <p>Загрузка...</p>
+                ) : (
+                    <div className="space-y-3">
+                      {notifications
+                          .slice(0, 5)
+                          .map((n: any) => (
+                              <div
+                                  key={n.id}
+                                  onClick={() => handleNotificationClick(n)}
+                                  className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
+                                      n.title
+                                  )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
+                              >
+                                <div className="flex justify-between">
+                                  <p className="text-sm font-medium">{n.title}</p>
+                                  {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
+                                </div>
+                                <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
+                              </div>
+                          ))}
+                    </div>
+                )}
               </CardContent>
             </Card>
+
+            {/* Модалка */}
+            {isModalOpen && selectedNotification && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                      <button
+                          className="text-gray-500 hover:text-black"
+                          onClick={() => setIsModalOpen(false)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-800 whitespace-pre-line">
+                      {selectedNotification.content}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-4">
+                      Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+            )}
 
             <Card>
               <CardHeader>
@@ -719,7 +727,7 @@ export default function ExecutorDashboard() {
                   variant="outline"
                   className="w-full justify-start"
                   onClick={() => {
-                    setNewRequestType("Плановая")
+                    setNewRequestType("planned")
                     setShowCreateRequestModal(true)
                   }}
                 >
@@ -758,28 +766,37 @@ export default function ExecutorDashboard() {
               <div>
                 <label className="block text-sm font-medium mb-2">Фотографии результата (до 3 шт.)</label>
                 <div className="flex flex-wrap gap-4 mt-2">
-                  {photos.map((photo, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={photo || "/placeholder.svg"}
-                        alt={`Photo ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={() => setPhotos(photos.filter((_, i) => i !== index))}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                      >
-                        ×
-                      </button>
-                    </div>
+                  {photoPreviews.map((photo, index) => (
+                      <div key={index} className="relative">
+                        <img
+                            src={photo || "/placeholder.svg"}
+                            alt={`Photo ${index + 1}`}
+                            className="w-20 h-20 object-cover rounded-lg"
+                        />
+                        <button
+                            onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
                   ))}
-                  {photos.length < 3 && (
-                    <button
-                      onClick={handlePhotoUpload}
-                      className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                    >
-                      <Camera className="w-6 h-6 text-gray-400" />
-                    </button>
+                  {photoPreviews.length < 3 && (
+                      <button
+                          type="button"
+                          onClick={handleButtonClick}
+                          className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
+                      >
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            className="hidden"
+                        />
+                        <Camera className="w-6 h-6 text-gray-400" />
+                      </button>
                   )}
                 </div>
               </div>
@@ -799,6 +816,7 @@ export default function ExecutorDashboard() {
                   onClick={() => {
                     setSelectedTask(null)
                     setPhotos([])
+                    setPhotoPreviews([])
                   }}
                   className="flex-1"
                 >
@@ -812,226 +830,123 @@ export default function ExecutorDashboard() {
 
       {/* Create Request Modal */}
       {showCreateRequestModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Создать {newRequestType.toLowerCase()} заявку</CardTitle>
-              <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <Label>Тип заявки</Label>
-                <Select value={newRequestType} onValueChange={setNewRequestType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите тип заявки" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Обычная">Обычная</SelectItem>
-                    <SelectItem value="Экстренная">Экстренная</SelectItem>
-                    <SelectItem value="Плановая">Плановая</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="newRequestTitle">Название заявки</Label>
-                <Input
-                  id="newRequestTitle"
-                  placeholder="Краткое название проблемы"
-                  value={newRequestTitle}
-                  onChange={(e) => setNewRequestTitle(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <Label>Офис</Label>
-                <Select value={newRequestLocation} onValueChange={setNewRequestLocation}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите офис" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Тимирязева 2Г">Тимирязева 2Г</SelectItem>
-                    <SelectItem value="Алимжанова 51">Алимжанова 51</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Расположение в офисе</Label>
-                <Input placeholder="Введите расположение" value={newRequestLocation} onChange={e => setNewRequestLocation(e.target.value)} />
-              </div>
-
-              <div>
-                <Label htmlFor="newRequestCategory">Категория услуги</Label>
-                <Select value={newRequestCategory} onValueChange={setNewRequestCategory}>
-                  <SelectTrigger id="newRequestCategory">
-                    <SelectValue placeholder="Выберите категорию" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Клининг">Клининг</SelectItem>
-                    <SelectItem value="Техническое обслуживание">Техническое обслуживание</SelectItem>
-                    <SelectItem value="IT поддержка">IT поддержка</SelectItem>
-                    <SelectItem value="Безопасность">Безопасность</SelectItem>
-                    <SelectItem value="Мелкие строительные работы">Мелкие строительные работы</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="newRequestComplexity">Сложность</Label>
-                <Select value={newRequestComplexity} onValueChange={setNewRequestComplexity}>
-                  <SelectTrigger id="newRequestComplexity">
-                    <SelectValue placeholder="Определите сложность" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Простая">Простая</SelectItem>
-                    <SelectItem value="Средняя">Средняя</SelectItem>
-                    <SelectItem value="Сложная">Сложная</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="newRequestSLA">SLA (Срок выполнения)</Label>
-                <Select value={newRequestSLA} onValueChange={setNewRequestSLA}>
-                  <SelectTrigger id="newRequestSLA">
-                    <SelectValue placeholder="Установите SLA" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1 час">1 час</SelectItem>
-                    <SelectItem value="2 часа">2 часа</SelectItem>
-                    <SelectItem value="4 часа">4 часа</SelectItem>
-                    <SelectItem value="8 часов">8 часов</SelectItem>
-                    <SelectItem value="1 день">1 день</SelectItem>
-                    <SelectItem value="2 дня">2 дня</SelectItem>
-                    <SelectItem value="1 неделя">1 неделя</SelectItem>
-                    <SelectItem value="2 недели">2 недели</SelectItem>
-                    <SelectItem value="1 месяц">1 месяц</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {newRequestType === "Плановая" && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <CardHeader>
+                <CardTitle>Создать заявку</CardTitle>
+                <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 <div>
-                  <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
+                  <Label>Тип заявки</Label>
+                  <Select value={newRequestType} onValueChange={setNewRequestType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите тип заявки" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="regular">Обычная</SelectItem>
+                      <SelectItem value="urgent">Экстренная</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Название заявки</Label>
+                  <Input placeholder="Введите название заявки" value={newRequestTitle} onChange={e => setNewRequestTitle(e.target.value)} />
+                </div>
+
+                <div>
+                  <Label>Локация</Label>
                   <Input
-                    id="newRequestPlannedDate"
-                    type="date"
-                    value={newRequestPlannedDate}
-                    onChange={(e) => setNewRequestPlannedDate(e.target.value)}
+                      placeholder="Определение вашего местоположения..."
+                      value={requestLocation}
+                      readOnly
+                      className="bg-gray-100 cursor-not-allowed"
                   />
                 </div>
-              )}
-
-              <div>
-                <Label htmlFor="newRequestDescription">Описание проблемы</Label>
-                <Textarea
-                  id="newRequestDescription"
-                  placeholder="Опишите проблему подробно..."
-                  className="min-h-[100px]"
-                  value={newRequestDescription}
-                  onChange={(e) => setNewRequestDescription(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <Label>Фотографии (до 3 шт.)</Label>
-                <div className="flex flex-wrap gap-4 mt-2">
-                  {newRequestPhotos.map((photo, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={photo || "/placeholder.svg"}
-                        alt={`Photo ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={() => setNewRequestPhotos(newRequestPhotos.filter((_, i) => i !== index))}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                  {newRequestPhotos.length < 3 && (
-                    <button
-                      onClick={handleNewRequestPhotoUpload}
-                      className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                    >
-                      <Camera className="w-6 h-6 text-gray-400" />
-                    </button>
-                  )}
+                <div>
+                  <Label>Расположение в офисе</Label>
+                  <Input placeholder="Введите расположение" value={newRequestLocation} onChange={e => setNewRequestLocation(e.target.value)} />
                 </div>
-              </div>
 
-              <div className="flex space-x-4">
-                <Button
-                  onClick={handleCreateNewRequest}
-                  className="flex-1 bg-violet-600 hover:bg-violet-700"
-                  disabled={
-                    !newRequestType ||
-                    !newRequestTitle ||
-                    !newRequestLocation ||
-                    !newRequestDescription ||
-                    (newRequestType === "Плановая" && !newRequestPlannedDate)
-                  }
-                >
-                  Отправить заявку
-                </Button>
-                <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
-                  Отмена
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Chat Modal */}
-      {showChatModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md max-h-[90vh] flex flex-col">
-            <CardHeader className="border-b pb-4">
-              <CardTitle className="text-xl">Чат по заявке #{currentChatRequestId}</CardTitle>
-              <CardDescription>Общайтесь с клиентом или администратором</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-3">
-              {chatMessages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.sender === "Вы" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[75%] p-3 rounded-xl shadow-sm ${
-                      msg.sender === "Вы"
-                        ? "bg-violet-600 text-white rounded-br-none"
-                        : "bg-gray-200 text-gray-800 rounded-bl-none"
-                    }`}
+                <div>
+                  <Label>Категория услуги</Label>
+                  <Select
+                      value={selectedCategoryId?.toString() || ""}
+                      onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
                   >
-                    <p className="text-sm">{msg.text}</p>
-                    <span className={`block text-xs mt-1 ${msg.sender === "Вы" ? "text-violet-100" : "text-gray-500"}`}>
-                      {msg.time}
-                    </span>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите категорию" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {serviceCategories.map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()}>
+                            {category.name}
+                          </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Описание проблемы</Label>
+                  <Textarea
+                      placeholder="Опишите проблему подробно..."
+                      className="min-h-[100px]"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label>Фотографии (до 3 шт.)</Label>
+                  <div className="flex flex-wrap gap-4 mt-2">
+                    {photoPreviews.map((photo, index) => (
+                        <div key={index} className="relative">
+                          <img
+                              src={photo || "/placeholder.svg"}
+                              alt={`Photo ${index + 1}`}
+                              className="w-20 h-20 object-cover rounded-lg"
+                          />
+                          <button
+                              onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                          >
+                            ×
+                          </button>
+                        </div>
+                    ))}
+                    {photoPreviews.length < 3 && (
+                        <button
+                            type="button"
+                            onClick={handleButtonClick}
+                            className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
+                        >
+                          <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              ref={fileInputRef}
+                              onChange={handleFileChange}
+                              className="hidden"
+                          />
+                          <Camera className="w-6 h-6 text-gray-400" />
+                        </button>
+                    )}
                   </div>
                 </div>
-              ))}
-              <div ref={chatMessagesEndRef} /> {/* For auto-scrolling */}
-            </CardContent>
-            <div className="p-4 flex space-x-2 border-t pt-4">
-              <Input
-                placeholder="Введите сообщение..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") handleSendMessage()
-                }}
-                className="flex-1"
-              />
-              <Button onClick={handleSendMessage} className="bg-violet-600 hover:bg-violet-700">
-                Отправить
-              </Button>
-              <Button variant="outline" onClick={() => setShowChatModal(false)}>
-                Закрыть
-              </Button>
-            </div>
-          </Card>
-        </div>
+
+                <div className="flex space-x-4">
+                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700">
+                    Отправить заявку
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
+                    Отмена
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
       )}
 
       {/* Task Details Modal */}
@@ -1046,7 +961,7 @@ export default function ExecutorDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Тип:</p>
-                  <Badge className={getTypeColor(selectedTaskDetails.type)}>{selectedTaskDetails.type}</Badge>
+                  <Badge className={getTypeColor(selectedTaskDetails.request_type)}>{selectedTaskDetails.request_type}</Badge>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Статус:</p>
@@ -1055,33 +970,52 @@ export default function ExecutorDashboard() {
                   </Badge>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Приоритет:</p>
-                  <span className={`text-sm font-medium ${getPriorityColor(selectedTaskDetails.priority)}`}>
-                    Приоритет {selectedTaskDetails.priority}
-                  </span>
-                </div>
-                <div>
                   <p className="text-sm font-medium text-gray-600">Клиент:</p>
-                  <p className="text-base text-gray-800">{selectedTaskDetails.client}</p>
+                  <p className="text-base text-gray-800">{selectedTaskDetails.client.full_name}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Локация:</p>
-                  <p className="text-base text-gray-800">{selectedTaskDetails.location}</p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const locText = selectedTaskDetails.location;
+                            const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
+                            const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
+                            const accMatch = locText.match(/±(\d+) м/);
+
+                            if (latMatch && lonMatch && accMatch) {
+                              setMapLocation({
+                                lat: parseFloat(latMatch[1]),
+                                lon: parseFloat(lonMatch[1]),
+                                accuracy: parseInt(accMatch[1])
+                              });
+                              setShowMapModal(true);
+                            } else {
+                              alert("Не удалось определить координаты из локации");
+                            }
+                          }}
+                      >
+                        <MapPin className="w-4 h-4 mr-1" />
+                        Показать на карте
+                      </Button>
+                    </div>
+                  </div>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Дедлайн:</p>
-                  <p className="text-base text-gray-800">{selectedTaskDetails.deadline}</p>
+                  <p className="text-sm font-medium text-gray-600">Создано:</p>
+                  <p className="text-base text-gray-800">{selectedTaskDetails.created_date}</p>
                 </div>
-                {selectedTaskDetails.estimatedTime && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Время выполнения:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.estimatedTime}</p>
-                  </div>
-                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Деталь локаций:</p>
+                  <p className="text-base text-gray-800">{selectedTaskDetails.location_detail}</p>
+                </div>
                 {selectedTaskDetails.category && (
                   <div>
                     <p className="text-sm font-medium text-gray-600">Категория:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.category}</p>
+                    <p className="text-base text-gray-800">{selectedTaskDetails.category.name}</p>
                   </div>
                 )}
                 {selectedTaskDetails.complexity && (
@@ -1108,19 +1042,39 @@ export default function ExecutorDashboard() {
                 <p className="text-base text-gray-800">{selectedTaskDetails.description}</p>
               </div>
               {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-600">Прикрепленные фото:</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedTaskDetails.photos.map((photo: string, index: number) => (
-                      <img
-                        key={index}
-                        src={photo || "/placeholder.svg"}
-                        alt={`Task photo ${index + 1}`}
-                        className="w-24 h-24 object-cover rounded-lg"
-                      />
-                    ))}
+                  <div>
+                    {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (
+                        <div>
+                          <Label>Фотографии</Label>
+                          <div className="flex space-x-2 mt-2">
+                            {selectedTaskDetails.photos.map((photo: any, index: number) => (
+                                <img
+                                    key={index}
+                                    src={photo.photo_url || "/placeholder.svg"}
+                                    alt={`Photo ${index + 1}`}
+                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer"
+                                    onClick={() => setSelectedPhoto(photo.photo_url)}
+                                />
+                            ))}
+                          </div>
+                        </div>
+                    )}
+
+                    {/* Модальное окно */}
+                    {selectedPhoto && (
+                        <div
+                            className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+                            onClick={() => setSelectedPhoto(null)}
+                        >
+                          <img
+                              src={selectedPhoto}
+                              alt="Увеличенное фото"
+                              className="max-w-full max-h-full rounded-lg"
+                              onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                    )}
                   </div>
-                </div>
               )}
               <div className="flex justify-end mt-6">
                 <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>
@@ -1130,6 +1084,36 @@ export default function ExecutorDashboard() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Map Modal */}
+      {showMapModal && (
+          <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+              onClick={() => setShowMapModal(false)}
+          >
+            <Card
+                className="w-full max-w-4xl h-[90vh] max-h-[90vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+            >
+              <CardHeader>
+                <CardTitle>Локация заявки</CardTitle>
+                <CardDescription>Точное местоположение проблемы</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-hidden">
+                <MapView
+                    lat={mapLocation.lat}
+                    lon={mapLocation.lon}
+                    accuracy={mapLocation.accuracy}
+                />
+              </CardContent>
+              <div className="p-4 flex justify-end border-t">
+                <Button onClick={() => setShowMapModal(false)}>
+                  Закрыть
+                </Button>
+              </div>
+            </Card>
+          </div>
       )}
     </div>
   )

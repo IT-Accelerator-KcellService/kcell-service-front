@@ -443,7 +443,7 @@ export default function ClientDashboard() {
         <Header
             setShowProfile={setShowProfile}
             handleLogout={handleLogout}
-            notificationCount={3}
+            notificationCount={notifications.length}
             role="Клиент"
         />
         <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
