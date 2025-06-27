@@ -16,16 +16,10 @@ import {
   AlertTriangle,
   Users,
   BarChart3,
-  Bell,
   User,
-  LogOut,
-  Filter,
-  Eye,
-  MessageCircle,
   Star,
   Plus,
   Camera,
-  Calendar,
   MapPin, Loader2,
 } from "lucide-react"
 import Header from "@/app/header/Header";
@@ -112,7 +106,27 @@ export default function AdminWorkerDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [photos, setPhotos] = useState<File[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(true)
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await api.get("/users/me"); // обязательный параметр для cookie
+        const user = response.data;
+
+        if (!user || user.role !== "admin-worker") {
+          window.location.href = '/login';
+        } else {
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error("Ошибка при проверке авторизации", error);
+        window.location.href = '/login'
+      }
+    };
+
+    checkAuth();
+  }, []);
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
@@ -349,10 +363,8 @@ export default function AdminWorkerDashboard() {
         setShowRatingModal(false)
         setRatingValue(0)
         setRequestToRate(null)
-        alert("Оценка успешно отправлена!")
       } catch (error) {
         console.error("Failed to rate executor:", error)
-        alert("Не удалось отправить оценку.")
       }
     }
   }
@@ -362,7 +374,7 @@ export default function AdminWorkerDashboard() {
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
-      window.location.href = "/";
+      window.location.href = "/login";
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -766,8 +778,8 @@ export default function AdminWorkerDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>setSelectedRequest(null)}>
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
                   <CardDescription>Проверка и классификация заявки</CardDescription>
@@ -1056,8 +1068,8 @@ export default function AdminWorkerDashboard() {
 
         {/* Create Request Modal */}
         {showCreateRequestModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>setShowCreateRequestModal(false)}>
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать {translateType(newRequestType).toLowerCase()} заявку</CardTitle>
                   <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
@@ -1279,8 +1291,8 @@ export default function AdminWorkerDashboard() {
 
         {/* Rating Modal */}
         {showRatingModal && requestToRate && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-md">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>setShowRatingModal(false)}>
+              <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Оценить клиента</CardTitle>
                   <CardDescription>Пожалуйста, оцените взаимодействие по заявке #{requestToRate.id}</CardDescription>

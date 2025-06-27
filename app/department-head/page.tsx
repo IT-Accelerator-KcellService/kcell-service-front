@@ -64,7 +64,9 @@ interface Rating {
   request_id: number
   created_at: string
 }
-
+interface Executor{
+  id: number,user: User, specialty: string, rating: number, workload: number
+}
 interface Request {
   id: number
   title: string
@@ -115,22 +117,35 @@ export default function DepartmentHeadDashboard() {
   const [comment, setComment] = useState("")
   const [comments, setComments] = useState<any[]>([])
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({})
-  const [executors, setExecutors] = useState([
-    { id: 1, name: "Иванов И.И.", specialty: "Электрик", rating: 4.8, workload: 3 },
-    { id: 2, name: "Петров А.И.", specialty: "Сантехник", rating: 4.9, workload: 2 },
-    { id: 3, name: "Сидоров В.П.", specialty: "Универсал", rating: 4.7, workload: 4 },
-  ])
+  const [newExecutorEmail,setNewExecutorEmail]=useState("")
+  const [executors, setExecutors] = useState<Executor[]>([])
   const [newExecutorName, setNewExecutorName] = useState("")
   const [newExecutorSpecialty, setNewExecutorSpecialty] = useState("")
-  const [showChatModal, setShowChatModal] = useState(false)
-  const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; time: string }[]>([])
-  const [chatInput, setChatInput] = useState("")
-  const [currentChatRequestId, setCurrentChatRequestId] = useState<string | null>(null)
-  const chatMessagesEndRef = useRef<HTMLDivElement>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
   const [deleteReason, setDeleteReason] = useState("")
+  const [selectedExecutorId, setSelectedExecutorId] = useState<number | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(true)
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await api.get("/users/me"); // обязательный параметр для cookie
+        const user = response.data;
+
+        if (!user || user.role !== "client") {
+          window.location.href = '/login';
+        } else {
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error("Ошибка при проверке авторизации", error);
+        window.location.href = '/login'
+      }
+    };
+
+    checkAuth();
+  }, []);
   const handleButtonClick = () => {
     fileInputRef.current?.click()
   }
@@ -162,6 +177,14 @@ export default function DepartmentHeadDashboard() {
       console.error("Failed to fetch requests:", error)
     }
   }
+  const fetchExecutors = async () => {
+    try {
+      const response = await api.get('/executors')
+      setExecutors(response.data)
+    } catch (error) {
+      console.error("Failed to fetch executors:", error)
+    }
+  }
 
   const fetchCategories = async () => {
     try {
@@ -185,6 +208,7 @@ export default function DepartmentHeadDashboard() {
   useEffect(() => {
     fetchCategories()
     fetchRequests()
+    fetchExecutors()
   }, [])
 
   useEffect(() => {
@@ -241,7 +265,15 @@ export default function DepartmentHeadDashboard() {
       console.error("Ошибка при отправке комментария", err)
     }
   }
-
+  const assignExecutorToRequest = async (requestId: number,executorId: number) => {
+    try {
+      await api.patch(`requests/${requestId}/assign-executor/${executorId}`)
+      fetchRequests()
+      setSelectedRequest(null)
+    }catch (error) {
+      console.error("Failed to create request:", error)
+    }
+  }
   const handleCreateNewRequest = async () => {
     try {
       await api.post('/requests', {
@@ -310,26 +342,13 @@ export default function DepartmentHeadDashboard() {
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout')
-      window.location.href = "/"
+      window.location.href = "/login"
     } catch (error) {
       console.error("Logout failed:", error)
     }
   }
 
-  const handleSendMessage = () => {
-    if (chatInput.trim()) {
-      const currentTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      setChatMessages((prev) => [...prev, { sender: "Вы", text: chatInput, time: currentTime }])
-      setChatInput("")
-      setTimeout(() => {
-        const responseTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        setChatMessages((prev) => [
-          ...prev,
-          { sender: "Система", text: "Сообщение получено. Скоро отвечу.", time: responseTime },
-        ])
-      }, 1500)
-    }
-  }
+
 
   const handleDeleteRequest = (request: Request) => {
     setRequestToDelete(request)
@@ -352,17 +371,7 @@ export default function DepartmentHeadDashboard() {
 
   const handleAddExecutor = () => {
     if (newExecutorName.trim() && newExecutorSpecialty.trim()) {
-      const newId = executors.length + 1
-      setExecutors((prev) => [
-        ...prev,
-        {
-          id: newId,
-          name: newExecutorName.trim(),
-          specialty: newExecutorSpecialty.trim(),
-          rating: 5.0,
-          workload: 0,
-        },
-      ])
+
       setNewExecutorName("")
       setNewExecutorSpecialty("")
     }
@@ -467,7 +476,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Новые заявки</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {incomingRequests.filter(req => req.status === "draft" || req.status === "in_progress").length}
+                      {incomingRequests.filter(req => req.status === "draft" || req.status === "awaiting_assignment").length}
                     </p>
                   </div>
                 </div>
@@ -743,6 +752,11 @@ export default function DepartmentHeadDashboard() {
                               value={newExecutorSpecialty}
                               onChange={(e) => setNewExecutorSpecialty(e.target.value)}
                           />
+                          <Input
+                              placeholder="Email"
+                              value={newExecutorEmail}
+                              onChange={(e) => setNewExecutorEmail(e.target.value)}
+                          />
                         </div>
                         <Button
                             onClick={handleAddExecutor}
@@ -758,7 +772,7 @@ export default function DepartmentHeadDashboard() {
                               <ul className="list-disc pl-5">
                                 {executors.map((executor) => (
                                     <li key={executor.id} className="text-sm text-gray-700 flex justify-between items-center">
-                                      {executor.name} ({executor.specialty})
+                                      {executor.user.full_name} ({executor.specialty})
                                       <Button variant="ghost" size="sm" onClick={() => handleRemoveExecutor(executor.id)}>
                                         <Trash2 className="w-4 h-4 text-red-500" />
                                       </Button>
@@ -821,20 +835,25 @@ export default function DepartmentHeadDashboard() {
                     {executors.map((executor) => (
                         <div key={executor.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
-                            <p className="font-medium">{executor.name}</p>
+                            <p className="font-medium">{executor.user.full_name}</p>
                             <p className="text-sm text-gray-600">{executor.specialty}</p>
                             <div className="flex items-center mt-1">
-                              <div className="flex">
-                                {[...Array(5)].map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className={`w-3 h-3 rounded-full mr-1 ${
-                                            i < Math.floor(executor.rating) ? "bg-yellow-400" : "bg-gray-300"
-                                        }`}
-                                    />
-                                ))}
+                              <div className="flex items-center">
+                                <div className="flex">
+                                  {[...Array(5)].map((_, i) => (
+                                      <div
+                                          key={i}
+                                          className={`w-3 h-3 rounded-full mr-1 ${
+                                              i < Math.floor(executor.rating) ? "bg-yellow-400" : "bg-gray-300"
+                                          }`}
+                                      />
+                                  ))}
+                                </div>
+                                <span className="text-sm text-gray-600 ml-2">
+                                    {Number(executor.rating).toFixed(2)}
+                                </span>
                               </div>
-                              <span className="text-sm text-gray-600 ml-2">{executor.rating}</span>
+
                             </div>
                           </div>
                           <div className="text-right">
@@ -921,8 +940,8 @@ export default function DepartmentHeadDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>{setSelectedRequest(null)}}>
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
                   <CardDescription>Проверка и классификация заявки</CardDescription>
@@ -1080,6 +1099,41 @@ export default function DepartmentHeadDashboard() {
                       )}
                     </div>
                   </div>
+                  {selectedRequest.status === "awaiting_assignment" && (
+                      <div className="border-t pt-4">
+                        <Label>Назначить исполнителя</Label>
+                        <div className="flex items-center space-x-4 mt-2">
+                          <Select
+                              onValueChange={(value) => {
+                                setSelectedExecutorId(parseInt(value))
+                              }}
+                          >
+                            <SelectTrigger className="w-48">
+                              <SelectValue placeholder="Выберите исполнителя" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {executors.map((executor) => (
+                                  <SelectItem key={executor.user.id} value={executor.user.id.toString()}>
+                                    {executor.user.full_name} - {executor.specialty} (Загрузка: {executor.workload})
+                                  </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              disabled={!selectedExecutorId}
+                              onClick={() => {
+                                if (selectedExecutorId) {
+                                  assignExecutorToRequest(selectedRequest.id, selectedExecutorId)
+                                }
+                              }}
+                          >
+                            Назначить
+                          </Button>
+                        </div>
+                      </div>
+                  )}
 
                   {selectedRequest.rating && (
                       <div>
@@ -1146,23 +1200,7 @@ export default function DepartmentHeadDashboard() {
                     <Button variant="outline" onClick={() => setSelectedRequest(null)}>
                       Закрыть
                     </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowChatModal(true)
-                          setCurrentChatRequestId(selectedRequest.id.toString())
-                          setChatMessages([
-                            {
-                              sender: "Система",
-                              text: `Чат по заявке #${selectedRequest.id} открыт.`,
-                              time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                            },
-                          ])
-                        }}
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Чат
-                    </Button>
+
                     <Button
                         variant="destructive"
                         onClick={() => {
@@ -1235,8 +1273,8 @@ export default function DepartmentHeadDashboard() {
 
         {/* Create Request Modal */}
         {showCreateRequestModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>setShowCreateRequestModal(false)}>
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать {translateType(newRequestType).toLowerCase()} заявку</CardTitle>
                   <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
@@ -1458,8 +1496,8 @@ export default function DepartmentHeadDashboard() {
 
         {/* Rating Modal */}
         {showRatingModal && requestToRate && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-md">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> setShowRatingModal(false)}>
+              <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Оценить клиента</CardTitle>
                   <CardDescription>Пожалуйста, оцените взаимодействие по заявке #{requestToRate.id}</CardDescription>
@@ -1529,53 +1567,6 @@ export default function DepartmentHeadDashboard() {
             </div>
         )}
 
-        {/* Chat Modal */}
-        {showChatModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-md max-h-[90vh] flex flex-col">
-                <CardHeader className="border-b pb-4">
-                  <CardTitle className="text-xl">Чат по заявке #{currentChatRequestId}</CardTitle>
-                  <CardDescription>Общайтесь с исполнителем или клиентом</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {chatMessages.map((msg, index) => (
-                      <div key={index} className={`flex ${msg.sender === "Вы" ? "justify-end" : "justify-start"}`}>
-                        <div
-                            className={`max-w-[75%] p-3 rounded-xl shadow-sm ${
-                                msg.sender === "Вы"
-                                    ? "bg-violet-600 text-white rounded-br-none"
-                                    : "bg-gray-200 text-gray-800 rounded-bl-none"
-                            }`}
-                        >
-                          <p className="text-sm">{msg.text}</p>
-                          <span className={`block text-xs mt-1 ${msg.sender === "Вы" ? "text-violet-100" : "text-gray-500"}`}>
-                      {msg.time}
-                    </span>
-                        </div>
-                      </div>
-                  ))}
-                  <div ref={chatMessagesEndRef} />
-                </CardContent>
-                <div className="p-4 flex space-x-2 border-t pt-4">
-                  <Input
-                      placeholder="Введите сообщение..."
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") handleSendMessage()
-                      }}
-                      className="flex-1"
-                  />
-                  <Button onClick={handleSendMessage} className="bg-violet-600 hover:bg-violet-700">
-                    Отправить
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowChatModal(false)}>
-                    Закрыть
-                  </Button>
-                </div>
-              </Card>
-            </div>
-        )}
 
         {/* Delete Request Confirmation Modal */}
         {showDeleteRequestModal && requestToDelete && (

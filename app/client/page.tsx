@@ -98,6 +98,25 @@ export default function ClientDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await api.get("/users/me"); // обязательный параметр для cookie
+        const user = response.data;
+
+        if (!user || user.role !== "client") {
+          window.location.href = '/login';
+        } else {
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error("Ошибка при проверке авторизации", error);
+        window.location.href = '/login'
+      }
+    };
+
+    checkAuth();
+  }, []);
+  useEffect(() => {
     const fetchNotifications = async () => {
       try {
         const response = await api.get("/notifications/me")
@@ -227,8 +246,6 @@ export default function ClientDashboard() {
     try {
       const response = await api.get('/requests/user')
       setRequests(response.data)
-
-      // Проверяем оценки для завершенных заявок
       response.data.forEach((request: Request) => {
         if (request.status === "completed") {
           checkUserRating(request.id);
@@ -364,7 +381,7 @@ export default function ClientDashboard() {
     try {
       const response = await api.post('/requests', {
         title: requestTitle,
-        description: "fix light and clear",
+        description: requestDescription,
         office_id: 1,
         request_type: requestType === "urgent" ? "urgent" : "normal",
         location: requestLocation,
@@ -400,7 +417,6 @@ export default function ClientDashboard() {
       setRequestTitle("")
       setRequestLocation("")
       setRequestLocationDetails("")
-      alert("Заявка успешно создана!")
     } catch (error) {
       console.error("Failed to create request:", error)
       setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
@@ -442,7 +458,7 @@ export default function ClientDashboard() {
     try {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
-      window.location.href = "/"
+      window.location.href = "/login"
     } catch (error) {
       console.error("Logout failed:", error)
     }
@@ -778,8 +794,8 @@ export default function ClientDashboard() {
 
         {/* Create Request Modal */}
         {showCreateRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowCreateRequest(false)}>
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать заявку</CardTitle>
                   <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
@@ -905,8 +921,8 @@ export default function ClientDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedRequest(false)}>
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
                   <CardDescription>Подробная информация о вашей заявке</CardDescription>
@@ -1007,8 +1023,7 @@ export default function ClientDashboard() {
                     <p className="text-sm">{selectedRequest.description}</p>
                   </div>
 
-              {selectedRequest.photos && selectedRequest.photos.length > 0 && (
-                  <div>
+
                     {selectedRequest.photos && selectedRequest.photos.length > 0 && (
                         <div>
                           <Label>Фотографии</Label>
@@ -1040,8 +1055,6 @@ export default function ClientDashboard() {
                           />
                         </div>
                     )}
-                  </div>
-              )}
 
                   {/* Секция для комментариев */}
                   <Card className="mt-2">
@@ -1132,8 +1145,8 @@ export default function ClientDashboard() {
       )}
       {/* Rating Modal */}
       {showRatingModal && requestToRate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowRatingModal(false)} >
+          <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <CardTitle>Оценить исполнителя</CardTitle>
               <CardDescription>Пожалуйста, оцените работу по заявке #{requestToRate.id}</CardDescription>
