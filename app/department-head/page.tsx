@@ -36,7 +36,7 @@ import UserProfile from "@/app/client/UserProfile"
 import axios from 'axios'
 import dynamic from "next/dynamic"
 
-const API_BASE_URL = "http://localhost:8080/api"
+const API_BASE_URL = "https://kcell-service.onrender.com/api"
 
 const api = axios.create({
   baseURL: API_BASE_URL,
