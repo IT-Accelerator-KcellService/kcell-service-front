@@ -92,8 +92,60 @@ export default function ClientDashboard() {
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [showProfile, setShowProfile] = useState(false)
-
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedNotification, setSelectedNotification] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await api.get("/notifications/me")
+        setNotifications(response.data)
+      } catch (error) {
+        console.error("Ошибка при загрузке уведомлений", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchNotifications()
+  }, [])
+
+  const handleNotificationClick = async (notification:any) => {
+    if (!notification.is_read) {
+      try {
+        const response = await api.patch(`/notifications/${notification.id}/read`)
+        const updated = response.data
+
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === updated.id ? { ...n, is_read: true } : n))
+        )
+      } catch (error) {
+        console.error("Ошибка при пометке уведомления как прочитано", error)
+      }
+    }
+
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
+  }
+
+  const getBgColor = (title:any) => {
+    if (title.includes("принята")) return "bg-blue-50"
+    if (title.includes("завершена")) return "bg-green-50"
+    if (title.includes("просрочена")) return "bg-red-50"
+    return "bg-gray-100"
+  }
+
+  const formatTimeAgo = (dateStr:any) => {
+    const date = new Date(dateStr)
+    const diff = (Date.now() - date.getTime()) / 1000
+    if (diff < 60) return "только что"
+    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
+    return `${Math.floor(diff / 86400)} дней назад`
+  }
 
   const fetchComments = async () => {
     if (!selectedRequest?.id) return;
@@ -665,22 +717,54 @@ export default function ClientDashboard() {
                   <CardTitle className="text-lg">Уведомления</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                      <p className="text-sm font-medium">Заявка #REQ-001 принята в работу</p>
-                      <p className="text-xs text-gray-600">2 часа назад</p>
-                    </div>
-                    <div className="p-3 bg-green-50 rounded-lg">
-                      <p className="text-sm font-medium">Заявка #REQ-002 завершена</p>
-                      <p className="text-xs text-gray-600">1 день назад</p>
-                    </div>
-                    <div className="p-3 bg-red-50 rounded-lg">
-                      <p className="text-sm font-medium">Заявка #REQ-003 просрочена</p>
-                      <p className="text-xs text-gray-600">1 час назад</p>
-                    </div>
-                  </div>
+                  {loading ? (
+                      <p>Загрузка...</p>
+                  ) : (
+                      <div className="space-y-3">
+                        {notifications
+                            .slice(0, 5)
+                            .map((n: any) => (
+                                <div
+                                    key={n.id}
+                                    onClick={() => handleNotificationClick(n)}
+                                    className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
+                                        n.title
+                                    )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
+                                >
+                                  <div className="flex justify-between">
+                                    <p className="text-sm font-medium">{n.title}</p>
+                                    {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
+                                  </div>
+                                  <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
+                                </div>
+                            ))}
+                      </div>
+                  )}
                 </CardContent>
               </Card>
+
+              {/* Модалка */}
+              {isModalOpen && selectedNotification && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                        <button
+                            className="text-gray-500 hover:text-black"
+                            onClick={() => setIsModalOpen(false)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-800 whitespace-pre-line">
+                        {selectedNotification.content}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-4">
+                        Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+              )}
             </div>
           </div>
         </div>
