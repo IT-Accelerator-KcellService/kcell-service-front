@@ -16,12 +16,8 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
-  MessageCircle,
   Star,
-  Bell,
-  User,
   Filter,
-  LogOut,
 } from "lucide-react"
 import axios from 'axios'
 import dynamic from "next/dynamic";
@@ -226,7 +222,7 @@ export default function ClientDashboard() {
 
   const fetchRequests = async () => {
     try {
-      const response = await api.get('/requests')
+      const response = await api.get('/requests/user')
       setRequests(response.data)
 
       // Проверяем оценки для завершенных заявок
@@ -584,10 +580,10 @@ export default function ClientDashboard() {
                                   <div className="flex items-center text-sm text-gray-600 space-x-4">
                                     <div className="flex items-center">
                                       <MapPin className="w-4 h-4 mr-1" />
-                                      {request.location_detail}
+                                      Локация: {request.location_detail}
                                     </div>
                                     <div className="flex items-center">
-                                      <Clock className="w-4 h-4 mr-1" />
+                                      <Clock className="w-4 h-4 mr-1" />Время:
                                       {new Date(request.created_date).toLocaleString("ru-RU", {
                                         day: "2-digit",
                                         month: "long",
