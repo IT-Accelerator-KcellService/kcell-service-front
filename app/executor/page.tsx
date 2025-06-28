@@ -420,7 +420,7 @@ export default function ExecutorDashboard() {
     try {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
-      window.location.href = "/"
+      window.location.href = "/login"
     } catch (error) {
       console.error("Logout failed:", error)
     }
@@ -433,7 +433,7 @@ export default function ExecutorDashboard() {
           setShowProfile={setShowProfile}
           handleLogout={handleLogout}
           notificationCount={notifications.length}
-          role="Клиент"
+          role="Исполнитель"
       />
       <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 

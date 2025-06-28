@@ -60,7 +60,13 @@ const api = axios.create({
     'Content-Type': 'application/json',
   }
 })
-
+const roleTranslations: Record<string, string> = {
+  client: "Клиент",
+  "admin-worker": "Администратор офиса",
+  "department-head": "Руководитель направления",
+  executor: "Испольнитель",
+  manager: "Руководитель"
+};
 export default function ClientDashboard() {
   const [activeTab, setActiveTab] = useState("requests")
   const [showCreateRequest, setShowCreateRequest] = useState(false)
@@ -96,6 +102,8 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editCommentId, setEditCommentId] = useState<number | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -107,6 +115,7 @@ export default function ClientDashboard() {
           window.location.href = '/login';
         } else {
           setIsLoggedIn(true);
+          setCurrentUserId(user.id);
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
@@ -176,7 +185,7 @@ export default function ClientDashboard() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Удалить комментарий?")) return;
+    //if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
@@ -184,17 +193,41 @@ export default function ClientDashboard() {
       console.error("Ошибка при удалении", err);
     }
   };
+  const handleSend = () => {
+    if (comment.trim() === "") return;
+
+    if (editCommentId) {
+      // редактируем существующий комментарий
+      api
+          .put(`/comments/${editCommentId}`, {
+            comment: comment.trim(),
+            request_id: selectedRequest.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      // новый комментарий
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedRequest.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
+    }
+  };
+
 
   const handleEdit = (id: number, oldComment: string) => {
-    const newComment = prompt("Изменить комментарий:", oldComment);
-    if (newComment && newComment.trim()) {
-      api.put(`/comments/${id}`, {
-        comment: newComment.trim(),
-        request_id: selectedRequest.id,
-      })
-          .then(() => fetchComments())
-          .catch((err) => console.error("Ошибка при обновлении", err));
-    }
+    setComment(oldComment);       // заполняем поле ввода
+    setEditCommentId(id);         // запоминаем какой комментарий редактируем
   };
 
   useEffect(() => {
@@ -202,24 +235,6 @@ export default function ClientDashboard() {
       fetchComments();
     }
   }, [selectedRequest]);
-
-  const handleSend = async () => {
-    if (!comment.trim()) return;
-
-    try {
-      await api.post(
-          `/comments`,
-          {
-            request_id: selectedRequest.id,
-            comment,
-          }
-      );
-      setComment("");
-      fetchComments();
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err);
-    }
-  };
 
   const handleButtonClick = () => {
     fileInputRef.current?.click();
@@ -1024,37 +1039,76 @@ export default function ClientDashboard() {
                   </div>
 
 
-                    {selectedRequest.photos && selectedRequest.photos.length > 0 && (
-                        <div>
-                          <Label>Фотографии</Label>
-                          <div className="flex space-x-2 mt-2">
-                            {selectedRequest.photos.map((photo: any, index: number) => (
-                                <img
-                                    key={index}
-                                    src={photo.photo_url || "/placeholder.svg"}
-                                    alt={`Photo ${index + 1}`}
-                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                    onClick={() => setSelectedPhoto(photo.photo_url)}
-                                />
-                            ))}
-                          </div>
-                        </div>
-                    )}
+                  {selectedRequest.photos && selectedRequest.photos.length > 0 && (() => {
+                    const clientPhotos = selectedRequest.photos.filter((photo: any) => photo.type === "before");
+                    const contractorPhotos = selectedRequest.photos.filter((photo: any) => photo.type === "after");
 
-                    {/* Модальное окно */}
-                    {selectedPhoto && (
-                        <div
-                            className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                            onClick={() => setSelectedPhoto(null)} // Закрытие при клике
-                        >
-                          <img
-                              src={selectedPhoto}
-                              alt="Увеличенное фото"
-                              className="max-w-full max-h-full rounded-lg"
-                              onClick={(e) => e.stopPropagation()} // Не закрывать при клике по фото
-                          />
+                    return (
+                        <div className="mt-4">
+                          {/* Блок ДО */}
+                          {clientPhotos.length > 0 && (
+                              <>
+                                <Label className="font-bold">Фотографии «До» (загружены пользователем)</Label>
+                                <div className="flex space-x-2 mt-2 flex-wrap">
+                                  {clientPhotos.map((photo: any, index: number) => (
+                                      <img
+                                          key={index}
+                                          src={photo.photo_url || "/placeholder.svg"}
+                                          alt={`До ${index + 1}`}
+                                          className="w-24 h-24 object-cover rounded-lg cursor-pointer"
+                                          onClick={() => setSelectedPhoto(photo.photo_url)}
+                                      />
+                                  ))}
+                                </div>
+                              </>
+                          )}
+
+                          {/* Блок ПОСЛЕ */}
+                          <Label className="font-bold mt-4 block">Фотографии «После» (загружены подрядчиком)</Label>
+                          {contractorPhotos.length > 0 ? (
+                              <div className="flex space-x-2 mt-2 flex-wrap">
+                                {contractorPhotos.map((photo: any, index: number) => (
+                                    <img
+                                        key={index}
+                                        src={photo.photo_url || "/placeholder.svg"}
+                                        alt={`После ${index + 1}`}
+                                        className="w-24 h-24 object-cover rounded-lg cursor-pointer"
+                                        onClick={() => setSelectedPhoto(photo.photo_url)}
+                                    />
+                                ))}
+                              </div>
+                          ) : (
+                              <div className="text-xs text-gray-400 mt-2">Нет загруженных фотографий</div>
+                          )}
                         </div>
-                    )}
+                    );
+                  })()}
+                  <div className="mt-4">
+                    <Label className="font-bold block">Комментарий исполнителя</Label>
+                    <p className="text-sm mt-1">
+                      {selectedRequest.comment && selectedRequest.comment.trim() !== ""
+                          ? selectedRequest.comment
+                          : "Исполнитель ничего не написал"}
+                    </p>
+                  </div>
+
+
+
+                  {/* Модальное окно */}
+                  {selectedPhoto && (
+                      <div
+                          className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+                          onClick={() => setSelectedPhoto(null)}
+                      >
+                        <img
+                            src={selectedPhoto}
+                            alt="Увеличенное фото"
+                            className="max-w-full max-h-full rounded-lg"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                  )}
+
 
                   {/* Секция для комментариев */}
                   <Card className="mt-2">
@@ -1063,32 +1117,64 @@ export default function ClientDashboard() {
                       {comments.map((c: any) => (
                           <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
                             <div className="flex justify-between items-center">
-                              <div className="text-sm text-gray-800 font-medium">{c.user.full_name}</div>
+                              <div className="text-sm text-gray-800 font-medium">
+                                {c.user.full_name || "Неизвестный пользователь"}{" "}
+                                {c.user.role && (<span className="text-xs text-gray-500">({roleTranslations[c.user.role] || c.user.role})</span>
+                                )}
+                              </div>
+
+
                               <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
                             </div>
                             <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
-                            <div className="mt-2 flex gap-3 text-xs text-blue-500">
-                              <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">
-                                ✏️ Изменить
-                              </button>
-                              <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">
-                                🗑 Удалить
-                              </button>
-                            </div>
+                            {c.user.id === currentUserId && (
+                                <div className="mt-2 flex gap-2 text-xs text-blue-500">
+                                  <button
+                                      onClick={() => handleEdit(c.id, c.comment)}
+                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700"
+                                  >
+                                    Изменить
+                                  </button>
+                                  <button
+                                      onClick={() => handleDelete(c.id)}
+                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                  >
+                                    Удалить
+                                  </button>
+                                </div>
+                            )}
+
                           </div>
                       ))}
-                      <div className="mt-3 flex items-center space-x-2">
-                        <input
-                            type="text"
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            placeholder="Написать комментарий..."
-                            className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <Button size="sm" onClick={handleSend}>
-                          Отправить
-                        </Button>
+                      <div className="mt-3 flex flex-col space-y-1">
+                        {editCommentId && (
+                            <div className="text-xs text-gray-500 mb-1">
+                              Редактируется комментарий #{editCommentId}
+                              <button
+                                  className="ml-2 text-red-500 hover:underline"
+                                  onClick={() => {
+                                    setEditCommentId(null);
+                                    setComment("");
+                                  }}
+                              >
+                                Отменить
+                              </button>
+                            </div>
+                        )}
+                        <div className="flex items-center space-x-2">
+                          <input
+                              type="text"
+                              value={comment}
+                              onChange={(e) => setComment(e.target.value)}
+                              placeholder="Написать комментарий..."
+                              className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <Button size="sm" onClick={handleSend}>
+                            {editCommentId ? "Сохранить" : "Отправить"}
+                          </Button>
+                        </div>
                       </div>
+
                     </CardContent>
                   </Card>
 

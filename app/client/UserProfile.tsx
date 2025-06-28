@@ -28,6 +28,15 @@ interface UserProfileProps {
     onClose: (open: boolean) => void
 }
 
+const roleTranslations: Record<string, string> = {
+    client: "Клиент",
+    "admin-worker": "Администратор офиса",
+    "department-head": "Руководитель направления",
+    executor: "Исполнитель",
+    manager: "Руководитель"
+};
+
+
 export default function UserProfile({ open, onClose }: UserProfileProps) {
     const [user, setUser] = useState<User | null>(null)
 
@@ -58,11 +67,13 @@ export default function UserProfile({ open, onClose }: UserProfileProps) {
                     </div>
                     <div>
                         <span className="text-gray-500 text-sm">Роль:</span>
-                        <Badge variant="secondary">{user.role}</Badge>
+                        <Badge variant="secondary">
+                            {roleTranslations[user.role.toLowerCase()] || user.role}
+                        </Badge>
                     </div>
                     <div>
-                        <span className="text-gray-500 text-sm">Офис ID:</span>
-                        <p className="font-medium">{user.office_id}</p>
+                        <span className="text-gray-500 text-sm">Офис:</span>
+                        <p className="font-medium">{user.office.name}</p>
                     </div>
                 </div>
             </DialogContent>
