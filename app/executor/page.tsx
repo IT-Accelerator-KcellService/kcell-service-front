@@ -513,7 +513,6 @@ export default function ExecutorDashboard() {
                   onClick={() => {
                     setNewRequestType("normal")
                     setShowCreateRequestModal(true)
-                    handleOpenCreateRequest()
                   }}
                   className="bg-violet-600 hover:bg-violet-700"
                 >
