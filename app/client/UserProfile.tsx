@@ -20,6 +20,7 @@ interface User {
     email: string
     full_name: string
     office_id: number
+    office: {name: string}
     role: string
 }
 
@@ -62,7 +63,7 @@ export default function UserProfile({ open, onClose }: UserProfileProps) {
                     </div>
                     <div>
                         <span className="text-gray-500 text-sm">Офис ID:</span>
-                        <p className="font-medium">{user.office_id}</p>
+                        <p className="font-medium">{user.office.name}</p>
                     </div>
                 </div>
             </DialogContent>
