@@ -363,9 +363,18 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const handleAddExecutor = () => {
+  const handleAddExecutor = async () => {
     if (newExecutorName.trim() && newExecutorSpecialty.trim()) {
-
+      try {
+        const response = await api.post('/users', {
+          full_name: newExecutorName.trim(),
+          specialty: newExecutorSpecialty.trim(),
+          email: newExecutorEmail.trim(),
+          role: "executor"
+        })
+      } catch (error) {
+        console.error("Failed to add executor:", error)
+      }
       setNewExecutorName("")
       setNewExecutorSpecialty("")
     }
