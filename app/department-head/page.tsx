@@ -474,14 +474,16 @@ export default function DepartmentHeadDashboard() {
 
   const translateStatus = (status: string) => {
     switch (status) {
-      case "draft": return "Черновик"
-      case "in_progress": return "В обработке"
-      case "in_execution": return "Исполнение"
-      case "completed": return "Завершено"
-      case "rejected": return "Отклонено"
-      default: return status
+      case "draft": return "Черновик";
+      case "in_progress": return "В обработке";
+      case "execution": return "Исполнение";
+      case "completed": return "Завершено";
+      case "rejected": return "Отклонено";
+      case "awaiting_assignment": return "Ожидание назначения";
+      case "assigned": return "назначенный";
+      default: return status;
     }
-  }
+  };
 
   const translateType = (type: string) => {
     switch (type) {
