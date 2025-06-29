@@ -1315,7 +1315,7 @@ export default function ClientDashboard() {
                       <div className="mt-3 flex flex-col space-y-1">
                         {editCommentId && (
                             <div className="text-xs text-gray-500 mb-1">
-                              Редактируется комментарий #{editCommentId}
+                              Редактируется комментарий
                               <button
                                   className="ml-2 text-red-500 hover:underline"
                                   onClick={() => {

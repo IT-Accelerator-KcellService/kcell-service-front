@@ -36,7 +36,13 @@ const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
 })
-
+const roleTranslations: Record<string, string> = {
+  client: "Клиент",
+  "admin-worker": "Администратор офиса",
+  "department-head": "Руководитель направления",
+  executor: "Испольнитель",
+  manager: "Руководитель"
+};
 export default function ExecutorDashboard() {
   const [assignedRequests, setAssignedRequests] = useState<any>([])
   const [myRequests, setMyRequests] = useState<any>([])
@@ -72,6 +78,8 @@ export default function ExecutorDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [editCommentId, setEditCommentId] = useState<number | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -80,14 +88,15 @@ export default function ExecutorDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "executor") {
-          window.location.href = '/login';
+          window.location.href = "/login";
         } else {
           setIsLoggedIn(true);
+          setCurrentUserId(user.id);
           setNewRequestOfficeId(String(user.office_id));
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = '/login'
+        window.location.href = "/login";
       }
     };
 
@@ -123,15 +132,8 @@ export default function ExecutorDashboard() {
   };
 
   const handleEdit = (id: number, oldComment: string) => {
-    const newComment = prompt("Изменить комментарий:", oldComment);
-    if (newComment && newComment.trim()) {
-      api.put(`/comments/${id}`, {
-        comment: newComment.trim(),
-        request_id: selectedTaskDetails.id,
-      })
-          .then(() => fetchComments())
-          .catch((err) => console.error("Ошибка при обновлении", err));
-    }
+    setComment(oldComment);
+    setEditCommentId(id);
   };
 
   useEffect(() => {
@@ -140,23 +142,35 @@ export default function ExecutorDashboard() {
     }
   }, [selectedTaskDetails]);
 
-  const handleSend = async () => {
-    if (!comment.trim()) return;
+  const handleSend = () => {
+    if (comment.trim() === "") return;
 
-    try {
-      await api.post(
-          `/comments`,
-          {
-            request_id: selectedTaskDetails.id,
-            comment,
-          }
-      );
-      setComment("");
-      fetchComments();
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err);
+    if (editCommentId) {
+      api
+          .put(`/comments/${editCommentId}`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id, // !!!
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id, // !!!
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
     }
   };
+
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -1706,32 +1720,70 @@ export default function ExecutorDashboard() {
                       )}
 
                       {/* Комментарии */}
-                      <Card className="bg-gray-50 border border-gray-200 shadow-sm">
-                        <CardContent className="p-4 space-y-4">
-                          <h4 className="font-semibold text-gray-800">Комментарии</h4>
+                      <Card className="mt-2">
+                        <CardContent className="p-4">
+                          <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                           {comments.map((c: any) => (
-                              <div key={c.id} className="bg-white border border-gray-300 rounded-md p-3">
+                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
                                 <div className="flex justify-between items-center">
-                                  <div className="text-sm font-medium text-gray-800">{c.user.full_name}</div>
-                                  <div className="text-xs text-gray-500">{new Date(c.timestamp).toLocaleString()}</div>
+                                  <div className="text-sm text-gray-800 font-medium">
+                                    {c.user.full_name || "Неизвестный пользователь"}{" "}
+                                    {c.user.role && (<span className="text-xs text-gray-500">({roleTranslations[c.user.role] || c.user.role})</span>
+                                    )}
+                                  </div>
+
+
+                                  <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
                                 </div>
-                                <p className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</p>
-                                <div className="mt-2 flex gap-4 text-xs text-blue-500">
-                                  <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">✏️ Изменить</button>
-                                  <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">🗑 Удалить</button>
-                                </div>
+                                <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+                                {c.user.id === currentUserId && (
+                                    <div className="mt-2 flex gap-2 text-xs text-blue-500">
+                                      <button
+                                          onClick={() => handleEdit(c.id, c.comment)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700"
+                                      >
+                                        Изменить
+                                      </button>
+                                      <button
+                                          onClick={() => handleDelete(c.id)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                      >
+                                        Удалить
+                                      </button>
+                                    </div>
+                                )}
+
                               </div>
                           ))}
-                          <div className="pt-2 flex items-center space-x-2">
-                            <input
-                                type="text"
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                placeholder="Написать комментарий..."
-                                className="flex-grow px-3 py-2 border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <Button size="sm" onClick={handleSend}>Отправить</Button>
+                          <div className="mt-3 flex flex-col space-y-1">
+                            {editCommentId && (
+                                <div className="text-xs text-gray-500 mb-1">
+                                  Редактируется комментарий
+                                  <button
+                                      className="ml-2 text-red-500 hover:underline"
+                                      onClick={() => {
+                                        setEditCommentId(null);
+                                        setComment("");
+                                      }}
+                                  >
+                                    Отменить
+                                  </button>
+                                </div>
+                            )}
+                            <div className="flex items-center space-x-2">
+                              <input
+                                  type="text"
+                                  value={comment}
+                                  onChange={(e) => setComment(e.target.value)}
+                                  placeholder="Написать комментарий..."
+                                  className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                              <Button size="sm" onClick={handleSend}>
+                                {editCommentId ? "Сохранить" : "Отправить"}
+                              </Button>
+                            </div>
                           </div>
+
                         </CardContent>
                       </Card>
                     </div>
