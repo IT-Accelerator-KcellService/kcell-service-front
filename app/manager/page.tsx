@@ -23,7 +23,7 @@ import {
   Plus,
   Trash2,
   Camera,
-  MapPin, Filter,
+  MapPin, Filter, Loader2, XCircle, User, Zap, AlertCircle, Calendar, ImageIcon,
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
@@ -74,7 +74,8 @@ export default function ManagerDashboard() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -126,11 +127,21 @@ export default function ManagerDashboard() {
   }
 
   const handleCreateRequest = async () => {
-    if (!selectedCategoryId) {
-      alert("Пожалуйста, выберите категорию услуги")
-      return
+    if (
+        !newRequestTitle ||
+        !description ||
+        !newRequestOfficeId ||
+        !newRequestType ||
+        !requestLocation ||
+        !newRequestLocation ||
+        !selectedCategoryId
+    ) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
     }
 
+    setIsSubmitting(true);
+    setFormErrors(null);
     try {
       const response = await api.post('/requests', {
         title: newRequestTitle,
@@ -168,7 +179,7 @@ export default function ManagerDashboard() {
           await api.delete(`/requests/${requestId}`);
           console.error("Ошибка при загрузке фото. Заявка удалена.");
           alert("Ошибка при загрузке фото. Заявка не была создана.");
-          return;
+          throw photoUploadError;
         }
       }
       fetchRequests()
@@ -181,6 +192,9 @@ export default function ManagerDashboard() {
     } catch (error) {
       console.error("Failed to create request:", error)
       alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -426,25 +440,6 @@ export default function ManagerDashboard() {
     </Card>
   )
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "draft":
-      case "Черновик":
-        return "bg-gray-500"
-      case "in_progress":
-      case "В обработке":
-        return "bg-blue-500"
-      case "in_execution":
-      case "Исполнение":
-        return "bg-orange-500"
-      case "completed":
-      case "Завершено":
-        return "bg-green-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
-
   const getTypeColor = (type: string) => {
     switch (type) {
       case "urgent":
@@ -520,6 +515,97 @@ export default function ManagerDashboard() {
     } catch (err) {
       console.log(err)
     }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return "bg-emerald-500 text-white border-emerald-500"
+      case "in_progress":
+      case "execution":
+        return "bg-purple-500 text-white border-purple-500"
+      case "awaiting_assignment":
+      case "awaiting_sla":
+        return "bg-amber-400 text-gray-900 border-amber-400"
+      case "assigned":
+        return "bg-violet-500 text-white border-violet-500"
+      case "rejected":
+        return "bg-red-500 text-white border-red-500"
+      default:
+        return "bg-gray-400 text-white border-gray-400"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return <CheckCircle className="w-3 h-3" />
+      case "in_progress":
+      case "execution":
+        return <Zap className="w-3 h-3" />
+      case "awaiting_assignment":
+      case "awaiting_sla":
+        return <Clock className="w-3 h-3" />
+      case "assigned":
+        return <User className="w-3 h-3" />
+      case "rejected":
+        return <XCircle className="w-3 h-3" />
+      default:
+        return null
+    }
+  }
+
+  const getComplexityColor = (complexity: string) => {
+    switch (complexity?.toLowerCase()) {
+      case "complex":
+        return "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500"
+      case "medium":
+        return "bg-gradient-to-r from-orange-400 to-yellow-400 text-gray-900 border-orange-400"
+      case "simple":
+        return "bg-gradient-to-r from-purple-400 to-violet-400 text-white border-purple-400"
+      default:
+        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
+    }
+  }
+
+  const getRequestTypeColor = (requestType: string) => {
+    switch (requestType.toLowerCase()) {
+      case "urgent":
+        return "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-500"
+      case "planned":
+        return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
+      case "normal":
+        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
+      default:
+        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
+    }
+  }
+
+  const getRequestTypeIcon = (requestType: string) => {
+    switch (requestType.toLowerCase()) {
+      case "urgent":
+        return <AlertCircle className="w-3 h-3" />
+      case "planned":
+        return <Calendar className="w-3 h-3" />
+      case "normal":
+        return <Clock className="w-3 h-3" />
+      default:
+        return null
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  }
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+        <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
+    ))
   }
 
   return (
@@ -655,45 +741,128 @@ export default function ManagerDashboard() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredRequests.map((request, index: number) => (
+                    <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                          onClick={() => setSelectedTaskDetails(request)}>
+                        {/* Заголовок с ID и статусами */}
+                        <CardHeader className="pb-3 px-5 pt-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                  #{request.id}
+                                </span>
+                                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                  {request.category.name}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Badge
+                                  variant="outline"
+                                  className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
+                              >
+                                {getStatusIcon(request.status)}
+                                {request.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardHeader>
 
-              {filteredRequests.map((request) => (
-                  <Card
-                      key={request.id}
-                      className="hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => setSelectedTaskDetails(request)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <div className="flex items-center space-x-2 mb-2">
-                            <Badge className={getTypeColor(request.request_type)}>{translateType(request.request_type)}</Badge>
-                            <Badge variant="outline" className={getStatusColor(request.status)}>
-                              {translateStatus(request.status)}
-                            </Badge>
-                            <span className="text-sm text-gray-500">#{request.id}</span>
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
-                          <div className="flex items-center text-sm text-gray-600 space-x-4">
-                            <div className="flex items-center">
-                              <MapPin className="w-4 h-4 mr-1" />
-                              Локация: {request.location_detail}
+                        <CardContent className="px-5 pb-5 pt-0 space-y-3">
+                          {/* Описание */}
+                          <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
+
+                          {/* Основная информация в сетке */}
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                              <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                              <span className="truncate font-medium">{request.location_detail}</span>
                             </div>
-                            <div className="flex items-center">
-                              <Clock className="w-4 h-4 mr-1" />Время:
-                              {new Date(request.created_date).toLocaleString("ru-RU", {
-                                day: "2-digit",
-                                month: "long",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit"
-                              })}
+
+                            <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                              <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                              <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                             </div>
+
+                            {request.executor_id ? (
+                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                  <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <span className="truncate font-medium">{request.executor_id}</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                  <User className="w-4 h-4 flex-shrink-0" />
+                                  <span className="truncate font-medium">Не назначен</span>
+                                </div>
+                            )}
+
+                            {request.rating ? (
+                                <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
+                                  {renderStars(request.rating)}
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                  <span className="text-sm font-medium">Без оценки</span>
+                                </div>
+                            )}
                           </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-              ))}
+
+                          {/* Фотографии */}
+                          {request.photos && request.photos.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <ImageIcon className="w-4 h-4 text-purple-500" />
+                                  <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto">
+                                  {request.photos.slice(0, 4).map((photo, index) => (
+                                      <div key={index} className="flex-shrink-0">
+                                        <img
+                                            src={photo.photo_url || "/placeholder.svg"}
+                                            alt={`Фото ${index + 1}`}
+                                            className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
+                                            onError={(e) => {
+                                              e.currentTarget.src = `/placeholder.svg?height=48&width=48`
+                                            }}
+                                        />
+                                      </div>
+                                  ))}
+                                  {request.photos.length > 4 && (
+                                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                                        <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+                                      </div>
+                                  )}
+                                </div>
+                              </div>
+                          )}
+
+                          {/* Нижняя панель */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <div className="flex gap-2">
+                              <Badge
+                                  variant="outline"
+                                  className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
+                              >
+                                {getRequestTypeIcon(request.request_type)}
+                                {request.request_type}
+                              </Badge>
+                              <Badge
+                                  variant="outline"
+                                  className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                              >
+                                {request.complexity}
+                              </Badge>
+                            </div>
+
+                            <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                ))}
+              </div>
             </div>
           </TabsContent>
 
@@ -984,10 +1153,17 @@ export default function ManagerDashboard() {
                     )}
                   </div>
                 </div>
-
+                {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                 <div className="flex space-x-4">
-                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700">
-                    Отправить заявку
+                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Отправка...
+                        </>
+                    ) : (
+                        "Отправить заявку"
+                    )}
                   </Button>
                   <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
                     Отмена

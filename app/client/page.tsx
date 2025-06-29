@@ -41,6 +41,13 @@ interface Rating {
 }
 
 export interface Request {
+  executor_id: any;
+  actual_completion_date: any;
+  sla: React.JSX.Element;
+  date_submitted: string;
+  category: any;
+  office: any;
+  complexity: string;
   id: number;
   title: string;
   description: string;
@@ -100,6 +107,7 @@ export default function ClientDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -112,6 +120,7 @@ export default function ClientDashboard() {
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id);
+          setNewRequestOfficeId(String(user.office_id));
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
@@ -413,7 +422,7 @@ export default function ClientDashboard() {
       const response = await api.post('/requests', {
         title: requestTitle,
         description: requestDescription,
-        office_id: 1,
+        office_id: Number(newRequestOfficeId),
         request_type: requestType === "urgent" ? "urgent" : "normal",
         location: requestLocation,
         location_detail: requestLocationDetails,
