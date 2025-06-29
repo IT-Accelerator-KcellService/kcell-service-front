@@ -23,7 +23,7 @@ import {
   Plus,
   Trash2,
   Camera,
-  MapPin, Filter,
+  MapPin, Filter, Loader2,
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
@@ -74,7 +74,8 @@ export default function ManagerDashboard() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -126,11 +127,21 @@ export default function ManagerDashboard() {
   }
 
   const handleCreateRequest = async () => {
-    if (!selectedCategoryId) {
-      alert("Пожалуйста, выберите категорию услуги")
-      return
+    if (
+        !newRequestTitle ||
+        !description ||
+        !newRequestOfficeId ||
+        !newRequestType ||
+        !requestLocation ||
+        !newRequestLocation ||
+        !selectedCategoryId
+    ) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
     }
 
+    setIsSubmitting(true);
+    setFormErrors(null);
     try {
       const response = await api.post('/requests', {
         title: newRequestTitle,
@@ -168,7 +179,7 @@ export default function ManagerDashboard() {
           await api.delete(`/requests/${requestId}`);
           console.error("Ошибка при загрузке фото. Заявка удалена.");
           alert("Ошибка при загрузке фото. Заявка не была создана.");
-          return;
+          throw photoUploadError;
         }
       }
       fetchRequests()
@@ -181,6 +192,9 @@ export default function ManagerDashboard() {
     } catch (error) {
       console.error("Failed to create request:", error)
       alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -984,10 +998,17 @@ export default function ManagerDashboard() {
                     )}
                   </div>
                 </div>
-
+                {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                 <div className="flex space-x-4">
-                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700">
-                    Отправить заявку
+                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Отправка...
+                        </>
+                    ) : (
+                        "Отправить заявку"
+                    )}
                   </Button>
                   <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
                     Отмена

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,7 +22,7 @@ import {
   Star,
   Plus,
   MapPin,
-  Calendar,
+  Calendar, Loader2,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
@@ -69,6 +69,9 @@ export default function ExecutorDashboard() {
   const [completedRequestComment, setCompletedRequestComment] = useState("");
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -80,6 +83,7 @@ export default function ExecutorDashboard() {
           window.location.href = '/login';
         } else {
           setIsLoggedIn(true);
+          setNewRequestOfficeId(String(user.office_id));
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
@@ -175,16 +179,26 @@ export default function ExecutorDashboard() {
   }
 
   const handleCreateRequest = async () => {
-    if (!selectedCategoryId) {
-      alert("Пожалуйста, выберите категорию услуги")
-      return
+    if (
+        !newRequestTitle ||
+        !description ||
+        !newRequestType ||
+        !requestLocation ||
+        !newRequestLocation ||
+        !selectedCategoryId
+    ) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
     }
+
+    setIsSubmitting(true);
+    setFormErrors(null);
 
     try {
       const response = await api.post('/requests', {
         title: newRequestTitle,
         description: description,
-        office_id: 1,
+        office_id: Number(newRequestOfficeId),
         request_type: newRequestType === "urgent" ? "urgent" : "normal",
         location: requestLocation,
         location_detail: newRequestLocation,
@@ -229,7 +243,9 @@ export default function ExecutorDashboard() {
       alert("Заявка успешно создана!")
     } catch (error) {
       console.error("Failed to create request:", error)
-      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -1154,10 +1170,17 @@ export default function ExecutorDashboard() {
                     )}
                   </div>
                 </div>
-
+                {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                 <div className="flex space-x-4">
-                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700">
-                    Отправить заявку
+                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Отправка...
+                        </>
+                    ) : (
+                        "Отправить заявку"
+                    )}
                   </Button>
                   <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
                     Отмена

@@ -29,7 +29,7 @@ import {
   MapPin,
   Trash2,
   Download,
-  ExternalLink,
+  ExternalLink, Loader2,
 } from "lucide-react"
 import Header from "@/app/header/Header"
 import UserProfile from "@/app/client/UserProfile"
@@ -120,6 +120,9 @@ export default function DepartmentHeadDashboard() {
   const [selectedExecutorId, setSelectedExecutorId] = useState<number | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [photos, setPhotos] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -132,6 +135,7 @@ export default function DepartmentHeadDashboard() {
           window.location.href = '/login';
         } else {
           setIsLoggedIn(true);
+          setNewRequestOfficeId(String(user.office_id));
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
@@ -281,9 +285,26 @@ export default function DepartmentHeadDashboard() {
   }
 
   const handleCreateNewRequest = async () => {
+    if (
+        !newRequestTitle ||
+        !newRequestDescription ||
+        !newRequestType ||
+        !newRequestLocationDetails ||
+        !newRequestLocation ||
+        !serviceCategories ||
+        !newRequestComplexity ||
+        !newRequestSLA
+    ) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
+    }
+    setIsSubmitting(true);
+    setFormErrors(null);
+
     try {
       const response = await api.post('/requests', {
         title: newRequestTitle,
+        office_id: Number(newRequestOfficeId),
         description: newRequestDescription,
         request_type: newRequestType,
         location: newRequestLocation,
@@ -319,7 +340,7 @@ export default function DepartmentHeadDashboard() {
           await api.delete(`/requests/${requestId}`);
           console.error("Ошибка при загрузке фото. Заявка удалена.");
           alert("Ошибка при загрузке фото. Заявка не была создана.");
-          return;
+          throw photoUploadError;
         }
       }
       fetchRequests()
@@ -335,7 +356,9 @@ export default function DepartmentHeadDashboard() {
       setNewRequestSLA("1h")
     } catch (error) {
       console.error("Failed to create request:", error)
-      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -1505,21 +1528,23 @@ export default function DepartmentHeadDashboard() {
                       )}
                     </div>
                   </div>
-
+                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                   <div className="flex space-x-4">
                     <Button
                         onClick={handleCreateNewRequest}
                         className="flex-1 bg-violet-600 hover:bg-violet-700"
                         disabled={
-                            !newRequestType ||
-                            !newRequestTitle ||
-                            !newRequestLocation ||
-                            !newRequestDescription ||
-                            !newRequestCategory ||
-                            (newRequestType === "planned" && !newRequestPlannedDate)
+                          isSubmitting
                         }
                     >
-                      Отправить заявку
+                      {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Отправка...
+                          </>
+                      ) : (
+                          "Отправить заявку"
+                      )}
                     </Button>
                     <Button
                         variant="outline"
