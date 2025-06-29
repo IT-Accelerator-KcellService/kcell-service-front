@@ -26,9 +26,11 @@ import {
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
-
+import axios from "axios";
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
+
+const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -182,7 +184,12 @@ export default function ExecutorDashboard() {
         formData.append('type', 'before');
 
         try {
-          await api.post(`/request-photos/${requestId}/photos`, formData);
+          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
 
           console.log("Фотографии успешно загружены");
         } catch (photoUploadError) {

@@ -32,6 +32,8 @@ import dynamic from "next/dynamic";
 import {Request} from "@/app/client/page";
 import api from "@/lib/api";
 
+const API_BASE_URL = 'https://kcell-service.onrender.com/api';
+
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
@@ -152,7 +154,13 @@ export default function ManagerDashboard() {
         formData.append('type', 'before');
 
         try {
-          await api.post(`/request-photos/${requestId}/photos`, formData);
+
+          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
 
           console.log("Фотографии успешно загружены");
         } catch (photoUploadError) {
@@ -697,18 +705,6 @@ export default function ManagerDashboard() {
           </TabsContent>
 
           <TabsContent value="overview" className="space-y-4 sm:space-y-6">
-            {/* Chart placeholder */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg sm:text-xl">Динамика заявок</CardTitle>
-                <CardDescription className="text-sm">Количество заявок по дням</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48 sm:h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <span className="text-gray-500 text-sm">График будет здесь</span>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Distribution */}
             <Card>
@@ -757,23 +753,25 @@ export default function ManagerDashboard() {
                     <p>Загрузка...</p>
                 ) : (
                     <div className="space-y-3">
-                      {notifications
-                          .slice(0, 5)
-                          .map((n: any) => (
+                      {notifications.length > 0?
+                      notifications
+                              .slice(0, 5)
+                              .map((n: any) => (
                               <div
-                                  key={n.id}
-                                  onClick={() => handleNotificationClick(n)}
-                                  className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
-                                      n.title
-                                  )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
-                              >
-                                <div className="flex justify-between">
-                                  <p className="text-sm font-medium">{n.title}</p>
-                                  {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
-                                </div>
-                                <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
-                              </div>
-                          ))}
+                              key={n.id}
+                            onClick={() => handleNotificationClick(n)}
+                            className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
+                                n.title
+                            )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
+                          >
+                            <div className="flex justify-between">
+                              <p className="text-sm font-medium">{n.title}</p>
+                              {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
+                            </div>
+                            <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
+                          </div>
+                      )): <p className="text-sm text-gray-500">Нет уведомлений</p>}
+
                     </div>
                 )}
               </CardContent>
