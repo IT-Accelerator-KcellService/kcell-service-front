@@ -155,14 +155,27 @@ export default function AdminWorkerDashboard() {
   const fetchRequests = async () => {
     try {
       const response: any = await api.get('/requests/admin-worker/me');
-      setIncomingRequests(response.data.otherRequests);
-      setMyRequests(response.data.myRequests);
-      response.data.otherRequests.forEach((request: Request) => {
+      const otherRequests: Request[] = response.data.otherRequests;
+      const myRequests: Request[] = response.data.myRequests;
+      const sortedOtherRequests = otherRequests.sort((a, b) => {
+        const aInProgress = a.status === "in_progress";
+        const bInProgress = b.status === "in_progress";
+        if (aInProgress && !bInProgress) return -1;
+        if (bInProgress && !aInProgress) return 1;
+        if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
+        if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        return dateB - dateA;
+      });
+      setIncomingRequests(sortedOtherRequests);
+      setMyRequests(myRequests);
+      sortedOtherRequests.forEach((request: Request) => {
         if (request.status === "completed") {
           checkUserRating(request.id);
         }
       });
-      response.data.myRequests.forEach((request: Request) => {
+      myRequests.forEach((request: Request) => {
         if (request.status === "completed") {
           checkUserRating(request.id);
         }

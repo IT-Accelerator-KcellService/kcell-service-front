@@ -57,7 +57,7 @@ export default function ExecutorDashboard() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
-  const [notifications, setNotifications] = useState([])
+  const [notifications, setNotifications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -67,8 +67,8 @@ export default function ExecutorDashboard() {
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [completedRequestComment, setCompletedRequestComment] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all")
-  const [filterType, setFilterType] = useState("all")
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterType, setFilterType] = useState("all");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -257,13 +257,15 @@ export default function ExecutorDashboard() {
   const fetchNotifications = async () => {
     try {
       const response = await api.get("/notifications/me")
-      setNotifications(response.data)
+      console.log("notifications response", response.data);
+      setNotifications(response.data.data);
     } catch (error) {
       console.error("Ошибка при загрузке уведомлений", error)
     } finally {
       setLoading(false)
     }
   }
+
 
   const handleNotificationClick = async (notification:any) => {
     if (!notification.is_read) {
@@ -404,49 +406,63 @@ export default function ExecutorDashboard() {
   }
 
   const handleCompleteTask = async (taskId: string) => {
-    const response: any = await api.patch(`/requests/${taskId}/complete`, {
-      comment: completedRequestComment
-    })
-    if (photos.length > 0) {
-      const formData = new FormData();
-      photos.forEach((photo) => {
-        formData.append('photos', photo);
+    try {
+      // 1. PATCH для завершения задачи
+      const response = await api.patch(`/requests/${taskId}/complete`, {
+        comment: completedRequestComment
       });
-      formData.append('type', 'after');
 
-      try {
-        await api.post(`/request-photos/${response.data.id}/photos`, formData);
+      // 2. Если есть фото, загружаем их
+      if (photos.length > 0) {
+        const formData = new FormData();
+        photos.forEach((photo) => {
+          formData.append('photos', photo);
+        });
+        formData.append('type', 'after');
 
-        console.log("Фотографии успешно загружены");
-      } catch (photoUploadError) {
-        await api.delete(`/requests/${response.data.id}`);
-        console.error("Ошибка при загрузке фото. Заявка удалена.");
-        alert("Ошибка при загрузке фото. Заявка не была создана.");
-        return;
+        try {
+          await api.post(`/request-photos/${response.data.id}/photos`, formData);
+
+          console.log("Фотографии успешно загружены");
+        } catch (photoUploadError) {
+          // если загрузка фото не удалась — удаляем созданную заявку
+          await api.delete(`/requests/${response.data.id}`);
+          console.error("Ошибка при загрузке фото. Заявка удалена.");
+          alert("Ошибка при загрузке фото. Заявка не была создана.");
+          return;
+        }
       }
+
+      // 3. Переносим задачу в список завершённых
+      setAssignedRequests((prevTasks: any) => {
+        const taskToComplete = prevTasks.find((task: any) => task.id === taskId);
+        if (taskToComplete) {
+          setCompletedRequests((prevCompleted: any) => [
+            {
+              ...taskToComplete,
+              status: "completed",
+              completedDate: new Date().toISOString(),
+              rating: 0,
+              plannedDate: null
+            },
+            ...prevCompleted,
+          ]);
+          return prevTasks.filter((task: any) => task.id !== taskId);
+        }
+        return prevTasks;
+      });
+
+      // 4. Сбрасываем состояние
+      setSelectedTask(null);
+      setPhotos([]);
+      setPhotoPreviews([]);
+      console.log("Задача успешно завершена:", taskId);
+    } catch (error) {
+      console.error("Ошибка при завершении задачи", error);
+      alert("Ошибка при завершении задачи.");
     }
-    setAssignedRequests((prevTasks: any) => {
-      const taskToComplete = prevTasks.find((task: any) => task.id === taskId);
-      if (taskToComplete) {
-        setCompletedRequests((prevCompleted: any) => [
-          {
-            ...taskToComplete,
-            status: "completed",
-            completedDate: new Date().toISOString(),
-            rating: 0,
-            plannedDate: null
-          },
-          ...prevCompleted,
-        ]);
-        return prevTasks.filter((task: any) => task.id !== taskId);
-      }
-      return prevTasks;
-    });
-
-    setSelectedTask(null);
-    setPhotos([]);
-    console.log("Completing task:", taskId);
   };
+
 
   const handleLogout = async () => {
     try {
@@ -538,7 +554,6 @@ export default function ExecutorDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <TabsList>
                   <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
-                  <TabsTrigger value="myTasks">Мои задачи</TabsTrigger>
                   <TabsTrigger value="completed">Завершенные</TabsTrigger>
                   <TabsTrigger value="statistics">Статистика</TabsTrigger>
                 </TabsList>
@@ -557,156 +572,6 @@ export default function ExecutorDashboard() {
               <TabsContent value="tasks">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4 mb-4">
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Фильтр
-                    </Button>
-                    <Badge variant="outline">Сортировка: По приоритету</Badge>
-                  </div>
-
-                  {assignedRequests
-                    ?.sort((a: any, b: any) => {
-                      const typeOrderA = getTaskTypeOrder(a.type)
-                      const typeOrderB = getTaskTypeOrder(b.type)
-
-                      return typeOrderA - typeOrderB
-                    })
-                    .map((task: any) => (
-                      <Card
-                        key={task.id}
-                        className="hover:shadow-md transition-shadow cursor-pointer"
-                        onClick={() => setSelectedTaskDetails(task)}
-                      >
-                        <CardContent className="p-6">
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Badge className={getTypeColor(task.request_type)}>{translateType(task.request_type)}</Badge>
-                                <Badge variant="outline" className={getStatusColor(task.status)}>
-                                  {translateStatus(task.status)}
-                                </Badge>
-                                <span className="text-sm text-gray-500">#{task.id}</span>
-                              </div>
-                              <h3 className="text-lg font-semibold text-gray-900 mb-1">{task.title}</h3>
-                              <div className="text-sm text-gray-600 space-y-1">
-                                <div className="flex items-center">
-                                  <MapPin className="w-4 h-4 mr-1" />
-                                  {task.location_detail}
-                                </div>
-                                <div className="flex items-center">
-                                  <Clock className="w-4 h-4 mr-1" />
-                                  Создано: {task.created_date}
-                                </div>
-                                <div className="flex items-center">
-                                  <Calendar className="w-4 h-4 mr-1" />
-                                  SLA: {task.sla === '1h' && '1 час'}
-                                {task.sla === '4h' && '4 часа'}
-                                {task.sla === '8h' && '8 часов'}
-                                {task.sla === '1d' && '1 день'}
-                                {task.sla === '3d' && '3 дня'}
-                                {task.sla === '1w' && '1 неделя'}
-                                </div>
-                                <p>Клиент: {task.client.full_name}</p>
-                              </div>
-                            </div>
-                            <div className="flex space-x-2">
-                              {task.status === "assigned" && (
-                                <Button
-                                  size="sm"
-                                  className="bg-blue-600 hover:bg-blue-700"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleStartTask(task.id)
-                                  }}
-                                >
-                                  Начать
-                                </Button>
-                              )}
-                              {task.status === "execution" && (
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setSelectedTask(task)
-                                  }}
-                                >
-                                  Завершить
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-
-                          <p className="text-sm text-gray-700 mb-3">{task.description}</p>
-
-                          {task.request_type === "urgent" && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                              <div className="flex items-center">
-                                <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
-                                <span className="text-sm font-medium text-red-800">
-                                  Экстренная задача! Требует немедленного выполнения
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="completed">
-                <div className="space-y-4">
-                  {completedRequests?.map((task: any) => (
-                    <Card
-                      key={task.id}
-                      className="hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => setSelectedTaskDetails(task)}
-                    >
-                      <CardContent className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Badge className={getTypeColor(task.request_type)}>{translateType(task.request_type)}</Badge>
-                              <Badge variant="outline" className="bg-green-500">
-                                Завершена
-                              </Badge>
-                              <span className="text-sm text-gray-500">#{task.id}</span>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1">{task.title}</h3>
-                            <div className="text-sm text-gray-600 space-y-1">
-                              <p>Локация: {task.location_detail}</p>
-                              <p>Завершено: {task.completedDate}</p>
-                              <p>Клиент: {task.client.full_name}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="flex">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`w-4 h-4 ${
-                                    i < task.rating ? "text-yellow-400 fill-current" : "text-gray-300"
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                            <span className="text-sm font-medium">{task.rating}/5</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="myTasks">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Фильтр
-                    </Button>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Статус" />
@@ -731,54 +596,180 @@ export default function ExecutorDashboard() {
                     </Select>
                   </div>
 
-                  {filteredRequests.map((request: any) => (
-                      <Card
-                          key={request.id}
-                          className="hover:shadow-md transition-shadow cursor-pointer"
-                          onClick={() => setSelectedTaskDetails(request)}
-                      >
-                        <CardContent className="p-6">
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Badge className={getTypeColor(request.request_type)}>{translateType(request.request_type)}</Badge>
-                                <Badge variant="outline" className={getStatusColor(request.status)}>
-                                  {translateStatus(request.status)}
-                                </Badge>
-                                <span className="text-sm text-gray-500">#{request.id}</span>
-                              </div>
-                              <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
-                              <div className="flex items-center text-sm text-gray-600 space-x-4">
-                                <div className="flex items-center">
-                                  <MapPin className="w-4 h-4 mr-1" />
-                                  Локация: {request.location_detail}
+                  {assignedRequests
+                      ?.filter((task: any) => {
+                        const statusOk = filterStatus === "all" || task.status === filterStatus;
+                        const typeOk = filterType === "all" || task.request_type === filterType;
+                        return statusOk && typeOk;
+                      })
+                      .sort((a: any, b: any) => {
+                        const typeOrderA = getTaskTypeOrder(a.type);
+                        const typeOrderB = getTaskTypeOrder(b.type);
+                        return typeOrderA - typeOrderB;
+                      })
+                      .map((task: any) => (
+                          <Card
+                              key={task.id}
+                              className="hover:shadow-md transition-shadow cursor-pointer"
+                              onClick={() => setSelectedTaskDetails(task)}
+                          >
+                            <CardContent className="p-6">
+                              <div className="flex justify-between items-start mb-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <Badge className={getTypeColor(task.request_type)}>
+                                      {translateType(task.request_type)}
+                                    </Badge>
+                                    <Badge
+                                        variant="outline"
+                                        className={getStatusColor(task.status)}
+                                    >
+                                      {translateStatus(task.status)}
+                                    </Badge>
+                                    <span className="text-sm text-gray-500">#{task.id}</span>
+                                  </div>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate max-w-xs">
+                                    {task.title}
+                                  </h3>
+                                  <div className="text-sm text-gray-600 space-y-1">
+                                    <div className="flex items-center">
+                                      <MapPin className="w-4 h-4 mr-1" />
+                                      {task.location_detail}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Clock className="w-4 h-4 mr-1" />
+                                      Создано: {task.created_date}
+                                    </div>
+                                    <div className="flex items-center">
+                                      <Calendar className="w-4 h-4 mr-1" />
+                                      SLA:
+                                      {task.sla === "1h" && "1 час"}
+                                      {task.sla === "4h" && "4 часа"}
+                                      {task.sla === "8h" && "8 часов"}
+                                      {task.sla === "1d" && "1 день"}
+                                      {task.sla === "3d" && "3 дня"}
+                                      {task.sla === "1w" && "1 неделя"}
+                                    </div>
+                                    <p>Клиент: {task.client.full_name}</p>
+                                  </div>
                                 </div>
-                                <div className="flex items-center">
-                                  <Clock className="w-4 h-4 mr-1" />Время:
-                                  {new Date(request.created_date).toLocaleString("ru-RU", {
-                                    day: "2-digit",
-                                    month: "long",
-                                    year: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit"
-                                  })}
+                                <div className="flex space-x-2 flex-shrink-0">
+                                  {["assigned", "in_progress"].includes(task.status) && (
+                                      <Button
+                                          size="sm"
+                                          className="bg-blue-600 hover:bg-blue-700"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStartTask(task.id);
+                                          }}
+                                      >
+                                        Начать
+                                      </Button>
+                                  )}
+                                  {task.status === "execution" && (
+                                      <Button
+                                          size="sm"
+                                          className="bg-green-600 hover:bg-green-700"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedTask(task);
+                                          }}
+                                      >
+                                        Завершить
+                                      </Button>
+                                  )}
                                 </div>
-                              </div>
-                            </div>
-                          </div>
 
-                          {request.executor && (
-                              <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-600">
-                                  Исполнитель: <span className="font-medium">{request.executor}</span>
-                                </div>
+
                               </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                  ))}
+
+                              <p className="text-sm text-gray-700 mb-3">{task.description}</p>
+
+                              {task.request_type === "urgent" && (
+                                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                    <div className="flex items-center">
+                                      <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+                                      <span className="text-sm font-medium text-red-800">
+                    Экстренная задача! Требует немедленного выполнения
+                  </span>
+                                    </div>
+                                  </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                      ))}
                 </div>
               </TabsContent>
+
+              <TabsContent value="completed">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Тип заявки" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все</SelectItem>
+                        <SelectItem value="normal">Обычная</SelectItem>
+                        <SelectItem value="urgent">Экстренная</SelectItem>
+                        <SelectItem value="planed">Плановая</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {completedRequests
+                      ?.filter((task: any) => {
+                        if (filterType === "all") return true;
+                        return task.request_type === filterType;
+                      })
+                      .map((task: any) => (
+                          <Card
+                              key={task.id}
+                              className="hover:shadow-md transition-shadow cursor-pointer"
+                              onClick={() => setSelectedTaskDetails(task)}
+                          >
+                            <CardContent className="p-6">
+                              <div className="flex justify-between items-start mb-4">
+                                <div>
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <Badge className={getTypeColor(task.request_type)}>
+                                      {translateType(task.request_type)}
+                                    </Badge>
+                                    <Badge variant="outline" className="bg-green-500">
+                                      Завершена
+                                    </Badge>
+                                    <span className="text-sm text-gray-500">#{task.id}</span>
+                                  </div>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                                    {task.title}
+                                  </h3>
+                                  <div className="text-sm text-gray-600 space-y-1">
+                                    <p>Локация: {task.location_detail}</p>
+                                    <p>Завершено: {task.completedDate}</p>
+                                    <p>Клиент: {task.client.full_name}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <div className="flex">
+                                    {[...Array(5)].map((_, i) => (
+                                        <Star
+                                            key={i}
+                                            className={`w-4 h-4 ${
+                                                i < task.rating
+                                                    ? "text-yellow-400 fill-current"
+                                                    : "text-gray-300"
+                                            }`}
+                                        />
+                                    ))}
+                                  </div>
+                                  <span className="text-sm font-medium">{task.rating}/5</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                      ))}
+                </div>
+              </TabsContent>
+
 
               <TabsContent value="statistics">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1341,11 +1332,34 @@ export default function ExecutorDashboard() {
                       </Card>
                     </div>
                 )}
+                <CardHeader className="flex justify-between items-center">
+                  <div className="flex gap-2 flex-wrap">
+                    {["assigned", "in_progress"].includes(selectedTaskDetails.status) && (
+                        <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700"
+                            onClick={() => handleStartTask(selectedTaskDetails.id)}
+                        >
+                          Начать
+                        </Button>
+                    )}
+                    {selectedTaskDetails.status === "execution" && (
+                        <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => setSelectedTask(selectedTaskDetails)}
+                        >
+                          Завершить
+                        </Button>
+                    )}
+                  </div>
+                  {/* Закрыть */}
+                  <div className="flex justify-between items-center">
+                    <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
+                  </div>
+                </CardHeader>
 
-                {/* Закрыть */}
-                <div className="flex justify-end pt-4">
-                  <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
-                </div>
+
               </CardContent>
             </Card>
           </div>

@@ -165,23 +165,36 @@ export default function DepartmentHeadDashboard() {
 
   const fetchRequests = async () => {
     try {
-      const response: any = await api.get('/requests/department-head/me')
-      setIncomingRequests(response.data.otherRequests)
-      setMyRequests(response.data.myRequests)
-      response.data.otherRequests.forEach((request: Request) => {
-        if (request.status === "completed") {
-          checkUserRating(request.id)
-        }
-      })
-      response.data.myRequests.forEach((request: Request) => {
-        if (request.status === "completed") {
-          checkUserRating(request.id)
-        }
-      })
+      const response: any = await api.get('/requests/department-head/me');
+
+      const otherRequests: Request[] = response.data.otherRequests;
+      const myRequests: Request[] = response.data.myRequests;
+
+      const sortedOtherRequests = otherRequests.sort((a, b) => {
+        // 1. приоритет "waiting_for_assignment"
+        if (a.status === "waiting_for_assignment" && b.status !== "waiting_for_assignment") return -1;
+        if (b.status === "waiting_for_assignment" && a.status !== "waiting_for_assignment") return 1;
+
+        // 2. приоритет "in_progress"
+        if (a.status === "in_progress" && b.status !== "in_progress") return -1;
+        if (b.status === "in_progress" && a.status !== "in_progress") return 1;
+
+        // 3. среди одинаковых статусов — приоритет экстренным
+        if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
+        if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
+
+        // 4. по дате (новые сверху)
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        return dateB - dateA;
+      });
+
+      setIncomingRequests(sortedOtherRequests);
+      setMyRequests(myRequests);
     } catch (error) {
-      console.error("Failed to fetch requests:", error)
+      console.error("Failed to fetch requests:", error);
     }
-  }
+  };
   const fetchExecutors = async () => {
     try {
       const response = await api.get('/executors')

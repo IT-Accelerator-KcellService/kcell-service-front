@@ -481,12 +481,21 @@ export default function ClientDashboard() {
     }
   }
 
-  const filteredRequests = requests.filter((request) => {
-    const statusMatch = filterStatus === "all" || request.status === filterStatus
-    const requestType = request.request_type
-    const typeMatch = filterType === "all" || requestType === filterType
-    return statusMatch && typeMatch
-  })
+  const filteredRequests = requests
+      .filter((request) => {
+        const statusMatch = filterStatus === "all" || request.status === filterStatus
+        const requestType = request.request_type
+        const typeMatch = filterType === "all" || requestType === filterType
+        return statusMatch && typeMatch
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        // если дата невалидная, ставим приоритет 0
+        const safeDateA = isNaN(dateA) ? 0 : dateA;
+        const safeDateB = isNaN(dateB) ? 0 : dateB;
+        return safeDateB - safeDateA;
+      });
 
   const handleLogout = async () => {
     try {
@@ -594,10 +603,6 @@ export default function ClientDashboard() {
               <TabsContent value="requests">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4 mb-4">
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Фильтр
-                    </Button>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Статус" />
