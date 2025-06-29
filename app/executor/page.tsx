@@ -877,7 +877,7 @@ export default function ExecutorDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity !== "" && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1049,7 +1049,7 @@ export default function ExecutorDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity !== "" && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1207,7 +1207,7 @@ export default function ExecutorDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}

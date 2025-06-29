@@ -69,7 +69,7 @@ interface Request {
   progress?: number;
   planned_date?: string;
   client_id?: number;
-  complexity?: 'simple' | 'medium' | 'complex';
+  complexity: string;
   sla?: string;
 }
 const roleTranslations: Record<string, string> = {
@@ -578,7 +578,7 @@ export default function AdminWorkerDashboard() {
     }
   }
 
-  const getComplexityColor = (complexity: "simple" | "medium" | "complex" | undefined) => {
+  const getComplexityColor = (complexity: string) => {
     switch (complexity?.toLowerCase()) {
       case "complex":
         return "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500"
@@ -590,6 +590,15 @@ export default function AdminWorkerDashboard() {
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
   }
+
+  const translateComplexity = (complexity: string) => {
+    switch (complexity) {
+      case "complex": return "комплексный";
+      case "simple": return "простой";
+      case "medium": return "средний";
+      default: return complexity;
+    }
+  };
 
   const getRequestTypeColor = (requestType: string) => {
     switch (requestType.toLowerCase()) {
@@ -897,12 +906,14 @@ export default function AdminWorkerDashboard() {
                                     {getRequestTypeIcon(request.request_type)}
                                     {translateType(request.request_type)}
                                   </Badge>
-                                  <Badge
-                                      variant="outline"
-                                      className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
-                                  >
-                                    {request.complexity}
-                                  </Badge>
+                                  {request.complexity && request.complexity !== "" && (
+                                      <Badge
+                                          variant="outline"
+                                          className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                      >
+                                        {translateComplexity(request.complexity)}
+                                      </Badge>
+                                  )}
                                 </div>
 
                                 <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>

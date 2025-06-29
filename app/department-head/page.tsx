@@ -94,7 +94,7 @@ interface Request {
   progress?: number
   planned_date?: string
   client_id?: number
-  complexity?: 'simple' | 'medium' | 'complex'
+  complexity: string
   sla?: string
 }
 
@@ -747,7 +747,7 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const getComplexityColor = (complexity: "simple" | "medium" | "complex" | undefined) => {
+  const getComplexityColor = (complexity: string) => {
     switch (complexity?.toLowerCase()) {
       case "complex":
         return "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500"
@@ -1009,7 +1009,7 @@ export default function DepartmentHeadDashboard() {
                                 {getRequestTypeIcon(request.request_type)}
                                 {translateType(request.request_type)}
                               </Badge>
-                              {request.complexity && (
+                              {request.complexity && request.complexity !== "" && (
                                   <Badge
                                       variant="outline"
                                       className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1136,7 +1136,7 @@ export default function DepartmentHeadDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
