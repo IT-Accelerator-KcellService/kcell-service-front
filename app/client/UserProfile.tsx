@@ -20,6 +20,7 @@ interface User {
     email: string
     full_name: string
     office_id: number
+    office: {name: string}
     role: string
 }
 

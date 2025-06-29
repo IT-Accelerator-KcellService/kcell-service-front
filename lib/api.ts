@@ -2,10 +2,23 @@ import axios from 'axios';
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
-const api = axios.create({
+export const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
+    headers: {
+        'Content-Type': 'application/json'
+    }
 });
+
+if (typeof window !== 'undefined') {
+    api.interceptors.request.use(config => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    }, error => Promise.reject(error));
+}
 
 
 export const getUsers = () => api.get('/users');

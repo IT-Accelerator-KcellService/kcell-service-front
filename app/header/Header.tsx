@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
-import axios from "axios";
+import api from "@/lib/api";
 
 interface HeaderProps {
     setShowProfile: (value: boolean) => void;
@@ -16,16 +16,6 @@ interface HeaderProps {
     notificationCount?: number;
     role?: string;
 }
-
-const API_BASE_URL = "https://kcell-service.onrender.com/api"
-
-const api = axios.create({
-    baseURL: API_BASE_URL,
-    withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json',
-    }
-})
 
 const Header: React.FC<HeaderProps> = ({
                                            setShowProfile,

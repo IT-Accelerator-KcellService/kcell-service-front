@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -20,78 +19,348 @@ import {
   TrendingUp,
   TrendingDown,
   Download,
-  Bell,
-  User,
-  LogOut,
   Building2,
   Plus,
-  Menu,
   Trash2,
   Camera,
-  Calendar,
-  Eye,
-  MessageCircle,
+  MapPin, Filter,
 } from "lucide-react"
+import axios from "axios";
+import Header from "@/app/header/Header";
+import UserProfile from "@/app/client/UserProfile";
+import dynamic from "next/dynamic";
+import {Request} from "@/app/client/page";
+import api from "@/lib/api";
+
+const MapView = dynamic(() => import('@/app/map/MapView'), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
+})
 
 export default function ManagerDashboard() {
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
   const [tab, setTab] = useState("overview")
-
-  // State for office management
-  const [offices, setOffices] = useState(["Тимирязева 2Г", "Алимжанова 51"])
+  const [offices, setOffices] = useState([{}])
   const [newOfficeName, setNewOfficeName] = useState("")
-
-  // State for creating new requests
+  const [newOfficeCity, setNewOfficeCity] = useState("")
+  const [newOfficeAddress, setNewOfficeAddress] = useState("")
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
-  const [newRequestType, setNewRequestType] = useState("Обычная") // Default type
+  const [newRequestType, setNewRequestType] = useState("Обычная")
   const [newRequestTitle, setNewRequestTitle] = useState("")
   const [newRequestLocation, setNewRequestLocation] = useState("")
-  const [newRequestCategory, setNewRequestCategory] = useState("")
-  const [newRequestComplexity, setNewRequestComplexity] = useState("")
-  const [newRequestSLA, setNewRequestSLA] = useState("")
-  const [newRequestDescription, setNewRequestDescription] = useState("")
-  const [newRequestPhotos, setNewRequestPhotos] = useState<string[]>([])
-  const [newRequestPlannedDate, setNewRequestPlannedDate] = useState("")
+  const [isLoggedIn, setIsLoggedIn] = useState(true)
+  const [showProfile, setShowProfile] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedNotification, setSelectedNotification] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
+  const [description, setDescription] = useState("");
+  const [requestLocation, setRequestLocation] = useState("")
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedTaskDetails, setSelectedTaskDetails] = useState<any>(null)
+  const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [comment, setComment] = useState("");
+  const [comments, setComments] = useState([]);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [filterStatus, setFilterStatus] = useState("all")
+  const [filterType, setFilterType] = useState("all")
 
-  // State for requests created by the manager
-  const [managerSubmittedRequests, setManagerSubmittedRequests] = useState([
-    {
-      id: "REQ-M01",
-      type: "Обычная",
-      title: "Проверка системы отопления",
-      client: "Менеджеров М.М.",
-      location: "Офис 101, Тимирязева 2Г",
-      date: "2024-06-20",
-      description: "Плановая проверка системы отопления перед зимним сезоном.",
-      photos: [],
-      status: "Ожидает назначения",
-      category: "Техническое обслуживание",
-      complexity: "Средняя",
-      sla: "1 неделя",
-      executor: null,
-      plannedDate: "2024-07-15",
-    },
-  ])
 
-  // State for viewing request details
-  const [showRequestDetailsModal, setShowRequestDetailsModal] = useState(false)
-  const [selectedRequestDetails, setSelectedRequestDetails] = useState<any>(null)
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await api.get("/users/me");
+        const user = response.data;
 
-  // State for chat
-  const [showChatModal, setShowChatModal] = useState(false)
-  const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; time: string }[]>([])
-  const [chatInput, setChatInput] = useState("")
-  const [currentChatRequestId, setCurrentChatRequestId] = useState<string | null>(null)
-  const chatMessagesEndRef = useRef<HTMLDivElement>(null)
+        if (!user || user.role !== "manager") {
+          window.location.href = '/login';
+        } else {
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error("Ошибка при проверке авторизации", error);
+        window.location.href = '/login'
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchCategories()
+      fetchRequests()
+      fetchNotifications()
+      fetchOffices()
+    }
+  }, [isLoggedIn])
+
+  const fetchRequests = async () => {
+    try {
+      const response = await api.get('/requests')
+      setRequests(response.data)
+    } catch (error) {
+      console.error("Failed to fetch requests:", error)
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout')
+      setIsLoggedIn(false)
+      window.location.href = "/login"
+    } catch (error) {
+      console.error("Logout failed:", error)
+    }
+  }
+
+  const handleCreateRequest = async () => {
+    if (!selectedCategoryId) {
+      alert("Пожалуйста, выберите категорию услуги")
+      return
+    }
+
+    try {
+      const response = await api.post('/requests', {
+        title: newRequestTitle,
+        description: description,
+        office_id: 1,
+        request_type: newRequestType === "urgent" ? "urgent" : "normal",
+        location: requestLocation,
+        location_detail: newRequestLocation,
+        category_id: selectedCategoryId,
+        status: "in_progress"
+      })
+
+      const requestId = response.data.id;
+
+      console.log("Created request ID:", requestId);
+
+      if (photos.length > 0) {
+        const formData = new FormData();
+        photos.forEach((photo) => {
+          formData.append('photos', photo);
+        });
+        formData.append('type', 'before');
+
+        try {
+          await api.post(`/request-photos/${requestId}/photos`, formData);
+
+          console.log("Фотографии успешно загружены");
+        } catch (photoUploadError) {
+          await api.delete(`/requests/${requestId}`);
+          console.error("Ошибка при загрузке фото. Заявка удалена.");
+          alert("Ошибка при загрузке фото. Заявка не была создана.");
+          return;
+        }
+      }
+      setShowCreateRequestModal(false)
+      setNewRequestType("")
+      setNewRequestTitle("")
+      setRequestLocation("")
+      setNewRequestLocation("")
+      setDescription("")
+    } catch (error) {
+      console.error("Failed to create request:", error)
+      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+    }
+  }
+
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const fileArray = Array.from(files);
+    const remainingSlots = 3 - photoPreviews.length;
+
+    const selectedFiles = fileArray.slice(0, remainingSlots);
+
+    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
+
+    setPhotos((prev) => [...prev, ...selectedFiles]);
+    setPhotoPreviews((prev) => [...prev, ...previewUrls]);
+
+    event.target.value = '';
+  };
+
+  const fetchComments = async () => {
+    if (!selectedTaskDetails?.id) return;
+    try {
+      const res = await api.get(`/comments/request/${selectedTaskDetails.id}`);
+      setComments(res.data);
+    } catch (err) {
+      console.error("Ошибка при загрузке комментариев", err);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Удалить комментарий?")) return;
+    try {
+      await api.delete(`/comments/${id}`);
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при удалении", err);
+    }
+  };
+
+  const handleEdit = (id: number, oldComment: string) => {
+    const newComment = prompt("Изменить комментарий:", oldComment);
+    if (newComment && newComment.trim()) {
+      api.put(`/comments/${id}`, {
+        comment: newComment.trim(),
+        request_id: selectedTaskDetails.id,
+      })
+          .then(() => fetchComments())
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    }
+  };
+
+  useEffect(() => {
+    if (selectedTaskDetails?.id) {
+      fetchComments();
+    }
+  }, [selectedTaskDetails]);
+
+  const handleSend = async () => {
+    if (!comment.trim()) return;
+
+    try {
+      await api.post(
+          `/comments`,
+          {
+            request_id: selectedTaskDetails.id,
+            comment,
+          }
+      );
+      setComment("");
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при отправке комментария", err);
+    }
+  };
+
+  const handleOpenCreateRequest = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude, accuracy } = position.coords;
+            setRequestLocation(`Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`);
+          },
+          (error) => {
+            console.error("Ошибка геолокации:", error);
+            setRequestLocation("Не удалось определить местоположение");
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+      );
+    } else {
+      setRequestLocation("Ваш браузер не поддерживает геолокацию");
+    }
+
+    setShowCreateRequestModal(true);
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/service-categories')
+      setServiceCategories(response.data)
+      if (response.data.length > 0) {
+        setSelectedCategoryId(response.data[0].id)
+      }
+    } catch (error) {
+      console.error("Failed to fetch categories:", error)
+    }
+  }
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await api.get("/notifications/me")
+      setNotifications(response.data)
+    } catch (error) {
+      console.error("Ошибка при загрузке уведомлений", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleNotificationClick = async (notification:any) => {
+    if (!notification.is_read) {
+      try {
+        const response = await api.patch(`/notifications/${notification.id}/read`)
+        const updated = response.data
+
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === updated.id ? { ...n, is_read: true } : n))
+        )
+      } catch (error) {
+        console.error("Ошибка при пометке уведомления как прочитано", error)
+      }
+    }
+
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
+  }
+
+  const getBgColor = (title:any) => {
+    if (title.includes("принята")) return "bg-blue-50"
+    if (title.includes("завершена")) return "bg-green-50"
+    if (title.includes("просрочена")) return "bg-red-50"
+    return "bg-gray-100"
+  }
+
+  const formatTimeAgo = (dateStr:any) => {
+    const date = new Date(dateStr)
+    const diff = (Date.now() - date.getTime()) / 1000
+    if (diff < 60) return "только что"
+    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
+    return `${Math.floor(diff / 86400)} дней назад`
+  }
+
+  const filteredRequests = requests.filter((request) => {
+    const statusMatch = filterStatus === "all" || request.status === filterStatus
+    const requestType = request.request_type
+    const typeMatch = filterType === "all" || requestType === filterType
+    return statusMatch && typeMatch
+  })
+
+  const completedRequests = requests.filter((request) => {
+    return request.status === "completed"
+  })
+
+  const urgentRequests = requests.filter((request) => {
+    return request.request_type === "urgent"
+  })
+
+  const normalRequests = requests.filter((request) => {
+    return request.request_type === "normal"
+  })
+
+  const planningRequests = requests.filter((request) => {
+    return request.request_type === "planned"
+  })
 
   const kpi = {
-    total: 156,
-    completed: 142,
+    total: requests.length,
+    completed: completedRequests.length,
     overdue: 8,
     rating: 4.7,
     sla: "2.3 ч",
-    emergency: 12,
+    emergency: urgentRequests.length,
   }
 
   const officeStats = [
@@ -104,26 +373,6 @@ export default function ManagerDashboard() {
     { name: "Иванов И.И.", done: 25, rating: 4.8, specialty: "Электрик" },
     { name: "Сидоров В.П.", done: 22, rating: 4.7, specialty: "Универсал" },
   ]
-
-  const alerts = [
-    { type: "SLA", message: "Просрочена заявка #REQ-015", time: "15 мин", severity: "high" },
-    { type: "Rating", message: "Низкая оценка заявки #REQ-014", time: "1 ч", severity: "medium" },
-    { type: "Emergency", message: "Экстренная заявка #REQ-016", time: "2 ч", severity: "high" },
-  ]
-
-  const serviceCategories = [
-    "Клининг",
-    "Техническое обслуживание",
-    "IT поддержка",
-    "Безопасность",
-    "Мелкие строительные работы",
-    "Электрика",
-    "Сантехника",
-  ]
-
-  const complexities = ["Простая", "Средняя", "Сложная"]
-
-  const slas = ["1 час", "2 часа", "4 часа", "8 часов", "1 день", "2 дня", "1 неделя", "2 недели", "1 месяц"]
 
   const StatCard = ({
     title,
@@ -163,54 +412,20 @@ export default function ManagerDashboard() {
     </Card>
   )
 
-  // Auto-scroll to the bottom of the chat when messages change
-  useEffect(() => {
-    if (chatMessagesEndRef.current) {
-      chatMessagesEndRef.current.scrollIntoView({ behavior: "smooth" })
-    }
-  }, [chatMessages])
-
-  // Set default values for new request modal based on type
-  useEffect(() => {
-    if (newRequestType === "Плановая") {
-      setNewRequestCategory("Техническое обслуживание")
-      setNewRequestComplexity("Средняя")
-      setNewRequestSLA("1 неделя")
-      const today = new Date()
-      const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1)
-      setNewRequestPlannedDate(nextMonth.toISOString().slice(0, 10))
-    } else if (newRequestType === "Экстренная") {
-      setNewRequestCategory("IT поддержка")
-      setNewRequestComplexity("Простая")
-      setNewRequestSLA("1 час")
-      setNewRequestPlannedDate("")
-    } else if (newRequestType === "Обычная") {
-      setNewRequestCategory("Клининг")
-      setNewRequestComplexity("Простая")
-      setNewRequestSLA("4 часа")
-      setNewRequestPlannedDate("")
-    } else {
-      setNewRequestCategory("")
-      setNewRequestComplexity("")
-      setNewRequestSLA("")
-      setNewRequestPlannedDate("")
-    }
-  }, [newRequestType])
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Новая":
-        return "bg-yellow-500"
+      case "draft":
+      case "Черновик":
+        return "bg-gray-500"
+      case "in_progress":
       case "В обработке":
         return "bg-blue-500"
+      case "in_execution":
       case "Исполнение":
         return "bg-orange-500"
+      case "completed":
       case "Завершено":
         return "bg-green-500"
-      case "Ожидает назначения":
-        return "bg-yellow-500"
-      case "Ожидает SLA":
-        return "bg-orange-500"
       default:
         return "bg-gray-500"
     }
@@ -218,158 +433,71 @@ export default function ManagerDashboard() {
 
   const getTypeColor = (type: string) => {
     switch (type) {
+      case "urgent":
       case "Экстренная":
         return "bg-red-500"
+      case "normal":
+      case "regular":
       case "Обычная":
         return "bg-blue-500"
+      case "planned":
       case "Плановая":
         return "bg-green-500"
-      case "Сложная":
-        return "bg-purple-500"
       default:
         return "bg-gray-500"
     }
   }
 
-  // Handlers for office management
-  const handleAddOffice = () => {
-    const trimmedName = newOfficeName.trim()
-    if (trimmedName && !offices.includes(trimmedName)) {
-      setOffices((prev) => [...prev, trimmedName])
+  const fetchOffices = async () => {
+    try {
+      const response = await api.get('/offices')
+      setOffices(response.data)
+    } catch (error) {
+      console.error("Failed to fetch categories:", error)
+    }
+  }
+
+  const handleAddOffice = async () => {
+    const city = newOfficeName.trim()
+    const address = newOfficeName.trim()
+    const name = newOfficeName.trim()
+
+    try {
+      const response = await api.post("/offices/", {
+        city: city,
+        address: address,
+        name: name
+      })
+      console.log(response.data)
+      setOffices((prev) => [...prev, {name, city, address}])
       setNewOfficeName("")
-      console.log("Новый офис добавлен:", trimmedName)
-    } else if (offices.includes(trimmedName)) {
-      alert("Офис с таким названием уже существует!")
+      setNewOfficeAddress("")
+      setNewOfficeCity("")
+    } catch (err) {
+      console.log("Error create office, ", err)
     }
   }
 
-  const handleRemoveOffice = (officeToRemove: string) => {
-    setOffices((prev) => prev.filter((office) => office !== officeToRemove))
-  }
-
-  const handleNewRequestPhotoUpload = () => {
-    setNewRequestPhotos((prev) => [...prev, `/placeholder.svg?height=100&width=100&text=Photo${prev.length + 1}`])
-  }
-
-  const handleCreateNewRequest = () => {
-    const newReq = {
-      id: `REQ-M${(managerSubmittedRequests.length + 1).toString().padStart(2, "0")}`,
-      type: newRequestType,
-      title: newRequestTitle,
-      client: "Менеджеров М.М.", // Manager is the client for self-created requests
-      location: newRequestLocation,
-      date: new Date().toISOString().slice(0, 10),
-      description: newRequestDescription,
-      photos: newRequestPhotos,
-      status: "Ожидает назначения", // New requests from Manager go to pending for admin worker/department head
-      category: newRequestCategory,
-      complexity: newRequestComplexity,
-      sla: newRequestSLA,
-      executor: null,
-      plannedDate: newRequestType === "Плановая" ? newRequestPlannedDate : null,
-    }
-    setManagerSubmittedRequests((prev) => [newReq, ...prev])
-    setShowCreateRequestModal(false)
-    // Reset form fields
-    setNewRequestType("Обычная")
-    setNewRequestTitle("")
-    setNewRequestLocation("")
-    setNewRequestCategory("")
-    setNewRequestComplexity("")
-    setNewRequestSLA("")
-    setNewRequestDescription("")
-    setNewRequestPhotos([])
-    setNewRequestPlannedDate("")
-    console.log("New request created by Manager:", newReq)
-  }
-
-  const openRequestDetails = (request: any) => {
-    setSelectedRequestDetails(request)
-    setShowRequestDetailsModal(true)
-  }
-
-  const handleSendMessage = () => {
-    if (chatInput.trim()) {
-      const currentTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      setChatMessages((prev) => [...prev, { sender: "Вы", text: chatInput, time: currentTime }])
-      setChatInput("")
-      // Simulate a response
-      setTimeout(() => {
-        const responseTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        setChatMessages((prev) => [
-          ...prev,
-          { sender: "Система", text: "Сообщение получено. Скоро отвечу.", time: responseTime },
-        ])
-      }, 1500)
+  const handleRemoveOffice = async (id: any) => {
+    try {
+      const response = await api.delete(`/offices/${id}`)
+      console.log(response.data)
+      setOffices((prev) => prev.filter((office:any) => office.id !== id))
+    } catch (err) {
+      console.log(err)
     }
   }
-
-  // Функция выхода из аккаунта
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    window.location.href = "/";
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile Header */}
-      <header className="bg-white border-b shadow-sm sticky top-0 z-40">
-        <div className="px-4 h-14 sm:h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm sm:text-base">K</span>
-            </div>
-            <span className="font-bold text-lg sm:text-xl truncate">Kcell Service</span>
-          </div>
-
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                7
-              </span>
-            </Button>
-
-            {/* Desktop user info */}
-            <div className="hidden sm:flex items-center space-x-2">
-              <User className="w-5 h-5 text-gray-600" />
-              <span className="text-sm font-medium">Менеджеров М.М.</span>
-              <Badge variant="secondary">Руководитель</Badge>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="w-5 h-5" />
-              </Button>
-            </div>
-
-            {/* Mobile menu */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="sm:hidden">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <div className="flex flex-col space-y-4 mt-6">
-                  <div className="flex items-center space-x-2">
-                    <User className="w-5 h-5 text-gray-600" />
-                    <span className="text-sm font-medium">Менеджеров М.М.</span>
-                  </div>
-                  <Badge variant="secondary" className="w-fit">
-                    Руководитель
-                  </Badge>
-                  <Button variant="ghost" className="justify-start">
-                    <LogOut className="w-5 h-5 mr-2" />
-                    Выйти
-                  </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
-
-            {/* <Button variant="ghost" size="sm" className="hidden sm:flex">
-              <LogOut className="w-5 h-5" />
-            </Button> */}
-          </div>
-        </div>
-      </header>
+      {/* Header */}
+      <Header
+          setShowProfile={setShowProfile}
+          handleLogout={handleLogout}
+          notificationCount={notifications.length}
+          role="Клиент"
+      />
+      <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 
       <main className="px-4 py-4 sm:px-6 sm:py-8 max-w-7xl mx-auto">
         {/* Mobile Filters */}
@@ -381,9 +509,9 @@ export default function ManagerDashboard() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Все офисы</SelectItem>
-                {offices.map((officeName) => (
-                  <SelectItem key={officeName} value={officeName}>
-                    {officeName}
+                {offices.map((office:any, index) => (
+                  <SelectItem key={index} value={office.name}>
+                    {office.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -413,8 +541,9 @@ export default function ManagerDashboard() {
             </Button>
             <Button
               onClick={() => {
-                setNewRequestType("Обычная") // Default to "Обычная" when opening
+                setNewRequestType("Обычная")
                 setShowCreateRequestModal(true)
+                handleOpenCreateRequest()
               }}
               className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
             >
@@ -476,7 +605,10 @@ export default function ManagerDashboard() {
 
         {/* Mobile-optimized Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
+            <TabsTrigger value="requests" className="text-xs sm:text-sm">
+              Заявки
+            </TabsTrigger>
             <TabsTrigger value="overview" className="text-xs sm:text-sm">
               Обзор
             </TabsTrigger>
@@ -490,6 +622,78 @@ export default function ManagerDashboard() {
               Управление
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="requests">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4 mb-4">
+                <Button variant="outline" size="sm">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Фильтр
+                </Button>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Статус" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все</SelectItem>
+                    <SelectItem value="in_progress">В обработке</SelectItem>
+                    <SelectItem value="execution">Исполнение</SelectItem>
+                    <SelectItem value="completed">Завершено</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterType} onValueChange={setFilterType}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Тип заявки" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Все</SelectItem>
+                    <SelectItem value="normal">Обычная</SelectItem>
+                    <SelectItem value="urgent">Экстренная</SelectItem>
+                    <SelectItem value="planed">Плановая</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filteredRequests.map((request) => (
+                  <Card
+                      key={request.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => setSelectedTaskDetails(request)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Badge className={getTypeColor(request.request_type)}>{request.request_type}</Badge>
+                            <Badge variant="outline" className={getStatusColor(request.status)}>
+                              {request.status}
+                            </Badge>
+                            <span className="text-sm text-gray-500">#{request.id}</span>
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
+                          <div className="flex items-center text-sm text-gray-600 space-x-4">
+                            <div className="flex items-center">
+                              <MapPin className="w-4 h-4 mr-1" />
+                              Локация: {request.location_detail}
+                            </div>
+                            <div className="flex items-center">
+                              <Clock className="w-4 h-4 mr-1" />Время:
+                              {new Date(request.created_date).toLocaleString("ru-RU", {
+                                day: "2-digit",
+                                month: "long",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+              ))}
+            </div>
+          </TabsContent>
 
           <TabsContent value="overview" className="space-y-4 sm:space-y-6">
             {/* Chart placeholder */}
@@ -518,7 +722,7 @@ export default function ManagerDashboard() {
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
                         <div className="bg-blue-600 h-2 rounded-full" style={{ width: "75%" }}></div>
                       </div>
-                      <span className="text-sm font-medium w-8">117</span>
+                      <span className="text-sm font-medium w-8">{normalRequests.length}</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
@@ -527,7 +731,7 @@ export default function ManagerDashboard() {
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
                         <div className="bg-red-600 h-2 rounded-full" style={{ width: "15%" }}></div>
                       </div>
-                      <span className="text-sm font-medium w-8">23</span>
+                      <span className="text-sm font-medium w-8">{urgentRequests.length}</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
@@ -536,38 +740,66 @@ export default function ManagerDashboard() {
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
                         <div className="bg-green-600 h-2 rounded-full" style={{ width: "10%" }}></div>
                       </div>
-                      <span className="text-sm font-medium w-8">16</span>
+                      <span className="text-sm font-medium w-8">{planningRequests.length}</span>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Alerts */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg sm:text-xl">Уведомления</CardTitle>
+              <CardHeader>
+                <CardTitle className="text-lg">Уведомления</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {alerts.map((alert, i) => (
-                    <div
-                      key={i}
-                      className={`p-3 rounded-lg ${
-                        alert.severity === "high"
-                          ? "bg-red-50 border border-red-200"
-                          : "bg-yellow-50 border border-yellow-200"
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <p className="text-sm font-medium flex-1 pr-2">{alert.message}</p>
-                        <span className="text-xs text-gray-500 flex-shrink-0">{alert.time}</span>
-                      </div>
+                {loading ? (
+                    <p>Загрузка...</p>
+                ) : (
+                    <div className="space-y-3">
+                      {notifications
+                          .slice(0, 5)
+                          .map((n: any) => (
+                              <div
+                                  key={n.id}
+                                  onClick={() => handleNotificationClick(n)}
+                                  className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
+                                      n.title
+                                  )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
+                              >
+                                <div className="flex justify-between">
+                                  <p className="text-sm font-medium">{n.title}</p>
+                                  {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
+                                </div>
+                                <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
+                              </div>
+                          ))}
                     </div>
-                  ))}
-                </div>
+                )}
               </CardContent>
             </Card>
+
+            {/* Модалка */}
+            {isModalOpen && selectedNotification && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                      <button
+                          className="text-gray-500 hover:text-black"
+                          onClick={() => setIsModalOpen(false)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-800 whitespace-pre-line">
+                      {selectedNotification.content}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-4">
+                      Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+            )}
           </TabsContent>
 
           <TabsContent value="offices" className="space-y-4 sm:space-y-6">
@@ -646,10 +878,22 @@ export default function ManagerDashboard() {
                 <CardContent className="space-y-4">
                   <div className="flex space-x-2">
                     <Input
-                      placeholder="Название нового офиса (например: Сатпаева 30А)"
-                      value={newOfficeName}
-                      onChange={(e) => setNewOfficeName(e.target.value)}
+                      placeholder="Город нового офиса (например: Алматы)"
+                      value={newOfficeCity}
+                      onChange={(e) => setNewOfficeCity(e.target.value)}
                       className="flex-1"
+                    />
+                    <Input
+                        placeholder="Разположение нового офиса (например: Сатпаева 30А)"
+                        value={newOfficeAddress}
+                        onChange={(e) => setNewOfficeAddress(e.target.value)}
+                        className="flex-1"
+                    />
+                    <Input
+                        placeholder="Название нового офиса (например: БЦ Сатпаева)"
+                        value={newOfficeName}
+                        onChange={(e) => setNewOfficeName(e.target.value)}
+                        className="flex-1"
                     />
                     <Button
                       onClick={handleAddOffice}
@@ -666,16 +910,16 @@ export default function ManagerDashboard() {
                       <p className="text-sm text-gray-500 italic">Нет добавленных офисов.</p>
                     ) : (
                       <div className="grid grid-cols-1 gap-2">
-                        {offices.map((officeItem, index) => (
+                        {offices.map((officeItem:any, index) => (
                           <div
                             key={index}
                             className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
                           >
-                            <span className="font-medium text-gray-700">{officeItem}</span>
+                            <span className="font-medium text-gray-700">{officeItem.name}</span>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleRemoveOffice(officeItem)}
+                              onClick={() => handleRemoveOffice(officeItem.id)}
                               className="text-red-500 hover:text-red-700 hover:bg-red-50"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -687,72 +931,6 @@ export default function ManagerDashboard() {
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Manager's Created Requests */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Мои созданные заявки</CardTitle>
-                  <CardDescription>Заявки, созданные вами</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {managerSubmittedRequests.length === 0 ? (
-                    <p className="text-center text-gray-500">Вы еще не создавали заявок.</p>
-                  ) : (
-                    managerSubmittedRequests.map((request) => (
-                      <Card key={request.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-6">
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Badge className={getTypeColor(request.type)}>{request.type}</Badge>
-                                <Badge variant="outline" className={getStatusColor(request.status)}>
-                                  {request.status}
-                                </Badge>
-                                <span className="text-sm text-gray-500">#{request.id}</span>
-                              </div>
-                              <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
-                              <div className="text-sm text-gray-600 space-y-1">
-                                <p>Клиент: {request.client}</p>
-                                <p>Локация: {request.location}</p>
-                                <p>Дата подачи: {request.date}</p>
-                                {request.plannedDate && (
-                                  <p className="flex items-center">
-                                    <Calendar className="w-4 h-4 mr-1" />
-                                    Плановая дата: {request.plannedDate}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex space-x-2">
-                              <Button variant="outline" size="sm" onClick={() => openRequestDetails(request)}>
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setShowChatModal(true)
-                                  setCurrentChatRequestId(request.id)
-                                  setChatMessages([
-                                    {
-                                      sender: "Система",
-                                      text: `Чат по заявке #${request.id} открыт.`,
-                                      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                                    },
-                                  ])
-                                }}
-                              >
-                                <MessageCircle className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
         </Tabs>
@@ -760,358 +938,326 @@ export default function ManagerDashboard() {
 
       {/* Create Request Modal */}
       {showCreateRequestModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Создать {newRequestType.toLowerCase()} заявку</CardTitle>
-              <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <Label>Тип заявки</Label>
-                <Select value={newRequestType} onValueChange={setNewRequestType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите тип заявки" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Обычная">Обычная</SelectItem>
-                    <SelectItem value="Экстренная">Экстренная</SelectItem>
-                    <SelectItem value="Плановая">Плановая</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="newRequestTitle">Название заявки</Label>
-                <Input
-                  id="newRequestTitle"
-                  placeholder="Краткое название проблемы"
-                  value={newRequestTitle}
-                  onChange={(e) => setNewRequestTitle(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <Label>Офис</Label>
-                <Select value={newRequestLocation} onValueChange={setNewRequestLocation}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите офис" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {offices.map((officeItem) => (
-                      <SelectItem key={officeItem} value={officeItem}>
-                        {officeItem}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Расположение в офисе</Label>
-                <Input placeholder="Введите расположение" value={newRequestLocation} onChange={e => setNewRequestLocation(e.target.value)} />
-              </div>
-
-              <div>
-                <Label htmlFor="newRequestCategory">Категория услуги</Label>
-                <Select value={newRequestCategory} onValueChange={setNewRequestCategory}>
-                  <SelectTrigger id="newRequestCategory">
-                    <SelectValue placeholder="Выберите категорию" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {serviceCategories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="newRequestComplexity">Сложность</Label>
-                <Select value={newRequestComplexity} onValueChange={setNewRequestComplexity}>
-                  <SelectTrigger id="newRequestComplexity">
-                    <SelectValue placeholder="Определите сложность" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {complexities.map((complexity) => (
-                      <SelectItem key={complexity} value={complexity}>
-                        {complexity}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="newRequestSLA">SLA (Срок выполнения)</Label>
-                <Select value={newRequestSLA} onValueChange={setNewRequestSLA}>
-                  <SelectTrigger id="newRequestSLA">
-                    <SelectValue placeholder="Установите SLA" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {slas.map((sla) => (
-                      <SelectItem key={sla} value={sla}>
-                        {sla}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {newRequestType === "Плановая" && (
-                <div>
-                  <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
-                  <Input
-                    id="newRequestPlannedDate"
-                    type="date"
-                    value={newRequestPlannedDate}
-                    onChange={(e) => setNewRequestPlannedDate(e.target.value)}
-                  />
-                </div>
-              )}
-
-              <div>
-                <Label htmlFor="newRequestDescription">Описание проблемы</Label>
-                <Textarea
-                  id="newRequestDescription"
-                  placeholder="Опишите проблему подробно..."
-                  className="min-h-[100px]"
-                  value={newRequestDescription}
-                  onChange={(e) => setNewRequestDescription(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <Label>Фотографии (до 3 шт.)</Label>
-                <div className="flex flex-wrap gap-4 mt-2">
-                  {newRequestPhotos.map((photo, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={photo || "/placeholder.svg"}
-                        alt={`Photo ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={() => setNewRequestPhotos(newRequestPhotos.filter((_, i) => i !== index))}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                  {newRequestPhotos.length < 3 && (
-                    <button
-                      onClick={handleNewRequestPhotoUpload}
-                      className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                    >
-                      <Camera className="w-6 h-6 text-gray-400" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex space-x-4">
-                <Button
-                  onClick={handleCreateNewRequest}
-                  className="flex-1 bg-violet-600 hover:bg-violet-700"
-                  disabled={
-                    !newRequestType ||
-                    !newRequestTitle ||
-                    !newRequestLocation ||
-                    !newRequestDescription ||
-                    (newRequestType === "Плановая" && !newRequestPlannedDate) ||
-                    !newRequestCategory ||
-                    !newRequestComplexity ||
-                    !newRequestSLA
-                  }
-                >
-                  Отправить заявку
-                </Button>
-                <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
-                  Отмена
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Request Details Modal (for Manager) */}
-      {showRequestDetailsModal && selectedRequestDetails && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Детали заявки #{selectedRequestDetails.id}</CardTitle>
-              <CardDescription>Подробная информация о заявке</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <CardHeader>
+                <CardTitle>Создать заявку</CardTitle>
+                <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 <div>
                   <Label>Тип заявки</Label>
-                  <Badge className={getTypeColor(selectedRequestDetails.type)}>{selectedRequestDetails.type}</Badge>
+                  <Select value={newRequestType} onValueChange={setNewRequestType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите тип заявки" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="regular">Обычная</SelectItem>
+                      <SelectItem value="urgent">Экстренная</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Название заявки</Label>
+                  <Input placeholder="Введите название заявки" value={newRequestTitle} onChange={e => setNewRequestTitle(e.target.value)} />
+                </div>
+
+                <div>
+                  <Label>Локация</Label>
+                  <Input
+                      placeholder="Определение вашего местоположения..."
+                      value={requestLocation}
+                      readOnly
+                      className="bg-gray-100 cursor-not-allowed"
+                  />
                 </div>
                 <div>
-                  <Label>Статус</Label>
-                  <Badge className={getStatusColor(selectedRequestDetails.status)}>
-                    {selectedRequestDetails.status}
-                  </Badge>
+                  <Label>Расположение в офисе</Label>
+                  <Input placeholder="Введите расположение" value={newRequestLocation} onChange={e => setNewRequestLocation(e.target.value)} />
                 </div>
-              </div>
 
-              <div>
-                <Label>Название</Label>
-                <p className="text-sm font-medium">{selectedRequestDetails.title}</p>
-              </div>
-
-              {selectedRequestDetails.client && (
-                <div>
-                  <Label>Клиент</Label>
-                  <p className="text-sm">{selectedRequestDetails.client}</p>
-                </div>
-              )}
-
-              {selectedRequestDetails.executor && (
-                <div>
-                  <Label>Исполнитель</Label>
-                  <p className="text-sm">{selectedRequestDetails.executor}</p>
-                </div>
-              )}
-
-              <div>
-                <Label>Локация</Label>
-                <p className="text-sm">{selectedRequestDetails.location}</p>
-              </div>
-
-              <div>
-                <Label>Дата подачи</Label>
-                <p className="text-sm">{selectedRequestDetails.date}</p>
-              </div>
-
-              {selectedRequestDetails.category && (
                 <div>
                   <Label>Категория услуги</Label>
-                  <p className="text-sm">{selectedRequestDetails.category}</p>
+                  <Select
+                      value={selectedCategoryId?.toString() || ""}
+                      onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите категорию" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {serviceCategories.map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()}>
+                            {category.name}
+                          </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
 
-              {selectedRequestDetails.complexity && (
                 <div>
-                  <Label>Сложность</Label>
-                  <p className="text-sm">{selectedRequestDetails.complexity}</p>
+                  <Label>Описание проблемы</Label>
+                  <Textarea
+                      placeholder="Опишите проблему подробно..."
+                      className="min-h-[100px]"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                  />
                 </div>
-              )}
 
-              {selectedRequestDetails.sla && (
                 <div>
-                  <Label>SLA (Срок выполнения)</Label>
-                  <p className="text-sm">{selectedRequestDetails.sla}</p>
-                </div>
-              )}
-
-              {selectedRequestDetails.plannedDate && (
-                <div>
-                  <Label>Плановая дата выполнения</Label>
-                  <p className="text-sm">{selectedRequestDetails.plannedDate}</p>
-                </div>
-              )}
-
-              <div>
-                <Label>Описание проблемы</Label>
-                <p className="text-sm">{selectedRequestDetails.description}</p>
-              </div>
-
-              {selectedRequestDetails.photos && selectedRequestDetails.photos.length > 0 && (
-                <div>
-                  <Label>Фотографии</Label>
-                  <div className="flex space-x-2 mt-2">
-                    {selectedRequestDetails.photos.map((photo: string, index: number) => (
-                      <img
-                        key={index}
-                        src={photo || "/placeholder.svg"}
-                        alt={`Photo ${index + 1}`}
-                        className="w-24 h-24 object-cover rounded-lg"
-                      />
+                  <Label>Фотографии (до 3 шт.)</Label>
+                  <div className="flex flex-wrap gap-4 mt-2">
+                    {photoPreviews.map((photo, index) => (
+                        <div key={index} className="relative">
+                          <img
+                              src={photo || "/placeholder.svg"}
+                              alt={`Photo ${index + 1}`}
+                              className="w-20 h-20 object-cover rounded-lg"
+                          />
+                          <button
+                              onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                          >
+                            ×
+                          </button>
+                        </div>
                     ))}
+                    {photoPreviews.length < 3 && (
+                        <button
+                            type="button"
+                            onClick={handleButtonClick}
+                            className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
+                        >
+                          <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              ref={fileInputRef}
+                              onChange={handleFileChange}
+                              className="hidden"
+                          />
+                          <Camera className="w-6 h-6 text-gray-400" />
+                        </button>
+                    )}
                   </div>
                 </div>
-              )}
 
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowRequestDetailsModal(false)}>
-                  Закрыть
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowChatModal(true)
-                    setCurrentChatRequestId(selectedRequestDetails.id)
-                    setChatMessages([
-                      {
-                        sender: "Система",
-                        text: `Чат по заявке #${selectedRequestDetails.id} открыт.`,
-                        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                      },
-                    ])
-                    setShowRequestDetailsModal(false) // Close details modal when opening chat
-                  }}
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Чат
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                <div className="flex space-x-4">
+                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700">
+                    Отправить заявку
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
+                    Отмена
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
       )}
 
-      {/* Chat Modal */}
-      {showChatModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md max-h-[90vh] flex flex-col">
-            <CardHeader className="border-b pb-4">
-              <CardTitle className="text-xl">Чат по заявке #{currentChatRequestId}</CardTitle>
-              <CardDescription>Общайтесь с исполнителем или клиентом</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-3">
-              {chatMessages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.sender === "Вы" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[75%] p-3 rounded-xl shadow-sm ${
-                      msg.sender === "Вы"
-                        ? "bg-violet-600 text-white rounded-br-none"
-                        : "bg-gray-200 text-gray-800 rounded-bl-none"
-                    }`}
-                  >
-                    <p className="text-sm">{msg.text}</p>
-                    <span className={`block text-xs mt-1 ${msg.sender === "Вы" ? "text-violet-100" : "text-gray-500"}`}>
-                      {msg.time}
-                    </span>
+      {/* Task Details Modal */}
+      {selectedTaskDetails && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <CardHeader>
+                <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
+                <CardDescription>{selectedTaskDetails.title}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Тип:</p>
+                    <Badge className={getTypeColor(selectedTaskDetails.request_type)}>{selectedTaskDetails.request_type}</Badge>
                   </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Статус:</p>
+                    <Badge variant="outline" className={getStatusColor(selectedTaskDetails.status)}>
+                      {selectedTaskDetails.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Клиент:</p>
+                    <p className="text-base text-gray-800">{selectedTaskDetails.client.full_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Локация:</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const locText = selectedTaskDetails.location;
+                              const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
+                              const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
+                              const accMatch = locText.match(/±(\d+) м/);
+
+                              if (latMatch && lonMatch && accMatch) {
+                                setMapLocation({
+                                  lat: parseFloat(latMatch[1]),
+                                  lon: parseFloat(lonMatch[1]),
+                                  accuracy: parseInt(accMatch[1])
+                                });
+                                setShowMapModal(true);
+                              } else {
+                                alert("Не удалось определить координаты из локации");
+                              }
+                            }}
+                        >
+                          <MapPin className="w-4 h-4 mr-1" />
+                          Показать на карте
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Создано:</p>
+                    <p className="text-base text-gray-800">{selectedTaskDetails.created_date}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Деталь локаций:</p>
+                    <p className="text-base text-gray-800">{selectedTaskDetails.location_detail}</p>
+                  </div>
+                  {selectedTaskDetails.category && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Категория:</p>
+                        <p className="text-base text-gray-800">{selectedTaskDetails.category.name}</p>
+                      </div>
+                  )}
+                  {selectedTaskDetails.complexity && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Сложность:</p>
+                        <p className="text-base text-gray-800">{selectedTaskDetails.complexity}</p>
+                      </div>
+                  )}
+                  {selectedTaskDetails.sla && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">SLA:</p>
+                        <p className="text-base text-gray-800">{selectedTaskDetails.sla}</p>
+                      </div>
+                  )}
+                  {selectedTaskDetails.plannedDate && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Плановая дата:</p>
+                        <p className="text-base text-gray-800">{selectedTaskDetails.plannedDate}</p>
+                      </div>
+                  )}
                 </div>
-              ))}
-              <div ref={chatMessagesEndRef} /> {/* For auto-scrolling */}
-            </CardContent>
-            <div className="p-4 flex space-x-2 border-t pt-4">
-              <Input
-                placeholder="Введите сообщение..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") handleSendMessage()
-                }}
-                className="flex-1"
-              />
-              <Button onClick={handleSendMessage} className="bg-violet-600 hover:bg-violet-700">
-                Отправить
-              </Button>
-              <Button variant="outline" onClick={() => setShowChatModal(false)}>
-                Закрыть
-              </Button>
-            </div>
-          </Card>
-        </div>
+                <div className="mt-4">
+                  <p className="text-sm font-medium text-gray-600">Описание:</p>
+                  <p className="text-base text-gray-800">{selectedTaskDetails.description}</p>
+                </div>
+                {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (
+                    <div>
+                      {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (
+                          <div>
+                            <Label>Фотографии</Label>
+                            <div className="flex space-x-2 mt-2">
+                              {selectedTaskDetails.photos.map((photo: any, index: number) => (
+                                  <img
+                                      key={index}
+                                      src={photo.photo_url || "/placeholder.svg"}
+                                      alt={`Photo ${index + 1}`}
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer"
+                                      onClick={() => setSelectedPhoto(photo.photo_url)}
+                                  />
+                              ))}
+                            </div>
+                          </div>
+                      )}
+
+                      {/* Модальное окно */}
+                      {selectedPhoto && (
+                          <div
+                              className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+                              onClick={() => setSelectedPhoto(null)}
+                          >
+                            <img
+                                src={selectedPhoto}
+                                alt="Увеличенное фото"
+                                className="max-w-full max-h-full rounded-lg"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                      )}
+
+                      {/* Секция для комментариев */}
+                      <Card className="mt-2">
+                        <CardContent className="p-4">
+                          <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
+                          {comments.map((c: any) => (
+                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                  <div className="text-sm text-gray-800 font-medium">{c.user.full_name}</div>
+                                  <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
+                                </div>
+                                <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+                                <div className="mt-2 flex gap-3 text-xs text-blue-500">
+                                  <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">
+                                    ✏️ Изменить
+                                  </button>
+                                  <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">
+                                    🗑 Удалить
+                                  </button>
+                                </div>
+                              </div>
+                          ))}
+                          <div className="mt-3 flex items-center space-x-2">
+                            <input
+                                type="text"
+                                value={comment}
+                                onChange={(e) => setComment(e.target.value)}
+                                placeholder="Написать комментарий..."
+                                className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            <Button size="sm" onClick={handleSend}>
+                              Отправить
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                )}
+                <div className="flex justify-end mt-6">
+                  <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>
+                    Закрыть
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+      )}
+
+      {/* Map Modal */}
+      {showMapModal && (
+          <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+              onClick={() => setShowMapModal(false)}
+          >
+            <Card
+                className="w-full max-w-4xl h-[90vh] max-h-[90vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+            >
+              <CardHeader>
+                <CardTitle>Локация заявки</CardTitle>
+                <CardDescription>Точное местоположение проблемы</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-hidden">
+                <MapView
+                    lat={mapLocation.lat}
+                    lon={mapLocation.lon}
+                    accuracy={mapLocation.accuracy}
+                />
+              </CardContent>
+              <div className="p-4 flex justify-end border-t">
+                <Button onClick={() => setShowMapModal(false)}>
+                  Закрыть
+                </Button>
+              </div>
+            </Card>
+          </div>
       )}
     </div>
   )

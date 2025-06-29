@@ -26,19 +26,9 @@ import {
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
-import axios from "axios";
-import {Request} from "@/app/client/page";
+
 import dynamic from "next/dynamic";
-
-const API_BASE_URL = "https://kcell-service.onrender.com/api"
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  }
-})
+import api from "@/lib/api";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -192,9 +182,7 @@ export default function ExecutorDashboard() {
         formData.append('type', 'before');
 
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
-            withCredentials: true
-          });
+          await api.post(`/request-photos/${requestId}/photos`, formData);
 
           console.log("Фотографии успешно загружены");
         } catch (photoUploadError) {
@@ -381,9 +369,7 @@ export default function ExecutorDashboard() {
       formData.append('type', 'after');
 
       try {
-        await axios.post(`${API_BASE_URL}/request-photos/${response.data.id}/photos`, formData, {
-          withCredentials: true
-        });
+        await api.post(`/request-photos/${response.data.id}/photos`, formData);
 
         console.log("Фотографии успешно загружены");
       } catch (photoUploadError) {
@@ -513,7 +499,6 @@ export default function ExecutorDashboard() {
                   onClick={() => {
                     setNewRequestType("normal")
                     setShowCreateRequestModal(true)
-                    handleOpenCreateRequest()
                   }}
                   className="bg-violet-600 hover:bg-violet-700"
                 >
