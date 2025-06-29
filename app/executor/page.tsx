@@ -672,7 +672,7 @@ export default function ExecutorDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <TabsList>
                   <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
-                  <TabsTrigger value="myTasks">Мои задачи</TabsTrigger>
+                  <TabsTrigger value="myTasks">Мой заявки</TabsTrigger>
                   <TabsTrigger value="completed">Завершенные</TabsTrigger>
                   <TabsTrigger value="statistics">Статистика</TabsTrigger>
                 </TabsList>
@@ -772,10 +772,10 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              {request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -944,10 +944,10 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              {request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1102,10 +1102,10 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              {request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1337,24 +1337,6 @@ export default function ExecutorDashboard() {
                 </div>
             )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Быстрые действия</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    setNewRequestType("planned")
-                    setShowCreateRequestModal(true)
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Создать плановую заявку
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
