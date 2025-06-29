@@ -201,7 +201,6 @@ export default function ClientDashboard() {
           })
           .catch((err) => console.error("Ошибка при обновлении", err));
     } else {
-      // новый комментарий
       api
           .post(`/comments`, {
             comment: comment.trim(),
@@ -344,6 +343,27 @@ export default function ClientDashboard() {
         return "bg-gray-500"
     }
   }
+  const translateStatus = (status: string) => {
+    switch (status) {
+      case "draft": return "Черновик";
+      case "in_progress": return "В обработке";
+      case "execution": return "Исполнение";
+      case "completed": return "Завершено";
+      case "rejected": return "Отклонено";
+      case "awaiting_assignment": return "Ожидание назначения";
+      case "assigned": return "назначенный";
+      default: return status;
+    }
+  };
+
+  const translateType = (type: string) => {
+    switch (type) {
+      case "urgent": return "Экстренная";
+      case "normal": return "Обычная";
+      case "planned": return "Плановая";
+      default: return type;
+    }
+  };
 
   const handleOpenCreateRequest = () => {
     if (navigator.geolocation) {
@@ -602,9 +622,9 @@ export default function ClientDashboard() {
                               <div className="flex justify-between items-start mb-4">
                                 <div>
                                   <div className="flex items-center space-x-2 mb-2">
-                                    <Badge className={getTypeColor(request.request_type)}>{request.request_type}</Badge>
+                                    <Badge className={getTypeColor(request.request_type)}>{translateType(request.request_type)}</Badge>
                                     <Badge variant="outline" className={getStatusColor(request.status)}>
-                                      {request.status}
+                                      {translateStatus(request.status)}
                                     </Badge>
                                     <span className="text-sm text-gray-500">#{request.id}</span>
                                   </div>
@@ -936,11 +956,11 @@ export default function ClientDashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Тип заявки</Label>
-                      <Badge className={getTypeColor(selectedRequest.request_type)}>{selectedRequest.request_type}</Badge>
+                      <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
                     </div>
                     <div>
                       <Label>Статус</Label>
-                      <Badge className={getStatusColor(selectedRequest.status)}>{selectedRequest.status}</Badge>
+                      <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                     </div>
                   </div>
 
