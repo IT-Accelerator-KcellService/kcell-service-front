@@ -38,6 +38,13 @@ const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
 })
+const roleTranslations: Record<string, string> = {
+  client: "Клиент",
+  "admin-worker": "Администратор офиса",
+  "department-head": "Руководитель направления",
+  executor: "Испольнитель",
+  manager: "Руководитель"
+};
 
 export default function ManagerDashboard() {
   const [period, setPeriod] = useState("month")
@@ -76,6 +83,8 @@ export default function ManagerDashboard() {
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [editCommentId, setEditCommentId] = useState<number | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -87,6 +96,7 @@ export default function ManagerDashboard() {
           window.location.href = '/login';
         } else {
           setIsLoggedIn(true);
+          setCurrentUserId(user.id);
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
@@ -125,6 +135,7 @@ export default function ManagerDashboard() {
       console.error("Logout failed:", error)
     }
   }
+
 
   const handleCreateRequest = async () => {
     if (
@@ -230,7 +241,6 @@ export default function ManagerDashboard() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
@@ -240,15 +250,8 @@ export default function ManagerDashboard() {
   };
 
   const handleEdit = (id: number, oldComment: string) => {
-    const newComment = prompt("Изменить комментарий:", oldComment);
-    if (newComment && newComment.trim()) {
-      api.put(`/comments/${id}`, {
-        comment: newComment.trim(),
-        request_id: selectedTaskDetails.id,
-      })
-          .then(() => fetchComments())
-          .catch((err) => console.error("Ошибка при обновлении", err));
-    }
+    setComment(oldComment);       // заполняем поле ввода
+    setEditCommentId(id);         // запоминаем какой комментарий редактируем
   };
 
   useEffect(() => {
@@ -258,16 +261,21 @@ export default function ManagerDashboard() {
   }, [selectedTaskDetails]);
 
   const handleSend = async () => {
-    if (!comment.trim()) return;
+    if (comment.trim() === "") return;
 
     try {
-      await api.post(
-          `/comments`,
-          {
-            request_id: selectedTaskDetails.id,
-            comment,
-          }
-      );
+      if (editCommentId) {
+        await api.put(`/comments/${editCommentId}`, {
+          comment: comment.trim(),
+          request_id: selectedTaskDetails.id,
+        });
+        setEditCommentId(null);
+      } else {
+        await api.post(`/comments`, {
+          comment: comment.trim(),
+          request_id: selectedTaskDetails.id,
+        });
+      }
       setComment("");
       fetchComments();
     } catch (err) {
@@ -1057,8 +1065,11 @@ export default function ManagerDashboard() {
 
       {/* Create Request Modal */}
       {showCreateRequestModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
+            setShowCreateRequestModal(false)
+            setComments([])
+          }}>
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
                 <CardTitle>Создать заявку</CardTitle>
                 <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
@@ -1198,8 +1209,11 @@ export default function ManagerDashboard() {
 
       {/* Task Details Modal */}
       {selectedTaskDetails && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
+            setSelectedTaskDetails(null)
+            setComments([])
+          }}>
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
                 <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
                 <CardDescription>{selectedTaskDetails.title}</CardDescription>
@@ -1268,13 +1282,20 @@ export default function ManagerDashboard() {
                   {selectedTaskDetails.complexity && (
                       <div>
                         <p className="text-sm font-medium text-gray-600">Сложность:</p>
-                        <p className="text-base text-gray-800">{selectedTaskDetails.complexity}</p>
+                        <p className="text-base text-gray-800">{translateComplexity(selectedTaskDetails.complexity)}</p>
                       </div>
                   )}
                   {selectedTaskDetails.sla && (
                       <div>
                         <p className="text-sm font-medium text-gray-600">SLA:</p>
-                        <p className="text-base text-gray-800">{selectedTaskDetails.sla}</p>
+                        <p className="text-base text-gray-800">
+                          {selectedTaskDetails.sla === '1h' && '1 час'}
+                          {selectedTaskDetails.sla === '4h' && '4 часа'}
+                          {selectedTaskDetails.sla === '8h' && '8 часов'}
+                          {selectedTaskDetails.sla === '1d' && '1 день'}
+                          {selectedTaskDetails.sla === '3d' && '3 дня'}
+                          {selectedTaskDetails.sla === '1w' && '1 неделя'}
+                        </p>
                       </div>
                   )}
                   {selectedTaskDetails.plannedDate && (
@@ -1290,22 +1311,63 @@ export default function ManagerDashboard() {
                 </div>
                 {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (
                     <div>
-                      {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (
-                          <div>
-                            <Label>Фотографии</Label>
-                            <div className="flex space-x-2 mt-2">
-                              {selectedTaskDetails.photos.map((photo: any, index: number) => (
-                                  <img
-                                      key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
-                                      alt={`Photo ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                      onClick={() => setSelectedPhoto(photo.photo_url)}
-                                  />
-                              ))}
+                      {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (() => {
+                        const clientPhotos = selectedTaskDetails.photos.filter((photo: any) => photo.type === "before");
+                        const contractorPhotos = selectedTaskDetails.photos.filter((photo: any) => photo.type === "after");
+
+                        return (
+                            <div className="mt-4 space-y-4">
+                              {/* Фотографии ДО */}
+                              {clientPhotos.length > 0 && (
+                                  <div>
+                                    <Label className="font-bold">Фотографии «До» (загружены пользователем)</Label>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                      {clientPhotos.map((photo: any, index: number) => (
+                                          <img
+                                              key={index}
+                                              src={photo.photo_url || "/placeholder.svg"}
+                                              alt={`До ${index + 1}`}
+                                              className="w-24 h-24 object-cover rounded-lg cursor-pointer"
+                                              onClick={() => setSelectedPhoto(photo.photo_url)}
+                                          />
+                                      ))}
+                                    </div>
+                                  </div>
+                              )}
+
+                              {/* Фотографии ПОСЛЕ */}
+                              <div>
+                                <Label className="font-bold">Фотографии «После» (загружены подрядчиком)</Label>
+                                {contractorPhotos.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                      {contractorPhotos.map((photo: any, index: number) => (
+                                          <img
+                                              key={index}
+                                              src={photo.photo_url || "/placeholder.svg"}
+                                              alt={`После ${index + 1}`}
+                                              className="w-24 h-24 object-cover rounded-lg cursor-pointer"
+                                              onClick={() => setSelectedPhoto(photo.photo_url)}
+                                          />
+                                      ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-xs text-gray-400 mt-2">Нет загруженных фотографий</div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                      )}
+                        );
+                      })()}
+
+                      {/* Комментарий исполнителя */}
+                      <div className="mt-4">
+                        <Label className="font-bold block">Комментарий исполнителя</Label>
+                        <p className="text-sm mt-1">
+                          {selectedTaskDetails.comment && selectedTaskDetails.comment.trim() !== ""
+                              ? selectedTaskDetails.comment
+                              : "Исполнитель ничего не написал"}
+                        </p>
+                      </div>
+
 
                       {/* Модальное окно */}
                       {selectedPhoto && (
@@ -1327,40 +1389,75 @@ export default function ManagerDashboard() {
                         <CardContent className="p-4">
                           <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                           {comments.map((c: any) => (
-                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
                                 <div className="flex justify-between items-center">
-                                  <div className="text-sm text-gray-800 font-medium">{c.user.full_name}</div>
+                                  <div className="text-sm text-gray-800 font-medium">
+                                    {c.user.full_name || "Неизвестный пользователь"}{" "}
+                                    {c.user.role && (<span className="text-xs text-gray-500">({roleTranslations[c.user.role] || c.user.role})</span>
+                                    )}
+                                  </div>
+
+
                                   <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
                                 </div>
                                 <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
-                                <div className="mt-2 flex gap-3 text-xs text-blue-500">
-                                  <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">
-                                    ✏️ Изменить
-                                  </button>
-                                  <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">
-                                    🗑 Удалить
-                                  </button>
-                                </div>
+                                {c.user.id === currentUserId && (
+                                    <div className="mt-2 flex gap-2 text-xs text-blue-500">
+                                      <button
+                                          onClick={() => handleEdit(c.id, c.comment)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700"
+                                      >
+                                        Изменить
+                                      </button>
+                                      <button
+                                          onClick={() => handleDelete(c.id)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                      >
+                                        Удалить
+                                      </button>
+                                    </div>
+                                )}
+
                               </div>
                           ))}
-                          <div className="mt-3 flex items-center space-x-2">
-                            <input
-                                type="text"
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                placeholder="Написать комментарий..."
-                                className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                            <Button size="sm" onClick={handleSend}>
-                              Отправить
-                            </Button>
+                          <div className="mt-3 flex flex-col space-y-1">
+                            {editCommentId && (
+                                <div className="text-xs text-gray-500 mb-1">
+                                  Редактируется комментарий #{editCommentId}
+                                  <button
+                                      className="ml-2 text-red-500 hover:underline"
+                                      onClick={() => {
+                                        setEditCommentId(null);
+                                        setComment("");
+                                      }}
+                                  >
+                                    Отменить
+                                  </button>
+                                </div>
+                            )}
+                            <div className="flex items-center space-x-2">
+                              <input
+                                  type="text"
+                                  value={comment}
+                                  onChange={(e) => setComment(e.target.value)}
+                                  placeholder="Написать комментарий..."
+                                  className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                              <Button size="sm" onClick={handleSend}>
+                                {editCommentId ? "Сохранить" : "Отправить"}
+                              </Button>
+                            </div>
                           </div>
+
                         </CardContent>
                       </Card>
                     </div>
                 )}
                 <div className="flex justify-end mt-6">
-                  <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>
+                  <Button variant="outline" onClick={() => {
+                    setSelectedTaskDetails(null)
+                    setComments([])
+                  }}>
                     Закрыть
                   </Button>
                 </div>

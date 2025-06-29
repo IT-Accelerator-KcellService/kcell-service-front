@@ -36,7 +36,13 @@ const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
 })
-
+const roleTranslations: Record<string, string> = {
+  client: "Клиент",
+  "admin-worker": "Администратор офиса",
+  "department-head": "Руководитель направления",
+  executor: "Испольнитель",
+  manager: "Руководитель"
+};
 export default function ExecutorDashboard() {
   const [assignedRequests, setAssignedRequests] = useState<any>([])
   const [myRequests, setMyRequests] = useState<any>([])
@@ -72,6 +78,8 @@ export default function ExecutorDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [editCommentId, setEditCommentId] = useState<number | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -80,14 +88,15 @@ export default function ExecutorDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "executor") {
-          window.location.href = '/login';
+          window.location.href = "/login";
         } else {
           setIsLoggedIn(true);
+          setCurrentUserId(user.id);
           setNewRequestOfficeId(String(user.office_id));
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = '/login'
+        window.location.href = "/login";
       }
     };
 
@@ -123,15 +132,8 @@ export default function ExecutorDashboard() {
   };
 
   const handleEdit = (id: number, oldComment: string) => {
-    const newComment = prompt("Изменить комментарий:", oldComment);
-    if (newComment && newComment.trim()) {
-      api.put(`/comments/${id}`, {
-        comment: newComment.trim(),
-        request_id: selectedTaskDetails.id,
-      })
-          .then(() => fetchComments())
-          .catch((err) => console.error("Ошибка при обновлении", err));
-    }
+    setComment(oldComment);
+    setEditCommentId(id);
   };
 
   useEffect(() => {
@@ -140,23 +142,35 @@ export default function ExecutorDashboard() {
     }
   }, [selectedTaskDetails]);
 
-  const handleSend = async () => {
-    if (!comment.trim()) return;
+  const handleSend = () => {
+    if (comment.trim() === "") return;
 
-    try {
-      await api.post(
-          `/comments`,
-          {
-            request_id: selectedTaskDetails.id,
-            comment,
-          }
-      );
-      setComment("");
-      fetchComments();
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err);
+    if (editCommentId) {
+      api
+          .put(`/comments/${editCommentId}`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id, // !!!
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id, // !!!
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
     }
   };
+
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -281,16 +295,18 @@ export default function ExecutorDashboard() {
     }
   }
 
+
   const handleNotificationClick = async (notification:any) => {
     if (!notification.is_read) {
       try {
-        const response = await api.patch(`/notifications/${notification.id}/read`)
-        const updated = response.data
-
         setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === updated.id ? { ...n, is_read: true } : n))
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
         )
+        await api.patch(`/notifications/${notification.id}/read`)
       } catch (error) {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        )
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
@@ -416,48 +432,61 @@ export default function ExecutorDashboard() {
   }
 
   const handleCompleteTask = async (taskId: string) => {
-    const response: any = await api.patch(`/requests/${taskId}/complete`, {
-      comment: completedRequestComment
-    })
-    if (photos.length > 0) {
-      const formData = new FormData();
-      photos.forEach((photo) => {
-        formData.append('photos', photo);
+    try {
+      // 1. PATCH для завершения задачи
+      const response = await api.patch(`/requests/${taskId}/complete`, {
+        comment: completedRequestComment
       });
-      formData.append('type', 'after');
 
-      try {
-        await api.post(`/request-photos/${response.data.id}/photos`, formData);
+      // 2. Если есть фото, загружаем их
+      if (photos.length > 0) {
+        const formData = new FormData();
+        photos.forEach((photo) => {
+          formData.append('photos', photo);
+        });
+        formData.append('type', 'after');
 
-        console.log("Фотографии успешно загружены");
-      } catch (photoUploadError) {
-        await api.delete(`/requests/${response.data.id}`);
-        console.error("Ошибка при загрузке фото. Заявка удалена.");
-        alert("Ошибка при загрузке фото. Заявка не была создана.");
-        return;
+        try {
+          await api.post(`/request-photos/${response.data.id}/photos`, formData);
+
+          console.log("Фотографии успешно загружены");
+        } catch (photoUploadError) {
+          // если загрузка фото не удалась — удаляем созданную заявку
+          await api.delete(`/requests/${response.data.id}`);
+          console.error("Ошибка при загрузке фото. Заявка удалена.");
+          alert("Ошибка при загрузке фото. Заявка не была создана.");
+          return;
+        }
       }
+
+      // 3. Переносим задачу в список завершённых
+      setAssignedRequests((prevTasks: any) => {
+        const taskToComplete = prevTasks.find((task: any) => task.id === taskId);
+        if (taskToComplete) {
+          setCompletedRequests((prevCompleted: any) => [
+            {
+              ...taskToComplete,
+              status: "completed",
+              completedDate: new Date().toISOString(),
+              rating: 0,
+              plannedDate: null
+            },
+            ...prevCompleted,
+          ]);
+          return prevTasks.filter((task: any) => task.id !== taskId);
+        }
+        return prevTasks;
+      });
+
+      // 4. Сбрасываем состояние
+      setSelectedTask(null);
+      setPhotos([]);
+      setPhotoPreviews([]);
+      console.log("Задача успешно завершена:", taskId);
+    } catch (error) {
+      console.error("Ошибка при завершении задачи", error);
+      alert("Ошибка при завершении задачи.");
     }
-    setAssignedRequests((prevTasks: any) => {
-      const taskToComplete = prevTasks.find((task: any) => task.id === taskId);
-      if (taskToComplete) {
-        setCompletedRequests((prevCompleted: any) => [
-          {
-            ...taskToComplete,
-            status: "completed",
-            completedDate: new Date().toISOString(),
-            rating: 0,
-            plannedDate: null
-          },
-          ...prevCompleted,
-        ]);
-        return prevTasks.filter((task: any) => task.id !== taskId);
-      }
-      return prevTasks;
-    });
-
-    setSelectedTask(null);
-    setPhotos([]);
-    console.log("Completing task:", taskId);
   };
 
   const handleLogout = async () => {
@@ -663,15 +692,37 @@ export default function ExecutorDashboard() {
               <TabsContent value="tasks">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4 mb-4">
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Фильтр
-                    </Button>
-                    <Badge variant="outline">Сортировка: По приоритету</Badge>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Статус" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все</SelectItem>
+                        <SelectItem value="in_progress">В обработке</SelectItem>
+                        <SelectItem value="execution">Исполнение</SelectItem>
+                        <SelectItem value="completed">Завершено</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Тип заявки" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все</SelectItem>
+                        <SelectItem value="normal">Обычная</SelectItem>
+                        <SelectItem value="urgent">Экстренная</SelectItem>
+                        <SelectItem value="planed">Плановая</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {assignedRequests
+                        ?.filter((task: any) => {
+                            const statusOk = filterStatus === "all" || task.status === filterStatus;
+                            const typeOk = filterType === "all" || task.request_type === filterType;
+                            return statusOk && typeOk;
+                        })
                         ?.sort((a: any, b: any) => {
                           const typeOrderA = getTaskTypeOrder(a.type)
                           const typeOrderB = getTaskTypeOrder(b.type)
@@ -830,8 +881,26 @@ export default function ExecutorDashboard() {
 
               <TabsContent value="completed">
                 <div className="space-y-4">
+                    <div className="flex items-center space-x-4 mb-4">
+                        <Select value={filterType} onValueChange={setFilterType}>
+                            <SelectTrigger className="w-48">
+                                <SelectValue placeholder="Тип заявки" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Все</SelectItem>
+                                <SelectItem value="normal">Обычная</SelectItem>
+                                <SelectItem value="urgent">Экстренная</SelectItem>
+                                <SelectItem value="planed">Плановая</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {completedRequests.map((request:any, index: number) => (
+                    {completedRequests
+                        ?.filter((task: any) => {
+                            if (filterType === "all") return true;
+                            return task.request_type === filterType;
+                        })
+                        .map((request:any, index: number) => (
                         <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
                               onClick={() => setSelectedTaskDetails(request)}>
                           {/* Заголовок с ID и статусами */}
@@ -1365,8 +1434,11 @@ export default function ExecutorDashboard() {
 
       {/* Create Request Modal */}
       {showCreateRequestModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
+            setShowCreateRequestModal(false)
+            setComments([])
+          }}>
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
                 <CardTitle>Создать заявку</CardTitle>
                 <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
@@ -1493,8 +1565,11 @@ export default function ExecutorDashboard() {
 
       {/* Task Details Modal */}
       {selectedTaskDetails && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"  onClick={()=> {
+            setSelectedTaskDetails(null)
+            setComments([])
+          }}>
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
                 <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
                 <CardDescription>{selectedTaskDetails.title}</CardDescription>
@@ -1634,41 +1709,98 @@ export default function ExecutorDashboard() {
                       )}
 
                       {/* Комментарии */}
-                      <Card className="bg-gray-50 border border-gray-200 shadow-sm">
-                        <CardContent className="p-4 space-y-4">
-                          <h4 className="font-semibold text-gray-800">Комментарии</h4>
+                      <Card className="mt-2">
+                        <CardContent className="p-4">
+                          <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                           {comments.map((c: any) => (
-                              <div key={c.id} className="bg-white border border-gray-300 rounded-md p-3">
+                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
                                 <div className="flex justify-between items-center">
-                                  <div className="text-sm font-medium text-gray-800">{c.user.full_name}</div>
-                                  <div className="text-xs text-gray-500">{new Date(c.timestamp).toLocaleString()}</div>
+                                  <div className="text-sm text-gray-800 font-medium">
+                                    {c.user.full_name || "Неизвестный пользователь"}{" "}
+                                    {c.user.role && (<span className="text-xs text-gray-500">({roleTranslations[c.user.role] || c.user.role})</span>
+                                    )}
+                                  </div>
+
+
+                                  <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
                                 </div>
-                                <p className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</p>
-                                <div className="mt-2 flex gap-4 text-xs text-blue-500">
-                                  <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">✏️ Изменить</button>
-                                  <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">🗑 Удалить</button>
-                                </div>
+                                <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+                                {c.user.id === currentUserId && (
+                                    <div className="mt-2 flex gap-2 text-xs text-blue-500">
+                                      <button
+                                          onClick={() => handleEdit(c.id, c.comment)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700"
+                                      >
+                                        Изменить
+                                      </button>
+                                      <button
+                                          onClick={() => handleDelete(c.id)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                      >
+                                        Удалить
+                                      </button>
+                                    </div>
+                                )}
+
                               </div>
                           ))}
-                          <div className="pt-2 flex items-center space-x-2">
-                            <input
-                                type="text"
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                placeholder="Написать комментарий..."
-                                className="flex-grow px-3 py-2 border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <Button size="sm" onClick={handleSend}>Отправить</Button>
+                          <div className="mt-3 flex flex-col space-y-1">
+                            {editCommentId && (
+                                <div className="text-xs text-gray-500 mb-1">
+                                  Редактируется комментарий
+                                  <button
+                                      className="ml-2 text-red-500 hover:underline"
+                                      onClick={() => {
+                                        setEditCommentId(null);
+                                        setComment("");
+                                      }}
+                                  >
+                                    Отменить
+                                  </button>
+                                </div>
+                            )}
+                            <div className="flex items-center space-x-2">
+                              <input
+                                  type="text"
+                                  value={comment}
+                                  onChange={(e) => setComment(e.target.value)}
+                                  placeholder="Написать комментарий..."
+                                  className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              />
+                              <Button size="sm" onClick={handleSend}>
+                                {editCommentId ? "Сохранить" : "Отправить"}
+                              </Button>
+                            </div>
                           </div>
+
                         </CardContent>
                       </Card>
                     </div>
                 )}
-
-                {/* Закрыть */}
-                <div className="flex justify-end pt-4">
-                  <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
+                <div className="flex space-x-4 m-4">
+                    {["assigned", "in_progress"].includes(selectedTaskDetails.status) && (
+                        <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700"
+                            onClick={() => handleStartTask(selectedTaskDetails.id)}
+                        >
+                          Начать
+                        </Button>
+                    )}
+                    {selectedTaskDetails.status === "execution" && (
+                        <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 flex-1"
+                            onClick={() => setSelectedTask(selectedTaskDetails)}
+                        >
+                          Завершить
+                        </Button>
+                    )}
+                  {/* Закрыть */}
+                    <Button className="flex-1" variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
                 </div>
+
+
               </CardContent>
             </Card>
           </div>
