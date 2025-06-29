@@ -117,6 +117,10 @@ export default function AdminWorkerDashboard() {
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
+  const [loading, setLoading] = useState(true)
+  const [notifications, setNotifications] = useState([])
+  const [selectedNotification, setSelectedNotification] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
 
   useEffect(() => {
@@ -143,6 +147,56 @@ export default function AdminWorkerDashboard() {
     fileInputRef.current?.click();
   };
 
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await api.get("/notifications/me")
+        setNotifications(response.data.notifications)
+      } catch (error) {
+        console.error("Ошибка при загрузке уведомлений", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchNotifications()
+  }, [])
+
+  const handleNotificationClick = async (notification:any) => {
+    if (!notification.is_read) {
+      try {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
+        )
+        await api.patch(`/notifications/${notification.id}/read`)
+      } catch (error) {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        )
+        console.error("Ошибка при пометке уведомления как прочитано", error)
+      }
+    }
+
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
+  }
+
+  const getBgColor = (title:any) => {
+    if (title.includes("принята")) return "bg-blue-50"
+    if (title.includes("завершена")) return "bg-green-50"
+    if (title.includes("просрочена")) return "bg-red-50"
+    return "bg-gray-100"
+  }
+
+  const formatTimeAgo = (dateStr:any) => {
+    const date = new Date(dateStr)
+    const diff = (Date.now() - date.getTime()) / 1000
+    if (diff < 60) return "только что"
+    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
+    return `${Math.floor(diff / 86400)} дней назад`
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
@@ -163,14 +217,27 @@ export default function AdminWorkerDashboard() {
   const fetchRequests = async () => {
     try {
       const response: any = await api.get('/requests/admin-worker/me');
-      setIncomingRequests(response.data.otherRequests);
-      setMyRequests(response.data.myRequests);
-      response.data.otherRequests.forEach((request: Request) => {
+      const otherRequests: Request[] = response.data.otherRequests;
+      const myRequests: Request[] = response.data.myRequests;
+      const sortedOtherRequests = otherRequests.sort((a, b) => {
+        const aInProgress = a.status === "in_progress";
+        const bInProgress = b.status === "in_progress";
+        if (aInProgress && !bInProgress) return -1;
+        if (bInProgress && !aInProgress) return 1;
+        if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
+        if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        return dateB - dateA;
+      });
+      setIncomingRequests(sortedOtherRequests);
+      setMyRequests(myRequests);
+      sortedOtherRequests.forEach((request: Request) => {
         if (request.status === "completed") {
           checkUserRating(request.id);
         }
       });
-      response.data.myRequests.forEach((request: Request) => {
+      myRequests.forEach((request: Request) => {
         if (request.status === "completed") {
           checkUserRating(request.id);
         }
@@ -228,8 +295,6 @@ export default function AdminWorkerDashboard() {
       console.error("Ошибка при отправке комментария", err);
     }
   };
-
-
 
   const handleEdit = (id: number, oldComment: string) => {
     setComment(oldComment);       // заполняем поле ввода
@@ -918,69 +983,67 @@ export default function AdminWorkerDashboard() {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Быстрые действия</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setNewRequestType("planned");
-                        setShowCreateRequestModal(true);
-                      }}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать плановую заявку
-                  </Button>
-                  <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setNewRequestType("urgent");
-                        setShowCreateRequestModal(true);
-                      }}
-                  >
-                    <AlertTriangle className="w-4 h-4 mr-2 text-red-500" />
-                    Экстренная заявка
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    Отчеты
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
                   <CardTitle className="text-lg">Уведомления</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {myRequests
-                        .filter(req => req.status === "in_execution" && req.planned_date && new Date(req.planned_date) < new Date())
-                        .slice(0, 3)
-                        .map(req => (
-                            <div key={req.id} className="p-3 bg-red-50 rounded-lg">
-                              <p className="text-sm font-medium">Просрочена заявка #{req.id}</p>
-                              <p className="text-xs text-gray-600">{req.title}</p>
-                            </div>
-                        ))}
-                    {incomingRequests.slice(0, 2).map(req => (
-                        <div key={req.id} className="p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm font-medium">Новая заявка #{req.id}</p>
-                          <p className="text-xs text-gray-600">{req.title}</p>
-                        </div>
-                    ))}
-                  </div>
+                  {loading ? (
+                      <p>Загрузка...</p>
+                  ) : (
+                      <div className="space-y-3">
+                        {notifications
+                            .slice(0, 5)
+                            .map((n: any) => (
+                                <div
+                                    key={n.id}
+                                    onClick={() => handleNotificationClick(n)}
+                                    className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
+                                        n.title
+                                    )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
+                                >
+                                  <div className="flex justify-between">
+                                    <p className="text-sm font-medium">{n.title}</p>
+                                    {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
+                                  </div>
+                                  <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
+                                </div>
+                            ))}
+                      </div>
+                  )}
                 </CardContent>
               </Card>
+
+              {/* Модалка */}
+              {isModalOpen && selectedNotification && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                        <button
+                            className="text-gray-500 hover:text-black"
+                            onClick={() => setIsModalOpen(false)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-800 whitespace-pre-line">
+                        {selectedNotification.content}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-4">
+                        Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>setSelectedRequest(null)}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
+              setSelectedRequest(null)
+              setComments([])
+            }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
@@ -1278,7 +1341,7 @@ export default function AdminWorkerDashboard() {
                     <CardContent className="p-4">
                       <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                       {comments.map((c: any) => (
-                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
                             <div className="flex justify-between items-center">
                               <div className="text-sm text-gray-800 font-medium">
                                 {c.user.full_name || "Неизвестный пользователь"}{" "}
@@ -1342,7 +1405,10 @@ export default function AdminWorkerDashboard() {
                   </Card>
                   <div className="flex items-center">
                     <div className="ml-auto">
-                      <Button variant="outline" onClick={() => setSelectedRequest(null)}>
+                      <Button variant="outline" onClick={() => {
+                        setSelectedRequest(null)
+                        setComments([]);
+                      }}>
                         Закрыть
                       </Button>
                     </div>
