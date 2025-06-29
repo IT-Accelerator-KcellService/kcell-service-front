@@ -648,22 +648,32 @@ export default function ManagerDashboard() {
             </Select>
           </div>
 
-          <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
-            <Button variant="outline" size="sm" className="w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+            <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center min-w-[150px] h-10 px-4"
+            >
               <Download className="w-4 h-4 mr-2" />
               Excel
             </Button>
-            <Button variant="outline" size="sm" className="w-full sm:w-auto">
+
+            <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center min-w-[150px] h-10 px-4"
+            >
               <Download className="w-4 h-4 mr-2" />
               Power BI
             </Button>
+
             <Button
-              onClick={() => {
-                setNewRequestType("Обычная")
-                setShowCreateRequestModal(true)
-                handleOpenCreateRequest()
-              }}
-              className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                onClick={() => {
+                  setNewRequestType("Обычная")
+                  setShowCreateRequestModal(true)
+                  handleOpenCreateRequest()
+                }}
+                className="flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white min-w-[150px] h-10 px-4"
             >
               <Plus className="w-4 h-4 mr-2" />
               Создать заявку
