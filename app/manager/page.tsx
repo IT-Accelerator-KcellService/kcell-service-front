@@ -30,16 +30,7 @@ import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
 import dynamic from "next/dynamic";
 import {Request} from "@/app/client/page";
-
-const API_BASE_URL = "https://kcell-service.onrender.com/api"
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  }
-})
+import api from "@/lib/api";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -160,9 +151,7 @@ export default function ManagerDashboard() {
         formData.append('type', 'before');
 
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
-            withCredentials: true
-          });
+          await api.post(`/request-photos/${requestId}/photos`, formData);
 
           console.log("Фотографии успешно загружены");
         } catch (photoUploadError) {
