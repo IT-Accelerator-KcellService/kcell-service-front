@@ -37,7 +37,7 @@ const Header: React.FC<HeaderProps> = ({
     React.useEffect(() => {
       if (isModalOpen) {
         api.get("/notifications/me")
-          .then(res => res.data)
+          .then(res => res.data.notifications)
           .then(setAllNotifications)
           .catch(console.error);
       }
