@@ -186,7 +186,7 @@ export default function ManagerDashboard() {
       const requestId = response.data.id;
 
       console.log("Created request ID:", requestId);
-
+      let createdPhotos;
       if (photos.length > 0) {
         const formData = new FormData();
         photos.forEach((photo) => {
@@ -196,7 +196,7 @@ export default function ManagerDashboard() {
 
         try {
 
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -211,7 +211,11 @@ export default function ManagerDashboard() {
           throw photoUploadError;
         }
       }
-      fetchRequests()
+      const newRequest = {
+        ...response.data,
+        photos: createdPhotos?.data?.photos,
+      }
+      setRequests(prev => [newRequest, ...prev])
       setShowCreateRequestModal(false)
       setNewRequestType("")
       setNewRequestTitle("")

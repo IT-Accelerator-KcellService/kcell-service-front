@@ -40,12 +40,24 @@ interface Rating {
   created_at: string;
 }
 
+interface Category {
+  id: number;
+  name: string;
+}
+
+interface Photo {
+  id: number;
+  request_id: number;
+  photo_url: string;
+  type: string;
+}
+
 export interface Request {
   executor_id: any;
   actual_completion_date: any;
   sla: React.JSX.Element;
   date_submitted: string;
-  category: any;
+  category: Category;
   office: any;
   complexity: string;
   id: number;
@@ -59,7 +71,7 @@ export interface Request {
   executor: {user: { full_name: any } };
   rating?: number;
   category_id?: number;
-  photos?: { photo_url: string }[];
+  photos?: Photo[];
   office_id: number;
 }
 
@@ -400,7 +412,8 @@ export default function ClientDashboard() {
         !requestTitle.trim() ||
         !requestLocation.trim() ||
         !requestDescription.trim() ||
-        !selectedCategoryId
+        !selectedCategoryId ||
+        !requestLocationDetails.trim()
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -424,7 +437,7 @@ export default function ClientDashboard() {
       const requestId = response.data.id;
 
       console.log("Created request ID:", requestId);
-
+      let createdPhotos;
       if (photos.length > 0) {
         const formData = new FormData();
         photos.forEach((photo) => {
@@ -433,7 +446,7 @@ export default function ClientDashboard() {
         formData.append('type', 'before');
 
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -445,7 +458,11 @@ export default function ClientDashboard() {
           return;
         }
       }
-      setRequests(prev => [response.data, ...prev])
+      const newRequest = {
+        ...response.data,
+        photos: createdPhotos?.data?.photos,
+      }
+      setRequests(prev => [newRequest, ...prev])
       setShowCreateRequest(false)
       setRequestType("")
       setRequestTitle("")
@@ -732,7 +749,7 @@ export default function ClientDashboard() {
                                   #{request.id}
                                 </span>
                                   <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
+                                  {request.category?.name || 'Не указано'}
                                 </span>
                                 </div>
                               </div>

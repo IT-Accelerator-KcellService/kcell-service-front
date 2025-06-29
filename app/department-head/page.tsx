@@ -489,8 +489,7 @@ export default function DepartmentHeadDashboard() {
         !newRequestLocationDetails ||
         !newRequestLocation ||
         !serviceCategories ||
-        !newRequestComplexity ||
-        !newRequestSLA
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity)
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -509,13 +508,14 @@ export default function DepartmentHeadDashboard() {
         category_id: serviceCategories.find(c => c.name === newRequestCategory)?.id,
         status: "awaiting_assignment",
         complexity: newRequestComplexity,
-        sla: newRequestSLA
+        sla: newRequestSLA,
+        planned_date: newRequestPlannedDate || null,
       })
 
       const requestId = response.data.id;
 
       console.log("Created request ID:", requestId);
-
+      let createdPhotos;
       if (photos.length > 0) {
         const formData = new FormData();
         photos.forEach((photo) => {
@@ -525,7 +525,7 @@ export default function DepartmentHeadDashboard() {
 
         try {
 
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -540,7 +540,11 @@ export default function DepartmentHeadDashboard() {
           throw photoUploadError;
         }
       }
-      fetchRequests()
+      const newRequest = {
+        ...response.data,
+        photos: createdPhotos?.data?.photos,
+      }
+      setMyRequests(prev => [newRequest, ...prev])
       setShowCreateRequestModal(false)
       setNewRequestTitle("")
       setNewRequestDescription("")

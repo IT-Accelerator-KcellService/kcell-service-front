@@ -381,7 +381,8 @@ export default function AdminWorkerDashboard() {
         !newRequestLocation.trim() ||
         !newRequestDescription.trim() ||
         !newRequestCategory ||
-        (newRequestType === "planned" && !newRequestPlannedDate)
+        !newRequestLocationDetails.trim() ||
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity)
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -406,7 +407,7 @@ export default function AdminWorkerDashboard() {
       });
 
       const requestId = response.data.id;
-
+      let createdPhotos;
       // Загрузка фото (если есть)
       if (photos.length > 0) {
         const formData = new FormData();
@@ -416,7 +417,7 @@ export default function AdminWorkerDashboard() {
         formData.append('type', 'before');
 
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -432,7 +433,11 @@ export default function AdminWorkerDashboard() {
         }
       }
 
-      fetchRequests();
+      const newRequest = {
+        ...response.data,
+        photos: createdPhotos?.data?.photos,
+      }
+      setMyRequests(prev => [newRequest, ...prev])
       setShowCreateRequestModal(false);
       setNewRequestTitle("");
       setNewRequestDescription("");
