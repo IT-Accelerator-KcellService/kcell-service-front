@@ -23,7 +23,7 @@ import {
   Plus,
   Trash2,
   Camera,
-  MapPin, Filter,
+  MapPin, Filter, Loader2, XCircle, User, Zap, AlertCircle, Calendar, ImageIcon,
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
@@ -31,6 +31,8 @@ import UserProfile from "@/app/client/UserProfile";
 import dynamic from "next/dynamic";
 import {Request} from "@/app/client/page";
 import api from "@/lib/api";
+
+const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -40,7 +42,8 @@ const MapView = dynamic(() => import('@/app/map/MapView'), {
 export default function ManagerDashboard() {
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
-  const [tab, setTab] = useState("overview")
+  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
+  const [tab, setTab] = useState("requests")
   const [offices, setOffices] = useState([{}])
   const [newOfficeName, setNewOfficeName] = useState("")
   const [newOfficeCity, setNewOfficeCity] = useState("")
@@ -71,7 +74,8 @@ export default function ManagerDashboard() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -123,16 +127,26 @@ export default function ManagerDashboard() {
   }
 
   const handleCreateRequest = async () => {
-    if (!selectedCategoryId) {
-      alert("Пожалуйста, выберите категорию услуги")
-      return
+    if (
+        !newRequestTitle ||
+        !description ||
+        !newRequestOfficeId ||
+        !newRequestType ||
+        !requestLocation ||
+        !newRequestLocation ||
+        !selectedCategoryId
+    ) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
     }
 
+    setIsSubmitting(true);
+    setFormErrors(null);
     try {
       const response = await api.post('/requests', {
         title: newRequestTitle,
         description: description,
-        office_id: 1,
+        office_id: Number(newRequestOfficeId),
         request_type: newRequestType === "urgent" ? "urgent" : "normal",
         location: requestLocation,
         location_detail: newRequestLocation,
@@ -152,16 +166,23 @@ export default function ManagerDashboard() {
         formData.append('type', 'before');
 
         try {
-          await api.post(`/request-photos/${requestId}/photos`, formData);
+
+          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
 
           console.log("Фотографии успешно загружены");
         } catch (photoUploadError) {
           await api.delete(`/requests/${requestId}`);
           console.error("Ошибка при загрузке фото. Заявка удалена.");
           alert("Ошибка при загрузке фото. Заявка не была создана.");
-          return;
+          throw photoUploadError;
         }
       }
+      fetchRequests()
       setShowCreateRequestModal(false)
       setNewRequestType("")
       setNewRequestTitle("")
@@ -171,6 +192,9 @@ export default function ManagerDashboard() {
     } catch (error) {
       console.error("Failed to create request:", error)
       alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -290,7 +314,7 @@ export default function ManagerDashboard() {
   const fetchNotifications = async () => {
     try {
       const response = await api.get("/notifications/me")
-      setNotifications(response.data)
+      setNotifications(response.data.notifications)
     } catch (error) {
       console.error("Ошибка при загрузке уведомлений", error)
     } finally {
@@ -336,31 +360,34 @@ export default function ManagerDashboard() {
     const statusMatch = filterStatus === "all" || request.status === filterStatus
     const requestType = request.request_type
     const typeMatch = filterType === "all" || requestType === filterType
-    return statusMatch && typeMatch
+    const officeMatch = office === "all" || office == String(request.office_id)
+    return statusMatch && typeMatch && officeMatch
   })
 
   const completedRequests = requests.filter((request) => {
-    return request.status === "completed"
+    if (office === "all") return request.status === "completed"
+    if (office == String(request.office_id)) return request.status === "completed"
   })
 
   const urgentRequests = requests.filter((request) => {
-    return request.request_type === "urgent"
+    if (office === "all") return request.request_type === "urgent"
+    if (office == String(request.office_id)) return request.request_type === "urgent"
   })
 
   const normalRequests = requests.filter((request) => {
-    return request.request_type === "normal"
+    if(office === "all") return request.request_type === "normal"
+    if (office == String(request.office_id)) return request.request_type === "normal"
   })
 
   const planningRequests = requests.filter((request) => {
-    return request.request_type === "planned"
+    if (office === "all") return request.request_type === "planned"
+    if (office == String(request.office_id)) return request.request_type === "planned"
   })
 
   const kpi = {
-    total: requests.length,
+    total: filteredRequests.length,
     completed: completedRequests.length,
     overdue: 8,
-    rating: 4.7,
-    sla: "2.3 ч",
     emergency: urgentRequests.length,
   }
 
@@ -413,25 +440,6 @@ export default function ManagerDashboard() {
     </Card>
   )
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "draft":
-      case "Черновик":
-        return "bg-gray-500"
-      case "in_progress":
-      case "В обработке":
-        return "bg-blue-500"
-      case "in_execution":
-      case "Исполнение":
-        return "bg-orange-500"
-      case "completed":
-      case "Завершено":
-        return "bg-green-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
-
   const getTypeColor = (type: string) => {
     switch (type) {
       case "urgent":
@@ -469,6 +477,16 @@ export default function ManagerDashboard() {
       default: return type
     }
   }
+
+  const translateComplexity = (complexity: string) => {
+    switch (complexity) {
+      case "complex": return "комплексный";
+      case "simple": return "простой";
+      case "medium": return "средний";
+      default: return complexity;
+    }
+  };
+
   const fetchOffices = async () => {
     try {
       const response = await api.get('/offices')
@@ -509,6 +527,97 @@ export default function ManagerDashboard() {
     }
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return "bg-emerald-500 text-white border-emerald-500"
+      case "in_progress":
+      case "execution":
+        return "bg-purple-500 text-white border-purple-500"
+      case "awaiting_assignment":
+      case "awaiting_sla":
+        return "bg-amber-400 text-gray-900 border-amber-400"
+      case "assigned":
+        return "bg-violet-500 text-white border-violet-500"
+      case "rejected":
+        return "bg-red-500 text-white border-red-500"
+      default:
+        return "bg-gray-400 text-white border-gray-400"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return <CheckCircle className="w-3 h-3" />
+      case "in_progress":
+      case "execution":
+        return <Zap className="w-3 h-3" />
+      case "awaiting_assignment":
+      case "awaiting_sla":
+        return <Clock className="w-3 h-3" />
+      case "assigned":
+        return <User className="w-3 h-3" />
+      case "rejected":
+        return <XCircle className="w-3 h-3" />
+      default:
+        return null
+    }
+  }
+
+  const getComplexityColor = (complexity: string) => {
+    switch (complexity?.toLowerCase()) {
+      case "complex":
+        return "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500"
+      case "medium":
+        return "bg-gradient-to-r from-orange-400 to-yellow-400 text-gray-900 border-orange-400"
+      case "simple":
+        return "bg-gradient-to-r from-purple-400 to-violet-400 text-white border-purple-400"
+      default:
+        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
+    }
+  }
+
+  const getRequestTypeColor = (requestType: string) => {
+    switch (requestType.toLowerCase()) {
+      case "urgent":
+        return "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-500"
+      case "planned":
+        return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
+      case "normal":
+        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
+      default:
+        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
+    }
+  }
+
+  const getRequestTypeIcon = (requestType: string) => {
+    switch (requestType.toLowerCase()) {
+      case "urgent":
+        return <AlertCircle className="w-3 h-3" />
+      case "planned":
+        return <Calendar className="w-3 h-3" />
+      case "normal":
+        return <Clock className="w-3 h-3" />
+      default:
+        return null
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  }
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+        <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
+    ))
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -531,22 +640,10 @@ export default function ManagerDashboard() {
               <SelectContent>
                 <SelectItem value="all">Все офисы</SelectItem>
                 {offices.map((office:any, index) => (
-                  <SelectItem key={index} value={office.name}>
+                  <SelectItem key={index} value={office.id}>
                     {office.name}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Период" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">Неделя</SelectItem>
-                <SelectItem value="month">Месяц</SelectItem>
-                <SelectItem value="quarter">Квартал</SelectItem>
-                <SelectItem value="year">Год</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -575,7 +672,7 @@ export default function ManagerDashboard() {
         </div>
 
         {/* KPI Cards - Mobile optimized grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
           <StatCard
             title="Всего заявок"
             value={kpi.total}
@@ -601,20 +698,6 @@ export default function ManagerDashboard() {
             bg="bg-red-100"
           />
           <StatCard
-            title="Ср. оценка"
-            value={kpi.rating}
-            icon={<Star className="w-4 h-4 sm:w-6 sm:h-6 text-yellow-600" />}
-            delta="+0.2"
-            positive
-            bg="bg-yellow-100"
-          />
-          <StatCard
-            title="Ср. SLA"
-            value={kpi.sla}
-            icon={<Clock className="w-4 h-4 sm:w-6 sm:h-6 text-purple-600" />}
-            bg="bg-purple-100"
-          />
-          <StatCard
             title="Экстренные"
             value={kpi.emergency}
             icon={<AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 text-orange-600" />}
@@ -626,18 +709,12 @@ export default function ManagerDashboard() {
 
         {/* Mobile-optimized Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="requests" className="text-xs sm:text-sm">
               Заявки
             </TabsTrigger>
             <TabsTrigger value="overview" className="text-xs sm:text-sm">
               Обзор
-            </TabsTrigger>
-            <TabsTrigger value="offices" className="text-xs sm:text-sm">
-              Офисы
-            </TabsTrigger>
-            <TabsTrigger value="executors" className="text-xs sm:text-sm">
-              Команда
             </TabsTrigger>
             <TabsTrigger value="management" className="text-xs sm:text-sm">
               Управление
@@ -674,61 +751,134 @@ export default function ManagerDashboard() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredRequests.map((request, index: number) => (
+                    <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                          onClick={() => setSelectedTaskDetails(request)}>
+                        {/* Заголовок с ID и статусами */}
+                        <CardHeader className="pb-3 px-5 pt-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                  #{request.id}
+                                </span>
+                                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                  {request.category.name}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Badge
+                                  variant="outline"
+                                  className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
+                              >
+                                {getStatusIcon(request.status)}
+                                {translateStatus(request.status)}
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardHeader>
 
-              {filteredRequests.map((request) => (
-                  <Card
-                      key={request.id}
-                      className="hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => setSelectedTaskDetails(request)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <div className="flex items-center space-x-2 mb-2">
-                            <Badge className={getTypeColor(request.request_type)}>{translateType(request.request_type)}</Badge>
-                            <Badge variant="outline" className={getStatusColor(request.status)}>
-                              {translateStatus(request.status)}
-                            </Badge>
-                            <span className="text-sm text-gray-500">#{request.id}</span>
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
-                          <div className="flex items-center text-sm text-gray-600 space-x-4">
-                            <div className="flex items-center">
-                              <MapPin className="w-4 h-4 mr-1" />
-                              Локация: {request.location_detail}
+                        <CardContent className="px-5 pb-5 pt-0 space-y-3">
+                          {/* Описание */}
+                          <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
+
+                          {/* Основная информация в сетке */}
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                              <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                              <span className="truncate font-medium">{request.location_detail}</span>
                             </div>
-                            <div className="flex items-center">
-                              <Clock className="w-4 h-4 mr-1" />Время:
-                              {new Date(request.created_date).toLocaleString("ru-RU", {
-                                day: "2-digit",
-                                month: "long",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit"
-                              })}
+
+                            <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                              <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                              <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                             </div>
+
+                            {request.executor_id ? (
+                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                  <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <span className="truncate font-medium">{request.executor_id}</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                  <User className="w-4 h-4 flex-shrink-0" />
+                                  <span className="truncate font-medium">Не назначен</span>
+                                </div>
+                            )}
+
+                            {request.rating ? (
+                                <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
+                                  {renderStars(request.rating)}
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                  <span className="text-sm font-medium">Без оценки</span>
+                                </div>
+                            )}
                           </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-              ))}
+
+                          {/* Фотографии */}
+                          {request.photos && request.photos.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <ImageIcon className="w-4 h-4 text-purple-500" />
+                                  <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto">
+                                  {request.photos.slice(0, 4).map((photo, index) => (
+                                      <div key={index} className="flex-shrink-0">
+                                        <img
+                                            src={photo.photo_url || "/placeholder.svg"}
+                                            alt={`Фото ${index + 1}`}
+                                            className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
+                                            onError={(e) => {
+                                              e.currentTarget.src = `/placeholder.svg?height=48&width=48`
+                                            }}
+                                        />
+                                      </div>
+                                  ))}
+                                  {request.photos.length > 4 && (
+                                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                                        <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+                                      </div>
+                                  )}
+                                </div>
+                              </div>
+                          )}
+
+                          {/* Нижняя панель */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <div className="flex gap-2">
+                              <Badge
+                                  variant="outline"
+                                  className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
+                              >
+                                {getRequestTypeIcon(request.request_type)}
+                                {translateType(request.request_type)}
+                              </Badge>
+                              {request.complexity !== "" && (
+                                  <Badge
+                                      variant="outline"
+                                      className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                  >
+                                    {translateComplexity(request.complexity)}
+                                  </Badge>
+                              )}
+                            </div>
+
+                            <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                ))}
+              </div>
             </div>
           </TabsContent>
 
           <TabsContent value="overview" className="space-y-4 sm:space-y-6">
-            {/* Chart placeholder */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg sm:text-xl">Динамика заявок</CardTitle>
-                <CardDescription className="text-sm">Количество заявок по дням</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48 sm:h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <span className="text-gray-500 text-sm">График будет здесь</span>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Distribution */}
             <Card>
@@ -741,7 +891,7 @@ export default function ManagerDashboard() {
                     <span className="text-sm sm:text-base">Обычные</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: "75%" }}></div>
+                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${normalRequests.length * 100/requests.length}%` }}></div>
                       </div>
                       <span className="text-sm font-medium w-8">{normalRequests.length}</span>
                     </div>
@@ -750,7 +900,7 @@ export default function ManagerDashboard() {
                     <span className="text-sm sm:text-base">Экстренные</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                        <div className="bg-red-600 h-2 rounded-full" style={{ width: "15%" }}></div>
+                        <div className="bg-red-600 h-2 rounded-full" style={{ width: `${urgentRequests.length * 100/requests.length}%` }}></div>
                       </div>
                       <span className="text-sm font-medium w-8">{urgentRequests.length}</span>
                     </div>
@@ -759,7 +909,7 @@ export default function ManagerDashboard() {
                     <span className="text-sm sm:text-base">Плановые</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-600 h-2 rounded-full" style={{ width: "10%" }}></div>
+                        <div className="bg-green-600 h-2 rounded-full" style={{ width: `${planningRequests.length * 100/requests.length}%` }}></div>
                       </div>
                       <span className="text-sm font-medium w-8">{planningRequests.length}</span>
                     </div>
@@ -777,23 +927,25 @@ export default function ManagerDashboard() {
                     <p>Загрузка...</p>
                 ) : (
                     <div className="space-y-3">
-                      {notifications
-                          .slice(0, 5)
-                          .map((n: any) => (
+                      {notifications.length > 0?
+                      notifications
+                              .slice(0, 5)
+                              .map((n: any) => (
                               <div
-                                  key={n.id}
-                                  onClick={() => handleNotificationClick(n)}
-                                  className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
-                                      n.title
-                                  )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
-                              >
-                                <div className="flex justify-between">
-                                  <p className="text-sm font-medium">{n.title}</p>
-                                  {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
-                                </div>
-                                <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
-                              </div>
-                          ))}
+                              key={n.id}
+                            onClick={() => handleNotificationClick(n)}
+                            className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
+                                n.title
+                            )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
+                          >
+                            <div className="flex justify-between">
+                              <p className="text-sm font-medium">{n.title}</p>
+                              {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
+                            </div>
+                            <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
+                          </div>
+                      )): <p className="text-sm text-gray-500">Нет уведомлений</p>}
+
                     </div>
                 )}
               </CardContent>
@@ -821,70 +973,6 @@ export default function ManagerDashboard() {
                   </div>
                 </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="offices" className="space-y-4 sm:space-y-6">
-            {officeStats.map((office) => (
-              <Card key={office.name}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center text-lg sm:text-xl">
-                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                    <span className="truncate">{office.name}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold">{office.total}</p>
-                      <p className="text-xs sm:text-sm text-gray-600">Всего</p>
-                    </div>
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold text-green-600">{office.completed}</p>
-                      <p className="text-xs sm:text-sm text-gray-600">Завершено</p>
-                    </div>
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold text-red-600">{office.overdue}</p>
-                      <p className="text-xs sm:text-sm text-gray-600">Просрочено</p>
-                    </div>
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold text-yellow-600">{office.rating}</p>
-                      <p className="text-xs sm:text-sm text-gray-600">Оценка</p>
-                    </div>
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{office.sla}%</p>
-                      <p className="text-xs sm:text-sm text-gray-600">SLA</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </TabsContent>
-
-          <TabsContent value="executors">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg sm:text-xl">Топ исполнители</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 sm:space-y-4">
-                  {topExecutors.map((ex) => (
-                    <div key={ex.name} className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm sm:text-base truncate">{ex.name}</p>
-                        <p className="text-xs sm:text-sm text-gray-600 truncate">{ex.specialty}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0 ml-4">
-                        <p className="font-bold text-sm sm:text-base">{ex.done} зав.</p>
-                        <div className="flex items-center justify-end">
-                          <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400 fill-current mr-1" />
-                          <span className="text-xs sm:text-sm text-yellow-600">{ex.rating}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Management Tab Content for Manager */}
@@ -966,6 +1054,19 @@ export default function ManagerDashboard() {
                 <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div>
+                  <Label>Офис</Label>
+                  <Select value={newRequestOfficeId} onValueChange={setNewRequestOfficeId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите офис" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {offices.map((officeItem:any, index: number) => (
+                          <SelectItem key={index} value={String(officeItem.id)}>{officeItem.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label>Тип заявки</Label>
                   <Select value={newRequestType} onValueChange={setNewRequestType}>
@@ -1064,10 +1165,17 @@ export default function ManagerDashboard() {
                     )}
                   </div>
                 </div>
-
+                {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                 <div className="flex space-x-4">
-                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700">
-                    Отправить заявку
+                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Отправка...
+                        </>
+                    ) : (
+                        "Отправить заявку"
+                    )}
                   </Button>
                   <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
                     Отмена
