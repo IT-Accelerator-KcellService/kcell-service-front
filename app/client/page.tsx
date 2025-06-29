@@ -771,9 +771,9 @@ export default function ClientDashboard() {
                               )}
 
 
-                              {request.rating ? (
+                              {userRatings[request.id]?.rating ? (
                                   <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                    {renderStars(request.rating)}
+                                    {renderStars(userRatings[request.id].rating)}
                                   </div>
                               ) : (
                                   <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1168,7 +1168,7 @@ export default function ClientDashboard() {
                   {selectedRequest.executor && (
                       <div>
                         <Label>Исполнитель</Label>
-                        <p className="text-sm">{selectedRequest.executor || "не назначена"}</p>
+                        <p className="text-sm">{selectedRequest.executor.user?.full_name|| "не назначена"}</p>
                       </div>
                   )}
 

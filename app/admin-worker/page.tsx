@@ -777,9 +777,9 @@ export default function AdminWorkerDashboard() {
                                     </div>
                                 )}
 
-                                {request.rating ? (
+                                {userRatings[request.id]?.rating ? (
                                     <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                      {renderStars(request.rating)}
+                                      {renderStars(userRatings[request.id].rating)}
                                     </div>
                                 ) : (
                                     <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1140,14 +1140,14 @@ export default function AdminWorkerDashboard() {
                     </div>
                   </div>
 
-                  {selectedRequest.rating && (
+                  {userRatings[selectedRequest.id]?.rating && (
                       <div>
                         <Label>Оценка</Label>
                         <div className="flex">
                           {[...Array(5)].map((_, i) => (
                               <Star
                                   key={i}
-                                  className={`w-5 h-5 ${i < selectedRequest.rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                                  className={`w-5 h-5 ${i < userRatings[selectedRequest.id].rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
                               />
                           ))}
                         </div>
@@ -1232,7 +1232,7 @@ export default function AdminWorkerDashboard() {
                         className="mt-4"
                     >
                       <Star className="w-4 h-4 mr-2" />
-                      Оценить клиента
+                      Оценить
                     </Button>
                 )}
                   <div className="flex space-x-4">

@@ -11,6 +11,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
+import {
   BarChart3,
   CheckCircle,
   AlertTriangle,
@@ -38,6 +50,10 @@ const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
 })
+type OfficeType = {
+  id: number
+  name: string
+}
 
 export default function ManagerDashboard() {
   const [period, setPeriod] = useState("month")
@@ -76,6 +92,7 @@ export default function ManagerDashboard() {
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -1035,14 +1052,42 @@ export default function ManagerDashboard() {
                             className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
                           >
                             <span className="font-medium text-gray-700">{officeItem.name}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveOffice(officeItem.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setOfficeToDelete(officeItem)}
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Удалить офис?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Это действие нельзя отменить. Вы уверены, что хотите удалить офис{" "}
+                                    <strong>{officeToDelete?.name}</strong>?
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                  <AlertDialogAction
+                                      onClick={() => {
+                                        if (officeToDelete) {
+                                          handleRemoveOffice(officeToDelete.id)
+                                          setOfficeToDelete(null)
+                                        }
+                                      }}
+                                  >
+                                    Удалить
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+
                           </div>
                         ))}
                       </div>

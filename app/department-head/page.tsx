@@ -18,10 +18,6 @@ import {
   BarChart3,
   Bell,
   User,
-  LogOut,
-  Filter,
-  Eye,
-  MessageCircle,
   Star,
   Plus,
   Camera,
@@ -31,6 +27,18 @@ import {
   Download,
   ExternalLink, Loader2, Zap, AlertCircle, ImageIcon,
 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 import Header from "@/app/header/Header"
 import UserProfile from "@/app/client/UserProfile"
 import axios from 'axios'
@@ -53,6 +61,10 @@ interface User {
   full_name: string
   email: string
   role: string
+}
+interface Category {
+  id: number
+  name: string
 }
 
 interface Rating {
@@ -130,6 +142,8 @@ export default function DepartmentHeadDashboard() {
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
+  const [executorToDelete, setExecutorToDelete] = useState<Executor | null>(null)
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
 
 
   useEffect(() => {
@@ -818,9 +832,9 @@ export default function DepartmentHeadDashboard() {
                                 </div>
                             )}
 
-                            {request.rating ? (
+                            {userRatings[request.id]?.rating ? (
                                 <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                  {renderStars(request.rating)}
+                                  {renderStars(userRatings[request.id].rating)}
                                 </div>
                             ) : (
                                 <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -945,9 +959,9 @@ export default function DepartmentHeadDashboard() {
                                   </div>
                               )}
 
-                              {request.rating ? (
+                              {userRatings[request.id]?.rating ? (
                                   <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                    {renderStars(request.rating)}
+                                    {renderStars(userRatings[request.id].rating)}
                                   </div>
                               ) : (
                                   <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1126,9 +1140,38 @@ export default function DepartmentHeadDashboard() {
                                 {executors.map((executor) => (
                                     <li key={executor.id} className="text-sm text-gray-700 flex justify-between items-center">
                                       {executor.user.full_name} ({executor.specialty})
-                                      <Button variant="ghost" size="sm" onClick={() => handleRemoveExecutor(executor.id)}>
-                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setExecutorToDelete(executor)}
+                                          >
+                                            <Trash2 className="w-4 h-4 text-red-500" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Удалить исполнителя?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Это действие нельзя отменить. Вы действительно хотите удалить исполнителя <strong>{executorToDelete?.user.full_name}</strong>?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => {
+                                                  if (executorToDelete) {
+                                                    handleRemoveExecutor(executorToDelete.id)
+                                                    setExecutorToDelete(null)
+                                                  }
+                                                }}
+                                            >
+                                              Удалить
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
                                     </li>
                                 ))}
                               </ul>
@@ -1162,9 +1205,37 @@ export default function DepartmentHeadDashboard() {
                                 {serviceCategories.map((category) => (
                                     <li key={category.id} className="text-sm text-gray-700 flex justify-between items-center">
                                       {category.name}
-                                      <Button variant="ghost" size="sm" onClick={() => handleRemoveCategory(category.id)}>
-                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setCategoryToDelete(category)}
+                                          >
+                                            <Trash2 className="w-4 h-4 text-red-500" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Удалить категорию?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Это действие нельзя отменить. Вы действительно хотите удалить категорию <strong>{categoryToDelete?.name}</strong>?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => {if(categoryToDelete){
+                                                  handleRemoveCategory(categoryToDelete.id)
+                                                  setCategoryToDelete(null)}
+                                                }}
+                                            >
+                                              Удалить
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+
                                     </li>
                                 ))}
                               </ul>
@@ -1488,14 +1559,14 @@ export default function DepartmentHeadDashboard() {
                       </div>
                   )}
 
-                  {selectedRequest.rating && (
+                  {userRatings[selectedRequest.id]?.rating && (
                       <div>
                         <Label>Оценка</Label>
                         <div className="flex">
                           {[...Array(5)].map((_, i) => (
                               <Star
                                   key={i}
-                                  className={`w-5 h-5 ${i < selectedRequest.rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                                  className={`w-5 h-5 ${i < userRatings[selectedRequest.id]?.rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
                               />
                           ))}
                         </div>
@@ -1592,17 +1663,37 @@ export default function DepartmentHeadDashboard() {
                   </div>
                 </CardContent>
                 <div className="flex space-x-4 m-4">
-                  <Button
-                      variant="destructive"
-                      onClick={() => {
-                        setSelectedRequest(null)
-                        handleDeleteRequest(selectedRequest)
-                      }}
-                      className="flex-1"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Удалить
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="flex-1">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Удалить
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Это действие необратимо. Вы точно хотите удалить заявку{" "}
+                          <strong>{selectedRequest?.title}</strong>?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                              if (selectedRequest) {
+                                handleDeleteRequest(selectedRequest)
+                                setSelectedRequest(null)
+                              }
+                            }}
+                        >
+                          Удалить
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
 
                   <Button variant="outline"
                           onClick={() => setSelectedRequest(null)}
