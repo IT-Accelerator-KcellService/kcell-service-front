@@ -24,18 +24,9 @@ import {
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
-import axios from 'axios';
 import dynamic from "next/dynamic";
+import api from "@/lib/api";
 
-const API_BASE_URL = "https://kcell-service.onrender.com/api";
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
@@ -302,9 +293,7 @@ export default function AdminWorkerDashboard() {
         formData.append('type', 'before');
 
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
-            withCredentials: true,
-          });
+          await api.post(`/request-photos/${requestId}/photos`, formData);
           console.log("Фотографии успешно загружены");
         } catch (photoUploadError) {
           // Откат заявки, если фото не загрузились
