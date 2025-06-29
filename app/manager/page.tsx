@@ -651,7 +651,7 @@ export default function ManagerDashboard() {
           setShowProfile={setShowProfile}
           handleLogout={handleLogout}
           notificationCount={notifications.length}
-          role="Клиент"
+          role="Руководитель"
       />
       <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 
