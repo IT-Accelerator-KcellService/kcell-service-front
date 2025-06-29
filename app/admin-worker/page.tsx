@@ -432,11 +432,11 @@ export default function AdminWorkerDashboard() {
         return "bg-gray-500";
       case "in_progress":
         return "bg-blue-500";
-      case "in_execution":
+      case "execution":
         return "bg-orange-500";
       case "completed":
         return "bg-green-500";
-      case "rejected":
+      case "awaiting_assignment":
         return "bg-red-500";
       default:
         return "bg-gray-500";
@@ -460,9 +460,11 @@ export default function AdminWorkerDashboard() {
     switch (status) {
       case "draft": return "Черновик";
       case "in_progress": return "В обработке";
-      case "in_execution": return "Исполнение";
+      case "execution": return "Исполнение";
       case "completed": return "Завершено";
       case "rejected": return "Отклонено";
+      case "awaiting_assignment": return "Ожидание назначения";
+      case "assigned": return "назначенный";
       default: return status;
     }
   };

@@ -349,7 +349,26 @@ export default function ExecutorDashboard() {
         return "bg-gray-500"
     }
   }
-
+  const translateStatus = (status: string) => {
+    switch (status) {
+      case "draft": return "Черновик";
+      case "in_progress": return "В обработке";
+      case "execution": return "Исполнение";
+      case "completed": return "Завершено";
+      case "rejected": return "Отклонено";
+      case "awaiting_assignment": return "Ожидание назначения";
+      case "assigned": return "назначенный";
+      default: return status;
+    }
+  };
+  const translateType = (type: string) => {
+    switch (type) {
+      case "urgent": return "Экстренная"
+      case "normal": return "Обычная"
+      case "planned": return "Плановая"
+      default: return type
+    }
+  }
   const getTypeColor = (type: string) => {
     switch (type) {
       case "urgent":
@@ -562,9 +581,9 @@ export default function ExecutorDashboard() {
                           <div className="flex justify-between items-start mb-4">
                             <div className="flex-1">
                               <div className="flex items-center space-x-2 mb-2">
-                                <Badge className={getTypeColor(task.request_type)}>{task.request_type}</Badge>
+                                <Badge className={getTypeColor(task.request_type)}>{translateType(task.request_type)}</Badge>
                                 <Badge variant="outline" className={getStatusColor(task.status)}>
-                                  {task.status}
+                                  {translateStatus(task.status)}
                                 </Badge>
                                 <span className="text-sm text-gray-500">#{task.id}</span>
                               </div>
@@ -580,7 +599,12 @@ export default function ExecutorDashboard() {
                                 </div>
                                 <div className="flex items-center">
                                   <Calendar className="w-4 h-4 mr-1" />
-                                  SLA: {task.sla}
+                                  SLA: {task.sla === '1h' && '1 час'}
+                                {task.sla === '4h' && '4 часа'}
+                                {task.sla === '8h' && '8 часов'}
+                                {task.sla === '1d' && '1 день'}
+                                {task.sla === '3d' && '3 дня'}
+                                {task.sla === '1w' && '1 неделя'}
                                 </div>
                                 <p>Клиент: {task.client.full_name}</p>
                               </div>
@@ -643,7 +667,7 @@ export default function ExecutorDashboard() {
                         <div className="flex justify-between items-start mb-4">
                           <div>
                             <div className="flex items-center space-x-2 mb-2">
-                              <Badge className={getTypeColor(task.request_type)}>{task.request_type}</Badge>
+                              <Badge className={getTypeColor(task.request_type)}>{translateType(task.request_type)}</Badge>
                               <Badge variant="outline" className="bg-green-500">
                                 Завершена
                               </Badge>
@@ -717,9 +741,9 @@ export default function ExecutorDashboard() {
                           <div className="flex justify-between items-start mb-4">
                             <div>
                               <div className="flex items-center space-x-2 mb-2">
-                                <Badge className={getTypeColor(request.request_type)}>{request.request_type}</Badge>
+                                <Badge className={getTypeColor(request.request_type)}>{translateType(request.request_type)}</Badge>
                                 <Badge variant="outline" className={getStatusColor(request.status)}>
-                                  {request.status}
+                                  {translateStatus(request.status)}
                                 </Badge>
                                 <span className="text-sm text-gray-500">#{request.id}</span>
                               </div>
@@ -926,10 +950,6 @@ export default function ExecutorDashboard() {
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Создать плановую заявку
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Camera className="w-4 h-4 mr-2" />
-                  Отчет с фото
                 </Button>
               </CardContent>
             </Card>
@@ -1150,31 +1170,34 @@ export default function ExecutorDashboard() {
 
       {/* Task Details Modal */}
       {selectedTaskDetails && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
-              <CardDescription>{selectedTaskDetails.title}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Тип:</p>
-                  <Badge className={getTypeColor(selectedTaskDetails.request_type)}>{selectedTaskDetails.request_type}</Badge>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Статус:</p>
-                  <Badge variant="outline" className={getStatusColor(selectedTaskDetails.status)}>
-                    {selectedTaskDetails.status}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Клиент:</p>
-                  <p className="text-base text-gray-800">{selectedTaskDetails.client.full_name}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Локация:</p>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <CardHeader>
+                <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
+                <CardDescription>{selectedTaskDetails.title}</CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                {/* Основная информация */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
+                    <p className="text-sm font-medium text-gray-600">Тип:</p>
+                    <Badge className={getTypeColor(selectedTaskDetails.request_type)}>
+                      {translateType(selectedTaskDetails.request_type)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Статус:</p>
+                    <Badge variant="outline" className={getStatusColor(selectedTaskDetails.status)}>
+                      {translateStatus(selectedTaskDetails.status)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Клиент:</p>
+                    <p className="text-base text-gray-800">{selectedTaskDetails.client.full_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Локация:</p>
                     <div className="flex items-center gap-2">
                       <Button
                           variant="outline"
@@ -1202,124 +1225,132 @@ export default function ExecutorDashboard() {
                       </Button>
                     </div>
                   </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Создано:</p>
+                    <p className="text-base text-gray-800">{selectedTaskDetails.created_date}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Деталь локаций:</p>
+                    <p className="text-base text-gray-800">{selectedTaskDetails.location_detail}</p>
+                  </div>
+                  {selectedTaskDetails.category && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Категория:</p>
+                        <p className="text-base text-gray-800">{selectedTaskDetails.category.name}</p>
+                      </div>
+                  )}
+                  {selectedTaskDetails.complexity && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Сложность:</p>
+                        <p className="text-base text-gray-800">
+                          {selectedTaskDetails.complexity === 'simple' && 'Простая'}
+                          {selectedTaskDetails.complexity === 'medium' && 'Средняя'}
+                          {selectedTaskDetails.complexity === 'complex' && 'Сложная'}
+                        </p>
+                      </div>
+                  )}
+                  {selectedTaskDetails.sla && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">SLA:</p>
+                        <p className="text-base text-gray-800">
+                          {selectedTaskDetails.sla === '1h' && '1 час'}
+                          {selectedTaskDetails.sla === '4h' && '4 часа'}
+                          {selectedTaskDetails.sla === '8h' && '8 часов'}
+                          {selectedTaskDetails.sla === '1d' && '1 день'}
+                          {selectedTaskDetails.sla === '3d' && '3 дня'}
+                          {selectedTaskDetails.sla === '1w' && '1 неделя'}
+                        </p>
+                      </div>
+                  )}
+                  {selectedTaskDetails.plannedDate && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Плановая дата:</p>
+                        <p className="text-base text-gray-800">{selectedTaskDetails.plannedDate}</p>
+                      </div>
+                  )}
                 </div>
+
+                {/* Описание */}
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Создано:</p>
-                  <p className="text-base text-gray-800">{selectedTaskDetails.created_date}</p>
+                  <p className="text-sm font-medium text-gray-600">Описание:</p>
+                  <p className="text-base text-gray-800">{selectedTaskDetails.description}</p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Деталь локаций:</p>
-                  <p className="text-base text-gray-800">{selectedTaskDetails.location_detail}</p>
-                </div>
-                {selectedTaskDetails.category && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Категория:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.category.name}</p>
-                  </div>
-                )}
-                {selectedTaskDetails.complexity && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Сложность:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.complexity}</p>
-                  </div>
-                )}
-                {selectedTaskDetails.sla && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">SLA:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.sla}</p>
-                  </div>
-                )}
-                {selectedTaskDetails.plannedDate && (
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Плановая дата:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.plannedDate}</p>
-                  </div>
-                )}
-              </div>
-              <div className="mt-4">
-                <p className="text-sm font-medium text-gray-600">Описание:</p>
-                <p className="text-base text-gray-800">{selectedTaskDetails.description}</p>
-              </div>
-              {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (
-                  <div>
-                    {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (
-                        <div>
-                          <Label>Фотографии</Label>
-                          <div className="flex space-x-2 mt-2">
-                            {selectedTaskDetails.photos.map((photo: any, index: number) => (
-                                <img
-                                    key={index}
-                                    src={photo.photo_url || "/placeholder.svg"}
-                                    alt={`Photo ${index + 1}`}
-                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                    onClick={() => setSelectedPhoto(photo.photo_url)}
-                                />
-                            ))}
+
+                {/* Фото + Комментарии */}
+                {selectedTaskDetails.photos?.length > 0 && (
+                    <div className="space-y-4">
+                      {/* Фото */}
+                      <div>
+                        <Label className="block text-sm font-medium text-gray-700">Фотографии</Label>
+                        <div className="flex flex-wrap gap-3 mt-2">
+                          {selectedTaskDetails.photos.map((photo: any, index: number) => (
+                              <img
+                                  key={index}
+                                  src={photo.photo_url || "/placeholder.svg"}
+                                  alt={`Photo ${index + 1}`}
+                                  className="w-24 h-24 object-cover rounded-lg cursor-pointer border border-gray-300 shadow-sm"
+                                  onClick={() => setSelectedPhoto(photo.photo_url)}
+                              />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Модалка фото */}
+                      {selectedPhoto && (
+                          <div
+                              className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+                              onClick={() => setSelectedPhoto(null)}
+                          >
+                            <img
+                                src={selectedPhoto}
+                                alt="Увеличенное фото"
+                                className="max-w-full max-h-full rounded-lg"
+                                onClick={(e) => e.stopPropagation()}
+                            />
                           </div>
-                        </div>
-                    )}
+                      )}
 
-                    {/* Модальное окно */}
-                    {selectedPhoto && (
-                        <div
-                            className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                            onClick={() => setSelectedPhoto(null)}
-                        >
-                          <img
-                              src={selectedPhoto}
-                              alt="Увеличенное фото"
-                              className="max-w-full max-h-full rounded-lg"
-                              onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                    )}
+                      {/* Комментарии */}
+                      <Card className="bg-gray-50 border border-gray-200 shadow-sm">
+                        <CardContent className="p-4 space-y-4">
+                          <h4 className="font-semibold text-gray-800">Комментарии</h4>
+                          {comments.map((c: any) => (
+                              <div key={c.id} className="bg-white border border-gray-300 rounded-md p-3">
+                                <div className="flex justify-between items-center">
+                                  <div className="text-sm font-medium text-gray-800">{c.user.full_name}</div>
+                                  <div className="text-xs text-gray-500">{new Date(c.timestamp).toLocaleString()}</div>
+                                </div>
+                                <p className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</p>
+                                <div className="mt-2 flex gap-4 text-xs text-blue-500">
+                                  <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">✏️ Изменить</button>
+                                  <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">🗑 Удалить</button>
+                                </div>
+                              </div>
+                          ))}
+                          <div className="pt-2 flex items-center space-x-2">
+                            <input
+                                type="text"
+                                value={comment}
+                                onChange={(e) => setComment(e.target.value)}
+                                placeholder="Написать комментарий..."
+                                className="flex-grow px-3 py-2 border border-gray-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <Button size="sm" onClick={handleSend}>Отправить</Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                )}
 
-                    {/* Секция для комментариев */}
-                    <Card className="mt-2">
-                      <CardContent className="p-4">
-                        <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
-                        {comments.map((c: any) => (
-                            <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
-                              <div className="flex justify-between items-center">
-                                <div className="text-sm text-gray-800 font-medium">{c.user.full_name}</div>
-                                <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
-                              </div>
-                              <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
-                              <div className="mt-2 flex gap-3 text-xs text-blue-500">
-                                <button onClick={() => handleEdit(c.id, c.comment)} className="hover:underline">
-                                  ✏️ Изменить
-                                </button>
-                                <button onClick={() => handleDelete(c.id)} className="hover:underline text-red-500">
-                                  🗑 Удалить
-                                </button>
-                              </div>
-                            </div>
-                        ))}
-                        <div className="mt-3 flex items-center space-x-2">
-                          <input
-                              type="text"
-                              value={comment}
-                              onChange={(e) => setComment(e.target.value)}
-                              placeholder="Написать комментарий..."
-                              className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                          <Button size="sm" onClick={handleSend}>
-                            Отправить
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-              )}
-              <div className="flex justify-end mt-6">
-                <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>
-                  Закрыть
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                {/* Закрыть */}
+                <div className="flex justify-end pt-4">
+                  <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
       )}
+
 
       {/* Map Modal */}
       {showMapModal && (
