@@ -70,6 +70,26 @@ export default function ExecutorDashboard() {
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await api.get("/users/me");
+        const user = response.data;
+
+        if (!user || user.role !== "executor") {
+          window.location.href = '/login';
+        } else {
+          setIsLoggedIn(true);
+        }
+      } catch (error) {
+        console.error("Ошибка при проверке авторизации", error);
+        window.location.href = '/login'
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   const filteredRequests = myRequests.filter((request:any) => {
     const statusMatch = filterStatus === "all" || request.status === filterStatus
     const requestType = request.request_type

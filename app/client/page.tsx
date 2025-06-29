@@ -53,6 +53,7 @@ export interface Request {
   rating?: number;
   category_id?: number;
   photos?: { photo_url: string }[];
+  office_id: number;
 }
 
 const roleTranslations: Record<string, string> = {
