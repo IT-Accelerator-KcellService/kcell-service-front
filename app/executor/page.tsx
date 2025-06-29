@@ -43,9 +43,47 @@ const roleTranslations: Record<string, string> = {
   executor: "Испольнитель",
   manager: "Руководитель"
 };
+
+
+interface Category {
+  id: number;
+  name: string;
+}
+
+interface Photo {
+  id: number;
+  request_id: number;
+  photo_url: string;
+  type: string;
+}
+
+export interface Request {
+  executor_id: any;
+  actual_completion_date: any;
+  sla: React.JSX.Element;
+  date_submitted: string;
+  category: Category;
+  office: any;
+  complexity: string;
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  request_type: string;
+  location: string;
+  location_detail: string;
+  created_date: string;
+  executor: {user: { full_name: any } };
+  rating?: number;
+  category_id?: number;
+  photos?: Photo[];
+  office_id: number;
+}
+
+
 export default function ExecutorDashboard() {
   const [assignedRequests, setAssignedRequests] = useState<any>([])
-  const [myRequests, setMyRequests] = useState<any>([])
+  const [myRequests, setMyRequests] = useState<Request[]>([])
   const [completedRequests, setCompletedRequests] = useState<any>([])
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [showMapModal, setShowMapModal] = useState(false);
@@ -223,7 +261,7 @@ export default function ExecutorDashboard() {
       const requestId = response.data.id;
 
       console.log("Created request ID:", requestId);
-
+      let createdPhotos;
       if (photos.length > 0) {
         const formData = new FormData();
         photos.forEach((photo) => {
@@ -232,7 +270,7 @@ export default function ExecutorDashboard() {
         formData.append('type', 'before');
 
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -247,7 +285,11 @@ export default function ExecutorDashboard() {
           return;
         }
       }
-      setAssignedRequests((prev: any) => [response.data, ...prev])
+      const newRequest = {
+        ...response.data,
+        photos: createdPhotos?.data?.photos,
+      }
+      setMyRequests(prev => [newRequest, ...prev])
       setShowCreateRequestModal(false)
       setNewRequestType("")
       setNewRequestTitle("")
