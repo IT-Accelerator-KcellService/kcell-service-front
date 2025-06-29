@@ -144,6 +144,7 @@ export default function DepartmentHeadDashboard() {
   const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
   const [executorToDelete, setExecutorToDelete] = useState<Executor | null>(null)
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
 
 
   useEffect(() => {
@@ -182,6 +183,11 @@ export default function DepartmentHeadDashboard() {
   const validateFullName = (name: string) => {
     return /^([А-ЯӘӨҚҢҮҰҺІЁ][а-яәөқңүұһіё]+)\s([А-ЯӘӨҚҢҮҰҺІЁ][а-яәөқңүұһіё]+)$/.test(name.trim())
   }
+  const filteredExecutors = executors.filter((executor) =>
+      executor.user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      executor.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
 
 
   const handleAddExecutor = async () => {
@@ -1131,30 +1137,76 @@ export default function DepartmentHeadDashboard() {
                         >
                           Добавить исполнителя
                         </Button>
-                        <div className="space-y-2">
-                          <Label>Существующие исполнители:</Label>
-                          {executors.length === 0 ? (
-                              <p className="text-sm text-gray-500">Нет добавленных исполнителей.</p>
+                        {/* Поиск исполнителей */}
+                        <div className="mt-4">
+                          <Input
+                              placeholder="Поиск по имени или специализации..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                          />
+                        </div>
+
+                        {/* Список исполнителей */}
+                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                          {filteredExecutors.length === 0 ? (
+                              <p className="text-sm text-gray-500">Нет подходящих исполнителей.</p>
                           ) : (
-                              <ul className="list-disc pl-5">
-                                {executors.map((executor) => (
-                                    <li key={executor.id} className="text-sm text-gray-700 flex justify-between items-center">
-                                      {executor.user.full_name} ({executor.specialty})
+                              filteredExecutors.map((executor) => (
+                                  <div
+                                      key={executor.id}
+                                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                                  >
+                                    <div>
+                                      <p className="font-medium">{executor.user.full_name}</p>
+                                      <p className="text-sm text-gray-600">{executor.specialty}</p>
+                                      <div className="flex items-center mt-1">
+                                        {[...Array(5)].map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className={`w-3 h-3 rounded-full mr-1 ${
+                                                    i < Math.floor(executor.rating)
+                                                        ? "bg-yellow-400"
+                                                        : "bg-gray-300"
+                                                }`}
+                                            />
+                                        ))}
+                                        <span className="text-sm text-gray-600 ml-2">
+              {Number(executor.rating).toFixed(2)}
+            </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex flex-col items-end space-y-2">
+                                      <div
+                                          className={`px-2 py-1 rounded-full text-xs ${
+                                              executor.workload <= 2
+                                                  ? "bg-green-100 text-green-800"
+                                                  : executor.workload <= 4
+                                                      ? "bg-yellow-100 text-yellow-800"
+                                                      : "bg-red-100 text-red-800"
+                                          }`}
+                                      >
+                                        {executor.workload} задач
+                                      </div>
+
                                       <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                           <Button
                                               variant="ghost"
                                               size="sm"
                                               onClick={() => setExecutorToDelete(executor)}
+                                              className="text-red-500 hover:text-red-700"
                                           >
-                                            <Trash2 className="w-4 h-4 text-red-500" />
+                                            <Trash2 className="w-4 h-4" />
                                           </Button>
                                         </AlertDialogTrigger>
                                         <AlertDialogContent>
                                           <AlertDialogHeader>
                                             <AlertDialogTitle>Удалить исполнителя?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                              Это действие нельзя отменить. Вы действительно хотите удалить исполнителя <strong>{executorToDelete?.user.full_name}</strong>?
+                                              Это действие нельзя отменить. Вы действительно хотите
+                                              удалить исполнителя{" "}
+                                              <strong>{executorToDelete?.user.full_name}</strong>?
                                             </AlertDialogDescription>
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
@@ -1162,8 +1214,8 @@ export default function DepartmentHeadDashboard() {
                                             <AlertDialogAction
                                                 onClick={() => {
                                                   if (executorToDelete) {
-                                                    handleRemoveExecutor(executorToDelete.id)
-                                                    setExecutorToDelete(null)
+                                                    handleRemoveExecutor(executorToDelete.id);
+                                                    setExecutorToDelete(null);
                                                   }
                                                 }}
                                             >
@@ -1172,9 +1224,9 @@ export default function DepartmentHeadDashboard() {
                                           </AlertDialogFooter>
                                         </AlertDialogContent>
                                       </AlertDialog>
-                                    </li>
-                                ))}
-                              </ul>
+                                    </div>
+                                  </div>
+                              ))
                           )}
                         </div>
                       </CardContent>
@@ -1250,55 +1302,6 @@ export default function DepartmentHeadDashboard() {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Команда исполнителей</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {executors.map((executor) => (
-                        <div key={executor.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="font-medium">{executor.user.full_name}</p>
-                            <p className="text-sm text-gray-600">{executor.specialty}</p>
-                            <div className="flex items-center mt-1">
-                              <div className="flex items-center">
-                                <div className="flex">
-                                  {[...Array(5)].map((_, i) => (
-                                      <div
-                                          key={i}
-                                          className={`w-3 h-3 rounded-full mr-1 ${
-                                              i < Math.floor(executor.rating) ? "bg-yellow-400" : "bg-gray-300"
-                                          }`}
-                                      />
-                                  ))}
-                                </div>
-                                <span className="text-sm text-gray-600 ml-2">
-                                    {Number(executor.rating).toFixed(2)}
-                                </span>
-                              </div>
-
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div
-                                className={`px-2 py-1 rounded-full text-xs ${
-                                    executor.workload <= 2
-                                        ? "bg-green-100 text-green-800"
-                                        : executor.workload <= 4
-                                            ? "bg-yellow-100 text-yellow-800"
-                                            : "bg-red-100 text-red-800"
-                                }`}
-                            >
-                              {executor.workload} задач
-                            </div>
-                          </div>
-                        </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Уведомления</CardTitle>
