@@ -41,6 +41,13 @@ interface Rating {
 }
 
 export interface Request {
+  executor_id: any;
+  actual_completion_date: any;
+  sla: React.JSX.Element;
+  date_submitted: string;
+  category: any;
+  office: any;
+  complexity: string;
   id: number;
   title: string;
   description: string;
