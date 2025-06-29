@@ -36,6 +36,10 @@ import UserProfile from "@/app/client/UserProfile"
 import axios from 'axios'
 import dynamic from "next/dynamic"
 import api from "@/lib/api";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import {Calendar as CalendarPlanned} from "@/components/ui/calendar";
+import {format} from "date-fns";
+import {ru} from "date-fns/locale";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -125,6 +129,8 @@ export default function DepartmentHeadDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
+  const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
+
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -1504,20 +1510,6 @@ export default function DepartmentHeadDashboard() {
                           </Button>
                         </>
                     )}
-                    <Button variant="outline" onClick={() => setSelectedRequest(null)}>
-                      Закрыть
-                    </Button>
-
-                    <Button
-                        variant="destructive"
-                        onClick={() => {
-                          setSelectedRequest(null)
-                          handleDeleteRequest(selectedRequest)
-                        }}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Удалить
-                    </Button>
                   </div>
 
                   {selectedRequest.status === "in_progress" && (
@@ -1559,6 +1551,26 @@ export default function DepartmentHeadDashboard() {
                     </div>
                   </div>
                 </CardContent>
+                <div className="flex space-x-4 m-4">
+                  <Button
+                      variant="destructive"
+                      onClick={() => {
+                        setSelectedRequest(null)
+                        handleDeleteRequest(selectedRequest)
+                      }}
+                      className="flex-1"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Удалить
+                  </Button>
+
+                  <Button variant="outline"
+                          onClick={() => setSelectedRequest(null)}
+                          className="flex-1"
+                  >
+                    Закрыть
+                  </Button>
+                </div>
               </Card>
             </div>
         )}
@@ -1715,13 +1727,32 @@ export default function DepartmentHeadDashboard() {
 
                   {newRequestType === "planned" && (
                       <div>
-                        <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
-                        <Input
-                            id="newRequestPlannedDate"
-                            type="date"
-                            value={newRequestPlannedDate}
-                            onChange={(e) => setNewRequestPlannedDate(e.target.value)}
-                        />
+                        <div className="grid gap-2">
+                          <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                  variant="outline"
+                                  className="w-full justify-start text-left font-normal"
+                              >
+                                {date ? format(date, "dd MMMM yyyy", { locale: ru }) : <span>Выберите дату</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <CalendarPlanned
+                                  mode="single"
+                                  selected={date}
+                                  onSelect={(selectedDate) => {
+                                    if (selectedDate) {
+                                      setNewRequestPlannedDate(selectedDate.toISOString().split("T")[0])
+                                    }
+                                  }}
+                                  initialFocus
+                                  locale={ru}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </div>
                   )}
 
