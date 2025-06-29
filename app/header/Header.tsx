@@ -28,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({
 
     React.useEffect(() => {//непрочитанный сообщениені көрсетуге
         api.get("/notifications/me")
-            .then(res => res.data)
+            .then(res => res.data.notifications)
             .then(setAllNotifications)
             .catch(console.error);
     }, []);

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,7 +22,7 @@ import {
   Star,
   Plus,
   MapPin,
-  Calendar,
+  Calendar, Loader2, ImageIcon, Zap, XCircle, AlertCircle,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
@@ -57,7 +57,7 @@ export default function ExecutorDashboard() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
-  const [notifications, setNotifications] = useState<any[]>([])
+  const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -67,8 +67,11 @@ export default function ExecutorDashboard() {
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
   const [completedRequestComment, setCompletedRequestComment] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterType, setFilterType] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all")
+  const [filterType, setFilterType] = useState("all")
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -80,6 +83,7 @@ export default function ExecutorDashboard() {
           window.location.href = '/login';
         } else {
           setIsLoggedIn(true);
+          setNewRequestOfficeId(String(user.office_id));
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
@@ -175,16 +179,26 @@ export default function ExecutorDashboard() {
   }
 
   const handleCreateRequest = async () => {
-    if (!selectedCategoryId) {
-      alert("Пожалуйста, выберите категорию услуги")
-      return
+    if (
+        !newRequestTitle ||
+        !description ||
+        !newRequestType ||
+        !requestLocation ||
+        !newRequestLocation ||
+        !selectedCategoryId
+    ) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
     }
+
+    setIsSubmitting(true);
+    setFormErrors(null);
 
     try {
       const response = await api.post('/requests', {
         title: newRequestTitle,
         description: description,
-        office_id: 1,
+        office_id: Number(newRequestOfficeId),
         request_type: newRequestType === "urgent" ? "urgent" : "normal",
         location: requestLocation,
         location_detail: newRequestLocation,
@@ -229,7 +243,9 @@ export default function ExecutorDashboard() {
       alert("Заявка успешно создана!")
     } catch (error) {
       console.error("Failed to create request:", error)
-      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
+      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -257,8 +273,7 @@ export default function ExecutorDashboard() {
   const fetchNotifications = async () => {
     try {
       const response = await api.get("/notifications/me")
-      console.log("notifications response", response.data);
-      setNotifications(response.data.data);
+      setNotifications(response.data.notifications);
     } catch (error) {
       console.error("Ошибка при загрузке уведомлений", error)
     } finally {
@@ -337,20 +352,6 @@ export default function ExecutorDashboard() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "assigned":
-        return "bg-yellow-500"
-      case "execution":
-        return "bg-blue-500"
-      case "planned":
-        return "bg-purple-500"
-      case "completed":
-        return "bg-green-500"
-      default:
-        return "bg-gray-500"
-    }
-  }
   const translateStatus = (status: string) => {
     switch (status) {
       case "draft": return "Черновик";
@@ -363,6 +364,16 @@ export default function ExecutorDashboard() {
       default: return status;
     }
   };
+
+  const translateComplexity = (complexity: string) => {
+    switch (complexity) {
+      case "complex": return "комплексный";
+      case "simple": return "простой";
+      case "medium": return "средний";
+      default: return complexity;
+    }
+  };
+
   const translateType = (type: string) => {
     switch (type) {
       case "urgent": return "Экстренная"
@@ -463,7 +474,6 @@ export default function ExecutorDashboard() {
     }
   };
 
-
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout')
@@ -474,6 +484,100 @@ export default function ExecutorDashboard() {
       console.error("Logout failed:", error)
     }
   }
+
+
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return "bg-emerald-500 text-white border-emerald-500"
+      case "in_progress":
+      case "execution":
+        return "bg-purple-500 text-white border-purple-500"
+      case "awaiting_assignment":
+      case "awaiting_sla":
+        return "bg-amber-400 text-gray-900 border-amber-400"
+      case "assigned":
+        return "bg-violet-500 text-white border-violet-500"
+      case "rejected":
+        return "bg-red-500 text-white border-red-500"
+      default:
+        return "bg-gray-400 text-white border-gray-400"
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return <CheckCircle className="w-3 h-3" />
+      case "in_progress":
+      case "execution":
+        return <Zap className="w-3 h-3" />
+      case "awaiting_assignment":
+      case "awaiting_sla":
+        return <Clock className="w-3 h-3" />
+      case "assigned":
+        return <User className="w-3 h-3" />
+      case "rejected":
+        return <XCircle className="w-3 h-3" />
+      default:
+        return null
+    }
+  }
+
+  const getComplexityColor = (complexity: "simple" | "medium" | "complex" | undefined) => {
+    switch (complexity?.toLowerCase()) {
+      case "complex":
+        return "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500"
+      case "medium":
+        return "bg-gradient-to-r from-orange-400 to-yellow-400 text-gray-900 border-orange-400"
+      case "simple":
+        return "bg-gradient-to-r from-purple-400 to-violet-400 text-white border-purple-400"
+      default:
+        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
+    }
+  }
+
+  const getRequestTypeColor = (requestType: string) => {
+    switch (requestType.toLowerCase()) {
+      case "urgent":
+        return "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-500"
+      case "planned":
+        return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
+      case "normal":
+        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
+      default:
+        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
+    }
+  }
+
+  const getRequestTypeIcon = (requestType: string) => {
+    switch (requestType.toLowerCase()) {
+      case "urgent":
+        return <AlertCircle className="w-3 h-3" />
+      case "planned":
+        return <Calendar className="w-3 h-3" />
+      case "normal":
+        return <Clock className="w-3 h-3" />
+      default:
+        return null
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  }
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+        <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
+    ))
+  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -554,6 +658,7 @@ export default function ExecutorDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <TabsList>
                   <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
+                  <TabsTrigger value="myTasks">Мои задачи</TabsTrigger>
                   <TabsTrigger value="completed">Завершенные</TabsTrigger>
                   <TabsTrigger value="statistics">Статистика</TabsTrigger>
                 </TabsList>
@@ -596,114 +701,334 @@ export default function ExecutorDashboard() {
                     </Select>
                   </div>
 
-                  {assignedRequests
-                      ?.filter((task: any) => {
-                        const statusOk = filterStatus === "all" || task.status === filterStatus;
-                        const typeOk = filterType === "all" || task.request_type === filterType;
-                        return statusOk && typeOk;
-                      })
-                      .sort((a: any, b: any) => {
-                        const typeOrderA = getTaskTypeOrder(a.type);
-                        const typeOrderB = getTaskTypeOrder(b.type);
-                        return typeOrderA - typeOrderB;
-                      })
-                      .map((task: any) => (
-                          <Card
-                              key={task.id}
-                              className="hover:shadow-md transition-shadow cursor-pointer"
-                              onClick={() => setSelectedTaskDetails(task)}
-                          >
-                            <CardContent className="p-6">
-                              <div className="flex justify-between items-start mb-4">
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <Badge className={getTypeColor(task.request_type)}>
-                                      {translateType(task.request_type)}
-                                    </Badge>
-                                    <Badge
-                                        variant="outline"
-                                        className={getStatusColor(task.status)}
-                                    >
-                                      {translateStatus(task.status)}
-                                    </Badge>
-                                    <span className="text-sm text-gray-500">#{task.id}</span>
-                                  </div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate max-w-xs">
-                                    {task.title}
-                                  </h3>
-                                  <div className="text-sm text-gray-600 space-y-1">
-                                    <div className="flex items-center">
-                                      <MapPin className="w-4 h-4 mr-1" />
-                                      {task.location_detail}
-                                    </div>
-                                    <div className="flex items-center">
-                                      <Clock className="w-4 h-4 mr-1" />
-                                      Создано: {task.created_date}
-                                    </div>
-                                    <div className="flex items-center">
-                                      <Calendar className="w-4 h-4 mr-1" />
-                                      SLA:
-                                      {task.sla === "1h" && "1 час"}
-                                      {task.sla === "4h" && "4 часа"}
-                                      {task.sla === "8h" && "8 часов"}
-                                      {task.sla === "1d" && "1 день"}
-                                      {task.sla === "3d" && "3 дня"}
-                                      {task.sla === "1w" && "1 неделя"}
-                                    </div>
-                                    <p>Клиент: {task.client.full_name}</p>
-                                  </div>
-                                </div>
-                                <div className="flex space-x-2 flex-shrink-0">
-                                  {["assigned", "in_progress"].includes(task.status) && (
-                                      <Button
-                                          size="sm"
-                                          className="bg-blue-600 hover:bg-blue-700"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStartTask(task.id);
-                                          }}
-                                      >
-                                        Начать
-                                      </Button>
-                                  )}
-                                  {task.status === "execution" && (
-                                      <Button
-                                          size="sm"
-                                          className="bg-green-600 hover:bg-green-700"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedTask(task);
-                                          }}
-                                      >
-                                        Завершить
-                                      </Button>
-                                  )}
-                                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {assignedRequests
+                        ?.filter((task: any) => {
+                            const statusOk = filterStatus === "all" || task.status === filterStatus;
+                            const typeOk = filterType === "all" || task.request_type === filterType;
+                            return statusOk && typeOk;
+                        })
+                        ?.sort((a: any, b: any) => {
+                          const typeOrderA = getTaskTypeOrder(a.type)
+                          const typeOrderB = getTaskTypeOrder(b.type)
 
+                          return typeOrderA - typeOrderB
+                        }).map((request:any, index: number) => (
+                        <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                              onClick={() => setSelectedTaskDetails(request)}>
+                          {/* Заголовок с ID и статусами */}
+                          <CardHeader className="pb-3 px-5 pt-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                  #{request.id}
+                                </span>
+                                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                  {request.category.name}
+                                </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-1">
+                                <Badge
+                                    variant="outline"
+                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
+                                >
+                                  {getStatusIcon(request.status)}
+                                  {translateStatus(request.status)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardHeader>
 
+                          <CardContent className="px-5 pb-5 pt-0 space-y-3">
+                            {/* Описание */}
+                            <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
+
+                            {/* Основная информация в сетке */}
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                <span className="truncate font-medium">{request.location_detail}</span>
                               </div>
 
-                              <p className="text-sm text-gray-700 mb-3">{task.description}</p>
+                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                <span className="truncate font-medium">{formatDate(request.created_date)}</span>
+                              </div>
 
-                              {task.request_type === "urgent" && (
-                                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                    <div className="flex items-center">
-                                      <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
-                                      <span className="text-sm font-medium text-red-800">
-                    Экстренная задача! Требует немедленного выполнения
-                  </span>
-                                    </div>
+                              {request.executor_id ? (
+                                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                    <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                  </div>
+                              ) : (
+                                  <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                    <User className="w-4 h-4 flex-shrink-0" />
+                                    <span className="truncate font-medium">Не назначен</span>
                                   </div>
                               )}
-                            </CardContent>
-                          </Card>
-                      ))}
+
+                              {request.rating ? (
+                                  <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
+                                    {renderStars(request.rating)}
+                                  </div>
+                              ) : (
+                                  <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                    <span className="text-sm font-medium">Без оценки</span>
+                                  </div>
+                              )}
+                            </div>
+
+                            {/* Фотографии */}
+                            {request.photos && request.photos.length > 0 && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <ImageIcon className="w-4 h-4 text-purple-500" />
+                                    <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
+                                  </div>
+                                  <div className="flex gap-2 overflow-x-auto">
+                                    {request.photos.slice(0, 4).map((photo:any, index:number) => (
+                                        <div key={index} className="flex-shrink-0">
+                                          <img
+                                              src={photo.photo_url || "/placeholder.svg"}
+                                              alt={`Фото ${index + 1}`}
+                                              className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
+                                              onError={(e) => {
+                                                e.currentTarget.src = `/placeholder.svg?height=48&width=48`
+                                              }}
+                                          />
+                                        </div>
+                                    ))}
+                                    {request.photos.length > 4 && (
+                                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                                          <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+                                        </div>
+                                    )}
+                                  </div>
+                                </div>
+                            )}
+
+                            {/* Нижняя панель */}
+                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                              <div className="flex gap-2">
+                                <Badge
+                                    variant="outline"
+                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
+                                >
+                                  {getRequestTypeIcon(request.request_type)}
+                                  {translateType(request.request_type)}
+                                </Badge>
+                                {request.complexity !== "" && (
+                                    <Badge
+                                        variant="outline"
+                                        className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                    >
+                                      {translateComplexity(request.complexity)}
+                                    </Badge>
+                                )}
+                              </div>
+
+                              <div>
+                                {request.status === "assigned" && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleStartTask(request.id)
+                                        }}
+                                    >
+                                      Начать
+                                    </Button>
+                                )}
+                                {request.status === "execution" && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-green-600 hover:bg-green-700"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedTask(request)
+                                        }}
+                                    >
+                                      Завершить
+                                    </Button>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                    ))}
+                  </div>
                 </div>
               </TabsContent>
 
               <TabsContent value="completed">
                 <div className="space-y-4">
+                    <div className="flex items-center space-x-4 mb-4">
+                        <Select value={filterType} onValueChange={setFilterType}>
+                            <SelectTrigger className="w-48">
+                                <SelectValue placeholder="Тип заявки" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Все</SelectItem>
+                                <SelectItem value="normal">Обычная</SelectItem>
+                                <SelectItem value="urgent">Экстренная</SelectItem>
+                                <SelectItem value="planed">Плановая</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {completedRequests
+                        ?.filter((task: any) => {
+                            if (filterType === "all") return true;
+                            return task.request_type === filterType;
+                        })
+                        .map((request:any, index: number) => (
+                        <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                              onClick={() => setSelectedTaskDetails(request)}>
+                          {/* Заголовок с ID и статусами */}
+                          <CardHeader className="pb-3 px-5 pt-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                  #{request.id}
+                                </span>
+                                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                  {request.category.name}
+                                </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-1">
+                                <Badge
+                                    variant="outline"
+                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
+                                >
+                                  {getStatusIcon(request.status)}
+                                  {translateStatus(request.status)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="px-5 pb-5 pt-0 space-y-3">
+                            {/* Описание */}
+                            <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
+
+                            {/* Основная информация в сетке */}
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                <span className="truncate font-medium">{request.location_detail}</span>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                <span className="truncate font-medium">{formatDate(request.created_date)}</span>
+                              </div>
+
+                              {request.executor_id ? (
+                                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                    <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                  </div>
+                              ) : (
+                                  <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                    <User className="w-4 h-4 flex-shrink-0" />
+                                    <span className="truncate font-medium">Не назначен</span>
+                                  </div>
+                              )}
+
+                              {request.rating ? (
+                                  <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
+                                    {renderStars(request.rating)}
+                                  </div>
+                              ) : (
+                                  <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                    <span className="text-sm font-medium">Без оценки</span>
+                                  </div>
+                              )}
+                            </div>
+
+                            {/* Фотографии */}
+                            {request.photos && request.photos.length > 0 && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <ImageIcon className="w-4 h-4 text-purple-500" />
+                                    <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
+                                  </div>
+                                  <div className="flex gap-2 overflow-x-auto">
+                                    {request.photos.slice(0, 4).map((photo:any, index:number) => (
+                                        <div key={index} className="flex-shrink-0">
+                                          <img
+                                              src={photo.photo_url || "/placeholder.svg"}
+                                              alt={`Фото ${index + 1}`}
+                                              className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
+                                              onError={(e) => {
+                                                e.currentTarget.src = `/placeholder.svg?height=48&width=48`
+                                              }}
+                                          />
+                                        </div>
+                                    ))}
+                                    {request.photos.length > 4 && (
+                                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                                          <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+                                        </div>
+                                    )}
+                                  </div>
+                                </div>
+                            )}
+
+                            {/* Нижняя панель */}
+                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                              <div className="flex gap-2">
+                                <Badge
+                                    variant="outline"
+                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
+                                >
+                                  {getRequestTypeIcon(request.request_type)}
+                                  {translateType(request.request_type)}
+                                </Badge>
+                                {request.complexity !== "" && (
+                                    <Badge
+                                        variant="outline"
+                                        className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                    >
+                                      {translateComplexity(request.complexity)}
+                                    </Badge>
+                                )}
+                              </div>
+
+                              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="myTasks">
+                <div className="space-y-4">
                   <div className="flex items-center space-x-4 mb-4">
+                    <Button variant="outline" size="sm">
+                      <Filter className="w-4 h-4 mr-2" />
+                      Фильтр
+                    </Button>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Статус" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Все</SelectItem>
+                        <SelectItem value="in_progress">В обработке</SelectItem>
+                        <SelectItem value="execution">Исполнение</SelectItem>
+                        <SelectItem value="completed">Завершено</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Select value={filterType} onValueChange={setFilterType}>
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Тип заявки" />
@@ -716,60 +1041,133 @@ export default function ExecutorDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {completedRequests
-                      ?.filter((task: any) => {
-                        if (filterType === "all") return true;
-                        return task.request_type === filterType;
-                      })
-                      .map((task: any) => (
-                          <Card
-                              key={task.id}
-                              className="hover:shadow-md transition-shadow cursor-pointer"
-                              onClick={() => setSelectedTaskDetails(task)}
-                          >
-                            <CardContent className="p-6">
-                              <div className="flex justify-between items-start mb-4">
-                                <div>
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <Badge className={getTypeColor(task.request_type)}>
-                                      {translateType(task.request_type)}
-                                    </Badge>
-                                    <Badge variant="outline" className="bg-green-500">
-                                      Завершена
-                                    </Badge>
-                                    <span className="text-sm text-gray-500">#{task.id}</span>
-                                  </div>
-                                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                                    {task.title}
-                                  </h3>
-                                  <div className="text-sm text-gray-600 space-y-1">
-                                    <p>Локация: {task.location_detail}</p>
-                                    <p>Завершено: {task.completedDate}</p>
-                                    <p>Клиент: {task.client.full_name}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <div className="flex">
-                                    {[...Array(5)].map((_, i) => (
-                                        <Star
-                                            key={i}
-                                            className={`w-4 h-4 ${
-                                                i < task.rating
-                                                    ? "text-yellow-400 fill-current"
-                                                    : "text-gray-300"
-                                            }`}
-                                        />
-                                    ))}
-                                  </div>
-                                  <span className="text-sm font-medium">{task.rating}/5</span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredRequests.map((request:any, index: number) => (
+                        <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                              onClick={() => setSelectedTaskDetails(request)}>
+                          {/* Заголовок с ID и статусами */}
+                          <CardHeader className="pb-3 px-5 pt-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                  #{request.id}
+                                </span>
+                                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                  {request.category.name}
+                                </span>
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
-                      ))}
+                              <div className="flex gap-1">
+                                <Badge
+                                    variant="outline"
+                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
+                                >
+                                  {getStatusIcon(request.status)}
+                                  {translateStatus(request.status)}
+                                </Badge>
+                              </div>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="px-5 pb-5 pt-0 space-y-3">
+                            {/* Описание */}
+                            <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
+
+                            {/* Основная информация в сетке */}
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                <span className="truncate font-medium">{request.location_detail}</span>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                <span className="truncate font-medium">{formatDate(request.created_date)}</span>
+                              </div>
+
+                              {request.executor_id ? (
+                                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                    <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                  </div>
+                              ) : (
+                                  <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                    <User className="w-4 h-4 flex-shrink-0" />
+                                    <span className="truncate font-medium">Не назначен</span>
+                                  </div>
+                              )}
+
+                              {request.rating ? (
+                                  <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
+                                    {renderStars(request.rating)}
+                                  </div>
+                              ) : (
+                                  <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                    <span className="text-sm font-medium">Без оценки</span>
+                                  </div>
+                              )}
+                            </div>
+
+                            {/* Фотографии */}
+                            {request.photos && request.photos.length > 0 && (
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <ImageIcon className="w-4 h-4 text-purple-500" />
+                                    <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
+                                  </div>
+                                  <div className="flex gap-2 overflow-x-auto">
+                                    {request.photos.slice(0, 4).map((photo:any, index: any) => (
+                                        <div key={index} className="flex-shrink-0">
+                                          <img
+                                              src={photo.photo_url || "/placeholder.svg"}
+                                              alt={`Фото ${index + 1}`}
+                                              className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
+                                              onError={(e) => {
+                                                e.currentTarget.src = `/placeholder.svg?height=48&width=48`
+                                              }}
+                                          />
+                                        </div>
+                                    ))}
+                                    {request.photos.length > 4 && (
+                                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                                          <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+                                        </div>
+                                    )}
+                                  </div>
+                                </div>
+                            )}
+
+                            {/* Нижняя панель */}
+                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                              <div className="flex gap-2">
+                                <Badge
+                                    variant="outline"
+                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
+                                >
+                                  {getRequestTypeIcon(request.request_type)}
+                                  {translateType(request.request_type)}
+                                </Badge>
+                                {request.complexity && (
+                                    <Badge
+                                        variant="outline"
+                                        className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                    >
+                                      {translateComplexity(request.complexity)}
+                                    </Badge>
+                                )}
+                              </div>
+
+                              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                    ))}
+                  </div>
                 </div>
               </TabsContent>
-
 
               <TabsContent value="statistics">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -881,8 +1279,7 @@ export default function ExecutorDashboard() {
                     <p>Загрузка...</p>
                 ) : (
                     <div className="space-y-3">
-                      {notifications
-                          .slice(0, 5)
+                      {notifications?.slice(0, 5)
                           .map((n: any) => (
                               <div
                                   key={n.id}
@@ -1145,10 +1542,17 @@ export default function ExecutorDashboard() {
                     )}
                   </div>
                 </div>
-
+                {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                 <div className="flex space-x-4">
-                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700">
-                    Отправить заявку
+                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Отправка...
+                        </>
+                    ) : (
+                        "Отправить заявку"
+                    )}
                   </Button>
                   <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
                     Отмена
