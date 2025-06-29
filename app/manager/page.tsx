@@ -314,7 +314,7 @@ export default function ManagerDashboard() {
   const fetchNotifications = async () => {
     try {
       const response = await api.get("/notifications/me")
-      setNotifications(response.data)
+      setNotifications(response.data.notifications)
     } catch (error) {
       console.error("Ошибка при загрузке уведомлений", error)
     } finally {
@@ -477,6 +477,16 @@ export default function ManagerDashboard() {
       default: return type
     }
   }
+
+  const translateComplexity = (complexity: string) => {
+    switch (complexity) {
+      case "complex": return "комплексный";
+      case "simple": return "простой";
+      case "medium": return "средний";
+      default: return complexity;
+    }
+  };
+
   const fetchOffices = async () => {
     try {
       const response = await api.get('/offices')
@@ -765,7 +775,7 @@ export default function ManagerDashboard() {
                                   className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
                               >
                                 {getStatusIcon(request.status)}
-                                {request.status}
+                                {translateStatus(request.status)}
                               </Badge>
                             </div>
                           </div>
@@ -847,14 +857,16 @@ export default function ManagerDashboard() {
                                   className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
                               >
                                 {getRequestTypeIcon(request.request_type)}
-                                {request.request_type}
+                                {translateType(request.request_type)}
                               </Badge>
-                              <Badge
-                                  variant="outline"
-                                  className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
-                              >
-                                {request.complexity}
-                              </Badge>
+                              {request.complexity !== "" && (
+                                  <Badge
+                                      variant="outline"
+                                      className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                  >
+                                    {translateComplexity(request.complexity)}
+                                  </Badge>
+                              )}
                             </div>
 
                             <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
