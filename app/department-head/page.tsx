@@ -372,6 +372,7 @@ export default function DepartmentHeadDashboard() {
           email: newExecutorEmail.trim(),
           role: "executor"
         })
+        fetchExecutors()
       } catch (error) {
         console.error("Failed to add executor:", error)
       }
@@ -380,9 +381,15 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const handleRemoveExecutor = (executorId: number) => {
-    setExecutors((prev) => prev.filter((executor) => executor.id !== executorId))
-  }
+  const handleRemoveExecutor = async (executorId: number) => {
+    try {
+      await api.delete(`/users/${executorId}`);
+      fetchExecutors()
+    } catch (error) {
+      console.error("Failed to remove executor:", error);
+    }
+  };
+
 
   const handleAddCategory = async () => {
     if (newRequestCategory.trim() && !serviceCategories.some(c => c.name === newRequestCategory.trim())) {

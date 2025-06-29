@@ -57,6 +57,7 @@ export default function LoginPage() {
       const data = await response.json()
       const role = data.role || "client"
       localStorage.setItem("token", data.token)
+      localStorage.setItem("role", data.role)
       window.location.href = `/${role.toLowerCase().replace(" ", "-")}`
     } catch (err) {
       console.error("Ошибка логина:", err)
