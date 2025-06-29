@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -33,9 +33,11 @@ import {
 } from "lucide-react"
 import Header from "@/app/header/Header"
 import UserProfile from "@/app/client/UserProfile"
+import axios from 'axios'
 import dynamic from "next/dynamic"
 import api from "@/lib/api";
 
+const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -117,6 +119,7 @@ export default function DepartmentHeadDashboard() {
   const [deleteReason, setDeleteReason] = useState("")
   const [selectedExecutorId, setSelectedExecutorId] = useState<number | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
+  const [photos, setPhotos] = useState<File[]>([]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -138,17 +141,27 @@ export default function DepartmentHeadDashboard() {
 
     checkAuth();
   }, []);
-  const handleButtonClick = () => {
-    fileInputRef.current?.click()
-  }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files).slice(0, 3 - photoPreviews.length)
-      const newPreviews = files.map(file => URL.createObjectURL(file))
-      setPhotoPreviews([...photoPreviews, ...newPreviews])
-    }
-  }
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const fileArray = Array.from(files);
+    const remainingSlots = 3 - photoPreviews.length;
+
+    const selectedFiles = fileArray.slice(0, remainingSlots);
+
+    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
+
+    setPhotos((prev) => [...prev, ...selectedFiles]);
+    setPhotoPreviews((prev) => [...prev, ...previewUrls]);
+
+    event.target.value = '';
+  };
 
   const fetchRequests = async () => {
     try {
@@ -266,9 +279,10 @@ export default function DepartmentHeadDashboard() {
       console.error("Failed to create request:", error)
     }
   }
+
   const handleCreateNewRequest = async () => {
     try {
-      await api.post('/requests', {
+      const response = await api.post('/requests', {
         title: newRequestTitle,
         description: newRequestDescription,
         request_type: newRequestType,
@@ -279,6 +293,35 @@ export default function DepartmentHeadDashboard() {
         complexity: newRequestComplexity,
         sla: newRequestSLA
       })
+
+      const requestId = response.data.id;
+
+      console.log("Created request ID:", requestId);
+
+      if (photos.length > 0) {
+        const formData = new FormData();
+        photos.forEach((photo) => {
+          formData.append('photos', photo);
+        });
+        formData.append('type', 'before');
+
+        try {
+
+          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+
+          console.log("Фотографии успешно загружены");
+        } catch (photoUploadError) {
+          await api.delete(`/requests/${requestId}`);
+          console.error("Ошибка при загрузке фото. Заявка удалена.");
+          alert("Ошибка при загрузке фото. Заявка не была создана.");
+          return;
+        }
+      }
       fetchRequests()
       setShowCreateRequestModal(false)
       setNewRequestTitle("")
@@ -292,6 +335,7 @@ export default function DepartmentHeadDashboard() {
       setNewRequestSLA("1h")
     } catch (error) {
       console.error("Failed to create request:", error)
+      alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
     }
   }
 

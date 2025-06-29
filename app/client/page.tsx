@@ -19,10 +19,14 @@ import {
   Star,
   Filter, Loader2,
 } from "lucide-react"
+import axios from 'axios'
 import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
 import api from "@/lib/api";
+
+const API_BASE_URL = 'https://kcell-service.onrender.com/api';
+
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -408,7 +412,12 @@ export default function ClientDashboard() {
         formData.append('type', 'before');
 
         try {
-          await api.post(`/request-photos/${requestId}/photos`, formData);
+          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
         } catch (photoUploadError) {
           await api.delete(`/requests/${requestId}`);
           alert("Ошибка при загрузке фото. Заявка не была создана.");

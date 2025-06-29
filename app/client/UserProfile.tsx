@@ -2,17 +2,7 @@
 import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import axios from "axios";
-
-const API_BASE_URL = "https://kcell-service.onrender.com/api"
-
-const api = axios.create({
-    baseURL: API_BASE_URL,
-    withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json',
-    }
-})
+import api from "@/lib/api";
 
 
 interface User {
