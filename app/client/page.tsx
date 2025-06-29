@@ -412,7 +412,8 @@ export default function ClientDashboard() {
         !requestTitle.trim() ||
         !requestLocation.trim() ||
         !requestDescription.trim() ||
-        !selectedCategoryId
+        !selectedCategoryId ||
+        !requestLocationDetails.trim()
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;

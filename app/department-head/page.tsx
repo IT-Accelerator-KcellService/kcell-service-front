@@ -483,8 +483,7 @@ export default function DepartmentHeadDashboard() {
         !newRequestLocationDetails ||
         !newRequestLocation ||
         !serviceCategories ||
-        !newRequestComplexity ||
-        !newRequestSLA
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity)
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -503,7 +502,8 @@ export default function DepartmentHeadDashboard() {
         category_id: serviceCategories.find(c => c.name === newRequestCategory)?.id,
         status: "awaiting_assignment",
         complexity: newRequestComplexity,
-        sla: newRequestSLA
+        sla: newRequestSLA,
+        planned_date: newRequestPlannedDate || null,
       })
 
       const requestId = response.data.id;

@@ -381,7 +381,8 @@ export default function AdminWorkerDashboard() {
         !newRequestLocation.trim() ||
         !newRequestDescription.trim() ||
         !newRequestCategory ||
-        (newRequestType === "planned" && !newRequestPlannedDate)
+        !newRequestLocationDetails.trim() ||
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity)
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
