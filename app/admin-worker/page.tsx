@@ -593,7 +593,7 @@ export default function AdminWorkerDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">В работе</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req => req.status === "in_execution").length}
+                      {myRequests.filter(req => req.status === "execution").length}
                     </p>
                   </div>
                 </div>

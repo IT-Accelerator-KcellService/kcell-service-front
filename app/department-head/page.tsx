@@ -432,17 +432,33 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const handleAddExecutor = () => {
+  const handleAddExecutor = async () => {
     if (newExecutorName.trim() && newExecutorSpecialty.trim()) {
-
+      try {
+        const response = await api.post('/users', {
+          full_name: newExecutorName.trim(),
+          specialty: newExecutorSpecialty.trim(),
+          email: newExecutorEmail.trim(),
+          role: "executor"
+        })
+        fetchExecutors()
+      } catch (error) {
+        console.error("Failed to add executor:", error)
+      }
       setNewExecutorName("")
       setNewExecutorSpecialty("")
     }
   }
 
-  const handleRemoveExecutor = (executorId: number) => {
-    setExecutors((prev) => prev.filter((executor) => executor.id !== executorId))
-  }
+  const handleRemoveExecutor = async (executorId: number) => {
+    try {
+      await api.delete(`/users/${executorId}`);
+      fetchExecutors()
+    } catch (error) {
+      console.error("Failed to remove executor:", error);
+    }
+  };
+
 
   const handleAddCategory = async () => {
     if (newRequestCategory.trim() && !serviceCategories.some(c => c.name === newRequestCategory.trim())) {
