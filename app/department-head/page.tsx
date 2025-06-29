@@ -157,7 +157,59 @@ export default function DepartmentHeadDashboard() {
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
+  const [errors, setErrors] = useState({
+    name: "",
+    specialty: "",
+    email: "",
+  })
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+  const validateFullName = (name: string) => {
+    return /^([А-ЯӘӨҚҢҮҰҺІЁ][а-яәөқңүұһіё]+)\s([А-ЯӘӨҚҢҮҰҺІЁ][а-яәөқңүұһіё]+)$/.test(name.trim())
+  }
 
+
+  const handleAddExecutor = async () => {
+    const name = newExecutorName.trim()
+    const specialty = newExecutorSpecialty.trim()
+    const email = newExecutorEmail.trim()
+
+    const newErrors = {
+      name: name
+          ? validateFullName(name)
+              ? ""
+              : "Введите корректное полное имя (например: Иван Иванов)"
+          : "Введите имя",
+      specialty: specialty ? "" : "Введите специализацию",
+      email: email
+          ? validateEmail(email)
+              ? ""
+              : "Некорректный email"
+          : "Введите email",
+    }
+
+
+    setErrors(newErrors)
+
+    if (Object.values(newErrors).some((err) => err !== "")) return
+
+    try {
+      const response = await api.post('/users', {
+        full_name: name,
+        specialty,
+        email,
+        role: "executor"
+      })
+      fetchExecutors()
+      setNewExecutorName("")
+      setNewExecutorSpecialty("")
+      setNewExecutorEmail("")
+      setErrors({ name: "", specialty: "", email: "" })
+    } catch (error) {
+      console.error("Failed to add executor:", error)
+    }
+  }
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
@@ -438,23 +490,6 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const handleAddExecutor = async () => {
-    if (newExecutorName.trim() && newExecutorSpecialty.trim()) {
-      try {
-        const response = await api.post('/users', {
-          full_name: newExecutorName.trim(),
-          specialty: newExecutorSpecialty.trim(),
-          email: newExecutorEmail.trim(),
-          role: "executor"
-        })
-        fetchExecutors()
-      } catch (error) {
-        console.error("Failed to add executor:", error)
-      }
-      setNewExecutorName("")
-      setNewExecutorSpecialty("")
-    }
-  }
 
   const handleRemoveExecutor = async (executorId: number) => {
     try {
@@ -771,7 +806,7 @@ export default function DepartmentHeadDashboard() {
                               <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                             </div>
 
-                            {request.executor.user.full_name ? (
+                            {request.executor && request.executor.user.full_name ? (
                                 <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                   <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
                                   <span className="truncate font-medium">{request.executor.user.full_name}</span>
@@ -898,7 +933,7 @@ export default function DepartmentHeadDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor.user.full_name ? (
+                              {request.executor && request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
                                     <span className="truncate font-medium">{request.executor_id}</span>
@@ -1056,20 +1091,25 @@ export default function DepartmentHeadDashboard() {
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <Input
-                              placeholder="Имя исполнителя"
+                              placeholder="Имя и Фамилия исполнителя"
                               value={newExecutorName}
                               onChange={(e) => setNewExecutorName(e.target.value)}
                           />
+                          {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+
                           <Input
                               placeholder="Специализация (напр. Электрик)"
                               value={newExecutorSpecialty}
                               onChange={(e) => setNewExecutorSpecialty(e.target.value)}
                           />
+                          {errors.specialty && <p className="text-sm text-red-500">{errors.specialty}</p>}
+
                           <Input
                               placeholder="Email"
                               value={newExecutorEmail}
                               onChange={(e) => setNewExecutorEmail(e.target.value)}
                           />
+                          {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
                         </div>
                         <Button
                             onClick={handleAddExecutor}
