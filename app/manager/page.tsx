@@ -241,7 +241,6 @@ export default function ManagerDashboard() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
@@ -251,15 +250,8 @@ export default function ManagerDashboard() {
   };
 
   const handleEdit = (id: number, oldComment: string) => {
-    const newComment = prompt("Изменить комментарий:", oldComment);
-    if (newComment && newComment.trim()) {
-      api.put(`/comments/${id}`, {
-        comment: newComment.trim(),
-        request_id: selectedTaskDetails.id,
-      })
-          .then(() => fetchComments())
-          .catch((err) => console.error("Ошибка при обновлении", err));
-    }
+    setComment(oldComment);       // заполняем поле ввода
+    setEditCommentId(id);         // запоминаем какой комментарий редактируем
   };
 
   useEffect(() => {
@@ -269,16 +261,21 @@ export default function ManagerDashboard() {
   }, [selectedTaskDetails]);
 
   const handleSend = async () => {
-    if (!comment.trim()) return;
+    if (comment.trim() === "") return;
 
     try {
-      await api.post(
-          `/comments`,
-          {
-            request_id: selectedTaskDetails.id,
-            comment,
-          }
-      );
+      if (editCommentId) {
+        await api.put(`/comments/${editCommentId}`, {
+          comment: comment.trim(),
+          request_id: selectedTaskDetails.id,
+        });
+        setEditCommentId(null);
+      } else {
+        await api.post(`/comments`, {
+          comment: comment.trim(),
+          request_id: selectedTaskDetails.id,
+        });
+      }
       setComment("");
       fetchComments();
     } catch (err) {
@@ -1068,8 +1065,11 @@ export default function ManagerDashboard() {
 
       {/* Create Request Modal */}
       {showCreateRequestModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
+            setShowCreateRequestModal(false)
+            setComments([])
+          }}>
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
                 <CardTitle>Создать заявку</CardTitle>
                 <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
@@ -1209,8 +1209,11 @@ export default function ManagerDashboard() {
 
       {/* Task Details Modal */}
       {selectedTaskDetails && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
+            setSelectedTaskDetails(null)
+            setComments([])
+          }}>
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
                 <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
                 <CardDescription>{selectedTaskDetails.title}</CardDescription>
@@ -1279,13 +1282,20 @@ export default function ManagerDashboard() {
                   {selectedTaskDetails.complexity && (
                       <div>
                         <p className="text-sm font-medium text-gray-600">Сложность:</p>
-                        <p className="text-base text-gray-800">{selectedTaskDetails.complexity}</p>
+                        <p className="text-base text-gray-800">{translateComplexity(selectedTaskDetails.complexity)}</p>
                       </div>
                   )}
                   {selectedTaskDetails.sla && (
                       <div>
                         <p className="text-sm font-medium text-gray-600">SLA:</p>
-                        <p className="text-base text-gray-800">{selectedTaskDetails.sla}</p>
+                        <p className="text-base text-gray-800">
+                          {selectedTaskDetails.sla === '1h' && '1 час'}
+                          {selectedTaskDetails.sla === '4h' && '4 часа'}
+                          {selectedTaskDetails.sla === '8h' && '8 часов'}
+                          {selectedTaskDetails.sla === '1d' && '1 день'}
+                          {selectedTaskDetails.sla === '3d' && '3 дня'}
+                          {selectedTaskDetails.sla === '1w' && '1 неделя'}
+                        </p>
                       </div>
                   )}
                   {selectedTaskDetails.plannedDate && (
@@ -1379,7 +1389,7 @@ export default function ManagerDashboard() {
                         <CardContent className="p-4">
                           <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                           {comments.map((c: any) => (
-                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
                                 <div className="flex justify-between items-center">
                                   <div className="text-sm text-gray-800 font-medium">
                                     {c.user.full_name || "Неизвестный пользователь"}{" "}
@@ -1444,7 +1454,10 @@ export default function ManagerDashboard() {
                     </div>
                 )}
                 <div className="flex justify-end mt-6">
-                  <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>
+                  <Button variant="outline" onClick={() => {
+                    setSelectedTaskDetails(null)
+                    setComments([])
+                  }}>
                     Закрыть
                   </Button>
                 </div>
