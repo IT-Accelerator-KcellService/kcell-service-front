@@ -334,6 +334,8 @@ export default function DepartmentHeadDashboard() {
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout')
+      setIsLoggedIn(false)
+      localStorage.removeItem('token')
       window.location.href = "/login"
     } catch (error) {
       console.error("Logout failed:", error)
