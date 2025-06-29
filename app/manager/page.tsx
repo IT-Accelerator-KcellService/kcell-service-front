@@ -42,7 +42,8 @@ const MapView = dynamic(() => import('@/app/map/MapView'), {
 export default function ManagerDashboard() {
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
-  const [tab, setTab] = useState("overview")
+  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
+  const [tab, setTab] = useState("requests")
   const [offices, setOffices] = useState([{}])
   const [newOfficeName, setNewOfficeName] = useState("")
   const [newOfficeCity, setNewOfficeCity] = useState("")
@@ -134,7 +135,7 @@ export default function ManagerDashboard() {
       const response = await api.post('/requests', {
         title: newRequestTitle,
         description: description,
-        office_id: 1,
+        office_id: Number(newRequestOfficeId),
         request_type: newRequestType === "urgent" ? "urgent" : "normal",
         location: requestLocation,
         location_detail: newRequestLocation,
@@ -170,6 +171,7 @@ export default function ManagerDashboard() {
           return;
         }
       }
+      fetchRequests()
       setShowCreateRequestModal(false)
       setNewRequestType("")
       setNewRequestTitle("")
@@ -344,31 +346,34 @@ export default function ManagerDashboard() {
     const statusMatch = filterStatus === "all" || request.status === filterStatus
     const requestType = request.request_type
     const typeMatch = filterType === "all" || requestType === filterType
-    return statusMatch && typeMatch
+    const officeMatch = office === "all" || office == String(request.office_id)
+    return statusMatch && typeMatch && officeMatch
   })
 
   const completedRequests = requests.filter((request) => {
-    return request.status === "completed"
+    if (office === "all") return request.status === "completed"
+    if (office == String(request.office_id)) return request.status === "completed"
   })
 
   const urgentRequests = requests.filter((request) => {
-    return request.request_type === "urgent"
+    if (office === "all") return request.request_type === "urgent"
+    if (office == String(request.office_id)) return request.request_type === "urgent"
   })
 
   const normalRequests = requests.filter((request) => {
-    return request.request_type === "normal"
+    if(office === "all") return request.request_type === "normal"
+    if (office == String(request.office_id)) return request.request_type === "normal"
   })
 
   const planningRequests = requests.filter((request) => {
-    return request.request_type === "planned"
+    if (office === "all") return request.request_type === "planned"
+    if (office == String(request.office_id)) return request.request_type === "planned"
   })
 
   const kpi = {
-    total: requests.length,
+    total: filteredRequests.length,
     completed: completedRequests.length,
     overdue: 8,
-    rating: 4.7,
-    sla: "2.3 ч",
     emergency: urgentRequests.length,
   }
 
@@ -519,22 +524,10 @@ export default function ManagerDashboard() {
               <SelectContent>
                 <SelectItem value="all">Все офисы</SelectItem>
                 {offices.map((office:any, index) => (
-                  <SelectItem key={index} value={office.name}>
+                  <SelectItem key={index} value={office.id}>
                     {office.name}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Период" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">Неделя</SelectItem>
-                <SelectItem value="month">Месяц</SelectItem>
-                <SelectItem value="quarter">Квартал</SelectItem>
-                <SelectItem value="year">Год</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -563,7 +556,7 @@ export default function ManagerDashboard() {
         </div>
 
         {/* KPI Cards - Mobile optimized grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
           <StatCard
             title="Всего заявок"
             value={kpi.total}
@@ -589,20 +582,6 @@ export default function ManagerDashboard() {
             bg="bg-red-100"
           />
           <StatCard
-            title="Ср. оценка"
-            value={kpi.rating}
-            icon={<Star className="w-4 h-4 sm:w-6 sm:h-6 text-yellow-600" />}
-            delta="+0.2"
-            positive
-            bg="bg-yellow-100"
-          />
-          <StatCard
-            title="Ср. SLA"
-            value={kpi.sla}
-            icon={<Clock className="w-4 h-4 sm:w-6 sm:h-6 text-purple-600" />}
-            bg="bg-purple-100"
-          />
-          <StatCard
             title="Экстренные"
             value={kpi.emergency}
             icon={<AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 text-orange-600" />}
@@ -614,18 +593,12 @@ export default function ManagerDashboard() {
 
         {/* Mobile-optimized Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="requests" className="text-xs sm:text-sm">
               Заявки
             </TabsTrigger>
             <TabsTrigger value="overview" className="text-xs sm:text-sm">
               Обзор
-            </TabsTrigger>
-            <TabsTrigger value="offices" className="text-xs sm:text-sm">
-              Офисы
-            </TabsTrigger>
-            <TabsTrigger value="executors" className="text-xs sm:text-sm">
-              Команда
             </TabsTrigger>
             <TabsTrigger value="management" className="text-xs sm:text-sm">
               Управление
@@ -717,7 +690,7 @@ export default function ManagerDashboard() {
                     <span className="text-sm sm:text-base">Обычные</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: "75%" }}></div>
+                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${normalRequests.length * 100/requests.length}%` }}></div>
                       </div>
                       <span className="text-sm font-medium w-8">{normalRequests.length}</span>
                     </div>
@@ -726,7 +699,7 @@ export default function ManagerDashboard() {
                     <span className="text-sm sm:text-base">Экстренные</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                        <div className="bg-red-600 h-2 rounded-full" style={{ width: "15%" }}></div>
+                        <div className="bg-red-600 h-2 rounded-full" style={{ width: `${urgentRequests.length * 100/requests.length}%` }}></div>
                       </div>
                       <span className="text-sm font-medium w-8">{urgentRequests.length}</span>
                     </div>
@@ -735,7 +708,7 @@ export default function ManagerDashboard() {
                     <span className="text-sm sm:text-base">Плановые</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-600 h-2 rounded-full" style={{ width: "10%" }}></div>
+                        <div className="bg-green-600 h-2 rounded-full" style={{ width: `${planningRequests.length * 100/requests.length}%` }}></div>
                       </div>
                       <span className="text-sm font-medium w-8">{planningRequests.length}</span>
                     </div>
@@ -799,70 +772,6 @@ export default function ManagerDashboard() {
                   </div>
                 </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="offices" className="space-y-4 sm:space-y-6">
-            {officeStats.map((office) => (
-              <Card key={office.name}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center text-lg sm:text-xl">
-                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                    <span className="truncate">{office.name}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold">{office.total}</p>
-                      <p className="text-xs sm:text-sm text-gray-600">Всего</p>
-                    </div>
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold text-green-600">{office.completed}</p>
-                      <p className="text-xs sm:text-sm text-gray-600">Завершено</p>
-                    </div>
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold text-red-600">{office.overdue}</p>
-                      <p className="text-xs sm:text-sm text-gray-600">Просрочено</p>
-                    </div>
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold text-yellow-600">{office.rating}</p>
-                      <p className="text-xs sm:text-sm text-gray-600">Оценка</p>
-                    </div>
-                    <div>
-                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{office.sla}%</p>
-                      <p className="text-xs sm:text-sm text-gray-600">SLA</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </TabsContent>
-
-          <TabsContent value="executors">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg sm:text-xl">Топ исполнители</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 sm:space-y-4">
-                  {topExecutors.map((ex) => (
-                    <div key={ex.name} className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm sm:text-base truncate">{ex.name}</p>
-                        <p className="text-xs sm:text-sm text-gray-600 truncate">{ex.specialty}</p>
-                      </div>
-                      <div className="text-right flex-shrink-0 ml-4">
-                        <p className="font-bold text-sm sm:text-base">{ex.done} зав.</p>
-                        <div className="flex items-center justify-end">
-                          <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400 fill-current mr-1" />
-                          <span className="text-xs sm:text-sm text-yellow-600">{ex.rating}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Management Tab Content for Manager */}
@@ -944,6 +853,19 @@ export default function ManagerDashboard() {
                 <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div>
+                  <Label>Офис</Label>
+                  <Select value={newRequestOfficeId} onValueChange={setNewRequestOfficeId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите офис" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {offices.map((officeItem:any, index: number) => (
+                          <SelectItem key={index} value={String(officeItem.id)}>{officeItem.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label>Тип заявки</Label>
                   <Select value={newRequestType} onValueChange={setNewRequestType}>
