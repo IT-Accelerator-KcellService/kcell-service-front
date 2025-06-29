@@ -400,7 +400,18 @@ export default function ExecutorDashboard() {
   const fetchRequests = async () => {
     try {
       const response = await api.get('requests/executor/me')
-      setCompletedRequests(response.data.completedRequests);
+      const responseRating = await api.get('ratings/executor')
+      const ratingsMap = new Map<number, number>()
+      for (const r of responseRating.data) {
+        ratingsMap.set(r.request_id, parseFloat(r.rating))
+      }
+
+      const completed = response.data.completedRequests.map((req: Request) => ({
+        ...req,
+        rating: ratingsMap.get(req.id) || null,
+      }))
+
+      setCompletedRequests(completed)
       setAssignedRequests(response.data.assignedRequests);
       setMyRequests(response.data.myRequests);
 
