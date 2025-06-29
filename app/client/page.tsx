@@ -148,13 +148,14 @@ export default function ClientDashboard() {
   const handleNotificationClick = async (notification:any) => {
     if (!notification.is_read) {
       try {
-        const response = await api.patch(`/notifications/${notification.id}/read`)
-        const updated = response.data
-
         setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === updated.id ? { ...n, is_read: true } : n))
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
         )
+        await api.patch(`/notifications/${notification.id}/read`)
       } catch (error) {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        )
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
@@ -480,12 +481,21 @@ export default function ClientDashboard() {
     }
   }
 
-  const filteredRequests = requests.filter((request) => {
-    const statusMatch = filterStatus === "all" || request.status === filterStatus
-    const requestType = request.request_type
-    const typeMatch = filterType === "all" || requestType === filterType
-    return statusMatch && typeMatch
-  })
+  const filteredRequests = requests
+      .filter((request) => {
+        const statusMatch = filterStatus === "all" || request.status === filterStatus
+        const requestType = request.request_type
+        const typeMatch = filterType === "all" || requestType === filterType
+        return statusMatch && typeMatch
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        // если дата невалидная, ставим приоритет 0
+        const safeDateA = isNaN(dateA) ? 0 : dateA;
+        const safeDateB = isNaN(dateB) ? 0 : dateB;
+        return safeDateB - safeDateA;
+      });
 
   const handleLogout = async () => {
     try {
@@ -685,10 +695,6 @@ export default function ClientDashboard() {
               <TabsContent value="requests">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4 mb-4">
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Фильтр
-                    </Button>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Статус" />
@@ -1098,7 +1104,10 @@ export default function ClientDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedRequest(false)}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+              setSelectedRequest(false)
+              setComments([])
+            }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
@@ -1168,7 +1177,7 @@ export default function ClientDashboard() {
                   {selectedRequest.executor && (
                       <div>
                         <Label>Исполнитель</Label>
-                        <p className="text-sm">{selectedRequest.executor.user?.full_name|| "не назначена"}</p>
+                        <p className="text-sm">{selectedRequest.executor.user.full_name || "не назначена"}</p>
                       </div>
                   )}
 
@@ -1277,7 +1286,7 @@ export default function ClientDashboard() {
                     <CardContent className="p-4">
                       <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                       {comments.map((c: any) => (
-                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
                             <div className="flex justify-between items-center">
                               <div className="text-sm text-gray-800 font-medium">
                                 {c.user.full_name || "Неизвестный пользователь"}{" "}
@@ -1311,7 +1320,7 @@ export default function ClientDashboard() {
                       <div className="mt-3 flex flex-col space-y-1">
                         {editCommentId && (
                             <div className="text-xs text-gray-500 mb-1">
-                              Редактируется комментарий #{editCommentId}
+                              Редактируется комментарий
                               <button
                                   className="ml-2 text-red-500 hover:underline"
                                   onClick={() => {
@@ -1341,7 +1350,10 @@ export default function ClientDashboard() {
                   </Card>
 
                   <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setSelectedRequest(null)}>
+                    <Button variant="outline" onClick={() => {
+                      setSelectedRequest(null)
+                      setComments([])
+                    }}>
                       Закрыть
                     </Button>
                     {selectedRequest.status === "completed" && !userRatings[selectedRequest.id] && (

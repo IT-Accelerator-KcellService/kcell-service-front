@@ -98,6 +98,14 @@ interface Request {
   sla?: string
 }
 
+const roleTranslations: Record<string, string> = {
+  client: "Клиент",
+  "admin-worker": "Администратор офиса",
+  "department-head": "Руководитель направления",
+  executor: "Испольнитель",
+  manager: "Руководитель"
+};
+
 export default function DepartmentHeadDashboard() {
   const [activeTab, setActiveTab] = useState("incoming")
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
@@ -142,6 +150,12 @@ export default function DepartmentHeadDashboard() {
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
+  const [loading, setLoading] = useState(true)
+  const [notifications, setNotifications] = useState([])
+  const [selectedNotification, setSelectedNotification] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [executorToDelete, setExecutorToDelete] = useState<Executor | null>(null)
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
@@ -158,6 +172,7 @@ export default function DepartmentHeadDashboard() {
           window.location.href = '/login';
         } else {
           setIsLoggedIn(true);
+          setCurrentUserId(user.id)
           setNewRequestOfficeId(String(user.office_id));
         }
       } catch (error) {
@@ -168,6 +183,56 @@ export default function DepartmentHeadDashboard() {
 
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await api.get("/notifications/me")
+        setNotifications(response.data.notifications)
+      } catch (error) {
+        console.error("Ошибка при загрузке уведомлений", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchNotifications()
+  }, [])
+
+  const handleNotificationClick = async (notification:any) => {
+    if (!notification.is_read) {
+      try {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
+        )
+        await api.patch(`/notifications/${notification.id}/read`)
+      } catch (error) {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        )
+        console.error("Ошибка при пометке уведомления как прочитано", error)
+      }
+    }
+
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
+  }
+
+  const getBgColor = (title:any) => {
+    if (title.includes("принята")) return "bg-blue-50"
+    if (title.includes("завершена")) return "bg-green-50"
+    if (title.includes("просрочена")) return "bg-red-50"
+    return "bg-gray-100"
+  }
+
+  const formatTimeAgo = (dateStr:any) => {
+    const date = new Date(dateStr)
+    const diff = (Date.now() - date.getTime()) / 1000
+    if (diff < 60) return "только что"
+    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
+    return `${Math.floor(diff / 86400)} дней назад`
+  }
 
   const handleButtonClick = () => {
     fileInputRef.current?.click();
@@ -249,23 +314,36 @@ export default function DepartmentHeadDashboard() {
 
   const fetchRequests = async () => {
     try {
-      const response: any = await api.get('/requests/department-head/me')
-      setIncomingRequests(response.data.otherRequests)
-      setMyRequests(response.data.myRequests)
-      response.data.otherRequests.forEach((request: Request) => {
-        if (request.status === "completed") {
-          checkUserRating(request.id)
-        }
-      })
-      response.data.myRequests.forEach((request: Request) => {
-        if (request.status === "completed") {
-          checkUserRating(request.id)
-        }
-      })
+      const response: any = await api.get('/requests/department-head/me');
+
+      const otherRequests: Request[] = response.data.otherRequests;
+      const myRequests: Request[] = response.data.myRequests;
+
+      const sortedOtherRequests = otherRequests.sort((a, b) => {
+        // 1. приоритет "waiting_for_assignment"
+        if (a.status === "waiting_for_assignment" && b.status !== "waiting_for_assignment") return -1;
+        if (b.status === "waiting_for_assignment" && a.status !== "waiting_for_assignment") return 1;
+
+        // 2. приоритет "in_progress"
+        if (a.status === "in_progress" && b.status !== "in_progress") return -1;
+        if (b.status === "in_progress" && a.status !== "in_progress") return 1;
+
+        // 3. среди одинаковых статусов — приоритет экстренным
+        if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
+        if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
+
+        // 4. по дате (новые сверху)
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        return dateB - dateA;
+      });
+
+      setIncomingRequests(sortedOtherRequests);
+      setMyRequests(myRequests);
     } catch (error) {
-      console.error("Failed to fetch requests:", error)
+      console.error("Failed to fetch requests:", error);
     }
-  }
+  };
   const fetchExecutors = async () => {
     try {
       const response = await api.get('/executors')
@@ -293,6 +371,45 @@ export default function DepartmentHeadDashboard() {
       console.error("Ошибка при загрузке комментариев", err)
     }
   }
+
+  const handleDelete = async (id: number) => {
+    //if (!confirm("Удалить комментарий?")) return;
+    try {
+      await api.delete(`/comments/${id}`);
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при удалении", err);
+    }
+  };
+  const handleSend = async () => {
+    if (comment.trim() === "") return;
+
+    try {
+      if (editCommentId) {
+        await api.put(`/comments/${editCommentId}`, {
+          comment: comment.trim(),
+          request_id: selectedRequest?.id,
+        });
+        setEditCommentId(null);
+      } else {
+        await api.post(`/comments`, {
+          comment: comment.trim(),
+          request_id: selectedRequest?.id,
+        });
+      }
+      setComment("");
+      fetchComments();
+    } catch (err) {
+      console.error("Ошибка при отправке комментария", err);
+    }
+  };
+
+
+
+  const handleEdit = (id: number, oldComment: string) => {
+    setComment(oldComment);       // заполняем поле ввода
+    setEditCommentId(id);         // запоминаем какой комментарий редактируем
+  };
 
   useEffect(() => {
     fetchCategories()
@@ -1307,67 +1424,64 @@ export default function DepartmentHeadDashboard() {
                   <CardTitle className="text-lg">Уведомления</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {myRequests
-                        .filter(req => req.status === "in_execution" && req.planned_date && new Date(req.planned_date) < new Date())
-                        .slice(0, 3)
-                        .map(req => (
-                            <div key={req.id} className="p-3 bg-red-50 rounded-lg">
-                              <p className="text-sm font-medium">Просрочена заявка #{req.id}</p>
-                              <p className="text-xs text-gray-600">{req.title}</p>
-                            </div>
-                        ))}
-                    {incomingRequests.slice(0, 2).map(req => (
-                        <div key={req.id} className="p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm font-medium">Новая заявка #{req.id}</p>
-                          <p className="text-xs text-gray-600">{req.title}</p>
-                        </div>
-                    ))}
-                  </div>
+                  {loading ? (
+                      <p>Загрузка...</p>
+                  ) : (
+                      <div className="space-y-3">
+                        {notifications
+                            .slice(0, 5)
+                            .map((n: any) => (
+                                <div
+                                    key={n.id}
+                                    onClick={() => handleNotificationClick(n)}
+                                    className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
+                                        n.title
+                                    )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
+                                >
+                                  <div className="flex justify-between">
+                                    <p className="text-sm font-medium">{n.title}</p>
+                                    {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
+                                  </div>
+                                  <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
+                                </div>
+                            ))}
+                      </div>
+                  )}
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Быстрые действия</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setNewRequestType("planned")
-                        setShowCreateRequestModal(true)
-                      }}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать плановую заявку
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    Отчеты по направлению
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Download className="w-4 h-4 mr-2" />
-                    Выгрузить в Excel
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Выгрузить в Power BI
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Users className="w-4 h-4 mr-2" />
-                    Управление командой
-                  </Button>
-                </CardContent>
-              </Card>
+              {/* Модалка */}
+              {isModalOpen && selectedNotification && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                        <button
+                            className="text-gray-500 hover:text-black"
+                            onClick={() => setIsModalOpen(false)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-800 whitespace-pre-line">
+                        {selectedNotification.content}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-4">
+                        Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>{setSelectedRequest(null)}}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>{
+              setSelectedRequest(null)
+              setComments([])
+            }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
@@ -1639,31 +1753,72 @@ export default function DepartmentHeadDashboard() {
                   )}
 
                   {/* Секция для комментариев */}
-                  <div className="mt-6">
-                    <Label>Комментарии</Label>
-                    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                  <Card className="mt-2">
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                       {comments.map((c: any) => (
-                          <div key={c.id} className="p-2 bg-gray-50 rounded">
-                            <div className="flex justify-between text-sm">
-                              <span className="font-medium">{c.user?.full_name || "Аноним"}</span>
-                              <span className="text-gray-500">
-                          {new Date(c.timestamp).toLocaleString()}
-                        </span>
+                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
+                            <div className="flex justify-between items-center">
+                              <div className="text-sm text-gray-800 font-medium">
+                                {c.user.full_name || "Неизвестный пользователь"}{" "}
+                                {c.user.role && (<span className="text-xs text-gray-500">({roleTranslations[c.user.role] || c.user.role})</span>
+                                )}
+                              </div>
+
+
+                              <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
                             </div>
-                            <p className="mt-1 text-sm">{c.comment}</p>
+                            <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+                            {c.user.id === currentUserId && (
+                                <div className="mt-2 flex gap-2 text-xs text-blue-500">
+                                  <button
+                                      onClick={() => handleEdit(c.id, c.comment)}
+                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700"
+                                  >
+                                    Изменить
+                                  </button>
+                                  <button
+                                      onClick={() => handleDelete(c.id)}
+                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                  >
+                                    Удалить
+                                  </button>
+                                </div>
+                            )}
+
                           </div>
                       ))}
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      <Input
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          placeholder="Написать комментарий..."
-                          className="flex-1"
-                      />
-                      <Button onClick={handleSendComment}>Отправить</Button>
-                    </div>
-                  </div>
+                      <div className="mt-3 flex flex-col space-y-1">
+                        {editCommentId && (
+                            <div className="text-xs text-gray-500 mb-1">
+                              Редактируется комментарий #{editCommentId}
+                              <button
+                                  className="ml-2 text-red-500 hover:underline"
+                                  onClick={() => {
+                                    setEditCommentId(null);
+                                    setComment("");
+                                  }}
+                              >
+                                Отменить
+                              </button>
+                            </div>
+                        )}
+                        <div className="flex items-center space-x-2">
+                          <input
+                              type="text"
+                              value={comment}
+                              onChange={(e) => setComment(e.target.value)}
+                              placeholder="Написать комментарий..."
+                              className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <Button size="sm" onClick={handleSend}>
+                            {editCommentId ? "Сохранить" : "Отправить"}
+                          </Button>
+                        </div>
+                      </div>
+
+                    </CardContent>
+                  </Card>
                 </CardContent>
                 <div className="flex space-x-4 m-4">
                   <AlertDialog>
@@ -1699,7 +1854,10 @@ export default function DepartmentHeadDashboard() {
 
 
                   <Button variant="outline"
-                          onClick={() => setSelectedRequest(null)}
+                          onClick={() => {
+                            setSelectedRequest(null)
+                            setComments([]);
+                          }}
                           className="flex-1"
                   >
                     Закрыть
