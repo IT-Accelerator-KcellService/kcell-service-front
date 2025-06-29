@@ -20,13 +20,17 @@ import {
   Star,
   Plus,
   Camera,
-  MapPin, Loader2, Calendar, ImageIcon, Zap, AlertCircle,
+  MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
 import axios from 'axios';
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import {ru} from "date-fns/locale";
+import {format} from "date-fns";
+import {Calendar} from "@/components/ui/calendar";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -58,7 +62,7 @@ interface Request {
   location: string;
   location_detail: string;
   created_date: string;
-  executor?: string;
+  executor: { user: {full_name: any} };
   rating?: number;
   category_id?: number;
   photos?: { photo_url: string }[];
@@ -112,6 +116,8 @@ export default function AdminWorkerDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
+
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -533,7 +539,7 @@ export default function AdminWorkerDashboard() {
       case "urgent":
         return <AlertCircle className="w-3 h-3" />
       case "planned":
-        return <Calendar className="w-3 h-3" />
+        return <CalendarLucid className="w-3 h-3" />
       case "normal":
         return <Clock className="w-3 h-3" />
       default:
@@ -755,14 +761,14 @@ export default function AdminWorkerDashboard() {
                                 </div>
 
                                 <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
                                   <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                                 </div>
 
-                                {request.executor_id ? (
+                                {request.executor.user.full_name ? (
                                     <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                       <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                      <span className="truncate font-medium">{request.executor_id}</span>
+                                      <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1256,9 +1262,6 @@ export default function AdminWorkerDashboard() {
                       <XCircle className="w-4 h-4 mr-2" />
                       Отклонить
                     </Button>  </>)}
-                    <Button variant="outline" onClick={() => setSelectedRequest(null)}>
-                      Закрыть
-                    </Button>
                   </div>
                   {selectedRequest.status==="in_progress" && (
                   <div className="mt-4">
@@ -1337,6 +1340,13 @@ export default function AdminWorkerDashboard() {
 
                     </CardContent>
                   </Card>
+                  <div className="flex items-center">
+                    <div className="ml-auto">
+                      <Button variant="outline" onClick={() => setSelectedRequest(null)}>
+                        Закрыть
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -1493,13 +1503,32 @@ export default function AdminWorkerDashboard() {
 
                   {newRequestType === "planned" && (
                       <div>
-                        <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
-                        <Input
-                            id="newRequestPlannedDate"
-                            type="date"
-                            value={newRequestPlannedDate}
-                            onChange={(e) => setNewRequestPlannedDate(e.target.value)}
-                        />
+                        <div className="grid gap-2">
+                          <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                  variant="outline"
+                                  className="w-full justify-start text-left font-normal"
+                              >
+                                {date ? format(date, "dd MMMM yyyy", { locale: ru }) : <span>Выберите дату</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <Calendar
+                                  mode="single"
+                                  selected={date}
+                                  onSelect={(selectedDate) => {
+                                    if (selectedDate) {
+                                      setNewRequestPlannedDate(selectedDate.toISOString().split("T")[0])
+                                    }
+                                  }}
+                                  initialFocus
+                                  locale={ru}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </div>
                   )}
 

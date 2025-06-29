@@ -722,10 +722,10 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              {request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -876,10 +876,10 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              {request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1034,10 +1034,10 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              {request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
