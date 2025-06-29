@@ -24,7 +24,15 @@ const Header: React.FC<HeaderProps> = ({
                                            role = "Клиент",
                                        }) => {
     const [isModalOpen, setIsModalOpen] = React.useState(false);
-    const [allNotifications, setAllNotifications] = React.useState([]);
+    const [allNotifications, setAllNotifications] = React.useState<any[]>([]);
+
+    React.useEffect(() => {//непрочитанный сообщениені көрсетуге
+        api.get("/notifications/me")
+            .then(res => res.data)
+            .then(setAllNotifications)
+            .catch(console.error);
+    }, []);
+
 
     React.useEffect(() => {
       if (isModalOpen) {
@@ -34,6 +42,8 @@ const Header: React.FC<HeaderProps> = ({
           .catch(console.error);
       }
     }, [isModalOpen]);
+
+    const unreadNotificationCount = allNotifications.filter((n) => !n.is_read).length;
 
     const handleNotificationClick = async (notification:any) => {
         if (!notification.is_read) {
@@ -64,14 +74,15 @@ const Header: React.FC<HeaderProps> = ({
                         <span className="font-bold text-xl text-gray-900">Kcell Service</span>
                     </div>
                     <div className="flex items-center space-x-4">
-                        <Button variant="ghost" size="sm" onClick={() => setIsModalOpen(true)}>
+                        <Button variant="ghost" size="sm" onClick={() => setIsModalOpen(true)} className="relative">
                             <Bell className="w-5 h-5" />
-                            {notificationCount > 0 && (
-                                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-1">
-                  {notificationCount}
+                            {unreadNotificationCount > 0 && (
+                                <span className="absolute top-0 right-0 translate-x-1/5 -translate-y-1/5 bg-red-500 text-white text-xs rounded-full px-1 py-0.5 min-w-[1rem] text-center">
+                    {unreadNotificationCount}
                 </span>
                             )}
                         </Button>
+
                         <div className="flex items-center space-x-2">
                             <Button variant="ghost" size="sm" onClick={() => setShowProfile(true)}>
                                 <User className="w-5 h-5 text-gray-600" />
