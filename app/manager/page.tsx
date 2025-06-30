@@ -71,6 +71,14 @@ type User = {
   role: string;
 }
 
+interface Comment {
+  id: number,
+  request_id: number,
+  sender_id: number,
+  comment: string,
+  timestamp: Date
+}
+
 export default function ManagerDashboard() {
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
@@ -111,6 +119,7 @@ export default function ManagerDashboard() {
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [newUser, setNewUser] = useState({
     id: 0,
     email: "",
@@ -353,8 +362,39 @@ export default function ManagerDashboard() {
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
+      setEditCommentId(null);
+      setComment("")
     } catch (err) {
       console.error("Ошибка при удалении", err);
+    }
+  };
+  const handleSend = () => {
+    if (comment.trim() === "") return;
+
+    if (editCommentId) {
+      // редактируем существующий комментарий
+      api
+          .put(`/comments/${editCommentId}`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
     }
   };
 
@@ -368,29 +408,6 @@ export default function ManagerDashboard() {
       fetchComments();
     }
   }, [selectedTaskDetails]);
-
-  const handleSend = async () => {
-    if (!comment.trim()) return;
-
-    try {
-      if (editCommentId) {
-        await api.put(`/comments/${editCommentId}`, {
-          comment: comment.trim(),
-          request_id: selectedTaskDetails.id,
-        });
-        setEditCommentId(null);
-      } else {
-        await api.post(`/comments`, {
-          comment: comment.trim(),
-          request_id: selectedTaskDetails.id,
-        });
-      }
-      setComment("");
-      fetchComments();
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err);
-    }
-  };
 
   const handleOpenCreateRequest = () => {
     if (navigator.geolocation) {
@@ -851,10 +868,6 @@ export default function ManagerDashboard() {
           <TabsContent value="requests">
             <div className="space-y-4">
               <div className="flex items-center space-x-4 mb-4">
-                <Button variant="outline" size="sm">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Фильтр
-                </Button>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Статус" />
@@ -864,6 +877,8 @@ export default function ManagerDashboard() {
                     <SelectItem value="in_progress">В обработке</SelectItem>
                     <SelectItem value="execution">Исполнение</SelectItem>
                     <SelectItem value="completed">Завершено</SelectItem>
+                    <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                    <SelectItem value="assigned">Назначен</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={filterType} onValueChange={setFilterType}>
@@ -874,7 +889,7 @@ export default function ManagerDashboard() {
                     <SelectItem value="all">Все</SelectItem>
                     <SelectItem value="normal">Обычная</SelectItem>
                     <SelectItem value="urgent">Экстренная</SelectItem>
-                    <SelectItem value="planed">Плановая</SelectItem>
+                    <SelectItem value="planned">Плановая</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1646,12 +1661,38 @@ export default function ManagerDashboard() {
                                       >
                                         Изменить
                                       </button>
-                                      <button
-                                          onClick={() => handleDelete(c.id)}
-                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                      >
-                                        Удалить
-                                      </button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <button
+                                              onClick={() => setCommentToDelete(c)}
+                                              className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                          >
+                                            Удалить
+                                          </button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
+                                              <strong>{commentToDelete?.comment}</strong>?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => {
+                                                  if (commentToDelete) {
+                                                    handleDelete(commentToDelete.id);
+                                                    setCommentToDelete(null);
+                                                  }
+                                                }}
+                                            >
+                                              Удалить
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
                                     </div>
                                 )}
 

@@ -31,6 +31,15 @@ import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {ru} from "date-fns/locale";
 import {format} from "date-fns";
 import {Calendar} from "@/components/ui/calendar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -80,6 +89,14 @@ const roleTranslations: Record<string, string> = {
   manager: "Руководитель"
 };
 
+interface Comment {
+  id: number,
+  request_id: number,
+  sender_id: number,
+  comment: string,
+  timestamp: Date
+}
+
 export default function AdminWorkerDashboard() {
   const [activeTab, setActiveTab] = useState("incoming");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
@@ -121,7 +138,11 @@ export default function AdminWorkerDashboard() {
   const [notifications, setNotifications] = useState([])
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [filterMyStatus, setFilterMyStatus] = useState("all")
+  const [filterMyType, setFilterMyType] = useState("all")
+  const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
+  const [filterIncomingType, setFilterIncomingType] = useState("all")
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -146,6 +167,36 @@ export default function AdminWorkerDashboard() {
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
+
+  const filteredMyRequests = myRequests
+      .filter((request) => {
+        const statusMatch = filterMyStatus === "all" || request.status === filterMyStatus
+        const requestType = request.request_type
+        const typeMatch = filterMyType === "all" || requestType === filterMyType
+        return statusMatch && typeMatch
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        const safeDateA = isNaN(dateA) ? 0 : dateA;
+        const safeDateB = isNaN(dateB) ? 0 : dateB;
+        return safeDateB - safeDateA;
+      });
+
+  const filteredIncomingRequests = incomingRequests
+      .filter((request) => {
+        const statusMatch = filterIncomingStatus === "all" || request.status === filterIncomingStatus
+        const requestType = request.request_type
+        const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType
+        return statusMatch && typeMatch
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        const safeDateA = isNaN(dateA) ? 0 : dateA;
+        const safeDateB = isNaN(dateB) ? 0 : dateB;
+        return safeDateB - safeDateA;
+      });
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -264,41 +315,50 @@ export default function AdminWorkerDashboard() {
       console.error("Ошибка при загрузке комментариев", err);
     }
   };
+
   const handleDelete = async (id: number) => {
-    //if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
+      setEditCommentId(null);
+      setComment("")
     } catch (err) {
       console.error("Ошибка при удалении", err);
     }
   };
-  const handleSend = async () => {
+
+  const handleSend = () => {
     if (comment.trim() === "") return;
 
-    try {
-      if (editCommentId) {
-        await api.put(`/comments/${editCommentId}`, {
-          comment: comment.trim(),
-          request_id: selectedRequest.id,
-        });
-        setEditCommentId(null);
-      } else {
-        await api.post(`/comments`, {
-          comment: comment.trim(),
-          request_id: selectedRequest.id,
-        });
-      }
-      setComment("");
-      fetchComments();
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err);
+    if (editCommentId) {
+      api
+          .put(`/comments/${editCommentId}`, {
+            comment: comment.trim(),
+            request_id: selectedRequest.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedRequest.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
     }
   };
 
   const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);       // заполняем поле ввода
-    setEditCommentId(id);         // запоминаем какой комментарий редактируем
+    setComment(oldComment);
+    setEditCommentId(id);
   };
 
   useEffect(() => {
@@ -640,6 +700,29 @@ export default function AdminWorkerDashboard() {
     ))
   }
 
+  const newRequestsLength =
+      incomingRequests.filter(req => req.status === "in_progress").length +
+      myRequests.filter(req => req.status === "in_progress").length
+
+  const executionRequestsLength =
+      myRequests.filter(req => req.status === "execution").length +
+      incomingRequests.filter(req => req.status === "execution").length
+
+  const completedRequestsLength =
+      myRequests.filter(req => req.status === "completed").length +
+      incomingRequests.filter(req => req.status === "completed").length
+
+  const expiredRequestsLength =
+      myRequests.filter(req =>
+          req.status === "execution" &&
+          req.planned_date &&
+          new Date(req.planned_date) < new Date()
+      ).length +
+      incomingRequests.filter(req =>
+          req.status === "execution" &&
+          req.planned_date &&
+          new Date(req.planned_date) < new Date()
+      ).length
 
   return (
       <div className="min-h-screen bg-gray-50">
@@ -663,7 +746,7 @@ export default function AdminWorkerDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Новые заявки</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {incomingRequests.filter(req => req.status === "draft" || req.status === "in_progress").length}
+                      {newRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -678,7 +761,7 @@ export default function AdminWorkerDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">В работе</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req => req.status === "execution").length}
+                      {executionRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -693,7 +776,7 @@ export default function AdminWorkerDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Завершено</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req => req.status === "completed").length}
+                      {completedRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -708,11 +791,7 @@ export default function AdminWorkerDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Просрочено</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req =>
-                          req.status === "in_execution" &&
-                          req.planned_date &&
-                          new Date(req.planned_date) < new Date()
-                      ).length}
+                      {expiredRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -741,65 +820,189 @@ export default function AdminWorkerDashboard() {
 
                 <TabsContent value="my-requests">
                   <div className="space-y-4">
-                    {myRequests.map((request) => (
-                        <Card
-                            key={request.id}
-                            className="hover:shadow-md transition-shadow cursor-pointer"
-                            onClick={() => setSelectedRequest(request)}
-                        >
-                          <CardContent className="p-6 relative">
-                            {/* ОЦЕНКА В ПРАВОМ ВЕРХНЕМ УГЛУ */}
-                            {request.status === "completed" && !userRatings[request.id] && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute top-2 right-2"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setRequestToRate(request);
-                                      setShowRatingModal(true);
-                                    }}
-                                >
-                                  <Star className="w-5 h-5 text-yellow-500" />
-                                </Button>
-                            )}
-
-                            <div className="flex justify-between items-start mb-4">
-                              <div>
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <Badge className={getTypeColor(request.request_type)}>
-                                    {translateType(request.request_type)}
-                                  </Badge>
-                                  <Badge variant="outline" className={getStatusColor(request.status)}>
+                    <div className="flex items-center space-x-4 mb-4">
+                      <Select value={filterMyStatus} onValueChange={setFilterMyStatus}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Статус" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="execution">Исполнение</SelectItem>
+                          <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="assigned">Назнечено</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterMyType} onValueChange={setFilterMyType}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Тип заявки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="normal">Обычная</SelectItem>
+                          <SelectItem value="urgent">Экстренная</SelectItem>
+                          <SelectItem value="planned">Плановая</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredMyRequests.map((request, index: number) => (
+                          <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                                onClick={() => setSelectedRequest(request)}>
+                            {/* Заголовок с ID и статусами */}
+                            <CardHeader className="pb-3 px-5 pt-5">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+                                  <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                  #{request.id}
+                                </span>
+                                    <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                  {request.category.name}
+                                </span>
+                                  </div>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Badge
+                                      variant="outline"
+                                      className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
+                                  >
+                                    {getStatusIcon(request.status)}
                                     {translateStatus(request.status)}
                                   </Badge>
-                                  <span className="text-sm text-gray-500">#{request.id}</span>
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
-                                <div className="flex items-center text-sm text-gray-600 space-x-4">
-                                  <div className="flex items-center">
-                                    <MapPin className="w-4 h-4 mr-1" />
-                                    {request.location_detail || request.location}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Clock className="w-4 h-4 mr-1" />
-                                    {new Date(request.created_date).toLocaleString("ru-RU")}
-                                  </div>
                                 </div>
                               </div>
-                            </div>
+                            </CardHeader>
 
-                            <p className="text-sm text-gray-700">{request.description}</p>
-                          </CardContent>
-                        </Card>
-                    ))}
+                            <CardContent className="px-5 pb-5 pt-0 space-y-3">
+                              {/* Описание */}
+                              <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
+
+                              {/* Основная информация в сетке */}
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                  <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <span className="truncate font-medium">{request.location_detail}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                  <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <span className="truncate font-medium">{formatDate(request.created_date)}</span>
+                                </div>
+
+                                {request.executor && request.executor.user.full_name ? (
+                                    <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                      <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                      <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                      <User className="w-4 h-4 flex-shrink-0" />
+                                      <span className="truncate font-medium">Не назначен</span>
+                                    </div>
+                                )}
+
+                                {userRatings[request.id]?.rating ? (
+                                    <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
+                                      {renderStars(userRatings[request.id].rating)}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                      <span className="text-sm font-medium">Без оценки</span>
+                                    </div>
+                                )}
+                              </div>
+
+                              {/* Фотографии */}
+                              {request.photos && request.photos.length > 0 && (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <ImageIcon className="w-4 h-4 text-purple-500" />
+                                      <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
+                                    </div>
+                                    <div className="flex gap-2 overflow-x-auto">
+                                      {request.photos.slice(0, 4).map((photo, index) => (
+                                          <div key={index} className="flex-shrink-0">
+                                            <img
+                                                src={photo.photo_url || "/placeholder.svg"}
+                                                alt={`Фото ${index + 1}`}
+                                                className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
+                                                onError={(e) => {
+                                                  e.currentTarget.src = `/placeholder.svg?height=48&width=48`
+                                                }}
+                                            />
+                                          </div>
+                                      ))}
+                                      {request.photos.length > 4 && (
+                                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                                            <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+                                          </div>
+                                      )}
+                                    </div>
+                                  </div>
+                              )}
+
+                              {/* Нижняя панель */}
+                              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                                <div className="flex gap-2">
+                                  <Badge
+                                      variant="outline"
+                                      className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
+                                  >
+                                    {getRequestTypeIcon(request.request_type)}
+                                    {translateType(request.request_type)}
+                                  </Badge>
+                                  {request.complexity && request.complexity !== "" && (
+                                      <Badge
+                                          variant="outline"
+                                          className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                      >
+                                        {translateComplexity(request.complexity)}
+                                      </Badge>
+                                  )}
+                                </div>
+
+                                <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                      ))}
+                    </div>
                   </div>
                 </TabsContent>
 
                 <TabsContent value="incoming">
                   <div className="space-y-4">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <Select value={filterIncomingStatus} onValueChange={setFilterIncomingStatus}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Статус" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="execution">Исполнение</SelectItem>
+                          <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="assigned">Назнечено</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterIncomingType} onValueChange={setFilterIncomingType}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Тип заявки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="normal">Обычная</SelectItem>
+                          <SelectItem value="urgent">Экстренная</SelectItem>
+                          <SelectItem value="planned">Плановая</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {incomingRequests.map((request, index: number) => (
+                      {filteredIncomingRequests.map((request, index: number) => (
                           <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
                                 onClick={() => setSelectedRequest(request)}>
                             {/* Заголовок с ID и статусами */}
@@ -940,23 +1143,19 @@ export default function AdminWorkerDashboard() {
                           <div className="flex justify-between items-center">
                             <span>Завершено</span>
                             <span className="font-bold text-green-600">
-                            {myRequests.filter(req => req.status === "completed").length}
+                            {completedRequestsLength}
                           </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>В работе</span>
                             <span className="font-bold text-blue-600">
-                            {myRequests.filter(req => req.status === "in_execution").length}
+                            {executionRequestsLength}
                           </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Просрочено</span>
                             <span className="font-bold text-red-600">
-                            {myRequests.filter(req =>
-                                req.status === "in_execution" &&
-                                req.planned_date &&
-                                new Date(req.planned_date) < new Date()
-                            ).length}
+                            {expiredRequestsLength}
                           </span>
                           </div>
                         </div>
@@ -1302,18 +1501,6 @@ export default function AdminWorkerDashboard() {
                         />
                       </div>
                   )}
-                  {selectedRequest.status === "completed" && (
-                    <Button
-                        onClick={() => {
-                          setRequestToRate(selectedRequest);
-                          setShowRatingModal(true);
-                        }}
-                        className="mt-4"
-                    >
-                      <Star className="w-4 h-4 mr-2" />
-                      Оценить
-                    </Button>
-                )}
                   <div className="flex space-x-4">
                     {selectedRequest.status==="in_progress" && (<>
                       <Button
@@ -1377,12 +1564,38 @@ export default function AdminWorkerDashboard() {
                                   >
                                     Изменить
                                   </button>
-                                  <button
-                                      onClick={() => handleDelete(c.id)}
-                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                  >
-                                    Удалить
-                                  </button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <button
+                                          onClick={() => setCommentToDelete(c)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                      >
+                                        Удалить
+                                      </button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
+                                          <strong>{commentToDelete?.comment}</strong>?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => {
+                                              if (commentToDelete) {
+                                                handleDelete(commentToDelete.id);
+                                                setCommentToDelete(null);
+                                              }
+                                            }}
+                                        >
+                                          Удалить
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </div>
                             )}
 
@@ -1419,15 +1632,25 @@ export default function AdminWorkerDashboard() {
 
                     </CardContent>
                   </Card>
-                  <div className="flex items-center">
-                    <div className="ml-auto">
-                      <Button variant="outline" onClick={() => {
-                        setSelectedRequest(null)
-                        setComments([]);
-                      }}>
-                        Закрыть
-                      </Button>
-                    </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => {
+                      setSelectedRequest(null)
+                      setComments([])
+                    }}>
+                      Закрыть
+                    </Button>
+                    {selectedRequest.status === "completed" && !userRatings[selectedRequest.id] && (
+                        <Button
+                            onClick={() => {
+                              setRequestToRate(selectedRequest)
+                              setShowRatingModal(true)
+                              setSelectedRequest(null)
+                            }}
+                        >
+                          <Star className="w-4 h-4 mr-2" />
+                          Оценить
+                        </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
