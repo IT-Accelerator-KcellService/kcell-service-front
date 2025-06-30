@@ -112,6 +112,7 @@ export default function ManagerDashboard() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
   const [newUser, setNewUser] = useState({
+    id: 0,
     email: "",
     full_name: "",
     office_id: "",
@@ -124,7 +125,7 @@ export default function ManagerDashboard() {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-        const response = await api.get("/api/users");
+        const response = await api.get("/users");
         setUsers(response.data);
       } catch (err) {
         console.error("Ошибка при получении пользователей:", err);
@@ -142,18 +143,17 @@ export default function ManagerDashboard() {
 
       if (editingUserId) {
         // Обновить пользователя
-        const response = await api.put(`/api/users/${editingUserId}`, newUser);
+        const response = await api.put(`/users/${editingUserId}`, newUser);
         setUsers((prev) =>
             prev.map((user) => (user.id === editingUserId ? response.data : user))
         );
       } else {
         // Добавить нового пользователя
-        const response = await api.post("/api/users", newUser);
-        setUsers((prev) => [...prev, response.data]);
+        const response = await api.post("/users", newUser);
+        setUsers(prev => [...prev, newUser]);
       }
 
-      // Очистить форму
-      setNewUser({ email: "", full_name: "", office_id: "", role: "" });
+      setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "" });
       setEditingUserId(null);
     } catch (err) {
       console.error("Ошибка при сохранении пользователя:", err);
@@ -186,7 +186,7 @@ export default function ManagerDashboard() {
   const handleDeleteUser = async (userId: number) => {
     try {
       setLoading(true);
-      await api.delete(`/api/users/${userId}`);
+      await api.delete(`/users/${userId}`);
       setUsers((prev) => prev.filter((user) => user.id !== userId));
     } catch (err) {
       console.error("Ошибка при удалении пользователя:", err);
@@ -203,6 +203,7 @@ export default function ManagerDashboard() {
 
   const handleEditUser = (user: User) => {
     setNewUser({
+      id: user.id,
       email: user.email,
       full_name: user.full_name,
       office_id: user.office_id,
@@ -1236,7 +1237,7 @@ export default function ManagerDashboard() {
                         <SelectValue placeholder="Роль" />
                       </SelectTrigger>
                       <SelectContent>
-                        {["client", "admin-worker", "department-head", "executor", "manager"].map((role) => (
+                        {["client", "admin-worker", "department-head", "manager"].map((role) => (
                             <SelectItem key={role} value={role}>
                               {role}
                             </SelectItem>
@@ -1258,16 +1259,16 @@ export default function ManagerDashboard() {
                         <p className="text-sm text-gray-500 italic">Нет пользователей.</p>
                     ) : (
                         <div className="grid grid-cols-1 gap-2">
-                          {users.map((user: any) => (
+                          {users.map((user: any, index: number) => (
                               <div
-                                  key={user.id}
+                                  key={index}
                                   className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
                               >
                                 <div>
                                   <div className="font-semibold text-gray-800">{user.full_name}</div>
                                   <div className="text-sm text-gray-500">{user.email}</div>
                                   <div className="text-xs text-gray-400">
-                                    {user.role} — {user.office.name}
+                                    {user.role} — {user.full_name}
                                   </div>
                                 </div>
                                 <div className="flex space-x-2">
