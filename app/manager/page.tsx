@@ -120,6 +120,9 @@ export default function ManagerDashboard() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
+  const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
+  const [deleteReason, setDeleteReason] = useState("")
   const [newUser, setNewUser] = useState({
     id: 0,
     email: "",
@@ -250,6 +253,24 @@ export default function ManagerDashboard() {
     }
   }
 
+  const handleDeleteRequest = (request: Request) => {
+    setRequestToDelete(request)
+    setShowDeleteRequestModal(true)
+  }
+
+  const confirmDeleteRequest = async () => {
+    if (requestToDelete) {
+      try {
+        await api.delete(`/requests/${requestToDelete.id}`)
+        fetchRequests()
+        setShowDeleteRequestModal(false)
+        setRequestToDelete(null)
+        setDeleteReason("")
+      } catch (error) {
+        console.error("Failed to delete request:", error)
+      }
+    }
+  }
 
   const handleCreateRequest = async () => {
     if (
@@ -1732,6 +1753,36 @@ export default function ManagerDashboard() {
                     </div>
                 )}
                 <div className="flex justify-end mt-6">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="flex-1 mr-2">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Удалить
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Это действие необратимо. Вы точно хотите удалить заявку{" "}
+                          <strong>{selectedTaskDetails?.title}</strong>?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                              if (selectedTaskDetails) {
+                                handleDeleteRequest(selectedTaskDetails)
+                                setSelectedTaskDetails(null)
+                              }
+                            }}
+                        >
+                          Удалить
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <Button variant="outline" onClick={() => {
                     setSelectedTaskDetails(null)
                     setComments([])
@@ -1770,6 +1821,47 @@ export default function ManagerDashboard() {
                   Закрыть
                 </Button>
               </div>
+            </Card>
+          </div>
+      )}
+
+      {/* Delete Request Confirmation Modal */}
+      {showDeleteRequestModal && requestToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Удалить заявку #{requestToDelete.id}?</CardTitle>
+                <CardDescription>
+                  Вы уверены, что хотите удалить заявку "{requestToDelete.title}"? Это действие необратимо.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="deleteReason">Причина удаления</Label>
+                  <Textarea
+                      id="deleteReason"
+                      placeholder="Укажите причину удаления заявки..."
+                      value={deleteReason}
+                      onChange={(e) => setDeleteReason(e.target.value)}
+                      className="min-h-[80px]"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowDeleteRequestModal(false)
+                        setRequestToDelete(null)
+                        setDeleteReason("")
+                      }}
+                  >
+                    Отмена
+                  </Button>
+                  <Button variant="destructive" onClick={confirmDeleteRequest} disabled={!deleteReason.trim()}>
+                    Удалить
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           </div>
       )}

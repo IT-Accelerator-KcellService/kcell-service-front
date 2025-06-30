@@ -412,8 +412,8 @@ export default function AdminWorkerDashboard() {
         status: "rejected",
         rejection_reason: rejectionReason
       });
-      fetchRequests();
       setSelectedRequest(null);
+      fetchRequests();
       setRejectionReason("");
     } catch (error) {
       console.error("Failed to reject request:", error);

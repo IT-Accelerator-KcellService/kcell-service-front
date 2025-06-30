@@ -148,9 +148,6 @@ export default function DepartmentHeadDashboard() {
   const [executors, setExecutors] = useState<Executor[]>([])
   const [newExecutorName, setNewExecutorName] = useState("")
   const [newExecutorSpecialty, setNewExecutorSpecialty] = useState("")
-  const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
-  const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
-  const [deleteReason, setDeleteReason] = useState("")
   const [selectedExecutorId, setSelectedExecutorId] = useState<number | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [photos, setPhotos] = useState<File[]>([]);
@@ -610,7 +607,6 @@ export default function DepartmentHeadDashboard() {
         setShowRatingModal(false)
         setRatingValue(0)
         setRequestToRate(null)
-        alert("Оценка успешно отправлена!")
       } catch (error) {
         console.error("Failed to rate executor:", error)
         alert("Не удалось отправить оценку.")
@@ -628,28 +624,6 @@ export default function DepartmentHeadDashboard() {
       console.error("Logout failed:", error)
     }
   }
-
-
-
-  const handleDeleteRequest = (request: Request) => {
-    setRequestToDelete(request)
-    setShowDeleteRequestModal(true)
-  }
-
-  const confirmDeleteRequest = async () => {
-    if (requestToDelete) {
-      try {
-        await api.delete(`/requests/${requestToDelete.id}`)
-        fetchRequests()
-        setShowDeleteRequestModal(false)
-        setRequestToDelete(null)
-        setDeleteReason("")
-      } catch (error) {
-        console.error("Failed to delete request:", error)
-      }
-    }
-  }
-
 
   const handleRemoveExecutor = async (executorId: number) => {
     try {
@@ -1885,38 +1859,6 @@ export default function DepartmentHeadDashboard() {
                   </Card>
                 </CardContent>
                 <div className="flex space-x-4 m-4">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="flex-1">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Удалить
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Это действие необратимо. Вы точно хотите удалить заявку{" "}
-                          <strong>{selectedRequest?.title}</strong>?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Отмена</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => {
-                              if (selectedRequest) {
-                                handleDeleteRequest(selectedRequest)
-                                setSelectedRequest(null)
-                              }
-                            }}
-                        >
-                          Удалить
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-
-
                   <Button variant="outline"
                           onClick={() => {
                             setSelectedRequest(null)
@@ -2259,48 +2201,6 @@ export default function DepartmentHeadDashboard() {
                     Закрыть
                   </Button>
                 </div>
-              </Card>
-            </div>
-        )}
-
-
-        {/* Delete Request Confirmation Modal */}
-        {showDeleteRequestModal && requestToDelete && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-md">
-                <CardHeader>
-                  <CardTitle>Удалить заявку #{requestToDelete.id}?</CardTitle>
-                  <CardDescription>
-                    Вы уверены, что хотите удалить заявку "{requestToDelete.title}"? Это действие необратимо.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="deleteReason">Причина удаления</Label>
-                    <Textarea
-                        id="deleteReason"
-                        placeholder="Укажите причину удаления заявки..."
-                        value={deleteReason}
-                        onChange={(e) => setDeleteReason(e.target.value)}
-                        className="min-h-[80px]"
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowDeleteRequestModal(false)
-                          setRequestToDelete(null)
-                          setDeleteReason("")
-                        }}
-                    >
-                      Отмена
-                    </Button>
-                    <Button variant="destructive" onClick={confirmDeleteRequest} disabled={!deleteReason.trim()}>
-                      Удалить
-                    </Button>
-                  </div>
-                </CardContent>
               </Card>
             </div>
         )}

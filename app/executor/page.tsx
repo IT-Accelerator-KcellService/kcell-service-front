@@ -129,6 +129,7 @@ export default function ExecutorDashboard() {
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [completeFormErrors, setCompleteFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
@@ -496,11 +497,21 @@ export default function ExecutorDashboard() {
     setAssignedRequests((prevTasks: any) =>
         prevTasks.map((task: any) => (task.id === taskId ? {...task, status: "execution"} : task)),
     )
+    setMyRequests((prevTasks: any) =>
+        prevTasks.map((task: any) => (task.id === taskId ? {...task, status: "execution"} : task)),
+    )
     console.log("Starting task:", taskId)
   }
 
   const handleCompleteTask = async (taskId: string) => {
     try {
+      if (!completedRequestComment.trim()) {
+        setCompleteFormErrors("Пожалуйста, заполните поле и добавьте фото.")
+        setIsSubmitting(false);
+        return
+      }
+
+      setCompleteFormErrors(null)
       // 1. PATCH для завершения задачи
       const response = await api.patch(`/requests/${taskId}/complete`, {
         comment: completedRequestComment
@@ -526,7 +537,12 @@ export default function ExecutorDashboard() {
           alert("Ошибка при загрузке фото. Заявка не была создана.");
           return;
         }
+      } else {
+        setCompleteFormErrors("Пожалуйста, заполните поле и добавьте фото.")
+        setIsSubmitting(false);
+        return
       }
+      setCompleteFormErrors(null)
 
       // 3. Переносим задачу в список завершённых
       setAssignedRequests((prevTasks: any) => {
@@ -553,6 +569,7 @@ export default function ExecutorDashboard() {
       setPhotos([]);
       setPhotoPreviews([]);
       setCompletedRequestComment("");
+      setIsSubmitting(false);
       console.log("Задача успешно завершена:", taskId);
     } catch (error) {
       console.error("Ошибка при завершении задачи", error);
@@ -663,6 +680,28 @@ export default function ExecutorDashboard() {
         <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
     ))
   }
+
+  const completedInTime = completedRequests.filter((req: { actual_completion_date: string | number | Date; sla: { props: { deadline: string | number | Date } } }) => {
+    const completedAt = new Date(req.actual_completion_date);
+    const slaDeadline = new Date(req.sla?.props?.deadline);
+    return completedAt <= slaDeadline;
+  });
+
+  const overdue = completedRequests.length - completedInTime.length;
+
+  const ratings = completedRequests.map((req: { rating: any }) => req.rating).filter(Boolean) as number[];
+  const averageRating = ratings.length
+      ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1)
+      : '—';
+
+  const durations = completedRequests.map((req: { date_submitted: string | number | Date; actual_completion_date: string | number | Date }) => {
+    const submitted = new Date(req.date_submitted).getTime();
+    const completed = new Date(req.actual_completion_date).getTime();
+    return (completed - submitted) / (1000 * 60 * 60); // в часах
+  });
+  const averageDuration = durations.length
+      ? (durations.reduce((sum: any, d: any) => sum + d, 0) / durations.length).toFixed(1)
+      : '—';
 
 
   return (
@@ -1247,7 +1286,32 @@ export default function ExecutorDashboard() {
                                 )}
                               </div>
 
-                              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                              <div>
+                                {request.status === "assigned" && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleStartTask(request.id)
+                                        }}
+                                    >
+                                      Начать
+                                    </Button>
+                                )}
+                                {request.status === "execution" && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-green-600 hover:bg-green-700"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedTask(request)
+                                        }}
+                                    >
+                                      Завершить
+                                    </Button>
+                                )}
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -1261,29 +1325,29 @@ export default function ExecutorDashboard() {
                   <Card>
                     <CardHeader>
                       <CardTitle>Моя статистика</CardTitle>
-                      <CardDescription>Показатели за последние 30 дней</CardDescription>
+                      <CardDescription>Показатели за весь период</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
                           <span>Всего выполнено задач</span>
-                          <span className="font-bold">28</span>
+                          <span className="font-bold">{completedRequests.length}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Выполнено в срок</span>
-                          <span className="font-bold text-green-600">26</span>
+                          <span className="font-bold text-green-600">{completedInTime.length}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Просрочено</span>
-                          <span className="font-bold text-red-600">2</span>
+                          <span className="font-bold text-red-600">{overdue}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Средняя оценка</span>
-                          <span className="font-bold">4.8/5</span>
+                          <span className="font-bold">{averageRating}/5</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Среднее время выполнения</span>
-                          <span className="font-bold">1.8 часа</span>
+                          <span className="font-bold">{averageDuration} часа</span>
                         </div>
                       </div>
                     </CardContent>
@@ -1416,8 +1480,12 @@ export default function ExecutorDashboard() {
 
       {/* Complete Task Modal */}
       {selectedTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+          setSelectedTask(null);
+          setIsSubmitting(false);
+          setCompleteFormErrors("")
+        }}>
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <CardTitle>Завершение задачи #{selectedTask.id}</CardTitle>
               <CardDescription>Подтвердите выполнение работы</CardDescription>
@@ -1475,14 +1543,17 @@ export default function ExecutorDashboard() {
                       </button>
                   )}
                 </div>
+                {completeFormErrors && <p className="text-sm text-red-500 mt-4">{completeFormErrors}</p>}
               </div>
 
               <div className="flex space-x-4">
                 <Button
                   onClick={() => {
                     handleCompleteTask(selectedTask.id)
+                    setIsSubmitting(true)
                   }}
                   className="flex-1 bg-green-600 hover:bg-green-700"
+                  disabled={isSubmitting}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Завершить задачу

@@ -508,7 +508,6 @@ export default function ClientDashboard() {
         setShowRatingModal(false)
         setRatingValue(0)
         setRequestToRate(null)
-        alert("Оценка успешно отправлена!")
       } catch (error) {
         console.error("Failed to rate executor:", error)
         alert("Не удалось отправить оценку.")
@@ -739,7 +738,6 @@ export default function ClientDashboard() {
                         <SelectItem value="in_progress">В обработке</SelectItem>
                         <SelectItem value="execution">Исполнение</SelectItem>
                         <SelectItem value="completed">Завершено</SelectItem>
-                        <SelectItem value="execution">В работе</SelectItem>
                         <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                         <SelectItem value="assigned">Назначен</SelectItem>
                       </SelectContent>
