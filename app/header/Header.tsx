@@ -44,7 +44,6 @@ const Header: React.FC<HeaderProps> = ({
     const [isLoading, setIsLoading] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Основная функция загрузки уведомлений
     const loadNotifications = async (pageNum: number, reset: boolean = false) => {
         if (isLoading) return;
 
@@ -71,19 +70,16 @@ const Header: React.FC<HeaderProps> = ({
         }
     };
 
-    // Загрузка при открытии модального окна
     useEffect(() => {
         if (isModalOpen) {
             loadNotifications(1, true);
         }
     }, [isModalOpen]);
 
-    // Первоначальная загрузка
     useEffect(() => {
         loadNotifications(1, true);
     }, []);
 
-    // Обработчик скролла для подгрузки
     const handleScroll = () => {
         const el = containerRef.current;
         if (!el || isLoading || !hasMore) return;
@@ -96,7 +92,6 @@ const Header: React.FC<HeaderProps> = ({
         }
     };
 
-    // Подписка на скролл
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -105,7 +100,6 @@ const Header: React.FC<HeaderProps> = ({
         return () => el.removeEventListener('scroll', handleScroll);
     }, [isLoading, hasMore, page]);
 
-    // Пометить как прочитанное
     const handleNotificationClick = async (notification: Notification) => {
         if (!notification.is_read) {
             try {
@@ -125,37 +119,49 @@ const Header: React.FC<HeaderProps> = ({
 
     return (
         <>
-            <header className="bg-white shadow-sm border-b">
+            <header className="bg-gradient-to-r from-blue-900 to-blue-800 shadow-sm border-b border-blue-700">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-                                <span className="text-white font-bold">K</span>
+                            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                                <span className="text-blue-600 font-bold">SW</span>
                             </div>
-                            <span className="font-bold text-xl text-gray-900">Kcell Service</span>
+                            <span className="font-bold text-xl text-white">Savanoriu x Workflow</span>
                         </div>
                         <div className="flex items-center space-x-4">
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setIsModalOpen(true)}
-                                className="relative"
+                                className="relative text-white hover:bg-blue-700 hover:text-white"
                             >
                                 <Bell className="w-5 h-5" />
                                 {unreadNotificationCount > 0 && (
                                     <span className="absolute top-0 right-0 translate-x-1/5 -translate-y-1/5 bg-red-500 text-white text-xs rounded-full px-1 py-0.5 min-w-[1rem] text-center">
-                    {unreadNotificationCount}
-                  </span>
+                                        {unreadNotificationCount}
+                                    </span>
                                 )}
                             </Button>
 
                             <div className="flex items-center space-x-2">
-                                <Button variant="ghost" size="sm" onClick={() => setShowProfile(true)}>
-                                    <User className="w-5 h-5 text-gray-600" />
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowProfile(true)}
+                                    className="text-white hover:bg-blue-700 hover:text-white"
+                                >
+                                    <User className="w-5 h-5" />
                                     <span className="text-sm font-medium">Профиль</span>
                                 </Button>
-                                <Badge variant="secondary">{role}</Badge>
-                                <Button variant="ghost" size="sm" onClick={handleLogout}>
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                    {role}
+                                </Badge>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleLogout}
+                                    className="text-white hover:bg-blue-700 hover:text-white"
+                                >
                                     <LogOut className="w-5 h-5" />
                                 </Button>
                             </div>
@@ -188,8 +194,8 @@ const Header: React.FC<HeaderProps> = ({
                                         <p className="text-sm font-medium">{n.title}</p>
                                         {!n.is_read && (
                                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        Новое
-                      </span>
+                                                Новое
+                                            </span>
                                         )}
                                     </div>
                                     <p className="text-xs text-gray-500 mt-1">
@@ -201,7 +207,7 @@ const Header: React.FC<HeaderProps> = ({
                         )}
                         {isLoading && (
                             <div className="flex justify-center py-4">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                             </div>
                         )}
                         {!hasMore && allNotifications.length > 0 && (

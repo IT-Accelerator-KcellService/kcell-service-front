@@ -531,7 +531,7 @@ export default function ClientDashboard() {
         return "bg-emerald-500 text-white border-emerald-500"
       case "in_progress":
       case "execution":
-        return "bg-purple-500 text-white border-purple-500"
+        return "bg-[#003695] text-white border-[#003695]"
       case "awaiting_assignment":
       case "awaiting_sla":
         return "bg-amber-400 text-gray-900 border-amber-400"
@@ -583,7 +583,7 @@ export default function ClientDashboard() {
       case "planned":
         return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
       case "normal":
-        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
+        return "bg-gradient-to-r from-[#003695] to-violet-600 text-white border-[#003695]"
       default:
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
@@ -683,7 +683,7 @@ export default function ClientDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-purple-100 rounded-lg">
-                  <AlertTriangle className="w-6 h-6 text-purple-600" />
+                  <AlertTriangle className="w-6 h-6 text-[#003695]" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Рейтинг</p>
@@ -703,7 +703,7 @@ export default function ClientDashboard() {
                   <TabsTrigger value="requests">Мои заявки</TabsTrigger>
                   <TabsTrigger value="statistics">Статистика</TabsTrigger>
                 </TabsList>
-                <Button onClick={handleOpenCreateRequest} className="bg-violet-600 hover:bg-violet-700">
+                <Button onClick={handleOpenCreateRequest} className="bg-[#003695] hover:bg-[#002b5c]">
                   <Plus className="w-4 h-4 mr-2" />
                   Создать заявку
                 </Button>
@@ -745,7 +745,7 @@ export default function ClientDashboard() {
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
                                 <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                <span className="text-xs font-medium text-[#003695] bg-purple-50 px-2 py-0.5 rounded-full">
                                   #{request.id}
                                 </span>
                                   <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
@@ -772,18 +772,18 @@ export default function ClientDashboard() {
                             {/* Основная информация в сетке */}
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                <MapPin className="w-4 h-4 flex-shrink-0 text-[#003695]" />
                                 <span className="truncate font-medium">{request.location_detail}</span>
                               </div>
 
                               <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                <Calendar className="w-4 h-4 flex-shrink-0 text-[#003695]" />
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
                               {request.executor && request.executor.user ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                    <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                    <User className="w-4 h-4 flex-shrink-0 text-[#003695]" />
                                     <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
@@ -809,7 +809,7 @@ export default function ClientDashboard() {
                             {request.photos && request.photos.length > 0 && (
                                 <div className="space-y-2">
                                   <div className="flex items-center gap-2">
-                                    <ImageIcon className="w-4 h-4 text-purple-500" />
+                                    <ImageIcon className="w-4 h-4 text-[#003695]" />
                                     <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
                                   </div>
                                   <div className="flex gap-2 overflow-x-auto">
@@ -826,7 +826,7 @@ export default function ClientDashboard() {
                                         </div>
                                     ))}
                                     {request.photos.length > 4 && (
-                                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-[#003695] to-[#002b5c] border-2 border-purple-200 flex items-center justify-center shadow-sm">
                                           <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
                                         </div>
                                     )}
@@ -1079,7 +1079,7 @@ export default function ClientDashboard() {
                           <button
                               type="button"
                               onClick={handleButtonClick}
-                              className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
+                              className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:bg-[#002b5c] transition-colors"
                           >
                             <input
                                 type="file"
@@ -1098,7 +1098,7 @@ export default function ClientDashboard() {
                   <div className="flex space-x-4">
                     <Button
                         onClick={handleCreateRequest}
-                        className="flex-1 bg-violet-600 hover:bg-violet-700"
+                        className="flex-1 bg-[#003695] hover:bg-[#002b5c]"
                         disabled={isSubmitting}
                     >
                       {isSubmitting ? (
@@ -1443,7 +1443,7 @@ export default function ClientDashboard() {
               <Button
                 onClick={handleRateExecutor}
                 disabled={ratingValue === 0}
-                className="w-full bg-violet-600 hover:bg-violet-700"
+                className="w-full bg-[#003695] hover:"
               >
                 Отправить оценку
               </Button>

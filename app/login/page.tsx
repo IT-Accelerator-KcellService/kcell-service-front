@@ -66,16 +66,16 @@ export default function LoginPage() {
   }
 
   return (
-      <div className="min-h-screen bg-gradient-to-br from-violet-600 via-purple-600 to-violet-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-950 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                <span className="text-violet-600 font-bold text-2xl">K</span>
+              <div className="w-14 h-12 bg-white rounded-xl flex items-center justify-center">
+                <span className="text-blue-600 font-bold text-2xl">SW</span>
               </div>
-              <span className="text-white font-bold text-2xl">Kcell Service</span>
+              <span className="text-white font-bold text-2xl">Savanoriu x Workflow</span>
             </div>
-            <p className="text-violet-100">Система управления сервисными заявками</p>
+            <p className="text-blue-100">Система управления сервисными заявками</p>
           </div>
 
           <Card className="border-0 shadow-2xl">
@@ -114,7 +114,7 @@ export default function LoginPage() {
 
               <Button
                   onClick={handleLogin}
-                  className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl text-lg font-semibold"
+                  className="w-full bg-blue-700 hover:bg-blue-800 text-white py-3 rounded-xl text-lg font-semibold"
               >
                 {isLogin ? "Войти" : "Зарегистрироваться"}
               </Button>

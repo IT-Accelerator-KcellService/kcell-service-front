@@ -546,7 +546,7 @@ export default function AdminWorkerDashboard() {
         return "bg-emerald-500 text-white border-emerald-500"
       case "in_progress":
       case "execution":
-        return "bg-purple-500 text-white border-purple-500"
+        return "bg-[#003695] text-white border-[#003695]"
       case "awaiting_assignment":
       case "awaiting_sla":
         return "bg-amber-400 text-gray-900 border-amber-400"
@@ -585,7 +585,7 @@ export default function AdminWorkerDashboard() {
       case "medium":
         return "bg-gradient-to-r from-orange-400 to-yellow-400 text-gray-900 border-orange-400"
       case "simple":
-        return "bg-gradient-to-r from-purple-400 to-violet-400 text-white border-purple-400"
+        return "bg-gradient-to-r from-[#003695] to-violet-400 text-white border-[#003695]"
       default:
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
@@ -598,7 +598,7 @@ export default function AdminWorkerDashboard() {
       case "planned":
         return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
       case "normal":
-        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
+        return "bg-gradient-to-r from-[#003695] to-violet-600 text-white border-[#003695]"
       default:
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
@@ -627,7 +627,7 @@ export default function AdminWorkerDashboard() {
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
-        <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
+        <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-[#003695] text-[#003695]" : "text-gray-300"}`} />
     ))
   }
 
@@ -791,7 +791,7 @@ export default function AdminWorkerDashboard() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {incomingRequests.map((request, index: number) => (
-                          <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                          <Card key={index} className="hover:shadow-xl hover:shadow-[#003695]/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
                                 onClick={() => setSelectedRequest(request)}>
                             {/* Заголовок с ID и статусами */}
                             <CardHeader className="pb-3 px-5 pt-5">
@@ -799,7 +799,7 @@ export default function AdminWorkerDashboard() {
                                 <div className="flex-1 min-w-0">
                                   <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
                                   <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                <span className="text-xs font-medium text-[#003695] bg-[#003695] px-2 py-0.5 rounded-full">
                                   #{request.id}
                                 </span>
                                     <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
@@ -826,18 +826,18 @@ export default function AdminWorkerDashboard() {
                               {/* Основная информация в сетке */}
                               <div className="grid grid-cols-2 gap-2 text-sm">
                                 <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <MapPin className="w-4 h-4 flex-shrink-0 text-[#003695]" />
                                   <span className="truncate font-medium">{request.location_detail}</span>
                                 </div>
 
                                 <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <CalendarLucid className="w-4 h-4 flex-shrink-0 text-[#003695]" />
                                   <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                                 </div>
 
                                 {request.executor && request.executor.user.full_name ? (
                                     <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                      <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                      <User className="w-4 h-4 flex-shrink-0 text-[#003695]" />
                                       <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                     </div>
                                 ) : (
@@ -862,7 +862,7 @@ export default function AdminWorkerDashboard() {
                               {request.photos && request.photos.length > 0 && (
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2">
-                                      <ImageIcon className="w-4 h-4 text-purple-500" />
+                                      <ImageIcon className="w-4 h-4 text-[#003695]" />
                                       <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
                                     </div>
                                     <div className="flex gap-2 overflow-x-auto">
@@ -871,7 +871,7 @@ export default function AdminWorkerDashboard() {
                                             <img
                                                 src={photo.photo_url || "/placeholder.svg"}
                                                 alt={`Фото ${index + 1}`}
-                                                className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
+                                                className="w-12 h-12 rounded-lg object-cover border-2 border-[#003695] shadow-sm"
                                                 onError={(e) => {
                                                   e.currentTarget.src = `/placeholder.svg?height=48&width=48`
                                                 }}
@@ -879,7 +879,7 @@ export default function AdminWorkerDashboard() {
                                           </div>
                                       ))}
                                       {request.photos.length > 4 && (
-                                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-[#003695] to-[#003695] border-2 border-[#003695] flex items-center justify-center shadow-sm">
                                             <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
                                           </div>
                                       )}
