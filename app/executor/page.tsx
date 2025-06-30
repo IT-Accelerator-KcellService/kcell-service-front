@@ -500,13 +500,14 @@ export default function ExecutorDashboard() {
         formData.append('type', 'after');
 
         try {
-          await api.post(`/request-photos/${response.data.id}/photos`, formData);
-
-          console.log("Фотографии успешно загружены");
+          await axios.post(`${API_BASE_URL}/request-photos/${response.data.id}/photos`, formData, {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
         } catch (photoUploadError) {
-          // если загрузка фото не удалась — удаляем созданную заявку
           await api.delete(`/requests/${response.data.id}`);
-          console.error("Ошибка при загрузке фото. Заявка удалена.");
           alert("Ошибка при загрузке фото. Заявка не была создана.");
           return;
         }
