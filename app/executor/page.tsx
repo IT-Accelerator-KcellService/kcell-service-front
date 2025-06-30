@@ -133,6 +133,7 @@ export default function ExecutorDashboard() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [myRating, setMyRating] = useState<number | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -414,8 +415,9 @@ export default function ExecutorDashboard() {
   const fetchRequests = async () => {
     try {
       const response = await api.get('requests/executor/me')
-      console.log(response)
       const responseRating = await api.get('ratings/executor')
+      const responseMyRating = await api.get('executors/average-rating')
+      setMyRating(responseMyRating.data.average_rating)
       const ratingsMap = new Map<number, number>()
       for (const r of responseRating.data) {
         ratingsMap.set(r.request_id, parseFloat(r.rating))
@@ -732,7 +734,7 @@ export default function ExecutorDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                  <p className="text-2xl font-bold text-gray-900">4.8</p>
+                  <p className="text-2xl font-bold text-gray-900">{myRating}</p>
                 </div>
               </div>
             </CardContent>
@@ -1279,7 +1281,7 @@ export default function ExecutorDashboard() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Средняя оценка</span>
-                          <span className="font-bold">4.8/5</span>
+                          <span className="font-bold">{myRating}/5</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Среднее время выполнения</span>
@@ -1300,7 +1302,7 @@ export default function ExecutorDashboard() {
                           <Star className="w-10 h-10 text-yellow-600" />
                         </div>
                         <h3 className="text-xl font-bold text-gray-900">Золотой исполнитель</h3>
-                        <p className="text-sm text-gray-600">Рейтинг: 4.8/5</p>
+                        <p className="text-sm text-gray-600">Рейтинг: {myRating}/5</p>
                       </div>
 
                       <div className="space-y-3">
