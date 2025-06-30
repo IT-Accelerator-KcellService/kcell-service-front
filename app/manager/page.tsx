@@ -61,6 +61,8 @@ const roleTranslations: Record<string, string> = {
 type OfficeType = {
   id: number
   name: string
+  city: string
+  address: string
 }
 
 type User = {
@@ -132,6 +134,13 @@ export default function ManagerDashboard() {
   });
   const [users, setUsers] = useState<User[]>([]);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editingOfficeId, setEditingOfficeId] = useState(null)
+  const [editedOffice, setEditedOffice] = useState<Partial<OfficeType>>({
+    name: "",
+    city: "",
+    address: "",
+  })
+
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -429,6 +438,20 @@ export default function ManagerDashboard() {
       fetchComments();
     }
   }, [selectedTaskDetails]);
+
+  const handleUpdateOffice = async (id:any) => {
+    try {
+      await api.put(`/offices/${id}`, editedOffice) // Передаём данные для обновления
+      const updatedOffices = offices.map((office: any) =>
+          office.id === id ? { ...office, ...editedOffice } : office
+      )
+      setOffices(updatedOffices)
+      setEditingOfficeId(null)
+    } catch (error) {
+      console.error("Ошибка при обновлении офиса:", error)
+    }
+  }
+
 
   const handleOpenCreateRequest = () => {
     if (navigator.geolocation) {
@@ -1182,49 +1205,105 @@ export default function ManagerDashboard() {
                       <p className="text-sm text-gray-500 italic">Нет добавленных офисов.</p>
                     ) : (
                       <div className="grid grid-cols-1 gap-2">
-                        {offices.map((officeItem:any, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
-                          >
-                            <span className="font-medium text-gray-700">{officeItem.name}</span>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setOfficeToDelete(officeItem)}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
+                        {offices.map((officeItem: any) => (
+                            <div
+                                key={officeItem.id}
+                                className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded-lg border space-y-2 sm:space-y-0"
+                            >
+                              {editingOfficeId === officeItem.id ? (
+                                  <div className="flex flex-col sm:flex-row sm:space-x-2 w-full">
+                                    <Input
+                                        value={editedOffice.name}
+                                        onChange={(e) => setEditedOffice({ ...editedOffice, name: e.target.value })}
+                                        placeholder="Название офиса"
+                                        className="flex-1"
+                                    />
+                                    <Input
+                                        value={editedOffice.city}
+                                        onChange={(e) => setEditedOffice({ ...editedOffice, city: e.target.value })}
+                                        placeholder="Город"
+                                        className="flex-1"
+                                    />
+                                    <Input
+                                        value={editedOffice.address}
+                                        onChange={(e) => setEditedOffice({ ...editedOffice, address: e.target.value })}
+                                        placeholder="Адрес"
+                                        className="flex-1"
+                                    />
+                                    <Button
+                                        onClick={() => handleUpdateOffice(officeItem.id)}
+                                        className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      Сохранить
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setEditingOfficeId(null)}
+                                    >
+                                      Отмена
+                                    </Button>
+                                  </div>
+                              ) : (
+                                  <>
+                                    <div className="text-gray-700">
+                                      <div className="text-lg font-semibold">{officeItem.name}</div>
+                                      <div className="text-sm text-gray-600">Город: <span className="font-medium">{officeItem.city}</span></div>
+                                      <div className="text-sm text-gray-600">Адрес: <span className="font-medium">{officeItem.address}</span></div>
+                                    </div>
 
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Удалить офис?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Это действие нельзя отменить. Вы уверены, что хотите удалить офис{" "}
-                                    <strong>{officeToDelete?.name}</strong>?
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                  <AlertDialogAction
-                                      onClick={() => {
-                                        if (officeToDelete) {
-                                          handleRemoveOffice(officeToDelete.id)
-                                          setOfficeToDelete(null)
-                                        }
-                                      }}
-                                  >
-                                    Удалить
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-
-                          </div>
+                                    <div className="flex space-x-2">
+                                      <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            setEditingOfficeId(officeItem.id)
+                                            setEditedOffice({
+                                              name: officeItem.name,
+                                              city: officeItem.city,
+                                              address: officeItem.address,
+                                            })
+                                          }}
+                                      >
+                                        ✏️
+                                      </Button>
+                                      {/* Удаление — оставляем как есть */}
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setOfficeToDelete(officeItem)}
+                                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Удалить офис?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Это действие нельзя отменить. Удалить офис <strong>{officeToDelete?.name}</strong>?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => {
+                                                  if (officeToDelete) {
+                                                    handleRemoveOffice(officeToDelete.id)
+                                                    setOfficeToDelete(null)
+                                                  }
+                                                }}
+                                            >
+                                              Удалить
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </>
+                              )}
+                            </div>
                         ))}
                       </div>
                     )}
