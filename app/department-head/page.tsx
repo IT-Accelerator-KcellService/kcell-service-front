@@ -337,7 +337,11 @@ export default function DepartmentHeadDashboard() {
         const dateB = new Date(b.created_date).getTime();
         return dateB - dateA;
       });
-
+      myRequests.forEach((request: Request) => {
+        if (request.status === "completed") {
+          checkUserRating(request.id);
+        }
+      });
       setIncomingRequests(sortedOtherRequests);
       setMyRequests(myRequests);
     } catch (error) {
