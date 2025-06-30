@@ -63,6 +63,14 @@ type OfficeType = {
   name: string
 }
 
+type User = {
+  id: number;
+  full_name: string;
+  email: string;
+  office_id: string;
+  role: string;
+}
+
 export default function ManagerDashboard() {
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
@@ -103,6 +111,56 @@ export default function ManagerDashboard() {
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
+  const [newUser, setNewUser] = useState({
+    id: 0,
+    email: "",
+    full_name: "",
+    office_id: "",
+    role: "",
+  });
+  const [users, setUsers] = useState<User[]>([]);
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get("/users");
+        setUsers(response.data);
+      } catch (err) {
+        console.error("Ошибка при получении пользователей:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  const handleAddOrUpdateUser = async () => {
+    try {
+      setLoading(true);
+
+      if (editingUserId) {
+        // Обновить пользователя
+        const response = await api.put(`/users/${editingUserId}`, newUser);
+        setUsers((prev) =>
+            prev.map((user) => (user.id === editingUserId ? response.data : user))
+        );
+      } else {
+        // Добавить нового пользователя
+        const response = await api.post("/users", newUser);
+        setUsers(prev => [...prev, newUser]);
+      }
+
+      setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "" });
+      setEditingUserId(null);
+    } catch (err) {
+      console.error("Ошибка при сохранении пользователя:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -124,6 +182,35 @@ export default function ManagerDashboard() {
 
     checkAuth();
   }, []);
+
+  const handleDeleteUser = async (userId: number) => {
+    try {
+      setLoading(true);
+      await api.delete(`/users/${userId}`);
+      setUsers((prev) => prev.filter((user) => user.id !== userId));
+    } catch (err) {
+      console.error("Ошибка при удалении пользователя:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isValidUser =
+      newUser.email.trim() &&
+      newUser.full_name.trim() &&
+      newUser.office_id &&
+      newUser.role;
+
+  const handleEditUser = (user: User) => {
+    setNewUser({
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      office_id: user.office_id,
+      role: user.role,
+    });
+    setEditingUserId(user.id);
+  };
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -899,7 +986,7 @@ export default function ManagerDashboard() {
                                 {getRequestTypeIcon(request.request_type)}
                                 {translateType(request.request_type)}
                               </Badge>
-                              {request.complexity !== "" && (
+                              {request.complexity && request.complexity !== "" && (
                                   <Badge
                                       variant="outline"
                                       className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1104,6 +1191,106 @@ export default function ManagerDashboard() {
                           </div>
                         ))}
                       </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Управление пользователями */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Управление пользователями</CardTitle>
+                  <CardDescription>Добавление, изменение и удаление пользователей</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                    <Input
+                        placeholder="Email"
+                        value={newUser.email}
+                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    />
+                    <Input
+                        placeholder="Полное имя"
+                        value={newUser.full_name}
+                        onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                    />
+                    <Select
+                        value={newUser.office_id}
+                        onValueChange={(val) => setNewUser({ ...newUser, office_id: val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Офис" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {offices.map((office: any) => (
+                            <SelectItem key={office.id} value={office.id}>
+                              {office.name}
+                            </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                        value={newUser.role}
+                        onValueChange={(val) => setNewUser({ ...newUser, role: val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Роль" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["client", "admin-worker", "department-head", "manager"].map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {role}
+                            </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                      onClick={handleAddOrUpdateUser}
+                      disabled={!isValidUser || loading}
+                      className="bg-green-600 hover:bg-green-700"
+                  >
+                    {editingUserId ? "Сохранить" : "Добавить пользователя"}
+                  </Button>
+
+                  <div className="space-y-2 mt-4">
+                    <Label>Пользователи ({users.length}):</Label>
+                    {users.length === 0 ? (
+                        <p className="text-sm text-gray-500 italic">Нет пользователей.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-2">
+                          {users.map((user: any, index: number) => (
+                              <div
+                                  key={index}
+                                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
+                              >
+                                <div>
+                                  <div className="font-semibold text-gray-800">{user.full_name}</div>
+                                  <div className="text-sm text-gray-500">{user.email}</div>
+                                  <div className="text-xs text-gray-400">
+                                    {user.role} — {user.full_name}
+                                  </div>
+                                </div>
+                                <div className="flex space-x-2">
+                                  <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleEditUser(user)}
+                                  >
+                                    ✎
+                                  </Button>
+                                  <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="text-red-500 hover:text-red-700"
+                                      onClick={() => handleDeleteUser(user.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                          ))}
+                        </div>
                     )}
                   </div>
                 </CardContent>

@@ -497,7 +497,7 @@ export default function ExecutorDashboard() {
         photos.forEach((photo) => {
           formData.append('photos', photo);
         });
-        formData.append('type', 'after');
+        formData.append('type', 'before');
 
         try {
           await axios.post(`${API_BASE_URL}/request-photos/${response.data.id}/photos`, formData, {
@@ -533,6 +533,7 @@ export default function ExecutorDashboard() {
       });
 
       // 4. Сбрасываем состояние
+      fetchRequests()
       setSelectedTask(null);
       setPhotos([]);
       setPhotoPreviews([]);
@@ -735,6 +736,7 @@ export default function ExecutorDashboard() {
                   onClick={() => {
                     setNewRequestType("normal")
                     setShowCreateRequestModal(true)
+                    handleOpenCreateRequest()
                   }}
                   className="bg-violet-600 hover:bg-violet-700"
                 >
@@ -889,7 +891,7 @@ export default function ExecutorDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity !== "" && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1061,7 +1063,7 @@ export default function ExecutorDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity !== "" && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1219,7 +1221,7 @@ export default function ExecutorDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1832,24 +1834,6 @@ export default function ExecutorDashboard() {
                     </div>
                 )}
                 <div className="flex space-x-4 m-4">
-                    {["assigned", "in_progress"].includes(selectedTaskDetails.status) && (
-                        <Button
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700"
-                            onClick={() => handleStartTask(selectedTaskDetails.id)}
-                        >
-                          Начать
-                        </Button>
-                    )}
-                    {selectedTaskDetails.status === "execution" && (
-                        <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 flex-1"
-                            onClick={() => setSelectedTask(selectedTaskDetails)}
-                        >
-                          Завершить
-                        </Button>
-                    )}
                   {/* Закрыть */}
                     <Button className="flex-1" variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
                 </div>
