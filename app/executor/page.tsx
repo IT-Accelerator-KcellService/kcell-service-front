@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
+import {useRouter} from "next/navigation";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -96,6 +97,7 @@ interface Comment {
 }
 
 export default function ExecutorDashboard() {
+  const router = useRouter()
   const [assignedRequests, setAssignedRequests] = useState<any>([])
   const [myRequests, setMyRequests] = useState<Request[]>([])
   const [completedRequests, setCompletedRequests] = useState<any>([])
@@ -143,7 +145,7 @@ export default function ExecutorDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "executor") {
-          window.location.href = "/login";
+          router.push("/login")
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id);
@@ -151,7 +153,7 @@ export default function ExecutorDashboard() {
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = "/login";
+        router.push("/login")
       }
     };
 
@@ -584,7 +586,7 @@ export default function ExecutorDashboard() {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
       localStorage.removeItem('token')
-      window.location.href = "/login"
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }

@@ -43,6 +43,7 @@ import UserProfile from "@/app/client/UserProfile";
 import dynamic from "next/dynamic";
 import {Request} from "@/app/client/page";
 import api from "@/lib/api";
+import {useRouter} from "next/navigation";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -82,6 +83,7 @@ interface Comment {
 }
 
 export default function ManagerDashboard() {
+  const router = useRouter()
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
@@ -190,14 +192,14 @@ export default function ManagerDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "manager") {
-          window.location.href = '/login';
+          router.push("/login")
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id);
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = '/login'
+        router.push("/login")
       }
     };
 
@@ -256,7 +258,7 @@ export default function ManagerDashboard() {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
       localStorage.removeItem('token')
-      window.location.href = "/login"
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }
