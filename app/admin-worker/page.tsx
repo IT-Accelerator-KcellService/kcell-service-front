@@ -40,6 +40,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
+import {useRouter} from "next/navigation";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -98,6 +99,7 @@ interface Comment {
 }
 
 export default function AdminWorkerDashboard() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -151,14 +153,14 @@ export default function AdminWorkerDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "admin-worker") {
-          window.location.href = '/login';
+          router.push('/login')
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id);
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = '/login'
+        router.push('/login')
       }
     };
 
@@ -558,7 +560,7 @@ export default function AdminWorkerDashboard() {
       await api.post('/auth/logout');
       setIsLoggedIn(false)
       localStorage.removeItem('token');
-      window.location.href = "/login";
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error);
     }
