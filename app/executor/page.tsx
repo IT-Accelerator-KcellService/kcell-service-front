@@ -29,6 +29,14 @@ import UserProfile from "@/app/client/UserProfile";
 import axios from "axios";
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
+import {useRouter} from "next/navigation";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -43,9 +51,55 @@ const roleTranslations: Record<string, string> = {
   executor: "Испольнитель",
   manager: "Руководитель"
 };
+
+
+interface Category {
+  id: number;
+  name: string;
+}
+
+interface Photo {
+  id: number;
+  request_id: number;
+  photo_url: string;
+  type: string;
+}
+
+export interface Request {
+  executor_id: any;
+  actual_completion_date: any;
+  sla: React.JSX.Element;
+  date_submitted: string;
+  category: Category;
+  office: any;
+  complexity: string;
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  request_type: string;
+  location: string;
+  location_detail: string;
+  created_date: string;
+  executor: {user: { full_name: any } };
+  rating?: number;
+  category_id?: number;
+  photos?: Photo[];
+  office_id: number;
+}
+
+interface Comment {
+  id: number,
+  request_id: number,
+  sender_id: number,
+  comment: string,
+  timestamp: Date
+}
+
 export default function ExecutorDashboard() {
+  const router = useRouter()
   const [assignedRequests, setAssignedRequests] = useState<any>([])
-  const [myRequests, setMyRequests] = useState<any>([])
+  const [myRequests, setMyRequests] = useState<Request[]>([])
   const [completedRequests, setCompletedRequests] = useState<any>([])
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [showMapModal, setShowMapModal] = useState(false);
@@ -77,9 +131,12 @@ export default function ExecutorDashboard() {
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [completeFormErrors, setCompleteFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [myRating, setMyRating] = useState<number | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -88,7 +145,7 @@ export default function ExecutorDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "executor") {
-          window.location.href = "/login";
+          router.push("/login")
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id);
@@ -96,7 +153,7 @@ export default function ExecutorDashboard() {
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = "/login";
+        router.push("/login")
       }
     };
 
@@ -122,12 +179,42 @@ export default function ExecutorDashboard() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
+      setEditCommentId(null);
+      setComment("")
     } catch (err) {
       console.error("Ошибка при удалении", err);
+    }
+  };
+
+  const handleSend = () => {
+    if (comment.trim() === "") return;
+
+    if (editCommentId) {
+      api
+          .put(`/comments/${editCommentId}`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
     }
   };
 
@@ -141,36 +228,6 @@ export default function ExecutorDashboard() {
       fetchComments();
     }
   }, [selectedTaskDetails]);
-
-  const handleSend = () => {
-    if (comment.trim() === "") return;
-
-    if (editCommentId) {
-      api
-          .put(`/comments/${editCommentId}`, {
-            comment: comment.trim(),
-            request_id: selectedTaskDetails.id, // !!!
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-            setEditCommentId(null);
-          })
-          .catch((err) => console.error("Ошибка при обновлении", err));
-    } else {
-      api
-          .post(`/comments`, {
-            comment: comment.trim(),
-            request_id: selectedTaskDetails.id, // !!!
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-          })
-          .catch((err) => console.error("Ошибка при добавлении", err));
-    }
-  };
-
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -223,7 +280,7 @@ export default function ExecutorDashboard() {
       const requestId = response.data.id;
 
       console.log("Created request ID:", requestId);
-
+      let createdPhotos;
       if (photos.length > 0) {
         const formData = new FormData();
         photos.forEach((photo) => {
@@ -232,7 +289,7 @@ export default function ExecutorDashboard() {
         formData.append('type', 'before');
 
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -247,14 +304,17 @@ export default function ExecutorDashboard() {
           return;
         }
       }
-      setAssignedRequests((prev: any) => [response.data, ...prev])
+      const newRequest = {
+        ...response.data,
+        photos: createdPhotos?.data?.photos,
+      }
+      setMyRequests(prev => [newRequest, ...prev])
       setShowCreateRequestModal(false)
       setNewRequestType("")
       setNewRequestTitle("")
       setRequestLocation("")
       setNewRequestLocation("")
       setDescription("")
-      alert("Заявка успешно создана!")
     } catch (error) {
       console.error("Failed to create request:", error)
       setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
@@ -299,13 +359,14 @@ export default function ExecutorDashboard() {
   const handleNotificationClick = async (notification:any) => {
     if (!notification.is_read) {
       try {
-        const response = await api.patch(`/notifications/${notification.id}/read`)
-        const updated = response.data
-
         setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === updated.id ? { ...n, is_read: true } : n))
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
         )
+        await api.patch(`/notifications/${notification.id}/read`)
       } catch (error) {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        )
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
@@ -357,7 +418,20 @@ export default function ExecutorDashboard() {
   const fetchRequests = async () => {
     try {
       const response = await api.get('requests/executor/me')
-      setCompletedRequests(response.data.completedRequests);
+      const responseRating = await api.get('ratings/executor')
+      const responseMyRating = await api.get('executors/average-rating')
+      setMyRating(responseMyRating.data.average_rating)
+      const ratingsMap = new Map<number, number>()
+      for (const r of responseRating.data) {
+        ratingsMap.set(r.request_id, parseFloat(r.rating))
+      }
+
+      const completed = response.data.completedRequests.map((req: Request) => ({
+        ...req,
+        rating: ratingsMap.get(req.id) || null,
+      }))
+
+      setCompletedRequests(completed)
       setAssignedRequests(response.data.assignedRequests);
       setMyRequests(response.data.myRequests);
 
@@ -427,11 +501,21 @@ export default function ExecutorDashboard() {
     setAssignedRequests((prevTasks: any) =>
         prevTasks.map((task: any) => (task.id === taskId ? {...task, status: "execution"} : task)),
     )
+    setMyRequests((prevTasks: any) =>
+        prevTasks.map((task: any) => (task.id === taskId ? {...task, status: "execution"} : task)),
+    )
     console.log("Starting task:", taskId)
   }
 
   const handleCompleteTask = async (taskId: string) => {
     try {
+      if (!completedRequestComment.trim()) {
+        setCompleteFormErrors("Пожалуйста, заполните поле и добавьте фото.")
+        setIsSubmitting(false);
+        return
+      }
+
+      setCompleteFormErrors(null)
       // 1. PATCH для завершения задачи
       const response = await api.patch(`/requests/${taskId}/complete`, {
         comment: completedRequestComment
@@ -443,20 +527,26 @@ export default function ExecutorDashboard() {
         photos.forEach((photo) => {
           formData.append('photos', photo);
         });
-        formData.append('type', 'after');
+        formData.append('type', 'before');
 
         try {
-          await api.post(`/request-photos/${response.data.id}/photos`, formData);
-
-          console.log("Фотографии успешно загружены");
+          await axios.post(`${API_BASE_URL}/request-photos/${response.data.id}/photos`, formData, {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+          });
         } catch (photoUploadError) {
-          // если загрузка фото не удалась — удаляем созданную заявку
           await api.delete(`/requests/${response.data.id}`);
-          console.error("Ошибка при загрузке фото. Заявка удалена.");
           alert("Ошибка при загрузке фото. Заявка не была создана.");
           return;
         }
+      } else {
+        setCompleteFormErrors("Пожалуйста, заполните поле и добавьте фото.")
+        setIsSubmitting(false);
+        return
       }
+      setCompleteFormErrors(null)
 
       // 3. Переносим задачу в список завершённых
       setAssignedRequests((prevTasks: any) => {
@@ -478,9 +568,12 @@ export default function ExecutorDashboard() {
       });
 
       // 4. Сбрасываем состояние
+      fetchRequests()
       setSelectedTask(null);
       setPhotos([]);
       setPhotoPreviews([]);
+      setCompletedRequestComment("");
+      setIsSubmitting(false);
       console.log("Задача успешно завершена:", taskId);
     } catch (error) {
       console.error("Ошибка при завершении задачи", error);
@@ -493,7 +586,7 @@ export default function ExecutorDashboard() {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
       localStorage.removeItem('token')
-      window.location.href = "/login"
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }
@@ -592,6 +685,28 @@ export default function ExecutorDashboard() {
     ))
   }
 
+  const completedInTime = completedRequests.filter((req: { actual_completion_date: string | number | Date; sla: { props: { deadline: string | number | Date } } }) => {
+    const completedAt = new Date(req.actual_completion_date);
+    const slaDeadline = new Date(req.sla?.props?.deadline);
+    return completedAt <= slaDeadline;
+  });
+
+  const overdue = completedRequests.length - completedInTime.length;
+
+  const ratings = completedRequests.map((req: { rating: any }) => req.rating).filter(Boolean) as number[];
+  const averageRating = ratings.length
+      ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1)
+      : '—';
+
+  const durations = completedRequests.map((req: { date_submitted: string | number | Date; actual_completion_date: string | number | Date }) => {
+    const submitted = new Date(req.date_submitted).getTime();
+    const completed = new Date(req.actual_completion_date).getTime();
+    return (completed - submitted) / (1000 * 60 * 60); // в часах
+  });
+  const averageDuration = durations.length
+      ? (durations.reduce((sum: any, d: any) => sum + d, 0) / durations.length).toFixed(1)
+      : '—';
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -615,7 +730,9 @@ export default function ExecutorDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Экстренные</p>
-                  <p className="text-2xl font-bold text-gray-900">1</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {[...assignedRequests, ...myRequests].filter(req => req.request_type === "urgent").length}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -629,7 +746,7 @@ export default function ExecutorDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">В работе</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {assignedRequests?.filter((r:any) => r.status === "В работе").length}
+                    {assignedRequests?.filter((r:any) => r.status === "execution").length}
                   </p>
                 </div>
               </div>
@@ -642,9 +759,9 @@ export default function ExecutorDashboard() {
                   <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Завершено сегодня</p>
+                  <p className="text-sm font-medium text-gray-600">Завершено</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {completedRequests?.filter((r:any) => r.completedDate === new Date().toISOString().slice(0, 10)).length}
+                    {completedRequests?.length}
                   </p>
                 </div>
               </div>
@@ -658,7 +775,7 @@ export default function ExecutorDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                  <p className="text-2xl font-bold text-gray-900">4.8</p>
+                  <p className="text-2xl font-bold text-gray-900">{myRating}</p>
                 </div>
               </div>
             </CardContent>
@@ -672,7 +789,7 @@ export default function ExecutorDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <TabsList>
                   <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
-                  <TabsTrigger value="myTasks">Мои задачи</TabsTrigger>
+                  <TabsTrigger value="myTasks">Мой заявки</TabsTrigger>
                   <TabsTrigger value="completed">Завершенные</TabsTrigger>
                   <TabsTrigger value="statistics">Статистика</TabsTrigger>
                 </TabsList>
@@ -680,6 +797,7 @@ export default function ExecutorDashboard() {
                   onClick={() => {
                     setNewRequestType("normal")
                     setShowCreateRequestModal(true)
+                    handleOpenCreateRequest()
                   }}
                   className="bg-violet-600 hover:bg-violet-700"
                 >
@@ -700,6 +818,8 @@ export default function ExecutorDashboard() {
                         <SelectItem value="in_progress">В обработке</SelectItem>
                         <SelectItem value="execution">Исполнение</SelectItem>
                         <SelectItem value="completed">Завершено</SelectItem>
+                        <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                        <SelectItem value="assigned">Назначен</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={filterType} onValueChange={setFilterType}>
@@ -772,10 +892,10 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              {request.executor && request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -834,7 +954,7 @@ export default function ExecutorDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity !== "" && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -944,10 +1064,10 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              { request.executor && request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1006,7 +1126,7 @@ export default function ExecutorDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity !== "" && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1028,10 +1148,6 @@ export default function ExecutorDashboard() {
               <TabsContent value="myTasks">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4 mb-4">
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Фильтр
-                    </Button>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Статус" />
@@ -1051,7 +1167,7 @@ export default function ExecutorDashboard() {
                         <SelectItem value="all">Все</SelectItem>
                         <SelectItem value="normal">Обычная</SelectItem>
                         <SelectItem value="urgent">Экстренная</SelectItem>
-                        <SelectItem value="planed">Плановая</SelectItem>
+                        <SelectItem value="planned">Плановая</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1102,10 +1218,10 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              {request.executor && request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1164,7 +1280,7 @@ export default function ExecutorDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1174,7 +1290,32 @@ export default function ExecutorDashboard() {
                                 )}
                               </div>
 
-                              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                              <div>
+                                {request.status === "assigned" && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleStartTask(request.id)
+                                        }}
+                                    >
+                                      Начать
+                                    </Button>
+                                )}
+                                {request.status === "execution" && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-green-600 hover:bg-green-700"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedTask(request)
+                                        }}
+                                    >
+                                      Завершить
+                                    </Button>
+                                )}
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -1188,29 +1329,29 @@ export default function ExecutorDashboard() {
                   <Card>
                     <CardHeader>
                       <CardTitle>Моя статистика</CardTitle>
-                      <CardDescription>Показатели за последние 30 дней</CardDescription>
+                      <CardDescription>Показатели за весь период</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
                           <span>Всего выполнено задач</span>
-                          <span className="font-bold">28</span>
+                          <span className="font-bold">{completedRequests.length}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Выполнено в срок</span>
-                          <span className="font-bold text-green-600">26</span>
+                          <span className="font-bold text-green-600">{completedInTime.length}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Просрочено</span>
-                          <span className="font-bold text-red-600">2</span>
+                          <span className="font-bold text-red-600">{overdue}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Средняя оценка</span>
-                          <span className="font-bold">4.8/5</span>
+                          <span className="font-bold">{myRating}/5</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Среднее время выполнения</span>
-                          <span className="font-bold">1.8 часа</span>
+                          <span className="font-bold">{averageDuration} часа</span>
                         </div>
                       </div>
                     </CardContent>
@@ -1227,7 +1368,7 @@ export default function ExecutorDashboard() {
                           <Star className="w-10 h-10 text-yellow-600" />
                         </div>
                         <h3 className="text-xl font-bold text-gray-900">Золотой исполнитель</h3>
-                        <p className="text-sm text-gray-600">Рейтинг: 4.8/5</p>
+                        <p className="text-sm text-gray-600">Рейтинг: {myRating}/5</p>
                       </div>
 
                       <div className="space-y-3">
@@ -1337,32 +1478,18 @@ export default function ExecutorDashboard() {
                 </div>
             )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Быстрые действия</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    setNewRequestType("planned")
-                    setShowCreateRequestModal(true)
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Создать плановую заявку
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
 
       {/* Complete Task Modal */}
       {selectedTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+          setSelectedTask(null);
+          setIsSubmitting(false);
+          setCompleteFormErrors("")
+        }}>
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <CardTitle>Завершение задачи #{selectedTask.id}</CardTitle>
               <CardDescription>Подтвердите выполнение работы</CardDescription>
@@ -1420,14 +1547,17 @@ export default function ExecutorDashboard() {
                       </button>
                   )}
                 </div>
+                {completeFormErrors && <p className="text-sm text-red-500 mt-4">{completeFormErrors}</p>}
               </div>
 
               <div className="flex space-x-4">
                 <Button
                   onClick={() => {
                     handleCompleteTask(selectedTask.id)
+                    setIsSubmitting(true)
                   }}
                   className="flex-1 bg-green-600 hover:bg-green-700"
+                  disabled={isSubmitting}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Завершить задачу
@@ -1438,6 +1568,7 @@ export default function ExecutorDashboard() {
                     setSelectedTask(null)
                     setPhotos([])
                     setPhotoPreviews([])
+                    setCompletedRequestComment("")
                   }}
                   className="flex-1"
                 >
@@ -1451,8 +1582,12 @@ export default function ExecutorDashboard() {
 
       {/* Create Request Modal */}
       {showCreateRequestModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
+            setShowCreateRequestModal(false)
+            setCompletedRequestComment("")
+            setComments([])
+          }}>
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
                 <CardTitle>Создать заявку</CardTitle>
                 <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
@@ -1579,8 +1714,11 @@ export default function ExecutorDashboard() {
 
       {/* Task Details Modal */}
       {selectedTaskDetails && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"  onClick={()=> {
+            setSelectedTaskDetails(null)
+            setComments([])
+          }}>
+            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
                 <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
                 <CardDescription>{selectedTaskDetails.title}</CardDescription>
@@ -1724,7 +1862,7 @@ export default function ExecutorDashboard() {
                         <CardContent className="p-4">
                           <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                           {comments.map((c: any) => (
-                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
                                 <div className="flex justify-between items-center">
                                   <div className="text-sm text-gray-800 font-medium">
                                     {c.user.full_name || "Неизвестный пользователь"}{" "}
@@ -1744,12 +1882,38 @@ export default function ExecutorDashboard() {
                                       >
                                         Изменить
                                       </button>
-                                      <button
-                                          onClick={() => handleDelete(c.id)}
-                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                      >
-                                        Удалить
-                                      </button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <button
+                                              onClick={() => setCommentToDelete(c)}
+                                              className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                          >
+                                            Удалить
+                                          </button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
+                                              <strong>{commentToDelete?.comment}</strong>?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => {
+                                                  if (commentToDelete) {
+                                                    handleDelete(commentToDelete.id);
+                                                    setCommentToDelete(null);
+                                                  }
+                                                }}
+                                            >
+                                              Удалить
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
                                     </div>
                                 )}
 
@@ -1788,32 +1952,10 @@ export default function ExecutorDashboard() {
                       </Card>
                     </div>
                 )}
-                <CardHeader className="flex justify-between items-center">
-                  <div className="flex gap-2 flex-wrap">
-                    {["assigned", "in_progress"].includes(selectedTaskDetails.status) && (
-                        <Button
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700"
-                            onClick={() => handleStartTask(selectedTaskDetails.id)}
-                        >
-                          Начать
-                        </Button>
-                    )}
-                    {selectedTaskDetails.status === "execution" && (
-                        <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => setSelectedTask(selectedTaskDetails)}
-                        >
-                          Завершить
-                        </Button>
-                    )}
-                  </div>
+                <div className="flex space-x-4 m-4">
                   {/* Закрыть */}
-                  <div className="flex justify-between items-center">
-                    <Button variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
-                  </div>
-                </CardHeader>
+                    <Button className="flex-1" variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
+                </div>
 
 
               </CardContent>

@@ -1,12 +1,12 @@
 import { Bell, LogOut, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from "@/components/ui/dialog";
 import {
     Sheet,
@@ -23,54 +23,112 @@ interface HeaderProps {
     role?: string;
 }
 
+interface Notification {
+    id: string;
+    title: string;
+    content: string;
+    created_at: string;
+    is_read: boolean;
+    user_id: string;
+}
+
+interface NotificationsResponse {
+    notifications: Notification[];
+    totalPages: number;
+}
+
 const Header: React.FC<HeaderProps> = ({
                                            setShowProfile,
                                            handleLogout,
                                            notificationCount = 0,
                                            role = "Клиент",
                                        }) => {
-    const [isModalOpen, setIsModalOpen] = React.useState(false);
     const [isBurgerOpen, setIsBurgerOpen] = React.useState(false);
-    const [allNotifications, setAllNotifications] = React.useState<any[]>([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    React.useEffect(() => {
-        api
-            .get("/notifications/me")
-            .then((res) => res.data.notifications)
-            .then(setAllNotifications)
-            .catch(console.error);
-    }, []);
+    // Основная функция загрузки уведомлений
+    const loadNotifications = async (pageNum: number, reset: boolean = false) => {
+        if (isLoading) return;
 
-    React.useEffect(() => {
+        setIsLoading(true);
+        try {
+            const res = await api.get<NotificationsResponse>(
+                `/notifications/me?page=${pageNum}&pageSize=10`
+            );
+
+            setAllNotifications(prev =>
+                reset
+                    ? res.data.notifications
+                    : [...prev, ...res.data.notifications.filter(
+                        newNotif => !prev.some(p => p.id === newNotif.id)
+                    )]
+            );
+
+            setHasMore(pageNum < res.data.totalPages);
+            if (reset) setPage(1);
+        } catch (err) {
+            console.error("Ошибка загрузки уведомлений:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Загрузка при открытии модального окна
+    useEffect(() => {
         if (isModalOpen) {
-            api
-                .get("/notifications/me")
-                .then((res) => res.data.notifications)
-                .then(setAllNotifications)
-                .catch(console.error);
+            loadNotifications(1, true);
         }
     }, [isModalOpen]);
 
-    const unreadNotificationCount = allNotifications.filter((n) => !n.is_read)
-        .length;
+    // Первоначальная загрузка
+    useEffect(() => {
+        loadNotifications(1, true);
+    }, []);
 
-    const handleNotificationClick = async (notification: any) => {
+    // Обработчик скролла для подгрузки
+    const handleScroll = () => {
+        const el = containerRef.current;
+        if (!el || isLoading || !hasMore) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = el;
+        if (scrollHeight - (scrollTop + clientHeight) < 100) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            loadNotifications(nextPage);
+        }
+    };
+
+    // Подписка на скролл
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        el.addEventListener('scroll', handleScroll);
+        return () => el.removeEventListener('scroll', handleScroll);
+    }, [isLoading, hasMore, page]);
+
+    // Пометить как прочитанное
+    const handleNotificationClick = async (notification: Notification) => {
         if (!notification.is_read) {
             try {
-                const response = await api.patch(
-                    `/notifications/${notification.id}/read`
-                );
-                const updated = response.data;
-
-                setAllNotifications((prev: any) =>
-                    prev.map((n: any) => (n.id === updated.id ? { ...n, is_read: true } : n))
+                await api.patch(`/notifications/${notification.id}/read`);
+                setAllNotifications(prev =>
+                    prev.map(n =>
+                        n.id === notification.id ? { ...n, is_read: true } : n
+                    )
                 );
             } catch (error) {
-                console.error("Ошибка при пометке уведомления как прочитано", error);
+                console.error("Ошибка при пометке уведомления как прочитано", error)
             }
         }
-        setIsModalOpen(true);
     };
+
+    const unreadNotificationCount = allNotifications.filter(n => !n.is_read).length;
 
     return (
         <>

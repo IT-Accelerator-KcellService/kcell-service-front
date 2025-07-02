@@ -20,13 +20,27 @@ import {
   Star,
   Plus,
   Camera,
-  MapPin, Loader2, Calendar, ImageIcon, Zap, AlertCircle,
+  MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
 import axios from 'axios';
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import {ru} from "date-fns/locale";
+import {format} from "date-fns";
+import {Calendar} from "@/components/ui/calendar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
+import {useRouter} from "next/navigation";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -58,14 +72,14 @@ interface Request {
   location: string;
   location_detail: string;
   created_date: string;
-  executor?: string;
+  executor: { user: {full_name: any} };
   rating?: number;
   category_id?: number;
   photos?: { photo_url: string }[];
   progress?: number;
   planned_date?: string;
   client_id?: number;
-  complexity?: 'simple' | 'medium' | 'complex';
+  complexity: string;
   sla?: string;
 }
 const roleTranslations: Record<string, string> = {
@@ -76,7 +90,16 @@ const roleTranslations: Record<string, string> = {
   manager: "Руководитель"
 };
 
+interface Comment {
+  id: number,
+  request_id: number,
+  sender_id: number,
+  comment: string,
+  timestamp: Date
+}
+
 export default function AdminWorkerDashboard() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -112,6 +135,16 @@ export default function AdminWorkerDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
+  const [loading, setLoading] = useState(true)
+  const [notifications, setNotifications] = useState([])
+  const [selectedNotification, setSelectedNotification] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [filterMyStatus, setFilterMyStatus] = useState("all")
+  const [filterMyType, setFilterMyType] = useState("all")
+  const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
+  const [filterIncomingType, setFilterIncomingType] = useState("all")
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -120,14 +153,14 @@ export default function AdminWorkerDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "admin-worker") {
-          window.location.href = '/login';
+          router.push('/login')
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id);
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = '/login'
+        router.push('/login')
       }
     };
 
@@ -136,6 +169,86 @@ export default function AdminWorkerDashboard() {
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
+
+  const filteredMyRequests = myRequests
+      .filter((request) => {
+        const statusMatch = filterMyStatus === "all" || request.status === filterMyStatus
+        const requestType = request.request_type
+        const typeMatch = filterMyType === "all" || requestType === filterMyType
+        return statusMatch && typeMatch
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        const safeDateA = isNaN(dateA) ? 0 : dateA;
+        const safeDateB = isNaN(dateB) ? 0 : dateB;
+        return safeDateB - safeDateA;
+      });
+
+  const filteredIncomingRequests = incomingRequests
+      .filter((request) => {
+        const statusMatch = filterIncomingStatus === "all" || request.status === filterIncomingStatus
+        const requestType = request.request_type
+        const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType
+        return statusMatch && typeMatch
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        const safeDateA = isNaN(dateA) ? 0 : dateA;
+        const safeDateB = isNaN(dateB) ? 0 : dateB;
+        return safeDateB - safeDateA;
+      });
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await api.get("/notifications/me")
+        setNotifications(response.data.notifications)
+      } catch (error) {
+        console.error("Ошибка при загрузке уведомлений", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchNotifications()
+  }, [])
+
+  const handleNotificationClick = async (notification:any) => {
+    if (!notification.is_read) {
+      try {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
+        )
+        await api.patch(`/notifications/${notification.id}/read`)
+      } catch (error) {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        )
+        console.error("Ошибка при пометке уведомления как прочитано", error)
+      }
+    }
+
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
+  }
+
+  const getBgColor = (title:any) => {
+    if (title.includes("принята")) return "bg-blue-50"
+    if (title.includes("завершена")) return "bg-green-50"
+    if (title.includes("просрочена")) return "bg-red-50"
+    return "bg-gray-100"
+  }
+
+  const formatTimeAgo = (dateStr:any) => {
+    const date = new Date(dateStr)
+    const diff = (Date.now() - date.getTime()) / 1000
+    if (diff < 60) return "только что"
+    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
+    return `${Math.floor(diff / 86400)} дней назад`
+  }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -204,43 +317,50 @@ export default function AdminWorkerDashboard() {
       console.error("Ошибка при загрузке комментариев", err);
     }
   };
+
   const handleDelete = async (id: number) => {
-    //if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
+      setEditCommentId(null);
+      setComment("")
     } catch (err) {
       console.error("Ошибка при удалении", err);
     }
   };
-  const handleSend = async () => {
+
+  const handleSend = () => {
     if (comment.trim() === "") return;
 
-    try {
-      if (editCommentId) {
-        await api.put(`/comments/${editCommentId}`, {
-          comment: comment.trim(),
-          request_id: selectedRequest.id,
-        });
-        setEditCommentId(null);
-      } else {
-        await api.post(`/comments`, {
-          comment: comment.trim(),
-          request_id: selectedRequest.id,
-        });
-      }
-      setComment("");
-      fetchComments();
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err);
+    if (editCommentId) {
+      api
+          .put(`/comments/${editCommentId}`, {
+            comment: comment.trim(),
+            request_id: selectedRequest.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedRequest.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
     }
   };
 
-
-
   const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);       // заполняем поле ввода
-    setEditCommentId(id);         // запоминаем какой комментарий редактируем
+    setComment(oldComment);
+    setEditCommentId(id);
   };
 
   useEffect(() => {
@@ -294,8 +414,8 @@ export default function AdminWorkerDashboard() {
         status: "rejected",
         rejection_reason: rejectionReason
       });
-      fetchRequests();
       setSelectedRequest(null);
+      fetchRequests();
       setRejectionReason("");
     } catch (error) {
       console.error("Failed to reject request:", error);
@@ -323,7 +443,8 @@ export default function AdminWorkerDashboard() {
         !newRequestLocation.trim() ||
         !newRequestDescription.trim() ||
         !newRequestCategory ||
-        (newRequestType === "planned" && !newRequestPlannedDate)
+        !newRequestLocationDetails.trim() ||
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity)
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -348,7 +469,7 @@ export default function AdminWorkerDashboard() {
       });
 
       const requestId = response.data.id;
-
+      let createdPhotos;
       // Загрузка фото (если есть)
       if (photos.length > 0) {
         const formData = new FormData();
@@ -358,7 +479,7 @@ export default function AdminWorkerDashboard() {
         formData.append('type', 'before');
 
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -374,7 +495,11 @@ export default function AdminWorkerDashboard() {
         }
       }
 
-      fetchRequests();
+      const newRequest = {
+        ...response.data,
+        photos: createdPhotos?.data?.photos,
+      }
+      setMyRequests(prev => [newRequest, ...prev])
       setShowCreateRequestModal(false);
       setNewRequestTitle("");
       setNewRequestDescription("");
@@ -435,7 +560,7 @@ export default function AdminWorkerDashboard() {
       await api.post('/auth/logout');
       setIsLoggedIn(false)
       localStorage.removeItem('token');
-      window.location.href = "/login";
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -515,7 +640,7 @@ export default function AdminWorkerDashboard() {
     }
   }
 
-  const getComplexityColor = (complexity: "simple" | "medium" | "complex" | undefined) => {
+  const getComplexityColor = (complexity: string) => {
     switch (complexity?.toLowerCase()) {
       case "complex":
         return "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500"
@@ -527,6 +652,15 @@ export default function AdminWorkerDashboard() {
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
   }
+
+  const translateComplexity = (complexity: string) => {
+    switch (complexity) {
+      case "complex": return "комплексный";
+      case "simple": return "простой";
+      case "medium": return "средний";
+      default: return complexity;
+    }
+  };
 
   const getRequestTypeColor = (requestType: string) => {
     switch (requestType.toLowerCase()) {
@@ -546,7 +680,7 @@ export default function AdminWorkerDashboard() {
       case "urgent":
         return <AlertCircle className="w-3 h-3" />
       case "planned":
-        return <Calendar className="w-3 h-3" />
+        return <CalendarLucid className="w-3 h-3" />
       case "normal":
         return <Clock className="w-3 h-3" />
       default:
@@ -568,6 +702,29 @@ export default function AdminWorkerDashboard() {
     ))
   }
 
+  const newRequestsLength =
+      incomingRequests.filter(req => req.status === "in_progress").length +
+      myRequests.filter(req => req.status === "in_progress").length
+
+  const executionRequestsLength =
+      myRequests.filter(req => req.status === "execution").length +
+      incomingRequests.filter(req => req.status === "execution").length
+
+  const completedRequestsLength =
+      myRequests.filter(req => req.status === "completed").length +
+      incomingRequests.filter(req => req.status === "completed").length
+
+  const expiredRequestsLength =
+      myRequests.filter(req =>
+          req.status === "execution" &&
+          req.planned_date &&
+          new Date(req.planned_date) < new Date()
+      ).length +
+      incomingRequests.filter(req =>
+          req.status === "execution" &&
+          req.planned_date &&
+          new Date(req.planned_date) < new Date()
+      ).length
 
   return (
       <div className="min-h-screen bg-gray-50">
@@ -591,7 +748,7 @@ export default function AdminWorkerDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Новые заявки</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {incomingRequests.filter(req => req.status === "draft" || req.status === "in_progress").length}
+                      {newRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -606,7 +763,7 @@ export default function AdminWorkerDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">В работе</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req => req.status === "in_execution").length}
+                      {executionRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -621,7 +778,7 @@ export default function AdminWorkerDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Завершено</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req => req.status === "completed").length}
+                      {completedRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -636,11 +793,7 @@ export default function AdminWorkerDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Просрочено</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req =>
-                          req.status === "in_execution" &&
-                          req.planned_date &&
-                          new Date(req.planned_date) < new Date()
-                      ).length}
+                      {expiredRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -669,65 +822,34 @@ export default function AdminWorkerDashboard() {
 
                 <TabsContent value="my-requests">
                   <div className="space-y-4">
-                    {myRequests.map((request) => (
-                        <Card
-                            key={request.id}
-                            className="hover:shadow-md transition-shadow cursor-pointer"
-                            onClick={() => setSelectedRequest(request)}
-                        >
-                          <CardContent className="p-6 relative">
-                            {/* ОЦЕНКА В ПРАВОМ ВЕРХНЕМ УГЛУ */}
-                            {request.status === "completed" && !userRatings[request.id] && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute top-2 right-2"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setRequestToRate(request);
-                                      setShowRatingModal(true);
-                                    }}
-                                >
-                                  <Star className="w-5 h-5 text-yellow-500" />
-                                </Button>
-                            )}
-
-                            <div className="flex justify-between items-start mb-4">
-                              <div>
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <Badge className={getTypeColor(request.request_type)}>
-                                    {translateType(request.request_type)}
-                                  </Badge>
-                                  <Badge variant="outline" className={getStatusColor(request.status)}>
-                                    {translateStatus(request.status)}
-                                  </Badge>
-                                  <span className="text-sm text-gray-500">#{request.id}</span>
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-1">{request.title}</h3>
-                                <div className="flex items-center text-sm text-gray-600 space-x-4">
-                                  <div className="flex items-center">
-                                    <MapPin className="w-4 h-4 mr-1" />
-                                    {request.location_detail || request.location}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Clock className="w-4 h-4 mr-1" />
-                                    {new Date(request.created_date).toLocaleString("ru-RU")}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            <p className="text-sm text-gray-700">{request.description}</p>
-                          </CardContent>
-                        </Card>
-                    ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="incoming">
-                  <div className="space-y-4">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <Select value={filterMyStatus} onValueChange={setFilterMyStatus}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Статус" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="execution">Исполнение</SelectItem>
+                          <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="assigned">Назнечено</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterMyType} onValueChange={setFilterMyType}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Тип заявки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="normal">Обычная</SelectItem>
+                          <SelectItem value="urgent">Экстренная</SelectItem>
+                          <SelectItem value="planned">Плановая</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {incomingRequests.map((request, index: number) => (
+                      {filteredMyRequests.map((request, index: number) => (
                           <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
                                 onClick={() => setSelectedRequest(request)}>
                             {/* Заголовок с ID и статусами */}
@@ -768,14 +890,14 @@ export default function AdminWorkerDashboard() {
                                 </div>
 
                                 <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
                                   <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                                 </div>
 
-                                {request.executor_id ? (
+                                {request.executor && request.executor.user.full_name ? (
                                     <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                       <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                      <span className="truncate font-medium">{request.executor_id}</span>
+                                      <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -784,9 +906,9 @@ export default function AdminWorkerDashboard() {
                                     </div>
                                 )}
 
-                                {request.rating ? (
+                                {userRatings[request.id]?.rating ? (
                                     <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                      {renderStars(request.rating)}
+                                      {renderStars(userRatings[request.id].rating)}
                                     </div>
                                 ) : (
                                     <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -834,12 +956,169 @@ export default function AdminWorkerDashboard() {
                                     {getRequestTypeIcon(request.request_type)}
                                     {translateType(request.request_type)}
                                   </Badge>
+                                  {request.complexity && request.complexity !== "" && (
+                                      <Badge
+                                          variant="outline"
+                                          className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                      >
+                                        {translateComplexity(request.complexity)}
+                                      </Badge>
+                                  )}
+                                </div>
+
+                                <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="incoming">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <Select value={filterIncomingStatus} onValueChange={setFilterIncomingStatus}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Статус" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="execution">Исполнение</SelectItem>
+                          <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="assigned">Назнечено</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterIncomingType} onValueChange={setFilterIncomingType}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Тип заявки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="normal">Обычная</SelectItem>
+                          <SelectItem value="urgent">Экстренная</SelectItem>
+                          <SelectItem value="planned">Плановая</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredIncomingRequests.map((request, index: number) => (
+                          <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                                onClick={() => setSelectedRequest(request)}>
+                            {/* Заголовок с ID и статусами */}
+                            <CardHeader className="pb-3 px-5 pt-5">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+                                  <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                  #{request.id}
+                                </span>
+                                    <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                  {request.category.name}
+                                </span>
+                                  </div>
+                                </div>
+                                <div className="flex gap-1">
                                   <Badge
                                       variant="outline"
-                                      className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                      className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
                                   >
-                                    {request.complexity}
+                                    {getStatusIcon(request.status)}
+                                    {translateStatus(request.status)}
                                   </Badge>
+                                </div>
+                              </div>
+                            </CardHeader>
+
+                            <CardContent className="px-5 pb-5 pt-0 space-y-3">
+                              {/* Описание */}
+                              <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
+
+                              {/* Основная информация в сетке */}
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                  <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <span className="truncate font-medium">{request.location_detail}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                  <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                  <span className="truncate font-medium">{formatDate(request.created_date)}</span>
+                                </div>
+
+                                {request.executor && request.executor.user.full_name ? (
+                                    <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                      <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                      <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                      <User className="w-4 h-4 flex-shrink-0" />
+                                      <span className="truncate font-medium">Не назначен</span>
+                                    </div>
+                                )}
+
+                                {userRatings[request.id]?.rating ? (
+                                    <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
+                                      {renderStars(userRatings[request.id].rating)}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
+                                      <span className="text-sm font-medium">Без оценки</span>
+                                    </div>
+                                )}
+                              </div>
+
+                              {/* Фотографии */}
+                              {request.photos && request.photos.length > 0 && (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <ImageIcon className="w-4 h-4 text-purple-500" />
+                                      <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
+                                    </div>
+                                    <div className="flex gap-2 overflow-x-auto">
+                                      {request.photos.slice(0, 4).map((photo, index) => (
+                                          <div key={index} className="flex-shrink-0">
+                                            <img
+                                                src={photo.photo_url || "/placeholder.svg"}
+                                                alt={`Фото ${index + 1}`}
+                                                className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
+                                                onError={(e) => {
+                                                  e.currentTarget.src = `/placeholder.svg?height=48&width=48`
+                                                }}
+                                            />
+                                          </div>
+                                      ))}
+                                      {request.photos.length > 4 && (
+                                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                                            <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+                                          </div>
+                                      )}
+                                    </div>
+                                  </div>
+                              )}
+
+                              {/* Нижняя панель */}
+                              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                                <div className="flex gap-2">
+                                  <Badge
+                                      variant="outline"
+                                      className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
+                                  >
+                                    {getRequestTypeIcon(request.request_type)}
+                                    {translateType(request.request_type)}
+                                  </Badge>
+                                  {request.complexity && request.complexity !== "" && (
+                                      <Badge
+                                          variant="outline"
+                                          className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
+                                      >
+                                        {translateComplexity(request.complexity)}
+                                      </Badge>
+                                  )}
                                 </div>
 
                                 <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
@@ -866,23 +1145,19 @@ export default function AdminWorkerDashboard() {
                           <div className="flex justify-between items-center">
                             <span>Завершено</span>
                             <span className="font-bold text-green-600">
-                            {myRequests.filter(req => req.status === "completed").length}
+                            {completedRequestsLength}
                           </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>В работе</span>
                             <span className="font-bold text-blue-600">
-                            {myRequests.filter(req => req.status === "in_execution").length}
+                            {executionRequestsLength}
                           </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Просрочено</span>
                             <span className="font-bold text-red-600">
-                            {myRequests.filter(req =>
-                                req.status === "in_execution" &&
-                                req.planned_date &&
-                                new Date(req.planned_date) < new Date()
-                            ).length}
+                            {expiredRequestsLength}
                           </span>
                           </div>
                         </div>
@@ -925,69 +1200,67 @@ export default function AdminWorkerDashboard() {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Быстрые действия</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setNewRequestType("planned");
-                        setShowCreateRequestModal(true);
-                      }}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать плановую заявку
-                  </Button>
-                  <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setNewRequestType("urgent");
-                        setShowCreateRequestModal(true);
-                      }}
-                  >
-                    <AlertTriangle className="w-4 h-4 mr-2 text-red-500" />
-                    Экстренная заявка
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    Отчеты
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
                   <CardTitle className="text-lg">Уведомления</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {myRequests
-                        .filter(req => req.status === "in_execution" && req.planned_date && new Date(req.planned_date) < new Date())
-                        .slice(0, 3)
-                        .map(req => (
-                            <div key={req.id} className="p-3 bg-red-50 rounded-lg">
-                              <p className="text-sm font-medium">Просрочена заявка #{req.id}</p>
-                              <p className="text-xs text-gray-600">{req.title}</p>
-                            </div>
-                        ))}
-                    {incomingRequests.slice(0, 2).map(req => (
-                        <div key={req.id} className="p-3 bg-blue-50 rounded-lg">
-                          <p className="text-sm font-medium">Новая заявка #{req.id}</p>
-                          <p className="text-xs text-gray-600">{req.title}</p>
-                        </div>
-                    ))}
-                  </div>
+                  {loading ? (
+                      <p>Загрузка...</p>
+                  ) : (
+                      <div className="space-y-3">
+                        {notifications
+                            .slice(0, 5)
+                            .map((n: any) => (
+                                <div
+                                    key={n.id}
+                                    onClick={() => handleNotificationClick(n)}
+                                    className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
+                                        n.title
+                                    )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
+                                >
+                                  <div className="flex justify-between">
+                                    <p className="text-sm font-medium">{n.title}</p>
+                                    {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
+                                  </div>
+                                  <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
+                                </div>
+                            ))}
+                      </div>
+                  )}
                 </CardContent>
               </Card>
+
+              {/* Модалка */}
+              {isModalOpen && selectedNotification && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                        <button
+                            className="text-gray-500 hover:text-black"
+                            onClick={() => setIsModalOpen(false)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-800 whitespace-pre-line">
+                        {selectedNotification.content}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-4">
+                        Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>setSelectedRequest(null)}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
+              setSelectedRequest(null)
+              setComments([])
+            }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
@@ -1147,14 +1420,14 @@ export default function AdminWorkerDashboard() {
                     </div>
                   </div>
 
-                  {selectedRequest.rating && (
+                  {userRatings[selectedRequest.id]?.rating && (
                       <div>
                         <Label>Оценка</Label>
                         <div className="flex">
                           {[...Array(5)].map((_, i) => (
                               <Star
                                   key={i}
-                                  className={`w-5 h-5 ${i < selectedRequest.rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                                  className={`w-5 h-5 ${i < userRatings[selectedRequest.id].rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
                               />
                           ))}
                         </div>
@@ -1230,18 +1503,6 @@ export default function AdminWorkerDashboard() {
                         />
                       </div>
                   )}
-                  {selectedRequest.status === "completed" && (
-                    <Button
-                        onClick={() => {
-                          setRequestToRate(selectedRequest);
-                          setShowRatingModal(true);
-                        }}
-                        className="mt-4"
-                    >
-                      <Star className="w-4 h-4 mr-2" />
-                      Оценить клиента
-                    </Button>
-                )}
                   <div className="flex space-x-4">
                     {selectedRequest.status==="in_progress" && (<>
                       <Button
@@ -1269,9 +1530,6 @@ export default function AdminWorkerDashboard() {
                       <XCircle className="w-4 h-4 mr-2" />
                       Отклонить
                     </Button>  </>)}
-                    <Button variant="outline" onClick={() => setSelectedRequest(null)}>
-                      Закрыть
-                    </Button>
                   </div>
                   {selectedRequest.status==="in_progress" && (
                   <div className="mt-4">
@@ -1288,7 +1546,7 @@ export default function AdminWorkerDashboard() {
                     <CardContent className="p-4">
                       <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                       {comments.map((c: any) => (
-                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
                             <div className="flex justify-between items-center">
                               <div className="text-sm text-gray-800 font-medium">
                                 {c.user.full_name || "Неизвестный пользователь"}{" "}
@@ -1308,12 +1566,38 @@ export default function AdminWorkerDashboard() {
                                   >
                                     Изменить
                                   </button>
-                                  <button
-                                      onClick={() => handleDelete(c.id)}
-                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                  >
-                                    Удалить
-                                  </button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <button
+                                          onClick={() => setCommentToDelete(c)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                      >
+                                        Удалить
+                                      </button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
+                                          <strong>{commentToDelete?.comment}</strong>?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => {
+                                              if (commentToDelete) {
+                                                handleDelete(commentToDelete.id);
+                                                setCommentToDelete(null);
+                                              }
+                                            }}
+                                        >
+                                          Удалить
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </div>
                             )}
 
@@ -1350,6 +1634,26 @@ export default function AdminWorkerDashboard() {
 
                     </CardContent>
                   </Card>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => {
+                      setSelectedRequest(null)
+                      setComments([])
+                    }}>
+                      Закрыть
+                    </Button>
+                    {selectedRequest.status === "completed" && !userRatings[selectedRequest.id] && (
+                        <Button
+                            onClick={() => {
+                              setRequestToRate(selectedRequest)
+                              setShowRatingModal(true)
+                              setSelectedRequest(null)
+                            }}
+                        >
+                          <Star className="w-4 h-4 mr-2" />
+                          Оценить
+                        </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -1506,13 +1810,32 @@ export default function AdminWorkerDashboard() {
 
                   {newRequestType === "planned" && (
                       <div>
-                        <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
-                        <Input
-                            id="newRequestPlannedDate"
-                            type="date"
-                            value={newRequestPlannedDate}
-                            onChange={(e) => setNewRequestPlannedDate(e.target.value)}
-                        />
+                        <div className="grid gap-2">
+                          <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                  variant="outline"
+                                  className="w-full justify-start text-left font-normal"
+                              >
+                                {date ? format(date, "dd MMMM yyyy", { locale: ru }) : <span>Выберите дату</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <Calendar
+                                  mode="single"
+                                  selected={date}
+                                  onSelect={(selectedDate) => {
+                                    if (selectedDate) {
+                                      setNewRequestPlannedDate(selectedDate.toISOString().split("T")[0])
+                                    }
+                                  }}
+                                  initialFocus
+                                  locale={ru}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </div>
                   )}
 
