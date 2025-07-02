@@ -32,6 +32,13 @@ import axios from "axios";
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
 import {useRouter} from "next/navigation";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -83,6 +90,13 @@ export interface Request {
   office_id: number;
 }
 
+interface Comment {
+  id: number,
+  request_id: number,
+  sender_id: number,
+  comment: string,
+  timestamp: Date
+}
 
 export default function ExecutorDashboard() {
   const router = useRouter()
@@ -119,9 +133,12 @@ export default function ExecutorDashboard() {
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [completeFormErrors, setCompleteFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [myRating, setMyRating] = useState<number | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -164,12 +181,42 @@ export default function ExecutorDashboard() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
+      setEditCommentId(null);
+      setComment("")
     } catch (err) {
       console.error("Ошибка при удалении", err);
+    }
+  };
+
+  const handleSend = () => {
+    if (comment.trim() === "") return;
+
+    if (editCommentId) {
+      api
+          .put(`/comments/${editCommentId}`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
     }
   };
 
@@ -183,36 +230,6 @@ export default function ExecutorDashboard() {
       fetchComments();
     }
   }, [selectedTaskDetails]);
-
-  const handleSend = () => {
-    if (comment.trim() === "") return;
-
-    if (editCommentId) {
-      api
-          .put(`/comments/${editCommentId}`, {
-            comment: comment.trim(),
-            request_id: selectedTaskDetails.id, // !!!
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-            setEditCommentId(null);
-          })
-          .catch((err) => console.error("Ошибка при обновлении", err));
-    } else {
-      api
-          .post(`/comments`, {
-            comment: comment.trim(),
-            request_id: selectedTaskDetails.id, // !!!
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-          })
-          .catch((err) => console.error("Ошибка при добавлении", err));
-    }
-  };
-
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -300,7 +317,6 @@ export default function ExecutorDashboard() {
       setRequestLocation("")
       setNewRequestLocation("")
       setDescription("")
-      alert("Заявка успешно создана!")
     } catch (error) {
       console.error("Failed to create request:", error)
       setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
@@ -405,6 +421,8 @@ export default function ExecutorDashboard() {
     try {
       const response = await api.get('requests/executor/me')
       const responseRating = await api.get('ratings/executor')
+      const responseMyRating = await api.get('executors/average-rating')
+      setMyRating(responseMyRating.data.average_rating)
       const ratingsMap = new Map<number, number>()
       for (const r of responseRating.data) {
         ratingsMap.set(r.request_id, parseFloat(r.rating))
@@ -485,11 +503,21 @@ export default function ExecutorDashboard() {
     setAssignedRequests((prevTasks: any) =>
         prevTasks.map((task: any) => (task.id === taskId ? {...task, status: "execution"} : task)),
     )
+    setMyRequests((prevTasks: any) =>
+        prevTasks.map((task: any) => (task.id === taskId ? {...task, status: "execution"} : task)),
+    )
     console.log("Starting task:", taskId)
   }
 
   const handleCompleteTask = async (taskId: string) => {
     try {
+      if (!completedRequestComment.trim()) {
+        setCompleteFormErrors("Пожалуйста, заполните поле и добавьте фото.")
+        setIsSubmitting(false);
+        return
+      }
+
+      setCompleteFormErrors(null)
       // 1. PATCH для завершения задачи
       const response = await api.patch(`/requests/${taskId}/complete`, {
         comment: completedRequestComment
@@ -515,7 +543,12 @@ export default function ExecutorDashboard() {
           alert("Ошибка при загрузке фото. Заявка не была создана.");
           return;
         }
+      } else {
+        setCompleteFormErrors("Пожалуйста, заполните поле и добавьте фото.")
+        setIsSubmitting(false);
+        return
       }
+      setCompleteFormErrors(null)
 
       // 3. Переносим задачу в список завершённых
       setAssignedRequests((prevTasks: any) => {
@@ -541,6 +574,8 @@ export default function ExecutorDashboard() {
       setSelectedTask(null);
       setPhotos([]);
       setPhotoPreviews([]);
+      setCompletedRequestComment("");
+      setIsSubmitting(false);
       console.log("Задача успешно завершена:", taskId);
     } catch (error) {
       console.error("Ошибка при завершении задачи", error);
@@ -652,6 +687,28 @@ export default function ExecutorDashboard() {
     ))
   }
 
+  const completedInTime = completedRequests.filter((req: { actual_completion_date: string | number | Date; sla: { props: { deadline: string | number | Date } } }) => {
+    const completedAt = new Date(req.actual_completion_date);
+    const slaDeadline = new Date(req.sla?.props?.deadline);
+    return completedAt <= slaDeadline;
+  });
+
+  const overdue = completedRequests.length - completedInTime.length;
+
+  const ratings = completedRequests.map((req: { rating: any }) => req.rating).filter(Boolean) as number[];
+  const averageRating = ratings.length
+      ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1)
+      : '—';
+
+  const durations = completedRequests.map((req: { date_submitted: string | number | Date; actual_completion_date: string | number | Date }) => {
+    const submitted = new Date(req.date_submitted).getTime();
+    const completed = new Date(req.actual_completion_date).getTime();
+    return (completed - submitted) / (1000 * 60 * 60); // в часах
+  });
+  const averageDuration = durations.length
+      ? (durations.reduce((sum: any, d: any) => sum + d, 0) / durations.length).toFixed(1)
+      : '—';
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -675,7 +732,9 @@ export default function ExecutorDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Экстренные</p>
-                  <p className="text-2xl font-bold text-gray-900">1</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {[...assignedRequests, ...myRequests].filter(req => req.request_type === "urgent").length}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -689,7 +748,7 @@ export default function ExecutorDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">В работе</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {assignedRequests?.filter((r:any) => r.status === "В работе").length}
+                    {assignedRequests?.filter((r:any) => r.status === "execution").length}
                   </p>
                 </div>
               </div>
@@ -702,9 +761,9 @@ export default function ExecutorDashboard() {
                   <CheckCircle className="w-6 h-6 text-green-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Завершено сегодня</p>
+                  <p className="text-sm font-medium text-gray-600">Завершено</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {completedRequests?.filter((r:any) => r.completedDate === new Date().toISOString().slice(0, 10)).length}
+                    {completedRequests?.length}
                   </p>
                 </div>
               </div>
@@ -718,7 +777,7 @@ export default function ExecutorDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                  <p className="text-2xl font-bold text-gray-900">4.8</p>
+                  <p className="text-2xl font-bold text-gray-900">{myRating}</p>
                 </div>
               </div>
             </CardContent>
@@ -761,6 +820,8 @@ export default function ExecutorDashboard() {
                         <SelectItem value="in_progress">В обработке</SelectItem>
                         <SelectItem value="execution">Исполнение</SelectItem>
                         <SelectItem value="completed">Завершено</SelectItem>
+                        <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                        <SelectItem value="assigned">Назначен</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={filterType} onValueChange={setFilterType}>
@@ -833,7 +894,7 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor.user.full_name ? (
+                              {request.executor && request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
                                     <span className="truncate font-medium">{request.executor.user.full_name}</span>
@@ -1005,7 +1066,7 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor.user.full_name ? (
+                              { request.executor && request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
                                     <span className="truncate font-medium">{request.executor.user.full_name}</span>
@@ -1089,10 +1150,6 @@ export default function ExecutorDashboard() {
               <TabsContent value="myTasks">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4 mb-4">
-                    <Button variant="outline" size="sm">
-                      <Filter className="w-4 h-4 mr-2" />
-                      Фильтр
-                    </Button>
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Статус" />
@@ -1112,7 +1169,7 @@ export default function ExecutorDashboard() {
                         <SelectItem value="all">Все</SelectItem>
                         <SelectItem value="normal">Обычная</SelectItem>
                         <SelectItem value="urgent">Экстренная</SelectItem>
-                        <SelectItem value="planed">Плановая</SelectItem>
+                        <SelectItem value="planned">Плановая</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1163,7 +1220,7 @@ export default function ExecutorDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor.user.full_name ? (
+                              {request.executor && request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
                                     <span className="truncate font-medium">{request.executor.user.full_name}</span>
@@ -1235,7 +1292,32 @@ export default function ExecutorDashboard() {
                                 )}
                               </div>
 
-                              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                              <div>
+                                {request.status === "assigned" && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-blue-600 hover:bg-blue-700"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleStartTask(request.id)
+                                        }}
+                                    >
+                                      Начать
+                                    </Button>
+                                )}
+                                {request.status === "execution" && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-green-600 hover:bg-green-700"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedTask(request)
+                                        }}
+                                    >
+                                      Завершить
+                                    </Button>
+                                )}
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
@@ -1249,29 +1331,29 @@ export default function ExecutorDashboard() {
                   <Card>
                     <CardHeader>
                       <CardTitle>Моя статистика</CardTitle>
-                      <CardDescription>Показатели за последние 30 дней</CardDescription>
+                      <CardDescription>Показатели за весь период</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
                           <span>Всего выполнено задач</span>
-                          <span className="font-bold">28</span>
+                          <span className="font-bold">{completedRequests.length}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Выполнено в срок</span>
-                          <span className="font-bold text-green-600">26</span>
+                          <span className="font-bold text-green-600">{completedInTime.length}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Просрочено</span>
-                          <span className="font-bold text-red-600">2</span>
+                          <span className="font-bold text-red-600">{overdue}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Средняя оценка</span>
-                          <span className="font-bold">4.8/5</span>
+                          <span className="font-bold">{myRating}/5</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Среднее время выполнения</span>
-                          <span className="font-bold">1.8 часа</span>
+                          <span className="font-bold">{averageDuration} часа</span>
                         </div>
                       </div>
                     </CardContent>
@@ -1288,7 +1370,7 @@ export default function ExecutorDashboard() {
                           <Star className="w-10 h-10 text-yellow-600" />
                         </div>
                         <h3 className="text-xl font-bold text-gray-900">Золотой исполнитель</h3>
-                        <p className="text-sm text-gray-600">Рейтинг: 4.8/5</p>
+                        <p className="text-sm text-gray-600">Рейтинг: {myRating}/5</p>
                       </div>
 
                       <div className="space-y-3">
@@ -1404,8 +1486,12 @@ export default function ExecutorDashboard() {
 
       {/* Complete Task Modal */}
       {selectedTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+          setSelectedTask(null);
+          setIsSubmitting(false);
+          setCompleteFormErrors("")
+        }}>
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <CardTitle>Завершение задачи #{selectedTask.id}</CardTitle>
               <CardDescription>Подтвердите выполнение работы</CardDescription>
@@ -1463,14 +1549,17 @@ export default function ExecutorDashboard() {
                       </button>
                   )}
                 </div>
+                {completeFormErrors && <p className="text-sm text-red-500 mt-4">{completeFormErrors}</p>}
               </div>
 
               <div className="flex space-x-4">
                 <Button
                   onClick={() => {
                     handleCompleteTask(selectedTask.id)
+                    setIsSubmitting(true)
                   }}
                   className="flex-1 bg-green-600 hover:bg-green-700"
+                  disabled={isSubmitting}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Завершить задачу
@@ -1481,6 +1570,7 @@ export default function ExecutorDashboard() {
                     setSelectedTask(null)
                     setPhotos([])
                     setPhotoPreviews([])
+                    setCompletedRequestComment("")
                   }}
                   className="flex-1"
                 >
@@ -1496,6 +1586,7 @@ export default function ExecutorDashboard() {
       {showCreateRequestModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
             setShowCreateRequestModal(false)
+            setCompletedRequestComment("")
             setComments([])
           }}>
             <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -1793,12 +1884,38 @@ export default function ExecutorDashboard() {
                                       >
                                         Изменить
                                       </button>
-                                      <button
-                                          onClick={() => handleDelete(c.id)}
-                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                      >
-                                        Удалить
-                                      </button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <button
+                                              onClick={() => setCommentToDelete(c)}
+                                              className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                          >
+                                            Удалить
+                                          </button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
+                                              <strong>{commentToDelete?.comment}</strong>?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => {
+                                                  if (commentToDelete) {
+                                                    handleDelete(commentToDelete.id);
+                                                    setCommentToDelete(null);
+                                                  }
+                                                }}
+                                            >
+                                              Удалить
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
                                     </div>
                                 )}
 

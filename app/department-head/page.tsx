@@ -107,6 +107,14 @@ const roleTranslations: Record<string, string> = {
   manager: "Руководитель"
 };
 
+interface Comment {
+  id: number,
+  request_id: number,
+  sender_id: number,
+  comment: string,
+  timestamp: Date
+}
+
 export default function DepartmentHeadDashboard() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming")
@@ -142,9 +150,6 @@ export default function DepartmentHeadDashboard() {
   const [executors, setExecutors] = useState<Executor[]>([])
   const [newExecutorName, setNewExecutorName] = useState("")
   const [newExecutorSpecialty, setNewExecutorSpecialty] = useState("")
-  const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
-  const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
-  const [deleteReason, setDeleteReason] = useState("")
   const [selectedExecutorId, setSelectedExecutorId] = useState<number | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [photos, setPhotos] = useState<File[]>([]);
@@ -161,6 +166,7 @@ export default function DepartmentHeadDashboard() {
   const [executorToDelete, setExecutorToDelete] = useState<Executor | null>(null)
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
 
 
   useEffect(() => {
@@ -379,42 +385,48 @@ export default function DepartmentHeadDashboard() {
   }
 
   const handleDelete = async (id: number) => {
-    //if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
+      setEditCommentId(null);
+      setComment("")
     } catch (err) {
       console.error("Ошибка при удалении", err);
     }
   };
-  const handleSend = async () => {
+  const handleSend = () => {
     if (comment.trim() === "") return;
 
-    try {
-      if (editCommentId) {
-        await api.put(`/comments/${editCommentId}`, {
-          comment: comment.trim(),
-          request_id: selectedRequest?.id,
-        });
-        setEditCommentId(null);
-      } else {
-        await api.post(`/comments`, {
-          comment: comment.trim(),
-          request_id: selectedRequest?.id,
-        });
-      }
-      setComment("");
-      fetchComments();
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err);
+    if (editCommentId) {
+      api
+          .put(`/comments/${editCommentId}`, {
+            request_id: selectedRequest?.id,
+            comment: comment.trim()
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedRequest?.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
     }
   };
 
 
-
   const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);       // заполняем поле ввода
-    setEditCommentId(id);         // запоминаем какой комментарий редактируем
+    setComment(oldComment);
+    setEditCommentId(id);
   };
 
   useEffect(() => {
@@ -597,7 +609,6 @@ export default function DepartmentHeadDashboard() {
         setShowRatingModal(false)
         setRatingValue(0)
         setRequestToRate(null)
-        alert("Оценка успешно отправлена!")
       } catch (error) {
         console.error("Failed to rate executor:", error)
         alert("Не удалось отправить оценку.")
@@ -615,28 +626,6 @@ export default function DepartmentHeadDashboard() {
       console.error("Logout failed:", error)
     }
   }
-
-
-
-  const handleDeleteRequest = (request: Request) => {
-    setRequestToDelete(request)
-    setShowDeleteRequestModal(true)
-  }
-
-  const confirmDeleteRequest = async () => {
-    if (requestToDelete) {
-      try {
-        await api.delete(`/requests/${requestToDelete.id}`)
-        fetchRequests()
-        setShowDeleteRequestModal(false)
-        setRequestToDelete(null)
-        setDeleteReason("")
-      } catch (error) {
-        console.error("Failed to delete request:", error)
-      }
-    }
-  }
-
 
   const handleRemoveExecutor = async (executorId: number) => {
     try {
@@ -806,6 +795,29 @@ export default function DepartmentHeadDashboard() {
     ))
   }
 
+  const newRequestsLength =
+      incomingRequests.filter(req => req.status === "in_progress").length +
+      myRequests.filter(req => req.status === "in_progress").length
+
+  const executionRequestsLength =
+      myRequests.filter(req => req.status === "execution").length +
+      incomingRequests.filter(req => req.status === "execution").length
+
+  const completedRequestsLength =
+      myRequests.filter(req => req.status === "completed").length +
+      incomingRequests.filter(req => req.status === "completed").length
+
+  const expiredRequestsLength =
+      myRequests.filter(req =>
+          req.status === "execution" &&
+          req.planned_date &&
+          new Date(req.planned_date) < new Date()
+      ).length +
+      incomingRequests.filter(req =>
+          req.status === "execution" &&
+          req.planned_date &&
+          new Date(req.planned_date) < new Date()
+      ).length
 
   return (
       <div className="min-h-screen bg-gray-50">
@@ -829,7 +841,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Новые заявки</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {incomingRequests.filter(req => req.status === "draft" || req.status === "awaiting_assignment").length}
+                      {newRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -844,7 +856,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">В работе</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req => req.status === "in_execution").length}
+                      {executionRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -859,7 +871,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Завершено</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req => req.status === "completed").length}
+                      {completedRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -874,11 +886,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Просрочено</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {myRequests.filter(req =>
-                          req.status === "in_execution" &&
-                          req.planned_date &&
-                          new Date(req.planned_date) < new Date()
-                      ).length}
+                      {expiredRequestsLength}
                     </p>
                   </div>
                 </div>
@@ -1175,23 +1183,19 @@ export default function DepartmentHeadDashboard() {
                           <div className="flex justify-between items-center">
                             <span>Завершено</span>
                             <span className="font-bold text-green-600">
-                            {myRequests.filter(req => req.status === "completed").length}
+                            {completedRequestsLength}
                           </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>В работе</span>
                             <span className="font-bold text-blue-600">
-                            {myRequests.filter(req => req.status === "in_execution").length}
+                            {executionRequestsLength}
                           </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Просрочено</span>
                             <span className="font-bold text-red-600">
-                            {myRequests.filter(req =>
-                                req.status === "in_execution" &&
-                                req.planned_date &&
-                                new Date(req.planned_date) < new Date()
-                            ).length}
+                            {expiredRequestsLength}
                           </span>
                           </div>
                         </div>
@@ -1260,7 +1264,7 @@ export default function DepartmentHeadDashboard() {
                         </div>
                         <Button
                             onClick={handleAddExecutor}
-                            disabled={!newExecutorName.trim() || !newExecutorSpecialty.trim()}
+                            disabled={!newExecutorName.trim() || !newExecutorSpecialty.trim() || !newExecutorEmail.trim()}
                         >
                           Добавить исполнителя
                         </Button>
@@ -1298,8 +1302,8 @@ export default function DepartmentHeadDashboard() {
                                             />
                                         ))}
                                         <span className="text-sm text-gray-600 ml-2">
-              {Number(executor.rating).toFixed(2)}
-            </span>
+                                          {Number(executor.rating).toFixed(2)}
+                                        </span>
                                       </div>
                                     </div>
 
@@ -1341,7 +1345,7 @@ export default function DepartmentHeadDashboard() {
                                             <AlertDialogAction
                                                 onClick={() => {
                                                   if (executorToDelete) {
-                                                    handleRemoveExecutor(executorToDelete.id);
+                                                    handleRemoveExecutor(executorToDelete.user.id);
                                                     setExecutorToDelete(null);
                                                   }
                                                 }}
@@ -1787,12 +1791,38 @@ export default function DepartmentHeadDashboard() {
                                   >
                                     Изменить
                                   </button>
-                                  <button
-                                      onClick={() => handleDelete(c.id)}
-                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                  >
-                                    Удалить
-                                  </button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <button
+                                          onClick={() => setCommentToDelete(c)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                      >
+                                        Удалить
+                                      </button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
+                                          <strong>{commentToDelete?.comment}</strong>?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => {
+                                              if (commentToDelete) {
+                                                handleDelete(commentToDelete.id);
+                                                setCommentToDelete(null);
+                                              }
+                                            }}
+                                        >
+                                          Удалить
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </div>
                             )}
 
@@ -1831,38 +1861,6 @@ export default function DepartmentHeadDashboard() {
                   </Card>
                 </CardContent>
                 <div className="flex space-x-4 m-4">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="flex-1">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Удалить
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Это действие необратимо. Вы точно хотите удалить заявку{" "}
-                          <strong>{selectedRequest?.title}</strong>?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Отмена</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => {
-                              if (selectedRequest) {
-                                handleDeleteRequest(selectedRequest)
-                                setSelectedRequest(null)
-                              }
-                            }}
-                        >
-                          Удалить
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-
-
                   <Button variant="outline"
                           onClick={() => {
                             setSelectedRequest(null)
@@ -2205,48 +2203,6 @@ export default function DepartmentHeadDashboard() {
                     Закрыть
                   </Button>
                 </div>
-              </Card>
-            </div>
-        )}
-
-
-        {/* Delete Request Confirmation Modal */}
-        {showDeleteRequestModal && requestToDelete && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-md">
-                <CardHeader>
-                  <CardTitle>Удалить заявку #{requestToDelete.id}?</CardTitle>
-                  <CardDescription>
-                    Вы уверены, что хотите удалить заявку "{requestToDelete.title}"? Это действие необратимо.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="deleteReason">Причина удаления</Label>
-                    <Textarea
-                        id="deleteReason"
-                        placeholder="Укажите причину удаления заявки..."
-                        value={deleteReason}
-                        onChange={(e) => setDeleteReason(e.target.value)}
-                        className="min-h-[80px]"
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowDeleteRequestModal(false)
-                          setRequestToDelete(null)
-                          setDeleteReason("")
-                        }}
-                    >
-                      Отмена
-                    </Button>
-                    <Button variant="destructive" onClick={confirmDeleteRequest} disabled={!deleteReason.trim()}>
-                      Удалить
-                    </Button>
-                  </div>
-                </CardContent>
               </Card>
             </div>
         )}

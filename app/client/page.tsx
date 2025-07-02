@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
 import {
   Plus,
   Camera,
@@ -26,6 +25,13 @@ import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
 import api from "@/lib/api";
 import {useRouter} from "next/navigation";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -84,6 +90,15 @@ const roleTranslations: Record<string, string> = {
   executor: "Испольнитель",
   manager: "Руководитель"
 };
+
+interface Comment {
+  id: number,
+  request_id: number,
+  sender_id: number,
+  comment: string,
+  timestamp: Date
+}
+
 export default function ClientDashboard() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("requests")
@@ -123,6 +138,7 @@ export default function ClientDashboard() {
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -206,10 +222,11 @@ export default function ClientDashboard() {
   };
 
   const handleDelete = async (id: number) => {
-    //if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
+      setEditCommentId(null);
+      setComment("")
     } catch (err) {
       console.error("Ошибка при удалении", err);
     }
@@ -246,8 +263,8 @@ export default function ClientDashboard() {
 
 
   const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);       // заполняем поле ввода
-    setEditCommentId(id);         // запоминаем какой комментарий редактируем
+    setComment(oldComment);
+    setEditCommentId(id);
   };
 
   useEffect(() => {
@@ -493,7 +510,6 @@ export default function ClientDashboard() {
         setShowRatingModal(false)
         setRatingValue(0)
         setRequestToRate(null)
-        alert("Оценка успешно отправлена!")
       } catch (error) {
         console.error("Failed to rate executor:", error)
         alert("Не удалось отправить оценку.")
@@ -724,6 +740,8 @@ export default function ClientDashboard() {
                         <SelectItem value="in_progress">В обработке</SelectItem>
                         <SelectItem value="execution">Исполнение</SelectItem>
                         <SelectItem value="completed">Завершено</SelectItem>
+                        <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                        <SelectItem value="assigned">Назначен</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={filterType} onValueChange={setFilterType}>
@@ -1326,12 +1344,38 @@ export default function ClientDashboard() {
                                   >
                                     Изменить
                                   </button>
-                                  <button
-                                      onClick={() => handleDelete(c.id)}
-                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                  >
-                                    Удалить
-                                  </button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <button
+                                          onClick={() => setCommentToDelete(c)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                      >
+                                        Удалить
+                                      </button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
+                                          <strong>{commentToDelete?.comment}</strong>?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => {
+                                              if (commentToDelete) {
+                                                handleDelete(commentToDelete.id);
+                                                setCommentToDelete(null);
+                                              }
+                                            }}
+                                        >
+                                          Удалить
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </div>
                             )}
 

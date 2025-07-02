@@ -62,6 +62,8 @@ const roleTranslations: Record<string, string> = {
 type OfficeType = {
   id: number
   name: string
+  city: string
+  address: string
 }
 
 type User = {
@@ -70,6 +72,14 @@ type User = {
   email: string;
   office_id: string;
   role: string;
+}
+
+interface Comment {
+  id: number,
+  request_id: number,
+  sender_id: number,
+  comment: string,
+  timestamp: Date
 }
 
 export default function ManagerDashboard() {
@@ -113,6 +123,10 @@ export default function ManagerDashboard() {
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
+  const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
+  const [deleteReason, setDeleteReason] = useState("")
   const [newUser, setNewUser] = useState({
     id: 0,
     email: "",
@@ -122,6 +136,13 @@ export default function ManagerDashboard() {
   });
   const [users, setUsers] = useState<User[]>([]);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editingOfficeId, setEditingOfficeId] = useState(null)
+  const [editedOffice, setEditedOffice] = useState<Partial<OfficeType>>({
+    name: "",
+    city: "",
+    address: "",
+  })
+
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -243,6 +264,24 @@ export default function ManagerDashboard() {
     }
   }
 
+  const handleDeleteRequest = (request: Request) => {
+    setRequestToDelete(request)
+    setShowDeleteRequestModal(true)
+  }
+
+  const confirmDeleteRequest = async () => {
+    if (requestToDelete) {
+      try {
+        await api.delete(`/requests/${requestToDelete.id}`)
+        fetchRequests()
+        setShowDeleteRequestModal(false)
+        setRequestToDelete(null)
+        setDeleteReason("")
+      } catch (error) {
+        console.error("Failed to delete request:", error)
+      }
+    }
+  }
 
   const handleCreateRequest = async () => {
     if (
@@ -355,8 +394,39 @@ export default function ManagerDashboard() {
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
+      setEditCommentId(null);
+      setComment("")
     } catch (err) {
       console.error("Ошибка при удалении", err);
+    }
+  };
+  const handleSend = () => {
+    if (comment.trim() === "") return;
+
+    if (editCommentId) {
+      // редактируем существующий комментарий
+      api
+          .put(`/comments/${editCommentId}`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+            setEditCommentId(null);
+          })
+          .catch((err) => console.error("Ошибка при обновлении", err));
+    } else {
+      api
+          .post(`/comments`, {
+            comment: comment.trim(),
+            request_id: selectedTaskDetails.id,
+          })
+          .then(() => {
+            fetchComments();
+            setComment("");
+          })
+          .catch((err) => console.error("Ошибка при добавлении", err));
     }
   };
 
@@ -371,28 +441,19 @@ export default function ManagerDashboard() {
     }
   }, [selectedTaskDetails]);
 
-  const handleSend = async () => {
-    if (!comment.trim()) return;
-
+  const handleUpdateOffice = async (id:any) => {
     try {
-      if (editCommentId) {
-        await api.put(`/comments/${editCommentId}`, {
-          comment: comment.trim(),
-          request_id: selectedTaskDetails.id,
-        });
-        setEditCommentId(null);
-      } else {
-        await api.post(`/comments`, {
-          comment: comment.trim(),
-          request_id: selectedTaskDetails.id,
-        });
-      }
-      setComment("");
-      fetchComments();
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err);
+      await api.put(`/offices/${id}`, editedOffice) // Передаём данные для обновления
+      const updatedOffices = offices.map((office: any) =>
+          office.id === id ? { ...office, ...editedOffice } : office
+      )
+      setOffices(updatedOffices)
+      setEditingOfficeId(null)
+    } catch (error) {
+      console.error("Ошибка при обновлении офиса:", error)
     }
-  };
+  }
+
 
   const handleOpenCreateRequest = () => {
     if (navigator.geolocation) {
@@ -853,10 +914,6 @@ export default function ManagerDashboard() {
           <TabsContent value="requests">
             <div className="space-y-4">
               <div className="flex items-center space-x-4 mb-4">
-                <Button variant="outline" size="sm">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Фильтр
-                </Button>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Статус" />
@@ -866,6 +923,8 @@ export default function ManagerDashboard() {
                     <SelectItem value="in_progress">В обработке</SelectItem>
                     <SelectItem value="execution">Исполнение</SelectItem>
                     <SelectItem value="completed">Завершено</SelectItem>
+                    <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                    <SelectItem value="assigned">Назначен</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={filterType} onValueChange={setFilterType}>
@@ -876,7 +935,7 @@ export default function ManagerDashboard() {
                     <SelectItem value="all">Все</SelectItem>
                     <SelectItem value="normal">Обычная</SelectItem>
                     <SelectItem value="urgent">Экстренная</SelectItem>
-                    <SelectItem value="planed">Плановая</SelectItem>
+                    <SelectItem value="planned">Плановая</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1148,49 +1207,105 @@ export default function ManagerDashboard() {
                       <p className="text-sm text-gray-500 italic">Нет добавленных офисов.</p>
                     ) : (
                       <div className="grid grid-cols-1 gap-2">
-                        {offices.map((officeItem:any, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
-                          >
-                            <span className="font-medium text-gray-700">{officeItem.name}</span>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setOfficeToDelete(officeItem)}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
+                        {offices.map((officeItem: any) => (
+                            <div
+                                key={officeItem.id}
+                                className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded-lg border space-y-2 sm:space-y-0"
+                            >
+                              {editingOfficeId === officeItem.id ? (
+                                  <div className="flex flex-col sm:flex-row sm:space-x-2 w-full">
+                                    <Input
+                                        value={editedOffice.name}
+                                        onChange={(e) => setEditedOffice({ ...editedOffice, name: e.target.value })}
+                                        placeholder="Название офиса"
+                                        className="flex-1"
+                                    />
+                                    <Input
+                                        value={editedOffice.city}
+                                        onChange={(e) => setEditedOffice({ ...editedOffice, city: e.target.value })}
+                                        placeholder="Город"
+                                        className="flex-1"
+                                    />
+                                    <Input
+                                        value={editedOffice.address}
+                                        onChange={(e) => setEditedOffice({ ...editedOffice, address: e.target.value })}
+                                        placeholder="Адрес"
+                                        className="flex-1"
+                                    />
+                                    <Button
+                                        onClick={() => handleUpdateOffice(officeItem.id)}
+                                        className="bg-green-600 hover:bg-green-700"
+                                    >
+                                      Сохранить
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setEditingOfficeId(null)}
+                                    >
+                                      Отмена
+                                    </Button>
+                                  </div>
+                              ) : (
+                                  <>
+                                    <div className="text-gray-700">
+                                      <div className="text-lg font-semibold">{officeItem.name}</div>
+                                      <div className="text-sm text-gray-600">Город: <span className="font-medium">{officeItem.city}</span></div>
+                                      <div className="text-sm text-gray-600">Адрес: <span className="font-medium">{officeItem.address}</span></div>
+                                    </div>
 
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Удалить офис?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Это действие нельзя отменить. Вы уверены, что хотите удалить офис{" "}
-                                    <strong>{officeToDelete?.name}</strong>?
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                  <AlertDialogAction
-                                      onClick={() => {
-                                        if (officeToDelete) {
-                                          handleRemoveOffice(officeToDelete.id)
-                                          setOfficeToDelete(null)
-                                        }
-                                      }}
-                                  >
-                                    Удалить
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-
-                          </div>
+                                    <div className="flex space-x-2">
+                                      <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            setEditingOfficeId(officeItem.id)
+                                            setEditedOffice({
+                                              name: officeItem.name,
+                                              city: officeItem.city,
+                                              address: officeItem.address,
+                                            })
+                                          }}
+                                      >
+                                        ✏️
+                                      </Button>
+                                      {/* Удаление — оставляем как есть */}
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setOfficeToDelete(officeItem)}
+                                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Удалить офис?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Это действие нельзя отменить. Удалить офис <strong>{officeToDelete?.name}</strong>?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => {
+                                                  if (officeToDelete) {
+                                                    handleRemoveOffice(officeToDelete.id)
+                                                    setOfficeToDelete(null)
+                                                  }
+                                                }}
+                                            >
+                                              Удалить
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </>
+                              )}
+                            </div>
                         ))}
                       </div>
                     )}
@@ -1648,12 +1763,38 @@ export default function ManagerDashboard() {
                                       >
                                         Изменить
                                       </button>
-                                      <button
-                                          onClick={() => handleDelete(c.id)}
-                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                      >
-                                        Удалить
-                                      </button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <button
+                                              onClick={() => setCommentToDelete(c)}
+                                              className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                          >
+                                            Удалить
+                                          </button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
+                                              <strong>{commentToDelete?.comment}</strong>?
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => {
+                                                  if (commentToDelete) {
+                                                    handleDelete(commentToDelete.id);
+                                                    setCommentToDelete(null);
+                                                  }
+                                                }}
+                                            >
+                                              Удалить
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
                                     </div>
                                 )}
 
@@ -1693,6 +1834,36 @@ export default function ManagerDashboard() {
                     </div>
                 )}
                 <div className="flex justify-end mt-6">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="flex-1 mr-2">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Удалить
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Это действие необратимо. Вы точно хотите удалить заявку{" "}
+                          <strong>{selectedTaskDetails?.title}</strong>?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                              if (selectedTaskDetails) {
+                                handleDeleteRequest(selectedTaskDetails)
+                                setSelectedTaskDetails(null)
+                              }
+                            }}
+                        >
+                          Удалить
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <Button variant="outline" onClick={() => {
                     setSelectedTaskDetails(null)
                     setComments([])
@@ -1731,6 +1902,47 @@ export default function ManagerDashboard() {
                   Закрыть
                 </Button>
               </div>
+            </Card>
+          </div>
+      )}
+
+      {/* Delete Request Confirmation Modal */}
+      {showDeleteRequestModal && requestToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Удалить заявку #{requestToDelete.id}?</CardTitle>
+                <CardDescription>
+                  Вы уверены, что хотите удалить заявку "{requestToDelete.title}"? Это действие необратимо.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="deleteReason">Причина удаления</Label>
+                  <Textarea
+                      id="deleteReason"
+                      placeholder="Укажите причину удаления заявки..."
+                      value={deleteReason}
+                      onChange={(e) => setDeleteReason(e.target.value)}
+                      className="min-h-[80px]"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowDeleteRequestModal(false)
+                        setRequestToDelete(null)
+                        setDeleteReason("")
+                      }}
+                  >
+                    Отмена
+                  </Button>
+                  <Button variant="destructive" onClick={confirmDeleteRequest} disabled={!deleteReason.trim()}>
+                    Удалить
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           </div>
       )}
