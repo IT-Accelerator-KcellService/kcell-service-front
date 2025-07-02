@@ -680,15 +680,36 @@ export default function ClientDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <div className="flex justify-between items-center mb-6">
-                <TabsList>
-                  <TabsTrigger value="requests">Мои заявки</TabsTrigger>
-                  <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                </TabsList>
-                <Button onClick={handleOpenCreateRequest} className="bg-violet-600 hover:bg-violet-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Создать заявку
-                </Button>
+              <div className="mb-6">
+                {/* на телефоне кнопка сверху */}
+                <div className="flex flex-col sm:hidden gap-3 mb-4">
+                  <Button
+                      onClick={handleOpenCreateRequest}
+                      className="bg-violet-600 hover:bg-violet-700 w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Создать заявку
+                  </Button>
+                  <TabsList>
+                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                  </TabsList>
+                </div>
+
+                {/* на больших экранах как было */}
+                <div className="hidden sm:flex justify-between items-center">
+                  <TabsList>
+                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                  </TabsList>
+                  <Button
+                      onClick={handleOpenCreateRequest}
+                      className="bg-violet-600 hover:bg-violet-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Создать заявку
+                  </Button>
+                </div>
               </div>
 
               <TabsContent value="requests">
