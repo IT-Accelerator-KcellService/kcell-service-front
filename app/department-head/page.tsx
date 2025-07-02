@@ -48,6 +48,7 @@ import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {Calendar as CalendarPlanned} from "@/components/ui/calendar";
 import {format} from "date-fns";
 import {ru} from "date-fns/locale";
+import {useRouter} from "next/navigation";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -107,6 +108,7 @@ const roleTranslations: Record<string, string> = {
 };
 
 export default function DepartmentHeadDashboard() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming")
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
@@ -169,7 +171,7 @@ export default function DepartmentHeadDashboard() {
 
         if (!user || user.role !== "department-head") {
           console.log(response)
-          window.location.href = '/login';
+          router.push("/login")
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id)
@@ -177,7 +179,7 @@ export default function DepartmentHeadDashboard() {
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = '/login'
+        router.push("/login")
       }
     };
 
@@ -608,7 +610,7 @@ export default function DepartmentHeadDashboard() {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
       localStorage.removeItem('token')
-      window.location.href = "/login"
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }

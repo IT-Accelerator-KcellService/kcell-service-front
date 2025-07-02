@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Clock,
@@ -29,6 +31,7 @@ import UserProfile from "@/app/client/UserProfile";
 import axios from "axios";
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
+import {useRouter} from "next/navigation";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -82,6 +85,7 @@ export interface Request {
 
 
 export default function ExecutorDashboard() {
+  const router = useRouter()
   const [assignedRequests, setAssignedRequests] = useState<any>([])
   const [myRequests, setMyRequests] = useState<Request[]>([])
   const [completedRequests, setCompletedRequests] = useState<any>([])
@@ -126,7 +130,7 @@ export default function ExecutorDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "executor") {
-          window.location.href = "/login";
+          router.push("/login")
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id);
@@ -134,7 +138,7 @@ export default function ExecutorDashboard() {
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = "/login";
+        router.push("/login")
       }
     };
 
@@ -549,7 +553,7 @@ export default function ExecutorDashboard() {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
       localStorage.removeItem('token')
-      window.location.href = "/login"
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 import {
   Plus,
   Camera,
@@ -24,6 +25,7 @@ import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
 import api from "@/lib/api";
+import {useRouter} from "next/navigation";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -83,6 +85,7 @@ const roleTranslations: Record<string, string> = {
   manager: "Руководитель"
 };
 export default function ClientDashboard() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("requests")
   const [showCreateRequest, setShowCreateRequest] = useState(false)
   const [requestType, setRequestType] = useState("")
@@ -128,7 +131,7 @@ export default function ClientDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "client") {
-          window.location.href = '/login';
+          router.push("/login")
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id);
@@ -136,7 +139,7 @@ export default function ClientDashboard() {
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = '/login'
+        router.push("/login")
       }
     };
 
@@ -519,7 +522,7 @@ export default function ClientDashboard() {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
       localStorage.removeItem('token')
-      window.location.href = "/login"
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }
