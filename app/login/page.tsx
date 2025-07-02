@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Building2, Users } from "lucide-react"
+import {useRouter} from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter()
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -57,7 +59,8 @@ export default function LoginPage() {
       const data = await response.json()
       const role = data.role || "client"
       localStorage.setItem("token", data.token)
-      window.location.href = `/${role.toLowerCase().replace(" ", "-")}`
+      localStorage.setItem("role", data.role)
+      router.push(`/${role.toLowerCase().replace(" ", "-")}`)
     } catch (err) {
       console.error("Ошибка логина:", err)
       setFormError("Произошла ошибка при входе. Попробуйте позже.")

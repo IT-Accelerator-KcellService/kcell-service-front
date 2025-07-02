@@ -24,6 +24,14 @@ import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
 import api from "@/lib/api";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from "@/components/ui/alert-dialog";
+import {useRouter} from "next/navigation";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -40,12 +48,24 @@ interface Rating {
   created_at: string;
 }
 
+interface Category {
+  id: number;
+  name: string;
+}
+
+interface Photo {
+  id: number;
+  request_id: number;
+  photo_url: string;
+  type: string;
+}
+
 export interface Request {
   executor_id: any;
   actual_completion_date: any;
   sla: React.JSX.Element;
   date_submitted: string;
-  category: any;
+  category: Category;
   office: any;
   complexity: string;
   id: number;
@@ -56,10 +76,10 @@ export interface Request {
   location: string;
   location_detail: string;
   created_date: string;
-  executor?: string;
+  executor: {user: { full_name: any } };
   rating?: number;
   category_id?: number;
-  photos?: { photo_url: string }[];
+  photos?: Photo[];
   office_id: number;
 }
 
@@ -70,7 +90,17 @@ const roleTranslations: Record<string, string> = {
   executor: "Испольнитель",
   manager: "Руководитель"
 };
+
+interface Comment {
+  id: number,
+  request_id: number,
+  sender_id: number,
+  comment: string,
+  timestamp: Date
+}
+
 export default function ClientDashboard() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState("requests")
   const [showCreateRequest, setShowCreateRequest] = useState(false)
   const [requestType, setRequestType] = useState("")
@@ -108,6 +138,7 @@ export default function ClientDashboard() {
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -116,7 +147,7 @@ export default function ClientDashboard() {
         const user = response.data;
 
         if (!user || user.role !== "client") {
-          window.location.href = '/login';
+          router.push("/login")
         } else {
           setIsLoggedIn(true);
           setCurrentUserId(user.id);
@@ -124,7 +155,7 @@ export default function ClientDashboard() {
         }
       } catch (error) {
         console.error("Ошибка при проверке авторизации", error);
-        window.location.href = '/login'
+        router.push("/login")
       }
     };
 
@@ -148,13 +179,14 @@ export default function ClientDashboard() {
   const handleNotificationClick = async (notification:any) => {
     if (!notification.is_read) {
       try {
-        const response = await api.patch(`/notifications/${notification.id}/read`)
-        const updated = response.data
-
         setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === updated.id ? { ...n, is_read: true } : n))
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
         )
+        await api.patch(`/notifications/${notification.id}/read`)
       } catch (error) {
+        setNotifications((prev:any) =>
+            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        )
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
@@ -190,10 +222,11 @@ export default function ClientDashboard() {
   };
 
   const handleDelete = async (id: number) => {
-    //if (!confirm("Удалить комментарий?")) return;
     try {
       await api.delete(`/comments/${id}`);
       fetchComments();
+      setEditCommentId(null);
+      setComment("")
     } catch (err) {
       console.error("Ошибка при удалении", err);
     }
@@ -230,8 +263,8 @@ export default function ClientDashboard() {
 
 
   const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);       // заполняем поле ввода
-    setEditCommentId(id);         // запоминаем какой комментарий редактируем
+    setComment(oldComment);
+    setEditCommentId(id);
   };
 
   useEffect(() => {
@@ -399,7 +432,8 @@ export default function ClientDashboard() {
         !requestTitle.trim() ||
         !requestLocation.trim() ||
         !requestDescription.trim() ||
-        !selectedCategoryId
+        !selectedCategoryId ||
+        !requestLocationDetails.trim()
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -423,7 +457,7 @@ export default function ClientDashboard() {
       const requestId = response.data.id;
 
       console.log("Created request ID:", requestId);
-
+      let createdPhotos;
       if (photos.length > 0) {
         const formData = new FormData();
         photos.forEach((photo) => {
@@ -432,7 +466,7 @@ export default function ClientDashboard() {
         formData.append('type', 'before');
 
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
+          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -444,7 +478,11 @@ export default function ClientDashboard() {
           return;
         }
       }
-      setRequests(prev => [response.data, ...prev])
+      const newRequest = {
+        ...response.data,
+        photos: createdPhotos?.data?.photos,
+      }
+      setRequests(prev => [newRequest, ...prev])
       setShowCreateRequest(false)
       setRequestType("")
       setRequestTitle("")
@@ -472,7 +510,6 @@ export default function ClientDashboard() {
         setShowRatingModal(false)
         setRatingValue(0)
         setRequestToRate(null)
-        alert("Оценка успешно отправлена!")
       } catch (error) {
         console.error("Failed to rate executor:", error)
         alert("Не удалось отправить оценку.")
@@ -501,7 +538,7 @@ export default function ClientDashboard() {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
       localStorage.removeItem('token')
-      window.location.href = "/login"
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }
@@ -724,6 +761,8 @@ export default function ClientDashboard() {
                         <SelectItem value="in_progress">В обработке</SelectItem>
                         <SelectItem value="execution">Исполнение</SelectItem>
                         <SelectItem value="completed">Завершено</SelectItem>
+                        <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                        <SelectItem value="assigned">Назначен</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={filterType} onValueChange={setFilterType}>
@@ -752,7 +791,7 @@ export default function ClientDashboard() {
                                   #{request.id}
                                 </span>
                                   <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
+                                  {request.category?.name || 'Не указано'}
                                 </span>
                                 </div>
                               </div>
@@ -784,10 +823,10 @@ export default function ClientDashboard() {
                                 <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                               </div>
 
-                              {request.executor_id ? (
+                              {request.executor && request.executor.user ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -796,9 +835,10 @@ export default function ClientDashboard() {
                                   </div>
                               )}
 
-                              {request.rating ? (
+
+                              {userRatings[request.id]?.rating ? (
                                   <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                    {renderStars(request.rating)}
+                                    {renderStars(userRatings[request.id].rating)}
                                   </div>
                               ) : (
                                   <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -846,7 +886,7 @@ export default function ClientDashboard() {
                                   {getRequestTypeIcon(request.request_type)}
                                   {translateType(request.request_type)}
                                 </Badge>
-                                {request.complexity !== "" && (
+                                {request.complexity && request.complexity !== "" && (
                                     <Badge
                                         variant="outline"
                                         className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
@@ -1123,7 +1163,10 @@ export default function ClientDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedRequest(false)}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+              setSelectedRequest(false)
+              setComments([])
+            }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
@@ -1193,7 +1236,7 @@ export default function ClientDashboard() {
                   {selectedRequest.executor && (
                       <div>
                         <Label>Исполнитель</Label>
-                        <p className="text-sm">{selectedRequest.executor || "не назначена"}</p>
+                        <p className="text-sm">{selectedRequest.executor.user.full_name || "не назначена"}</p>
                       </div>
                   )}
 
@@ -1302,7 +1345,7 @@ export default function ClientDashboard() {
                     <CardContent className="p-4">
                       <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                       {comments.map((c: any) => (
-                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm">
+                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
                             <div className="flex justify-between items-center">
                               <div className="text-sm text-gray-800 font-medium">
                                 {c.user.full_name || "Неизвестный пользователь"}{" "}
@@ -1322,12 +1365,40 @@ export default function ClientDashboard() {
                                   >
                                     Изменить
                                   </button>
-                                  <button
-                                      onClick={() => handleDelete(c.id)}
-                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                  >
-                                    Удалить
-                                  </button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <button
+                                          onClick={() => setCommentToDelete(c)}
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                      >
+                                        Удалить
+                                      </button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
+                                          <strong>{commentToDelete?.comment}</strong>?
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 sm:space-y-0">
+                                        <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => {
+                                              if (commentToDelete) {
+                                                handleDelete(commentToDelete.id);
+                                                setCommentToDelete(null);
+                                              }
+                                            }}
+                                            className="w-full sm:w-auto"
+                                        >
+                                          Удалить
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+
+                                  </AlertDialog>
                                 </div>
                             )}
 
@@ -1348,7 +1419,7 @@ export default function ClientDashboard() {
                               </button>
                             </div>
                         )}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
                           <input
                               type="text"
                               value={comment}
@@ -1356,17 +1427,25 @@ export default function ClientDashboard() {
                               placeholder="Написать комментарий..."
                               className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
-                          <Button size="sm" onClick={handleSend}>
+                          <Button
+                              size="sm"
+                              onClick={handleSend}
+                              className="w-full sm:w-auto"
+                          >
                             {editCommentId ? "Сохранить" : "Отправить"}
                           </Button>
                         </div>
                       </div>
 
+
                     </CardContent>
                   </Card>
 
                   <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => setSelectedRequest(null)}>
+                    <Button variant="outline" onClick={() => {
+                      setSelectedRequest(null)
+                      setComments([])
+                    }}>
                       Закрыть
                     </Button>
                     {selectedRequest.status === "completed" && !userRatings[selectedRequest.id] && (
