@@ -1374,7 +1374,7 @@ export default function ClientDashboard() {
                                         Удалить
                                       </button>
                                     </AlertDialogTrigger>
-                                    <AlertDialogContent>
+                                    <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
                                       <AlertDialogHeader>
                                         <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
                                         <AlertDialogDescription>
@@ -1382,8 +1382,8 @@ export default function ClientDashboard() {
                                           <strong>{commentToDelete?.comment}</strong>?
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                      <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 sm:space-y-0">
+                                        <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
                                         <AlertDialogAction
                                             onClick={() => {
                                               if (commentToDelete) {
@@ -1391,11 +1391,13 @@ export default function ClientDashboard() {
                                                 setCommentToDelete(null);
                                               }
                                             }}
+                                            className="w-full sm:w-auto"
                                         >
                                           Удалить
                                         </AlertDialogAction>
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
+
                                   </AlertDialog>
                                 </div>
                             )}
@@ -1417,7 +1419,7 @@ export default function ClientDashboard() {
                               </button>
                             </div>
                         )}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
                           <input
                               type="text"
                               value={comment}
@@ -1425,11 +1427,16 @@ export default function ClientDashboard() {
                               placeholder="Написать комментарий..."
                               className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
-                          <Button size="sm" onClick={handleSend}>
+                          <Button
+                              size="sm"
+                              onClick={handleSend}
+                              className="w-full sm:w-auto"
+                          >
                             {editCommentId ? "Сохранить" : "Отправить"}
                           </Button>
                         </div>
                       </div>
+
 
                     </CardContent>
                   </Card>
