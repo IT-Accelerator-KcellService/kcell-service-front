@@ -1736,14 +1736,16 @@ export default function AdminWorkerDashboard() {
 
                   <div>
                     <Label>Локация</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Input
+                          className="flex-1 min-w-[200px]"
                           placeholder="Введите расположение"
                           value={newRequestLocation}
                           onChange={(e) => setNewRequestLocation(e.target.value)}
                       />
                       <Button
                           variant="outline"
+                          className="whitespace-nowrap"
                           onClick={() => {
                             if (navigator.geolocation) {
                               navigator.geolocation.getCurrentPosition(
@@ -1767,6 +1769,7 @@ export default function AdminWorkerDashboard() {
                         Определить местоположение
                       </Button>
                     </div>
+
                   </div>
 
                   <div>

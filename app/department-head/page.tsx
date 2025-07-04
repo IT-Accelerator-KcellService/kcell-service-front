@@ -1956,30 +1956,32 @@ export default function DepartmentHeadDashboard() {
 
                   <div>
                     <Label>Локация</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Input
+                          className="flex-1 min-w-[200px]"
                           placeholder="Введите расположение"
                           value={newRequestLocation}
                           onChange={(e) => setNewRequestLocation(e.target.value)}
                       />
                       <Button
                           variant="outline"
+                          className="whitespace-nowrap"
                           onClick={() => {
                             if (navigator.geolocation) {
                               navigator.geolocation.getCurrentPosition(
                                   (position) => {
-                                    const { latitude, longitude, accuracy } = position.coords
+                                    const { latitude, longitude, accuracy } = position.coords;
                                     setNewRequestLocation(
                                         `Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`
-                                    )
+                                    );
                                   },
                                   (error) => {
-                                    console.error("Ошибка геолокации:", error)
-                                    setNewRequestLocation("Не удалось определить местоположение")
+                                    console.error("Ошибка геолокации:", error);
+                                    setNewRequestLocation("Не удалось определить местоположение");
                                   }
-                              )
+                              );
                             } else {
-                              setNewRequestLocation("Геолокация не поддерживается вашим браузером")
+                              setNewRequestLocation("Геолокация не поддерживается вашим браузером");
                             }
                           }}
                       >
@@ -1987,6 +1989,7 @@ export default function DepartmentHeadDashboard() {
                         Определить местоположение
                       </Button>
                     </div>
+
                   </div>
 
                   <div>
