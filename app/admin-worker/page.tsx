@@ -805,20 +805,21 @@ export default function AdminWorkerDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="flex justify-between items-center mb-6">
-                  <TabsList>
-                    <TabsTrigger value="incoming">Входящие заявки</TabsTrigger>
-                    <TabsTrigger value="my-requests">Мои заявки</TabsTrigger>
-                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                  </TabsList>
+                <div className="flex flex-col sm:flex-row-reverse sm:justify-between sm:items-center mb-6 space-y-2 sm:space-y-0">
                   <Button
                       onClick={() => setShowCreateRequestModal(true)}
-                      className="bg-violet-600 hover:bg-violet-700"
+                      className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Создать заявку
                   </Button>
+                  <TabsList className="w-full sm:w-auto justify-center sm:justify-start">
+                    <TabsTrigger value="incoming">Входящие заявки</TabsTrigger>
+                    <TabsTrigger value="my-requests">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                  </TabsList>
                 </div>
+
 
                 <TabsContent value="my-requests">
                   <div className="space-y-4">
@@ -1503,66 +1504,85 @@ export default function AdminWorkerDashboard() {
                         />
                       </div>
                   )}
-                  <div className="flex space-x-4">
-                    {selectedRequest.status==="in_progress" && (<>
-                      <Button
-                        onClick={() => {
-                          if (selectedRequest.category_id) {
-                            handleApproveRequest(selectedRequest.id, selectedRequest.category_id,selectedRequest.sla,selectedRequest.complexity);
-                          }
-                        }}
-                        className="flex-1 bg-green-600 hover:bg-green-700"
-                        disabled={!selectedRequest.category_id}
-                      >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Принять в работу
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                          if (rejectionReason) {
-                            handleRejectRequest(selectedRequest.id);
-                          }
-                        }}
-                        className="flex-1 text-red-600 hover:text-red-700"
-                        disabled={!rejectionReason}
-                    >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Отклонить
-                    </Button>  </>)}
-                  </div>
-                  {selectedRequest.status==="in_progress" && (
-                  <div className="mt-4">
-                    <Label htmlFor="rejectionReason">Причина отклонения</Label>
-                    <Textarea
-                        id="rejectionReason"
-                        placeholder="Укажите причину отклонения заявки..."
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                    />
-                  </div>)}
-                  {/* Секция для комментариев */}
-                  <Card className="mt-2">
+                  {/* Кнопки принятия/отклонения */}
+                  {selectedRequest.status === "in_progress" && (
+                      <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 mt-4">
+                        <Button
+                            onClick={() => {
+                              if (selectedRequest.category_id) {
+                                handleApproveRequest(
+                                    selectedRequest.id,
+                                    selectedRequest.category_id,
+                                    selectedRequest.sla,
+                                    selectedRequest.complexity
+                                );
+                              }
+                            }}
+                            className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+                            disabled={!selectedRequest.category_id}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Принять в работу
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                              if (rejectionReason) {
+                                handleRejectRequest(selectedRequest.id);
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-700 w-full sm:w-auto"
+                            disabled={!rejectionReason}
+                        >
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Отклонить
+                        </Button>
+                      </div>
+                  )}
+
+                  {/* Поле причины отклонения */}
+                  {selectedRequest.status === "in_progress" && (
+                      <div className="mt-4">
+                        <Label htmlFor="rejectionReason">Причина отклонения</Label>
+                        <Textarea
+                            id="rejectionReason"
+                            placeholder="Укажите причину отклонения заявки..."
+                            value={rejectionReason}
+                            onChange={(e) => setRejectionReason(e.target.value)}
+                        />
+                      </div>
+                  )}
+
+                  {/* Комментарии */}
+                  <Card className="mt-4">
                     <CardContent className="p-4">
                       <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
                       {comments.map((c: any) => (
-                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
+                          <div
+                              key={c.id}
+                              className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2"
+                          >
                             <div className="flex justify-between items-center">
                               <div className="text-sm text-gray-800 font-medium">
                                 {c.user.full_name || "Неизвестный пользователь"}{" "}
-                                {c.user.role && (<span className="text-xs text-gray-500">({roleTranslations[c.user.role] || c.user.role})</span>
+                                {c.user.role && (
+                                    <span className="text-xs text-gray-500">
+                ({roleTranslations[c.user.role] || c.user.role})
+              </span>
                                 )}
                               </div>
-
-
-                              <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
+                              <div className="text-xs text-gray-400">
+                                {new Date(c.timestamp).toLocaleString()}
+                              </div>
                             </div>
-                            <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+                            <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">
+                              {c.comment}
+                            </div>
                             {c.user.id === currentUserId && (
-                                <div className="mt-2 flex gap-2 text-xs text-blue-500">
+                                <div className="mt-2 flex flex-col sm:flex-row gap-2 text-xs">
                                   <button
                                       onClick={() => handleEdit(c.id, c.comment)}
-                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700"
+                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700 w-full sm:w-auto"
                                   >
                                     Изменить
                                   </button>
@@ -1570,7 +1590,7 @@ export default function AdminWorkerDashboard() {
                                     <AlertDialogTrigger asChild>
                                       <button
                                           onClick={() => setCommentToDelete(c)}
-                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600 w-full sm:w-auto"
                                       >
                                         Удалить
                                       </button>
@@ -1600,10 +1620,10 @@ export default function AdminWorkerDashboard() {
                                   </AlertDialog>
                                 </div>
                             )}
-
                           </div>
                       ))}
-                      <div className="mt-3 flex flex-col space-y-1">
+                      {/* Новое добавление комментария */}
+                      <div className="mt-3 flex flex-col space-y-2">
                         {editCommentId && (
                             <div className="text-xs text-gray-500 mb-1">
                               Редактируется комментарий #{editCommentId}
@@ -1618,7 +1638,7 @@ export default function AdminWorkerDashboard() {
                               </button>
                             </div>
                         )}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <input
                               type="text"
                               value={comment}
@@ -1626,34 +1646,42 @@ export default function AdminWorkerDashboard() {
                               placeholder="Написать комментарий..."
                               className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
-                          <Button size="sm" onClick={handleSend}>
+                          <Button size="sm" onClick={handleSend} className="w-full sm:w-auto">
                             {editCommentId ? "Сохранить" : "Отправить"}
                           </Button>
                         </div>
                       </div>
-
                     </CardContent>
                   </Card>
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => {
-                      setSelectedRequest(null)
-                      setComments([])
-                    }}>
+
+                  {/* Кнопки внизу */}
+                  <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedRequest(null);
+                          setComments([]);
+                        }}
+                        className="w-full sm:w-auto"
+                    >
                       Закрыть
                     </Button>
-                    {selectedRequest.status === "completed" && !userRatings[selectedRequest.id] && (
-                        <Button
-                            onClick={() => {
-                              setRequestToRate(selectedRequest)
-                              setShowRatingModal(true)
-                              setSelectedRequest(null)
-                            }}
-                        >
-                          <Star className="w-4 h-4 mr-2" />
-                          Оценить
-                        </Button>
-                    )}
+                    {selectedRequest.status === "completed" &&
+                        !userRatings[selectedRequest.id] && (
+                            <Button
+                                onClick={() => {
+                                  setRequestToRate(selectedRequest);
+                                  setShowRatingModal(true);
+                                  setSelectedRequest(null);
+                                }}
+                                className="w-full sm:w-auto"
+                            >
+                              <Star className="w-4 h-4 mr-2" />
+                              Оценить
+                            </Button>
+                        )}
                   </div>
+
                 </CardContent>
               </Card>
             </div>
@@ -1708,14 +1736,16 @@ export default function AdminWorkerDashboard() {
 
                   <div>
                     <Label>Локация</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Input
+                          className="flex-1 min-w-[200px]"
                           placeholder="Введите расположение"
                           value={newRequestLocation}
                           onChange={(e) => setNewRequestLocation(e.target.value)}
                       />
                       <Button
                           variant="outline"
+                          className="whitespace-nowrap"
                           onClick={() => {
                             if (navigator.geolocation) {
                               navigator.geolocation.getCurrentPosition(
@@ -1739,6 +1769,7 @@ export default function AdminWorkerDashboard() {
                         Определить местоположение
                       </Button>
                     </div>
+
                   </div>
 
                   <div>

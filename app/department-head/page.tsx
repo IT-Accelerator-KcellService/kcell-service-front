@@ -898,23 +898,30 @@ export default function DepartmentHeadDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="flex justify-between items-center mb-6">
-                  <TabsList>
-                    <TabsTrigger value="incoming">Входящие заявки</TabsTrigger>
-                    <TabsTrigger value="my-requests">Мои заявки</TabsTrigger>
-                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                    <TabsTrigger value="management">Управление</TabsTrigger>
-                  </TabsList>
-                  <Button
-                      onClick={() => setShowCreateRequestModal(true)}
-                      className="bg-violet-600 hover:bg-violet-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать заявку
-                  </Button>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
+                  {/* кнопка приоритетно сверху на мобиле */}
+                  <div className="order-1 sm:order-2 w-full sm:w-auto">
+                    <Button
+                        onClick={() => setShowCreateRequestModal(true)}
+                        className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Создать заявку
+                    </Button>
+                  </div>
+                  {/* табы */}
+                  <div className="order-2 sm:order-1 w-full sm:w-auto">
+                    <TabsList className="flex flex-wrap gap-2 w-full sm:w-auto">
+                      <TabsTrigger value="incoming">Входящие заявки</TabsTrigger>
+                      <TabsTrigger value="my-requests">Мои заявки</TabsTrigger>
+                      <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                      <TabsTrigger value="management">Управление</TabsTrigger>
+                    </TabsList>
+                  </div>
                 </div>
 
-                <TabsContent value="my-requests">
+
+                <TabsContent value="my-requests" className="pt-6 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {myRequests.map((request, index: number) => (
                       <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
@@ -1168,63 +1175,63 @@ export default function DepartmentHeadDashboard() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="statistics">
+                <TabsContent value="statistics" className="pt-6 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
+                    <Card className="w-full">
                       <CardHeader>
-                        <CardTitle>Статистика по заявкам</CardTitle>
+                        <CardTitle className="text-base sm:text-lg break-words">Статистика по заявкам</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span>Всего заявок</span>
+                        <div className="space-y-4 text-sm sm:text-base">
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">Всего заявок</span>
                             <span className="font-bold">{incomingRequests.length + myRequests.length}</span>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span>Завершено</span>
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">Завершено</span>
                             <span className="font-bold text-green-600">
-                            {completedRequestsLength}
-                          </span>
+              {completedRequestsLength}
+            </span>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span>В работе</span>
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">В работе</span>
                             <span className="font-bold text-blue-600">
-                            {executionRequestsLength}
-                          </span>
+              {executionRequestsLength}
+            </span>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span>Просрочено</span>
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">Просрочено</span>
                             <span className="font-bold text-red-600">
-                            {expiredRequestsLength}
-                          </span>
+              {expiredRequestsLength}
+            </span>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="w-full">
                       <CardHeader>
-                        <CardTitle>По типам заявок</CardTitle>
+                        <CardTitle className="text-base sm:text-lg break-words">По типам заявок</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span>Обычные</span>
+                        <div className="space-y-4 text-sm sm:text-base">
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">Обычные</span>
                             <span className="font-bold">
-                            {[...incomingRequests, ...myRequests].filter(req => req.request_type === "normal").length}
-                          </span>
+              {[...incomingRequests, ...myRequests].filter(req => req.request_type === "normal").length}
+            </span>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span>Экстренные</span>
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">Экстренные</span>
                             <span className="font-bold">
-                            {[...incomingRequests, ...myRequests].filter(req => req.request_type === "urgent").length}
-                          </span>
+              {[...incomingRequests, ...myRequests].filter(req => req.request_type === "urgent").length}
+            </span>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span>Плановые</span>
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">Плановые</span>
                             <span className="font-bold">
-                            {[...incomingRequests, ...myRequests].filter(req => req.request_type === "planned").length}
-                          </span>
+              {[...incomingRequests, ...myRequests].filter(req => req.request_type === "planned").length}
+            </span>
                           </div>
                         </div>
                       </CardContent>
@@ -1232,7 +1239,8 @@ export default function DepartmentHeadDashboard() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="management">
+
+                <TabsContent value="management" className="pt-6 sm:pt-0">
                   <div className="space-y-6">
                     <Card>
                       <CardHeader>
@@ -1767,27 +1775,37 @@ export default function DepartmentHeadDashboard() {
                   )}
 
                   {/* Секция для комментариев */}
-                  <Card className="mt-2">
-                    <CardContent className="p-4">
-                      <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
+                  <Card className="mt-4 border border-gray-200 shadow-sm rounded-md">
+                    <CardContent className="p-4 space-y-4">
+                      <h4 className="font-semibold text-gray-800">Комментарии</h4>
+
                       {comments.map((c: any) => (
-                          <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
-                            <div className="flex justify-between items-center">
-                              <div className="text-sm text-gray-800 font-medium">
-                                {c.user.full_name || "Неизвестный пользователь"}{" "}
-                                {c.user.role && (<span className="text-xs text-gray-500">({roleTranslations[c.user.role] || c.user.role})</span>
+                          <div
+                              key={c.id}
+                              className="bg-white border border-gray-200 rounded-md p-3 shadow transition hover:shadow-md"
+                          >
+                            {/* заголовок */}
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-1">
+                              <div className="text-sm font-medium text-gray-800">
+                                {c.user.full_name || "Неизвестный пользователь"}
+                                {c.user.role && (
+                                    <span className="ml-1 text-xs text-gray-500">
+                ({roleTranslations[c.user.role] || c.user.role})
+              </span>
                                 )}
                               </div>
-
-
                               <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
                             </div>
-                            <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+
+                            {/* сам комментарий */}
+                            <div className="text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
+
+                            {/* кнопки */}
                             {c.user.id === currentUserId && (
-                                <div className="mt-2 flex gap-2 text-xs text-blue-500">
+                                <div className="mt-2 flex flex-col sm:flex-row gap-2 text-xs">
                                   <button
                                       onClick={() => handleEdit(c.id, c.comment)}
-                                      className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700"
+                                      className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700 w-full sm:w-auto"
                                   >
                                     Изменить
                                   </button>
@@ -1795,22 +1813,29 @@ export default function DepartmentHeadDashboard() {
                                     <AlertDialogTrigger asChild>
                                       <button
                                           onClick={() => setCommentToDelete(c)}
-                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                          className="px-3 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600 w-full sm:w-auto"
                                       >
                                         Удалить
                                       </button>
                                     </AlertDialogTrigger>
-                                    <AlertDialogContent>
+                                    <AlertDialogContent className="max-w-[90%] sm:max-w-md p-4 sm:p-6">
                                       <AlertDialogHeader>
-                                        <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
-                                          <strong>{commentToDelete?.comment}</strong>?
+                                        <AlertDialogTitle className="text-base sm:text-lg font-semibold">
+                                          Вы уверены?
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription className="text-sm sm:text-base mt-2 text-gray-600">
+                                          Это действие нельзя отменить. <br />
+                                          Вы действительно хотите удалить комментарий:
+                                          <br />
+                                          <span className="italic text-gray-800">«{commentToDelete?.comment}»</span>?
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                      <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
+                                        <AlertDialogCancel className="w-full sm:w-auto">
+                                          Отмена
+                                        </AlertDialogCancel>
                                         <AlertDialogAction
+                                            className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
                                             onClick={() => {
                                               if (commentToDelete) {
                                                 handleDelete(commentToDelete.id);
@@ -1822,15 +1847,17 @@ export default function DepartmentHeadDashboard() {
                                         </AlertDialogAction>
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
+
                                   </AlertDialog>
                                 </div>
                             )}
-
                           </div>
                       ))}
-                      <div className="mt-3 flex flex-col space-y-1">
+
+                      {/* форма добавления */}
+                      <div className="space-y-2">
                         {editCommentId && (
-                            <div className="text-xs text-gray-500 mb-1">
+                            <div className="text-xs text-gray-500">
                               Редактируется комментарий #{editCommentId}
                               <button
                                   className="ml-2 text-red-500 hover:underline"
@@ -1843,22 +1870,26 @@ export default function DepartmentHeadDashboard() {
                               </button>
                             </div>
                         )}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row items-center gap-2">
                           <input
                               type="text"
                               value={comment}
                               onChange={(e) => setComment(e.target.value)}
                               placeholder="Написать комментарий..."
-                              className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
                           />
-                          <Button size="sm" onClick={handleSend}>
+                          <Button
+                              size="sm"
+                              className="w-full sm:w-auto"
+                              onClick={handleSend}
+                          >
                             {editCommentId ? "Сохранить" : "Отправить"}
                           </Button>
                         </div>
                       </div>
-
                     </CardContent>
                   </Card>
+
                 </CardContent>
                 <div className="flex space-x-4 m-4">
                   <Button variant="outline"
@@ -1925,30 +1956,32 @@ export default function DepartmentHeadDashboard() {
 
                   <div>
                     <Label>Локация</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Input
+                          className="flex-1 min-w-[200px]"
                           placeholder="Введите расположение"
                           value={newRequestLocation}
                           onChange={(e) => setNewRequestLocation(e.target.value)}
                       />
                       <Button
                           variant="outline"
+                          className="whitespace-nowrap"
                           onClick={() => {
                             if (navigator.geolocation) {
                               navigator.geolocation.getCurrentPosition(
                                   (position) => {
-                                    const { latitude, longitude, accuracy } = position.coords
+                                    const { latitude, longitude, accuracy } = position.coords;
                                     setNewRequestLocation(
                                         `Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`
-                                    )
+                                    );
                                   },
                                   (error) => {
-                                    console.error("Ошибка геолокации:", error)
-                                    setNewRequestLocation("Не удалось определить местоположение")
+                                    console.error("Ошибка геолокации:", error);
+                                    setNewRequestLocation("Не удалось определить местоположение");
                                   }
-                              )
+                              );
                             } else {
-                              setNewRequestLocation("Геолокация не поддерживается вашим браузером")
+                              setNewRequestLocation("Геолокация не поддерживается вашим браузером");
                             }
                           }}
                       >
@@ -1956,6 +1989,7 @@ export default function DepartmentHeadDashboard() {
                         Определить местоположение
                       </Button>
                     </div>
+
                   </div>
 
                   <div>

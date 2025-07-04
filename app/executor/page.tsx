@@ -786,27 +786,28 @@ export default function ExecutorDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <div className="flex justify-between items-center mb-6">
-                <TabsList>
-                  <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
-                  <TabsTrigger value="myTasks">Мой заявки</TabsTrigger>
-                  <TabsTrigger value="completed">Завершенные</TabsTrigger>
-                  <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                </TabsList>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-2">
                 <Button
-                  onClick={() => {
-                    setNewRequestType("normal")
-                    setShowCreateRequestModal(true)
-                    handleOpenCreateRequest()
-                  }}
-                  className="bg-violet-600 hover:bg-violet-700"
+                    onClick={() => {
+                      setNewRequestType("normal")
+                      setShowCreateRequestModal(true)
+                      handleOpenCreateRequest()
+                    }}
+                    className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Создать заявку
                 </Button>
+                <TabsList className="flex flex-wrap gap-2">
+                  <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
+                  <TabsTrigger value="myTasks">Мои заявки</TabsTrigger>
+                  <TabsTrigger value="completed">Завершенные</TabsTrigger>
+                  <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                </TabsList>
               </div>
 
-              <TabsContent value="tasks">
+
+              <TabsContent value="tasks" className="pt-6 sm:pt-0">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4 mb-4">
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -998,7 +999,7 @@ export default function ExecutorDashboard() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="completed">
+              <TabsContent value="completed" className="pt-6 sm:pt-0">
                 <div className="space-y-4">
                     <div className="flex items-center space-x-4 mb-4">
                         <Select value={filterType} onValueChange={setFilterType}>
@@ -1145,7 +1146,7 @@ export default function ExecutorDashboard() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="myTasks">
+              <TabsContent value="myTasks" className="pt-6 sm:pt-0">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4 mb-4">
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -1324,7 +1325,7 @@ export default function ExecutorDashboard() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="statistics">
+              <TabsContent value="statistics" className="pt-6 sm:pt-0">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Card>
                     <CardHeader>
@@ -1842,10 +1843,10 @@ export default function ExecutorDashboard() {
                         </div>
                       </div>
 
-                      {/* Модалка фото */}
+                      {/* Фото Модалка */}
                       {selectedPhoto && (
                           <div
-                              className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+                              className="fixed inset-0 z-50 bg-black bg-opacity-70 flex justify-center items-center"
                               onClick={() => setSelectedPhoto(null)}
                           >
                             <img
@@ -1861,32 +1862,50 @@ export default function ExecutorDashboard() {
                       <Card className="mt-2">
                         <CardContent className="p-4">
                           <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
+
+                          {comments.length === 0 && (
+                              <div className="text-sm text-gray-500">Комментариев пока нет</div>
+                          )}
+
                           {comments.map((c: any) => (
-                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
-                                <div className="flex justify-between items-center">
+                              <div
+                                  key={c.id}
+                                  className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2"
+                              >
+                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2">
                                   <div className="text-sm text-gray-800 font-medium">
-                                    {c.user.full_name || "Неизвестный пользователь"}{" "}
-                                    {c.user.role && (<span className="text-xs text-gray-500">({roleTranslations[c.user.role] || c.user.role})</span>
+                                    {c.user?.full_name || "Неизвестный пользователь"}{" "}
+                                    {c.user?.role && (
+                                        <span className="text-xs text-gray-500">
+                ({roleTranslations[c.user.role] || c.user.role})
+              </span>
                                     )}
                                   </div>
-
-
-                                  <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
+                                  <div className="text-xs text-gray-400">
+                                    {new Date(c.timestamp).toLocaleString()}
+                                  </div>
                                 </div>
-                                <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
-                                {c.user.id === currentUserId && (
-                                    <div className="mt-2 flex gap-2 text-xs text-blue-500">
+                                <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">
+                                  {c.comment}
+                                </div>
+
+                                {c.user?.id === currentUserId && (
+                                    <div className="mt-2 flex flex-col sm:flex-row gap-2 text-xs w-full">
                                       <button
                                           onClick={() => handleEdit(c.id, c.comment)}
-                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700"
+                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700 w-full sm:w-auto"
                                       >
                                         Изменить
                                       </button>
                                       <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                           <button
-                                              onClick={() => setCommentToDelete(c)}
-                                              className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setCommentToDelete(c);
+                                              }}
+                                              className="px-2 py-1 rounded border border-red-300 bg-red-100 hover:bg-red-200 text-red-600 transition w-full sm:w-auto"
                                           >
                                             Удалить
                                           </button>
@@ -1895,18 +1914,16 @@ export default function ExecutorDashboard() {
                                           <AlertDialogHeader>
                                             <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
                                             <AlertDialogDescription>
-                                              Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
-                                              <strong>{commentToDelete?.comment}</strong>?
+                                              Это действие нельзя отменить. Вы действительно хотите удалить{" "}
+                                              <strong>{c.comment}</strong>?
                                             </AlertDialogDescription>
                                           </AlertDialogHeader>
                                           <AlertDialogFooter>
                                             <AlertDialogCancel>Отмена</AlertDialogCancel>
                                             <AlertDialogAction
                                                 onClick={() => {
-                                                  if (commentToDelete) {
-                                                    handleDelete(commentToDelete.id);
-                                                    setCommentToDelete(null);
-                                                  }
+                                                  handleDelete(c.id);
+                                                  setCommentToDelete(null);
                                                 }}
                                             >
                                               Удалить
@@ -1916,9 +1933,10 @@ export default function ExecutorDashboard() {
                                       </AlertDialog>
                                     </div>
                                 )}
-
                               </div>
                           ))}
+
+                          {/* Добавить комментарий */}
                           <div className="mt-3 flex flex-col space-y-1">
                             {editCommentId && (
                                 <div className="text-xs text-gray-500 mb-1">
@@ -1934,24 +1952,30 @@ export default function ExecutorDashboard() {
                                   </button>
                                 </div>
                             )}
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                               <input
                                   type="text"
                                   value={comment}
                                   onChange={(e) => setComment(e.target.value)}
                                   placeholder="Написать комментарий..."
-                                  className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
-                              <Button size="sm" onClick={handleSend}>
+                              <Button
+                                  size="sm"
+                                  onClick={handleSend}
+                                  className="w-full sm:w-auto"
+                              >
                                 {editCommentId ? "Сохранить" : "Отправить"}
                               </Button>
                             </div>
                           </div>
-
                         </CardContent>
                       </Card>
+
+
                     </div>
                 )}
+
                 <div className="flex space-x-4 m-4">
                   {/* Закрыть */}
                     <Button className="flex-1" variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>

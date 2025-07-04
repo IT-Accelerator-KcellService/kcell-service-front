@@ -23,6 +23,7 @@ import axios from 'axios'
 import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
+import Page from "@/app/chat-bot/page";
 import api from "@/lib/api";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -717,15 +718,36 @@ export default function ClientDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <div className="flex justify-between items-center mb-6">
-                <TabsList>
-                  <TabsTrigger value="requests">Мои заявки</TabsTrigger>
-                  <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                </TabsList>
-                <Button onClick={handleOpenCreateRequest} className="bg-violet-600 hover:bg-violet-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Создать заявку
-                </Button>
+              <div className="mb-6">
+                {/* на телефоне кнопка сверху */}
+                <div className="flex flex-col sm:hidden gap-3 mb-4">
+                  <Button
+                      onClick={handleOpenCreateRequest}
+                      className="bg-violet-600 hover:bg-violet-700 w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Создать заявку
+                  </Button>
+                  <TabsList>
+                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                  </TabsList>
+                </div>
+
+                {/* на больших экранах как было */}
+                <div className="hidden sm:flex justify-between items-center">
+                  <TabsList>
+                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                  </TabsList>
+                  <Button
+                      onClick={handleOpenCreateRequest}
+                      className="bg-violet-600 hover:bg-violet-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Создать заявку
+                  </Button>
+                </div>
               </div>
 
               <TabsContent value="requests">
@@ -1353,7 +1375,7 @@ export default function ClientDashboard() {
                                         Удалить
                                       </button>
                                     </AlertDialogTrigger>
-                                    <AlertDialogContent>
+                                    <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
                                       <AlertDialogHeader>
                                         <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
                                         <AlertDialogDescription>
@@ -1361,8 +1383,8 @@ export default function ClientDashboard() {
                                           <strong>{commentToDelete?.comment}</strong>?
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                      <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 sm:space-y-0">
+                                        <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
                                         <AlertDialogAction
                                             onClick={() => {
                                               if (commentToDelete) {
@@ -1370,11 +1392,13 @@ export default function ClientDashboard() {
                                                 setCommentToDelete(null);
                                               }
                                             }}
+                                            className="w-full sm:w-auto"
                                         >
                                           Удалить
                                         </AlertDialogAction>
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
+
                                   </AlertDialog>
                                 </div>
                             )}
@@ -1396,7 +1420,7 @@ export default function ClientDashboard() {
                               </button>
                             </div>
                         )}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
                           <input
                               type="text"
                               value={comment}
@@ -1404,11 +1428,16 @@ export default function ClientDashboard() {
                               placeholder="Написать комментарий..."
                               className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
-                          <Button size="sm" onClick={handleSend}>
+                          <Button
+                              size="sm"
+                              onClick={handleSend}
+                              className="w-full sm:w-auto"
+                          >
                             {editCommentId ? "Сохранить" : "Отправить"}
                           </Button>
                         </div>
                       </div>
+
 
                     </CardContent>
                   </Card>
@@ -1509,6 +1538,7 @@ export default function ClientDashboard() {
           </Card>
         </div>
       )}
+      <Page />
     </div>
   )
 }
