@@ -23,6 +23,7 @@ import axios from 'axios'
 import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
+import Page from "@/app/chat-bot/page";
 import api from "@/lib/api";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -1537,6 +1538,7 @@ export default function ClientDashboard() {
           </Card>
         </div>
       )}
+      <Page />
     </div>
   )
 }
