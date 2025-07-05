@@ -1,15 +1,15 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import {useEffect, useRef, useState} from "react"
+import {Button} from "@/components/ui/button"
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
+import {Badge} from "@/components/ui/badge"
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
+import {Input} from "@/components/ui/input"
+import {Label} from "@/components/ui/label"
+import {Textarea} from "@/components/ui/textarea"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,19 +23,25 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import {
-  BarChart3,
-  CheckCircle,
+  AlertCircle,
   AlertTriangle,
-  Star,
-  Clock,
-  TrendingUp,
-  TrendingDown,
-  Download,
-  Building2,
-  Plus,
-  Trash2,
+  BarChart3,
+  Calendar,
   Camera,
-  MapPin, Filter, Loader2, XCircle, User, Zap, AlertCircle, Calendar, ImageIcon,
+  CheckCircle,
+  Clock,
+  Download,
+  ImageIcon,
+  Loader2,
+  MapPin,
+  Plus,
+  Star,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  User,
+  XCircle,
+  Zap,
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
@@ -44,6 +50,9 @@ import dynamic from "next/dynamic";
 import {Request} from "@/app/client/page";
 import api from "@/lib/api";
 import {useRouter} from "next/navigation";
+import {notification,} from "antd";
+import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
+import {isAfter, subDays, subMonths, subYears} from "date-fns";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -159,6 +168,61 @@ export default function ManagerDashboard() {
 
     fetchUsers();
   }, []);
+
+  const handleExport = async (format: "xlsx" | "pbix") => {
+    try {
+      const now = new Date();
+      let periodStartDate: Date | null = null;
+
+      switch (period) {
+        case 'week':
+          periodStartDate = subDays(now, 7);
+          break;
+        case 'month':
+          periodStartDate = subMonths(now, 1);
+          break;
+        case 'year':
+          periodStartDate = subYears(now, 1);
+          break;
+        default:
+          periodStartDate = null;
+      }
+      const params = new URLSearchParams();
+      if (office && office !== 'all') params.append("office_id", String(office));
+      if (periodStartDate) params.append("from", periodStartDate.toISOString());
+      params.append("format", format);
+
+      const res = await axios.get(`http://localhost:8080/api/analytics/export?${params.toString()}`, {
+        responseType: "blob",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      const url = window.URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `analytics.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Ошибка при экспорте файла:", error);
+      alert("Не удалось экспортировать файл");
+    }
+  };
+
+  const handleSendEmail = async () => {
+    const res = await fetch("/analytics/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emails }),
+    });
+    const json = await res.json();
+    if (res.ok) notification.success({ message: "Письмо отправлено" });
+    else notification.error({ message: json.error });
+  };
 
   const handleAddOrUpdateUser = async () => {
     try {
@@ -537,17 +601,80 @@ export default function ManagerDashboard() {
   }
 
   const filteredRequests = requests.filter((request) => {
-    const statusMatch = filterStatus === "all" || request.status === filterStatus
-    const requestType = request.request_type
-    const typeMatch = filterType === "all" || requestType === filterType
-    const officeMatch = office === "all" || office == String(request.office_id)
-    return statusMatch && typeMatch && officeMatch
+    const now = new Date();
+    let periodStartDate: Date | null = null;
+
+    switch (period) {
+      case 'week':
+        periodStartDate = subDays(now, 7);
+        break;
+      case 'month':
+        periodStartDate = subMonths(now, 1);
+        break;
+      case 'year':
+        periodStartDate = subYears(now, 1);
+        break;
+      default:
+        periodStartDate = null;
+    }
+    const statusMatch = filterStatus === "all" || request.status === filterStatus;
+    const requestType = request.request_type;
+    const typeMatch = filterType === "all" || requestType === filterType;
+    const officeMatch = office === "all" || office == String(request.office_id);
+
+    const createdDate = new Date(request.created_date);
+    const periodMatch = !periodStartDate || isAfter(createdDate, periodStartDate);
+
+    return statusMatch && typeMatch && officeMatch && periodMatch;
   })
+
+  useEffect(() => {
+    setLoading(true)
+    const byOffice = groupBy(filteredRequests, 'office_id');
+    const byDate = groupByDate(filteredRequests);
+    setData({ byOffice, byDate });
+    setLoading(false)
+  }, [office, period]);
+
+  const groupByDate = (requests: any[]) => {
+    const grouped: Record<string, number> = {};
+
+    for (const request of requests) {
+      const date = new Date(request.created_date).toISOString().split("T")[0];
+      if (!grouped[date]) grouped[date] = 0;
+      grouped[date]++;
+    }
+
+    return Object.entries(grouped)
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
+
+  const groupBy = (arr:any, key:any)=> {
+    return arr.reduce((acc:any, cur:any) => {
+      acc[cur[key]] = (acc[cur[key]] || 0) + 1;
+      return acc;
+    }, {});
+  }
 
   const completedRequests = requests.filter((request) => {
     if (office === "all") return request.status === "completed"
     if (office == String(request.office_id)) return request.status === "completed"
   })
+  const [filters, setFilters] = useState<{
+    office_id: number | null;
+    request_type: string | null;
+    status: string | null;
+    date: [Date | null, Date | null];
+  }>({
+    office_id: null,
+    request_type: null,
+    status: null,
+    date: [null, null],
+  });
+  const [data, setData] = useState<any>(null);
+  const [emails, setEmails] = useState<string[]>([]);
+  const [chartData, setChartData] = useState(null);
 
   const urgentRequests = requests.filter((request) => {
     if (office === "all") return request.request_type === "urgent"
@@ -826,6 +953,17 @@ export default function ManagerDashboard() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Период" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">Неделя</SelectItem>
+                <SelectItem value="month">Месяц</SelectItem>
+                <SelectItem value="year">Год</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
@@ -833,6 +971,7 @@ export default function ManagerDashboard() {
                 variant="outline"
                 size="sm"
                 className="flex items-center justify-center min-w-[150px] h-10 px-4"
+                onClick={() => handleExport("xlsx")}
             >
               <Download className="w-4 h-4 mr-2" />
               Excel
@@ -842,6 +981,7 @@ export default function ManagerDashboard() {
                 variant="outline"
                 size="sm"
                 className="flex items-center justify-center min-w-[150px] h-10 px-4"
+                onClick={() => handleExport("pbix")}
             >
               <Download className="w-4 h-4 mr-2" />
               Power BI
@@ -912,6 +1052,43 @@ export default function ManagerDashboard() {
           </TabsList>
 
           <TabsContent value="requests">
+            <Card className="mb-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg sm:text-xl">Динамика заявок</CardTitle>
+                <CardDescription className="text-sm">Количество заявок по дням</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-48 sm:h-64">
+                  {data?.byDate && data.byDate.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data.byDate}>
+                          <defs>
+                            <linearGradient id="kcellGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#8E24AA" stopOpacity={1} />
+                              <stop offset="100%" stopColor="#6A1B9A" stopOpacity={0.8} />
+                            </linearGradient>
+                          </defs>
+
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Line
+                              type="monotone"
+                              dataKey="count"
+                              stroke="url(#kcellGradient)"
+                              strokeWidth={2.5}
+                              dot={{ r: 4, stroke: '#6A1B9A', strokeWidth: 1.5, fill: '#fff' }}
+                              activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                  ) : (
+                      <div className="text-gray-500 text-center py-16">Нет данных для отображения</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
             <div className="space-y-4">
               <div className="flex items-center space-x-4 mb-4">
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
