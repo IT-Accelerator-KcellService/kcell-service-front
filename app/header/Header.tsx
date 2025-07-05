@@ -193,8 +193,11 @@ const Header: React.FC<HeaderProps> = ({
                     <DialogHeader>
                         <DialogTitle>Все уведомления</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-3 mt-4">
-                        {allNotifications.length === 0 ? (
+                    <div
+                        ref={containerRef}
+                        className="space-y-3 mt-4 overflow-y-auto max-h-[65vh] pr-2"
+                    >
+                        {allNotifications.length === 0 && !isLoading ? (
                             <p className="text-sm text-gray-500">Нет уведомлений</p>
                         ) : (
                             allNotifications.map((n: any) => (
@@ -223,6 +226,16 @@ const Header: React.FC<HeaderProps> = ({
                                     </p>
                                 </div>
                             ))
+                        )}
+                        {isLoading && (
+                            <div className="flex justify-center py-4">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+                            </div>
+                        )}
+                        {!hasMore && allNotifications.length > 0 && (
+                            <p className="text-sm text-center text-gray-500 py-4">
+                                Вы достигли конца списка
+                            </p>
                         )}
                     </div>
                 </DialogContent>
