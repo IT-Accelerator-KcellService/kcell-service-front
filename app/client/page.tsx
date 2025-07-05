@@ -1,7 +1,7 @@
 "use client"
 
 import { Input } from "@/components/ui/input"
-import React, { useState, useRef, useEffect } from "react"
+import React, {useState, useRef, useEffect, useCallback} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -23,6 +23,7 @@ import axios from 'axios'
 import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
 import UserProfile from "@/app/client/UserProfile";
+import Page from "@/app/chat-bot/page";
 import api from "@/lib/api";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -139,7 +140,25 @@ export default function ClientDashboard() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const [pageSize] = useState(10);
+  const lastRequestRef = useCallback(
+      (node: any) => {
+        if (loading) return;
+        if (observer.current) observer.current.disconnect();
 
+        observer.current = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting && hasMore) {
+            fetchRequests(page + 1);
+          }
+        });
+
+        if (node) observer.current.observe(node);
+      },
+      [loading, hasMore, page]
+  );
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -294,19 +313,34 @@ export default function ClientDashboard() {
     event.target.value = '';
   };
 
-  const fetchRequests = async () => {
+  const fetchRequests = async (pageToFetch = page) => {
     try {
-      const response = await api.get('/requests/user')
-      setRequests(response.data)
-      response.data.forEach((request: Request) => {
+      setLoading(true);
+      const response = await api.get(`/requests/user?page=${pageToFetch}&pageSize=${pageSize}`);
+
+      const newRequests = response.data.requests ?? [];
+
+      setRequests((prev) => [...prev, ...newRequests]);
+
+      if (newRequests.length < pageSize) {
+        setHasMore(false);
+      }
+
+      setPage(page);
+
+      // Проверка оценки
+      newRequests.forEach((request: Request) => {
         if (request.status === "completed") {
           checkUserRating(request.id);
         }
       });
+
     } catch (error) {
-      console.error("Failed to fetch requests:", error)
+      console.error("Failed to fetch requests:", error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const checkUserRating = async (requestId: number) => {
     try {
@@ -337,7 +371,7 @@ export default function ClientDashboard() {
   useEffect(() => {
     if (isLoggedIn) {
       fetchCategories()
-      fetchRequests()
+      fetchRequests(1)
     }
   }, [isLoggedIn])
 
@@ -717,15 +751,36 @@ export default function ClientDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <div className="flex justify-between items-center mb-6">
-                <TabsList>
-                  <TabsTrigger value="requests">Мои заявки</TabsTrigger>
-                  <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                </TabsList>
-                <Button onClick={handleOpenCreateRequest} className="bg-violet-600 hover:bg-violet-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Создать заявку
-                </Button>
+              <div className="mb-6">
+                {/* на телефоне кнопка сверху */}
+                <div className="flex flex-col sm:hidden gap-3 mb-4">
+                  <Button
+                      onClick={handleOpenCreateRequest}
+                      className="bg-violet-600 hover:bg-violet-700 w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Создать заявку
+                  </Button>
+                  <TabsList>
+                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                  </TabsList>
+                </div>
+
+                {/* на больших экранах как было */}
+                <div className="hidden sm:flex justify-between items-center">
+                  <TabsList>
+                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                  </TabsList>
+                  <Button
+                      onClick={handleOpenCreateRequest}
+                      className="bg-violet-600 hover:bg-violet-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Создать заявку
+                  </Button>
+                </div>
               </div>
 
               <TabsContent value="requests">
@@ -757,9 +812,16 @@ export default function ClientDashboard() {
                     </Select>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredRequests.map((request, index: number) => (
-                        <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                              onClick={() => setSelectedRequest(request)}>
+                    {filteredRequests.map((request, index) => {
+                      const isLast = index === filteredRequests.length - 1;
+
+                      return (
+                          <Card
+                              key={request.id}
+                              ref={isLast ? lastRequestRef : null}
+                              className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                              onClick={() => setSelectedRequest(request)}
+                          >
                           {/* Заголовок с ID и статусами */}
                           <CardHeader className="pb-3 px-5 pt-5">
                             <div className="flex items-start justify-between gap-3">
@@ -879,7 +941,7 @@ export default function ClientDashboard() {
                             </div>
                           </CardContent>
                         </Card>
-                    ))}
+                      )})}
                   </div>
                     </div>
                   </TabsContent>
@@ -1353,7 +1415,7 @@ export default function ClientDashboard() {
                                         Удалить
                                       </button>
                                     </AlertDialogTrigger>
-                                    <AlertDialogContent>
+                                    <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
                                       <AlertDialogHeader>
                                         <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
                                         <AlertDialogDescription>
@@ -1361,8 +1423,8 @@ export default function ClientDashboard() {
                                           <strong>{commentToDelete?.comment}</strong>?
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                      <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 space-y-2 sm:space-y-0">
+                                        <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
                                         <AlertDialogAction
                                             onClick={() => {
                                               if (commentToDelete) {
@@ -1370,11 +1432,13 @@ export default function ClientDashboard() {
                                                 setCommentToDelete(null);
                                               }
                                             }}
+                                            className="w-full sm:w-auto"
                                         >
                                           Удалить
                                         </AlertDialogAction>
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
+
                                   </AlertDialog>
                                 </div>
                             )}
@@ -1396,7 +1460,7 @@ export default function ClientDashboard() {
                               </button>
                             </div>
                         )}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 space-y-2 sm:space-y-0">
                           <input
                               type="text"
                               value={comment}
@@ -1404,11 +1468,16 @@ export default function ClientDashboard() {
                               placeholder="Написать комментарий..."
                               className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
-                          <Button size="sm" onClick={handleSend}>
+                          <Button
+                              size="sm"
+                              onClick={handleSend}
+                              className="w-full sm:w-auto"
+                          >
                             {editCommentId ? "Сохранить" : "Отправить"}
                           </Button>
                         </div>
                       </div>
+
 
                     </CardContent>
                   </Card>
@@ -1509,6 +1578,7 @@ export default function ClientDashboard() {
           </Card>
         </div>
       )}
+      <Page />
     </div>
   )
 }

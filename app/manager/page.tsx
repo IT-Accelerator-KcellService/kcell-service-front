@@ -1,15 +1,15 @@
 "use client"
 
-import type React from "react"
-import {useEffect, useRef, useState} from "react"
-import {Button} from "@/components/ui/button"
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
-import {Badge} from "@/components/ui/badge"
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
-import {Input} from "@/components/ui/input"
-import {Label} from "@/components/ui/label"
-import {Textarea} from "@/components/ui/textarea"
+import React, {useCallback} from "react"
+import { useState, useRef, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -151,6 +151,25 @@ export default function ManagerDashboard() {
     city: "",
     address: "",
   })
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  const lastRequestRef = useCallback(
+      (node: any) => {
+        if (loading) return;
+        if (observer.current) observer.current.disconnect();
+
+        observer.current = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting && hasMore) {
+            fetchRequests(page + 1);
+          }
+        });
+
+        if (node) observer.current.observe(node);
+      },
+      [loading, hasMore, page]
+  );
 
 
   useEffect(() => {
@@ -302,20 +321,30 @@ export default function ManagerDashboard() {
   useEffect(() => {
     if (isLoggedIn) {
       fetchCategories()
-      fetchRequests()
+      fetchRequests(1)
       fetchNotifications()
       fetchOffices()
     }
   }, [isLoggedIn])
 
-  const fetchRequests = async () => {
+  const fetchRequests = async (pageToLoad = 1) => {
     try {
-      const response = await api.get('/requests')
-      setRequests(response.data)
+      setLoading(true);
+      const response = await api.get(`/requests?page=${pageToLoad}&pageSize=10`);
+      const newRequests = response.data.data;
+      if (pageToLoad === 1) {
+        setRequests(newRequests);
+      } else {
+        setRequests(prev => [...prev, ...newRequests]);
+      }
+      setHasMore(pageToLoad < response.data.totalPages);
+      setPage(pageToLoad);
     } catch (error) {
-      console.error("Failed to fetch requests:", error)
+      console.error("Failed to fetch requests:", error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const handleLogout = async () => {
     try {
@@ -1117,21 +1146,27 @@ export default function ManagerDashboard() {
                 </Select>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredRequests.map((request, index: number) => (
-                    <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                          onClick={() => setSelectedTaskDetails(request)}>
+                {filteredRequests.map((request, index) => {
+                  const isLast = index === filteredRequests.length - 1;
+                  return (
+                      <Card
+                          key={request.id}
+                          ref={isLast ? lastRequestRef : null}
+                          className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                          onClick={() => setSelectedTaskDetails(request)}
+                      >
                         {/* Заголовок с ID и статусами */}
                         <CardHeader className="pb-3 px-5 pt-5">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
                               <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                                  #{request.id}
-                                </span>
+              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                #{request.id}
+              </span>
                                 <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
-                                </span>
+                {request.category.name}
+              </span>
                               </div>
                             </div>
                             <div className="flex gap-1">
@@ -1200,7 +1235,7 @@ export default function ManagerDashboard() {
                                             alt={`Фото ${index + 1}`}
                                             className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
                                             onError={(e) => {
-                                              e.currentTarget.src = `/placeholder.svg?height=48&width=48`
+                                              e.currentTarget.src = `/placeholder.svg?height=48&width=48`;
                                             }}
                                         />
                                       </div>
@@ -1238,7 +1273,8 @@ export default function ManagerDashboard() {
                           </div>
                         </CardContent>
                       </Card>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </TabsContent>
@@ -1350,144 +1386,157 @@ export default function ManagerDashboard() {
                   <CardDescription>Добавление и управление офисами компании</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex space-x-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Input
-                      placeholder="Город нового офиса (например: Алматы)"
-                      value={newOfficeCity}
-                      onChange={(e) => setNewOfficeCity(e.target.value)}
-                      className="flex-1"
+                        placeholder="Город нового офиса (например: Алматы)"
+                        value={newOfficeCity}
+                        onChange={(e) => setNewOfficeCity(e.target.value)}
+                        className="w-full sm:flex-1"
                     />
                     <Input
-                        placeholder="Разположение нового офиса (например: Сатпаева 30А)"
+                        placeholder="Расположение нового офиса (например: Сатпаева 30А)"
                         value={newOfficeAddress}
                         onChange={(e) => setNewOfficeAddress(e.target.value)}
-                        className="flex-1"
+                        className="w-full sm:flex-1"
                     />
                     <Input
                         placeholder="Название нового офиса (например: БЦ Сатпаева)"
                         value={newOfficeName}
                         onChange={(e) => setNewOfficeName(e.target.value)}
-                        className="flex-1"
+                        className="w-full sm:flex-1"
                     />
                     <Button
-                      onClick={handleAddOffice}
-                      disabled={!newOfficeName.trim()}
-                      className="bg-violet-600 hover:bg-violet-700"
+                        onClick={handleAddOffice}
+                        disabled={!newOfficeName.trim()}
+                        className="w-full sm:w-auto bg-violet-600 hover:bg-violet-700"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Добавить офис
                     </Button>
                   </div>
+
                   <div className="space-y-2">
                     <Label>Существующие офисы ({offices.length}):</Label>
                     {offices.length === 0 ? (
-                      <p className="text-sm text-gray-500 italic">Нет добавленных офисов.</p>
+                        <p className="text-sm text-gray-500 italic">Нет добавленных офисов.</p>
                     ) : (
-                      <div className="grid grid-cols-1 gap-2">
-                        {offices.map((officeItem: any) => (
-                            <div
-                                key={officeItem.id}
-                                className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded-lg border space-y-2 sm:space-y-0"
-                            >
-                              {editingOfficeId === officeItem.id ? (
-                                  <div className="flex flex-col sm:flex-row sm:space-x-2 w-full">
-                                    <Input
-                                        value={editedOffice.name}
-                                        onChange={(e) => setEditedOffice({ ...editedOffice, name: e.target.value })}
-                                        placeholder="Название офиса"
-                                        className="flex-1"
-                                    />
-                                    <Input
-                                        value={editedOffice.city}
-                                        onChange={(e) => setEditedOffice({ ...editedOffice, city: e.target.value })}
-                                        placeholder="Город"
-                                        className="flex-1"
-                                    />
-                                    <Input
-                                        value={editedOffice.address}
-                                        onChange={(e) => setEditedOffice({ ...editedOffice, address: e.target.value })}
-                                        placeholder="Адрес"
-                                        className="flex-1"
-                                    />
-                                    <Button
-                                        onClick={() => handleUpdateOffice(officeItem.id)}
-                                        className="bg-green-600 hover:bg-green-700"
-                                    >
-                                      Сохранить
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setEditingOfficeId(null)}
-                                    >
-                                      Отмена
-                                    </Button>
-                                  </div>
-                              ) : (
-                                  <>
-                                    <div className="text-gray-700">
-                                      <div className="text-lg font-semibold">{officeItem.name}</div>
-                                      <div className="text-sm text-gray-600">Город: <span className="font-medium">{officeItem.city}</span></div>
-                                      <div className="text-sm text-gray-600">Адрес: <span className="font-medium">{officeItem.address}</span></div>
-                                    </div>
-
-                                    <div className="flex space-x-2">
+                        <div className="grid grid-cols-1 gap-2">
+                          {offices.map((officeItem: any) => (
+                              <div
+                                  key={officeItem.id}
+                                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded-lg border space-y-2 sm:space-y-0"
+                              >
+                                {editingOfficeId === officeItem.id ? (
+                                    <div className="flex flex-col sm:flex-row gap-2 w-full">
+                                      <Input
+                                          value={editedOffice.name}
+                                          onChange={(e) =>
+                                              setEditedOffice({ ...editedOffice, name: e.target.value })
+                                          }
+                                          placeholder="Название офиса"
+                                          className="w-full sm:flex-1"
+                                      />
+                                      <Input
+                                          value={editedOffice.city}
+                                          onChange={(e) =>
+                                              setEditedOffice({ ...editedOffice, city: e.target.value })
+                                          }
+                                          placeholder="Город"
+                                          className="w-full sm:flex-1"
+                                      />
+                                      <Input
+                                          value={editedOffice.address}
+                                          onChange={(e) =>
+                                              setEditedOffice({ ...editedOffice, address: e.target.value })
+                                          }
+                                          placeholder="Адрес"
+                                          className="w-full sm:flex-1"
+                                      />
+                                      <Button
+                                          onClick={() => handleUpdateOffice(officeItem.id)}
+                                          className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                                      >
+                                        Сохранить
+                                      </Button>
                                       <Button
                                           variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setEditingOfficeId(officeItem.id)
-                                            setEditedOffice({
-                                              name: officeItem.name,
-                                              city: officeItem.city,
-                                              address: officeItem.address,
-                                            })
-                                          }}
+                                          onClick={() => setEditingOfficeId(null)}
+                                          className="w-full sm:w-auto"
                                       >
-                                        ✏️
+                                        Отмена
                                       </Button>
-                                      {/* Удаление — оставляем как есть */}
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => setOfficeToDelete(officeItem)}
-                                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Удалить офис?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Это действие нельзя отменить. Удалить офис <strong>{officeToDelete?.name}</strong>?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                            <AlertDialogAction
-                                                onClick={() => {
-                                                  if (officeToDelete) {
-                                                    handleRemoveOffice(officeToDelete.id)
-                                                    setOfficeToDelete(null)
-                                                  }
-                                                }}
-                                            >
-                                              Удалить
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
                                     </div>
-                                  </>
-                              )}
-                            </div>
-                        ))}
-                      </div>
+                                ) : (
+                                    <>
+                                      <div className="text-gray-700">
+                                        <div className="text-lg font-semibold">{officeItem.name}</div>
+                                        <div className="text-sm text-gray-600">
+                                          Город: <span className="font-medium">{officeItem.city}</span>
+                                        </div>
+                                        <div className="text-sm text-gray-600">
+                                          Адрес: <span className="font-medium">{officeItem.address}</span>
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setEditingOfficeId(officeItem.id);
+                                              setEditedOffice({
+                                                name: officeItem.name,
+                                                city: officeItem.city,
+                                                address: officeItem.address,
+                                              });
+                                            }}
+                                            className="w-full sm:w-auto"
+                                        >
+                                          ✏️
+                                        </Button>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setOfficeToDelete(officeItem)}
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full sm:w-auto"
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Удалить офис?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                Это действие нельзя отменить. Удалить офис{" "}
+                                                <strong>{officeToDelete?.name}</strong>?
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                              <AlertDialogAction
+                                                  onClick={() => {
+                                                    if (officeToDelete) {
+                                                      handleRemoveOffice(officeToDelete.id);
+                                                      setOfficeToDelete(null);
+                                                    }
+                                                  }}
+                                              >
+                                                Удалить
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </div>
+                                    </>
+                                )}
+                              </div>
+                          ))}
+                        </div>
                     )}
                   </div>
                 </CardContent>
+
               </Card>
 
               {/* Управление пользователями */}
@@ -1992,29 +2041,37 @@ export default function ManagerDashboard() {
                                   </button>
                                 </div>
                             )}
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-col sm:flex-row items-stretch gap-2">
                               <input
                                   type="text"
                                   value={comment}
                                   onChange={(e) => setComment(e.target.value)}
                                   placeholder="Написать комментарий..."
-                                  className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  className="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               />
-                              <Button size="sm" onClick={handleSend}>
+                              <Button
+                                  size="sm"
+                                  onClick={handleSend}
+                                  className="w-full sm:w-auto"
+                              >
                                 {editCommentId ? "Сохранить" : "Отправить"}
                               </Button>
                             </div>
+
                           </div>
 
                         </CardContent>
                       </Card>
                     </div>
                 )}
-                <div className="flex justify-end mt-6">
+                <div className="flex justify-end sm:justify-start mt-6">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="flex-1 mr-2">
-                        <Trash2 className="w-4 h-4 mr-2" />
+                      <Button
+                          variant="destructive"
+                          className="w-full sm:w-auto flex justify-center items-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
                         Удалить
                       </Button>
                     </AlertDialogTrigger>
@@ -2026,13 +2083,14 @@ export default function ManagerDashboard() {
                           <strong>{selectedTaskDetails?.title}</strong>?
                         </AlertDialogDescription>
                       </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                      <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+                        <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
                         <AlertDialogAction
+                            className="w-full sm:w-auto"
                             onClick={() => {
                               if (selectedTaskDetails) {
-                                handleDeleteRequest(selectedTaskDetails)
-                                setSelectedTaskDetails(null)
+                                handleDeleteRequest(selectedTaskDetails);
+                                setSelectedTaskDetails(null);
                               }
                             }}
                         >
@@ -2041,6 +2099,7 @@ export default function ManagerDashboard() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+
                   <Button variant="outline" onClick={() => {
                     setSelectedTaskDetails(null)
                     setComments([])
