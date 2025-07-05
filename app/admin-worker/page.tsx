@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from "react"
+import React, {useState, useRef, useEffect, useCallback} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -145,6 +145,28 @@ export default function AdminWorkerDashboard() {
   const [filterMyType, setFilterMyType] = useState("all")
   const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
   const [filterIncomingType, setFilterIncomingType] = useState("all")
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastRequestRef = useCallback(
+      (node: any) => {
+        if (loading || !hasMore) return;
+        if (observer.current) observer.current.disconnect();
+
+        observer.current = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting && hasMore && !loading) {
+            setPage(prevPage => {
+              const nextPage = prevPage + 1;
+              fetchRequests(nextPage);
+              return nextPage;
+            });
+          }
+        });
+
+        if (node) observer.current.observe(node);
+      },
+      [loading, hasMore]
+  );
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -267,38 +289,73 @@ export default function AdminWorkerDashboard() {
     event.target.value = '';
   };
 
-  const fetchRequests = async () => {
+
+
+  const fetchRequests = async (currentPage = 1, pageSize = 10) => {
+    if (loading && currentPage !== 1) return;
+    setLoading(true);
+
     try {
-      const response: any = await api.get('/requests/admin-worker/me');
-      const otherRequests: Request[] = response.data.otherRequests;
-      const myRequests: Request[] = response.data.myRequests;
-      const sortedOtherRequests = otherRequests.sort((a, b) => {
-        const aInProgress = a.status === "in_progress";
-        const bInProgress = b.status === "in_progress";
-        if (aInProgress && !bInProgress) return -1;
-        if (bInProgress && !aInProgress) return 1;
-        if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
-        if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
-        const dateA = new Date(a.created_date).getTime();
-        const dateB = new Date(b.created_date).getTime();
-        return dateB - dateA;
+      const response = await api.get<{
+        otherRequests: Request[];
+        myRequests: Request[];
+      }>(`/requests/admin-worker/me?page=${currentPage}&pageSize=${pageSize}`);
+
+      const sortRequests = (requests: Request[]): Request[] => {
+        return [...requests].sort((a, b) => {
+          const aInProgress = a.status === "in_progress";
+          const bInProgress = b.status === "in_progress";
+          if (aInProgress !== bInProgress) return aInProgress ? -1 : 1;
+
+          if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
+          if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
+
+          const dateA = a.created_date ? new Date(a.created_date).getTime() : 0;
+          const dateB = b.created_date ? new Date(b.created_date).getTime() : 0;
+          return dateB - dateA;
+        });
+      };
+
+      setIncomingRequests((prev) => {
+        const newItems = response.data.otherRequests || [];
+        const sortedNewItems = sortRequests(newItems);
+        return currentPage === 1
+            ? sortedNewItems
+            : [...prev, ...sortedNewItems.filter(item => !prev.some(p => p.id === item.id))];
       });
-      setIncomingRequests(sortedOtherRequests);
-      setMyRequests(myRequests);
-      sortedOtherRequests.forEach((request: Request) => {
-        if (request.status === "completed") {
-          checkUserRating(request.id);
-        }
+
+      setMyRequests((prev) => {
+        const newItems = response.data.myRequests || [];
+        const sortedNewItems = sortRequests(newItems);
+        return currentPage === 1
+            ? sortedNewItems
+            : [...prev, ...sortedNewItems.filter(item => !prev.some(p => p.id === item.id))];
       });
-      myRequests.forEach((request: Request) => {
-        if (request.status === "completed") {
-          checkUserRating(request.id);
-        }
-      });
+
+      const allRequests = [
+        ...(response.data.otherRequests || []),
+        ...(response.data.myRequests || [])
+      ];
+
+      await Promise.all(
+          allRequests
+              .filter((r) => r.status === "completed")
+              .map((r) => checkUserRating(r.id))
+      );
+
+      // Обновляем флаг hasMore
+      setHasMore(
+          (response.data.otherRequests?.length || 0) +
+          (response.data.myRequests?.length || 0) >= pageSize
+      );
+
     } catch (error) {
-      console.error("Failed to fetch requests:", error);
+      console.error("Ошибка при загрузке заявок:", error);
+    } finally {
+      setLoading(false);
     }
   };
+  // Запятая после массива зависимостей
 
   const fetchCategories = async () => {
     try {
@@ -364,9 +421,12 @@ export default function AdminWorkerDashboard() {
   };
 
   useEffect(() => {
-    fetchCategories();
+    setPage(1);
+    setHasMore(true);
     fetchRequests();
-  }, []);
+    fetchCategories()
+  }, [filterMyStatus, filterMyType, filterIncomingStatus, filterIncomingType]);
+
   useEffect(() => {
     if (selectedRequest?.id) {
       fetchComments();
@@ -1005,10 +1065,15 @@ export default function AdminWorkerDashboard() {
                       </Select>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredIncomingRequests.map((request, index: number) => (
-                          <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                                onClick={() => setSelectedRequest(request)}>
-                            {/* Заголовок с ID и статусами */}
+                      {filteredIncomingRequests.map((request, index) => {
+                        const isLast = index === filteredIncomingRequests.length - 1;
+                        return (
+                        <Card
+                            key={`incoming-${request.id}`}
+                            ref={isLast ? lastRequestRef : null}
+                            className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                            onClick={() => setSelectedRequest(request)}
+                        >
                             <CardHeader className="pb-3 px-5 pt-5">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
@@ -1126,7 +1191,7 @@ export default function AdminWorkerDashboard() {
                               </div>
                             </CardContent>
                           </Card>
-                      ))}
+                      )})}
                     </div>
                   </div>
                 </TabsContent>

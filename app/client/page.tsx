@@ -1,7 +1,7 @@
 "use client"
 
 import { Input } from "@/components/ui/input"
-import React, { useState, useRef, useEffect } from "react"
+import React, {useState, useRef, useEffect, useCallback} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -140,7 +140,25 @@ export default function ClientDashboard() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const [pageSize] = useState(10);
+  const lastRequestRef = useCallback(
+      (node: any) => {
+        if (loading) return;
+        if (observer.current) observer.current.disconnect();
 
+        observer.current = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting && hasMore) {
+            fetchRequests(page + 1);
+          }
+        });
+
+        if (node) observer.current.observe(node);
+      },
+      [loading, hasMore, page]
+  );
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -295,19 +313,34 @@ export default function ClientDashboard() {
     event.target.value = '';
   };
 
-  const fetchRequests = async () => {
+  const fetchRequests = async (pageToFetch = page) => {
     try {
-      const response = await api.get('/requests/user')
-      setRequests(response.data)
-      response.data.forEach((request: Request) => {
+      setLoading(true);
+      const response = await api.get(`/requests/user?page=${pageToFetch}&pageSize=${pageSize}`);
+
+      const newRequests = response.data.requests ?? [];
+
+      setRequests((prev) => [...prev, ...newRequests]);
+
+      if (newRequests.length < pageSize) {
+        setHasMore(false);
+      }
+
+      setPage(page);
+
+      // Проверка оценки
+      newRequests.forEach((request: Request) => {
         if (request.status === "completed") {
           checkUserRating(request.id);
         }
       });
+
     } catch (error) {
-      console.error("Failed to fetch requests:", error)
+      console.error("Failed to fetch requests:", error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const checkUserRating = async (requestId: number) => {
     try {
@@ -338,7 +371,7 @@ export default function ClientDashboard() {
   useEffect(() => {
     if (isLoggedIn) {
       fetchCategories()
-      fetchRequests()
+      fetchRequests(1)
     }
   }, [isLoggedIn])
 
@@ -779,9 +812,16 @@ export default function ClientDashboard() {
                     </Select>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredRequests.map((request, index: number) => (
-                        <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                              onClick={() => setSelectedRequest(request)}>
+                    {filteredRequests.map((request, index) => {
+                      const isLast = index === filteredRequests.length - 1;
+
+                      return (
+                          <Card
+                              key={request.id}
+                              ref={isLast ? lastRequestRef : null}
+                              className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                              onClick={() => setSelectedRequest(request)}
+                          >
                           {/* Заголовок с ID и статусами */}
                           <CardHeader className="pb-3 px-5 pt-5">
                             <div className="flex items-start justify-between gap-3">
@@ -901,7 +941,7 @@ export default function ClientDashboard() {
                             </div>
                           </CardContent>
                         </Card>
-                    ))}
+                      )})}
                   </div>
                     </div>
                   </TabsContent>

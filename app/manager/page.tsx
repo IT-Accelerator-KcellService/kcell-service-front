@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React, {useCallback} from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -142,6 +142,25 @@ export default function ManagerDashboard() {
     city: "",
     address: "",
   })
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef<IntersectionObserver | null>(null);
+
+  const lastRequestRef = useCallback(
+      (node: any) => {
+        if (loading) return;
+        if (observer.current) observer.current.disconnect();
+
+        observer.current = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting && hasMore) {
+            fetchRequests(page + 1);
+          }
+        });
+
+        if (node) observer.current.observe(node);
+      },
+      [loading, hasMore, page]
+  );
 
 
   useEffect(() => {
@@ -238,20 +257,30 @@ export default function ManagerDashboard() {
   useEffect(() => {
     if (isLoggedIn) {
       fetchCategories()
-      fetchRequests()
+      fetchRequests(1)
       fetchNotifications()
       fetchOffices()
     }
   }, [isLoggedIn])
 
-  const fetchRequests = async () => {
+  const fetchRequests = async (pageToLoad = 1) => {
     try {
-      const response = await api.get('/requests')
-      setRequests(response.data)
+      setLoading(true);
+      const response = await api.get(`/requests?page=${pageToLoad}&pageSize=10`);
+      const newRequests = response.data.data;
+      if (pageToLoad === 1) {
+        setRequests(newRequests);
+      } else {
+        setRequests(prev => [...prev, ...newRequests]);
+      }
+      setHasMore(pageToLoad < response.data.totalPages);
+      setPage(pageToLoad);
     } catch (error) {
-      console.error("Failed to fetch requests:", error)
+      console.error("Failed to fetch requests:", error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const handleLogout = async () => {
     try {
@@ -940,21 +969,27 @@ export default function ManagerDashboard() {
                 </Select>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredRequests.map((request, index: number) => (
-                    <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                          onClick={() => setSelectedTaskDetails(request)}>
+                {filteredRequests.map((request, index) => {
+                  const isLast = index === filteredRequests.length - 1;
+                  return (
+                      <Card
+                          key={request.id}
+                          ref={isLast ? lastRequestRef : null}
+                          className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                          onClick={() => setSelectedTaskDetails(request)}
+                      >
                         {/* Заголовок с ID и статусами */}
                         <CardHeader className="pb-3 px-5 pt-5">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
                               <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                                  #{request.id}
-                                </span>
+              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                #{request.id}
+              </span>
                                 <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
-                                </span>
+                {request.category.name}
+              </span>
                               </div>
                             </div>
                             <div className="flex gap-1">
@@ -1023,7 +1058,7 @@ export default function ManagerDashboard() {
                                             alt={`Фото ${index + 1}`}
                                             className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
                                             onError={(e) => {
-                                              e.currentTarget.src = `/placeholder.svg?height=48&width=48`
+                                              e.currentTarget.src = `/placeholder.svg?height=48&width=48`;
                                             }}
                                         />
                                       </div>
@@ -1061,7 +1096,8 @@ export default function ManagerDashboard() {
                           </div>
                         </CardContent>
                       </Card>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </TabsContent>
