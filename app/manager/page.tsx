@@ -211,7 +211,7 @@ export default function ManagerDashboard() {
       if (periodStartDate) params.append("from", periodStartDate.toISOString());
       params.append("format", format);
 
-      const res = await axios.get(`http://localhost:8080/api/analytics/export?${params.toString()}`, {
+      const res = await axios.get(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
         responseType: "blob",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
