@@ -101,6 +101,13 @@ interface Comment {
   timestamp: Date
 }
 
+interface Stats {
+  totalRequests: number,
+  activeRequests: number,
+  doneRequests: number,
+  averageRating: string
+}
+
 export default function ClientDashboard() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("requests")
@@ -141,6 +148,7 @@ export default function ClientDashboard() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [stats, setStats] = useState<Stats | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -189,6 +197,21 @@ export default function ClientDashboard() {
       setNotificationLoading(false)
     }
   }, [])
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get("/analytics/stats/client");
+      setStats(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  useEffect(() => {
+    if (!stats) {
+      fetchStats()
+    }
+  }, []);
 
   const fetchNotifications = async () => {
     try {
@@ -321,20 +344,19 @@ export default function ClientDashboard() {
     event.target.value = '';
   };
 
-  const fetchRequests = async (pageToFetch = page) => {
+  const fetchRequests = async (pageToFetch = 1) => {
     try {
       setLoading(true);
       const response = await api.get(`/requests/user?page=${pageToFetch}&pageSize=${pageSize}`);
-
       const newRequests = response.data.requests ?? [];
 
       setRequests((prev) => [...prev, ...newRequests]);
 
       if (newRequests.length < pageSize) {
         setHasMore(false);
+      } else {
+        setPage(pageToFetch);
       }
-
-      setPage(page);
 
       // Проверка оценки
       newRequests.forEach((request: Request) => {
@@ -702,7 +724,9 @@ export default function ClientDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Активные заявки</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {requests.filter((r) => r.status !== "completed").length}
+                    {stats && stats.activeRequests? (
+                        stats.activeRequests
+                      ): 0}
                   </p>
                 </div>
               </div>
@@ -717,7 +741,9 @@ export default function ClientDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Завершено</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {requests.filter((r) => r.status === "completed").length}
+                    {stats && stats.doneRequests ? (
+                        stats.doneRequests
+                    ): 0}
                   </p>
                 </div>
               </div>
@@ -732,10 +758,9 @@ export default function ClientDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Средняя оценка</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {(
-                      requests.filter((r) => r.rating !== null).reduce((acc, r) => acc + r.rating!, 0) /
-                        requests.filter((r) => r.rating !== null).length || 0
-                    ).toFixed(1)}
+                    {stats && stats.averageRating ? (
+                        stats.averageRating
+                    ): 0}
                   </p>
                 </div>
               </div>
@@ -959,33 +984,25 @@ export default function ClientDashboard() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Статистика по заявкам</CardTitle>
-                        <CardDescription>Ваша активность за последние 30 дней</CardDescription>
+                        <CardDescription>Ваша активность</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4">
                           <div className="flex justify-between items-center">
                             <span>Всего подано заявок</span>
-                            <span className="font-bold">{requests.length}</span>
+                            <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Завершено успешно</span>
                             <span className="font-bold text-green-600">
-                          {requests.filter((r) => r.status === "completed").length}
-                        </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Среднее время выполнения</span>
-                            <span className="font-bold">2.4 часа</span>
+                              {stats && stats.doneRequests ? (stats.doneRequests) : 0}
+                            </span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Средняя оценка исполнителей</span>
                             <span className="font-bold">
-                          {(
-                              requests.filter((r) => r.rating !== null).reduce((acc, r) => acc + r.rating!, 0) /
-                              requests.filter((r) => r.rating !== null).length || 0
-                          ).toFixed(1)}
-                              /5
-                        </span>
+                              {stats && stats.averageRating ? (stats.averageRating) : 0}
+                            </span>
                           </div>
                         </div>
                       </CardContent>

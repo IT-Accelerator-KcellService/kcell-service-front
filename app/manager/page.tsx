@@ -92,6 +92,17 @@ interface Comment {
   timestamp: Date
 }
 
+interface Stats {
+  officeId: number,
+  data: {
+    date: {
+      totalRequests: number,
+      completedRequests: number,
+      overdueUrgentRequests: number
+    }
+  }
+}
+
 export default function ManagerDashboard() {
   const router = useRouter()
   const [period, setPeriod] = useState("month")
@@ -137,6 +148,7 @@ export default function ManagerDashboard() {
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [deleteReason, setDeleteReason] = useState("")
+  const [stats, setStats] = useState<Stats | null>(null);
   const [newUser, setNewUser] = useState({
     id: 0,
     email: "",
@@ -172,6 +184,20 @@ export default function ManagerDashboard() {
       [loading, hasMore, page]
   );
 
+  const fetchStats = async () => {
+    try {
+      const res = await api.get("/analytics/stats/manager");
+      setStats(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  useEffect(() => {
+    if (!stats) {
+      fetchStats()
+    }
+  }, []);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -739,17 +765,6 @@ export default function ManagerDashboard() {
     overdue: 8,
     emergency: urgentRequests.length,
   }
-
-  const officeStats = [
-    { name: "Тимирязева 2Г", total: 89, completed: 82, overdue: 5, rating: 4.8, sla: 94 },
-    { name: "Алимжанова 51", total: 67, completed: 60, overdue: 3, rating: 4.6, sla: 91 },
-  ]
-
-  const topExecutors = [
-    { name: "Петров А.И.", done: 28, rating: 4.9, specialty: "Сантехник" },
-    { name: "Иванов И.И.", done: 25, rating: 4.8, specialty: "Электрик" },
-    { name: "Сидоров В.П.", done: 22, rating: 4.7, specialty: "Универсал" },
-  ]
 
   const StatCard = ({
     title,

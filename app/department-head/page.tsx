@@ -116,6 +116,21 @@ interface Comment {
   timestamp: Date
 }
 
+interface Stats {
+  totalRequests: number,
+  statusCounts: {
+    new: number,
+    inWork: number,
+    completed: number,
+    overdue: number
+  },
+  requestTypeSummary: {
+    urgent: number,
+    planned: number,
+    normal: number
+  }
+}
+
 export default function DepartmentHeadDashboard() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming")
@@ -168,6 +183,7 @@ export default function DepartmentHeadDashboard() {
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [stats, setStats] = useState<Stats | null>(null);
 
 
   useEffect(() => {
@@ -191,6 +207,21 @@ export default function DepartmentHeadDashboard() {
     };
 
     checkAuth();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get("/analytics/stats/department-head");
+      setStats(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  useEffect(() => {
+    if (!stats) {
+      fetchStats()
+    }
   }, []);
 
   useEffect(() => {
@@ -849,7 +880,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Новые заявки</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {newRequestsLength}
+                      {stats && stats.statusCounts && stats.statusCounts.new ? (stats.statusCounts.new) : 0}
                     </p>
                   </div>
                 </div>
@@ -864,7 +895,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">В работе</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {executionRequestsLength}
+                      {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
                     </p>
                   </div>
                 </div>
@@ -879,7 +910,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Завершено</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {completedRequestsLength}
+                      {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
                     </p>
                   </div>
                 </div>
@@ -894,7 +925,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Просрочено</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {expiredRequestsLength}
+                      {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
                     </p>
                   </div>
                 </div>
@@ -1193,25 +1224,25 @@ export default function DepartmentHeadDashboard() {
                         <div className="space-y-4 text-sm sm:text-base">
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">Всего заявок</span>
-                            <span className="font-bold">{incomingRequests.length + myRequests.length}</span>
+                            <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests) : 0}</span>
                           </div>
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">Завершено</span>
                             <span className="font-bold text-green-600">
-              {completedRequestsLength}
-            </span>
+                              {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
+                            </span>
                           </div>
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">В работе</span>
                             <span className="font-bold text-blue-600">
-              {executionRequestsLength}
-            </span>
+                              {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
+                            </span>
                           </div>
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">Просрочено</span>
                             <span className="font-bold text-red-600">
-              {expiredRequestsLength}
-            </span>
+                              {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
+                            </span>
                           </div>
                         </div>
                       </CardContent>
@@ -1226,20 +1257,20 @@ export default function DepartmentHeadDashboard() {
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">Обычные</span>
                             <span className="font-bold">
-              {[...incomingRequests, ...myRequests].filter(req => req.request_type === "normal").length}
-            </span>
+                              {stats && stats.requestTypeSummary && stats.requestTypeSummary.normal ? (stats.requestTypeSummary.normal) : 0}
+                            </span>
                           </div>
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">Экстренные</span>
                             <span className="font-bold">
-              {[...incomingRequests, ...myRequests].filter(req => req.request_type === "urgent").length}
-            </span>
+                              {stats && stats.requestTypeSummary && stats.requestTypeSummary.urgent ? (stats.requestTypeSummary.urgent) : 0}
+                            </span>
                           </div>
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">Плановые</span>
                             <span className="font-bold">
-              {[...incomingRequests, ...myRequests].filter(req => req.request_type === "planned").length}
-            </span>
+                              {stats && stats.requestTypeSummary && stats.requestTypeSummary.planned ? (stats.requestTypeSummary.planned) : 0}
+                            </span>
                           </div>
                         </div>
                       </CardContent>

@@ -97,6 +97,17 @@ interface Comment {
   timestamp: Date
 }
 
+interface Stats {
+  totalRequests: number,
+  urgent: number,
+  inWork: number,
+  completed: number,
+  onTime: number,
+  late: number,
+  averageExecutionHours: string,
+  averageRating: string
+}
+
 export default function ExecutorDashboard() {
   const router = useRouter()
   const [assignedRequests, setAssignedRequests] = useState<any>([])
@@ -138,6 +149,8 @@ export default function ExecutorDashboard() {
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [myRating, setMyRating] = useState<number | null>(null)
+  const [stats, setStats] = useState<Stats | null>(null);
+
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -159,6 +172,21 @@ export default function ExecutorDashboard() {
     };
 
     checkAuth();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get("/analytics/stats/department-head");
+      setStats(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  useEffect(() => {
+    if (!stats) {
+      fetchStats()
+    }
   }, []);
 
   const filteredRequests = myRequests.filter((request:any) => {
@@ -742,7 +770,7 @@ export default function ExecutorDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Экстренные</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {[...assignedRequests, ...myRequests].filter(req => req.request_type === "urgent").length}
+                    {stats && stats.urgent ? (stats.urgent) : 0}
                   </p>
                 </div>
               </div>
@@ -757,7 +785,7 @@ export default function ExecutorDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">В работе</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {assignedRequests?.filter((r:any) => r.status === "execution").length}
+                    {stats && stats.inWork ? (stats.inWork) : 0}
                   </p>
                 </div>
               </div>
@@ -772,7 +800,7 @@ export default function ExecutorDashboard() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Завершено</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {completedRequests?.length}
+                    {stats && stats.completed ? (stats.completed) : 0}
                   </p>
                 </div>
               </div>
@@ -1347,15 +1375,15 @@ export default function ExecutorDashboard() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
                           <span>Всего выполнено задач</span>
-                          <span className="font-bold">{completedRequests.length}</span>
+                          <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Выполнено в срок</span>
-                          <span className="font-bold text-green-600">{completedInTime.length}</span>
+                          <span className="font-bold text-green-600">{stats && stats.onTime ? (stats.onTime): 0}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Просрочено</span>
-                          <span className="font-bold text-red-600">{overdue}</span>
+                          <span className="font-bold text-red-600">{stats && stats.late ? (stats.late): 0}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Средняя оценка</span>
@@ -1363,7 +1391,7 @@ export default function ExecutorDashboard() {
                         </div>
                         <div className="flex justify-between items-center">
                           <span>Среднее время выполнения</span>
-                          <span className="font-bold">{averageDuration} часа</span>
+                          <span className="font-bold">{stats && stats.averageExecutionHours ? (stats.averageExecutionHours): 0} часа</span>
                         </div>
                       </div>
                     </CardContent>
