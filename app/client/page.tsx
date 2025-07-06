@@ -33,6 +33,7 @@ import {
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
 import {useRouter} from "next/navigation";
+import {useNotificationStore} from "@/stores/notificationStore";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -132,7 +133,7 @@ export default function ClientDashboard() {
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [requestDescription,setrequestDescription]=useState("");
-  const [notifications, setNotifications] = useState([])
+  const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -180,32 +181,39 @@ export default function ClientDashboard() {
 
     checkAuth();
   }, []);
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await api.get("/notifications/me")
-        setNotifications(response.data.notifications)
-      } catch (error) {
-        console.error("Ошибка при загрузке уведомлений", error)
-      } finally {
-        setLoading(false)
-      }
-    }
 
-    fetchNotifications()
+  useEffect(() => {
+    if (notifications.length <= 0) {
+      fetchNotifications()
+    } else {
+      setNotificationLoading(false)
+    }
   }, [])
 
-  const handleNotificationClick = async (notification:any) => {
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get('/notifications/me')
+      setNotifications(res.data.notifications)
+    } catch (error) {
+      console.error('Ошибка при загрузке уведомлений:', error)
+    } finally {
+      setNotificationLoading(false)
+    }
+  }
+
+  const handleNotificationClick = async (notification: any) => {
     if (!notification.is_read) {
       try {
-        setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
+        const updatedNotifications = notifications.map((n:any) =>
+            n.id === notification.id ? { ...n, is_read: true } : n
         )
+        setNotifications(updatedNotifications)
         await api.patch(`/notifications/${notification.id}/read`)
       } catch (error) {
-        setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        const updatedNotifications = notifications.map((n:any) =>
+            n.id === notification.id ? { ...n, is_read: false } : n
         )
+        setNotifications(updatedNotifications)
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
@@ -467,7 +475,8 @@ export default function ClientDashboard() {
         !requestLocation.trim() ||
         !requestDescription.trim() ||
         !selectedCategoryId ||
-        !requestLocationDetails.trim()
+        !requestLocationDetails.trim() ||
+        photos.length <= 0
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -1023,7 +1032,7 @@ export default function ClientDashboard() {
                   <CardTitle className="text-lg">Уведомления</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {loading ? (
+                  {notificationLoading ? (
                       <p>Загрузка...</p>
                   ) : (
                       <div className="space-y-3">

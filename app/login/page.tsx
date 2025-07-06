@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState("")
   const [passwordError, setPasswordError] = useState("")
   const [formError, setFormError] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const validate = () => {
     let isValid = true
@@ -38,7 +39,11 @@ export default function LoginPage() {
   }
 
   const handleLogin = async () => {
-    if (!validate()) return
+    setLoading(true)
+    if (!validate()) {
+      setLoading(false)
+      return
+    }
 
     try {
       const response = await fetch("https://kcell-service.onrender.com/api/auth/login", {
@@ -62,8 +67,11 @@ export default function LoginPage() {
       localStorage.setItem("role", data.role)
       router.push(`/${role.toLowerCase().replace(" ", "-")}`)
     } catch (err) {
+      setLoading(false)
       console.error("Ошибка логина:", err)
       setFormError("Произошла ошибка при входе. Попробуйте позже.")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -117,6 +125,7 @@ export default function LoginPage() {
               <Button
                   onClick={handleLogin}
                   className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl text-lg font-semibold"
+                  disabled={loading}
               >
                 {isLogin ? "Войти" : "Зарегистрироваться"}
               </Button>

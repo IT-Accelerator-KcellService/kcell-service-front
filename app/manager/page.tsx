@@ -53,6 +53,7 @@ import {useRouter} from "next/navigation";
 import {notification,} from "antd";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import {isAfter, subDays, subMonths, subYears} from "date-fns";
+import {useNotificationStore} from "@/stores/notificationStore";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -107,7 +108,7 @@ export default function ManagerDashboard() {
   const [newRequestLocation, setNewRequestLocation] = useState("")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [showProfile, setShowProfile] = useState(false)
-  const [notifications, setNotifications] = useState([])
+  const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -384,7 +385,8 @@ export default function ManagerDashboard() {
         !newRequestType ||
         !requestLocation ||
         !newRequestLocation ||
-        !selectedCategoryId
+        !selectedCategoryId ||
+        photos.length <= 0
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -584,27 +586,38 @@ export default function ManagerDashboard() {
     }
   }
 
+  useEffect(() => {
+    if (notifications.length <= 0) {
+      fetchNotifications()
+    } else {
+      setNotificationLoading(false)
+    }
+  }, [])
+
   const fetchNotifications = async () => {
     try {
-      const response = await api.get("/notifications/me")
-      setNotifications(response.data.notifications)
+      const res = await api.get('/notifications/me')
+      setNotifications(res.data.notifications)
     } catch (error) {
-      console.error("Ошибка при загрузке уведомлений", error)
+      console.error('Ошибка при загрузке уведомлений:', error)
     } finally {
-      setLoading(false)
+      setNotificationLoading(false)
     }
   }
 
-  const handleNotificationClick = async (notification:any) => {
+  const handleNotificationClick = async (notification: any) => {
     if (!notification.is_read) {
       try {
-        const response = await api.patch(`/notifications/${notification.id}/read`)
-        const updated = response.data
-
-        setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === updated.id ? { ...n, is_read: true } : n))
+        const updatedNotifications = notifications.map((n:any) =>
+            n.id === notification.id ? { ...n, is_read: true } : n
         )
+        setNotifications(updatedNotifications)
+        await api.patch(`/notifications/${notification.id}/read`)
       } catch (error) {
+        const updatedNotifications = notifications.map((n:any) =>
+            n.id === notification.id ? { ...n, is_read: false } : n
+        )
+        setNotifications(updatedNotifications)
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
@@ -1324,7 +1337,7 @@ export default function ManagerDashboard() {
                 <CardTitle className="text-lg">Уведомления</CardTitle>
               </CardHeader>
               <CardContent>
-                {loading ? (
+                {notificationLoading ? (
                     <p>Загрузка...</p>
                 ) : (
                     <div className="space-y-3">

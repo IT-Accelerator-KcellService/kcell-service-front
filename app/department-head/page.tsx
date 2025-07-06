@@ -49,6 +49,7 @@ import {Calendar as CalendarPlanned} from "@/components/ui/calendar";
 import {format} from "date-fns";
 import {ru} from "date-fns/locale";
 import {useRouter} from "next/navigation";
+import {useNotificationStore} from "@/stores/notificationStore";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -158,7 +159,7 @@ export default function DepartmentHeadDashboard() {
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
   const [loading, setLoading] = useState(true)
-  const [notifications, setNotifications] = useState([])
+  const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -193,31 +194,37 @@ export default function DepartmentHeadDashboard() {
   }, []);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await api.get("/notifications/me")
-        setNotifications(response.data.notifications)
-      } catch (error) {
-        console.error("Ошибка при загрузке уведомлений", error)
-      } finally {
-        setLoading(false)
-      }
+    if (notifications.length <= 0) {
+      fetchNotifications()
+    } else {
+      setNotificationLoading(false)
     }
-
-    fetchNotifications()
   }, [])
 
-  const handleNotificationClick = async (notification:any) => {
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get('/notifications/me')
+      setNotifications(res.data.notifications)
+    } catch (error) {
+      console.error('Ошибка при загрузке уведомлений:', error)
+    } finally {
+      setNotificationLoading(false)
+    }
+  }
+
+  const handleNotificationClick = async (notification: any) => {
     if (!notification.is_read) {
       try {
-        setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
+        const updatedNotifications = notifications.map((n:any) =>
+            n.id === notification.id ? { ...n, is_read: true } : n
         )
+        setNotifications(updatedNotifications)
         await api.patch(`/notifications/${notification.id}/read`)
       } catch (error) {
-        setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        const updatedNotifications = notifications.map((n:any) =>
+            n.id === notification.id ? { ...n, is_read: false } : n
         )
+        setNotifications(updatedNotifications)
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
@@ -507,7 +514,8 @@ export default function DepartmentHeadDashboard() {
         !newRequestLocationDetails ||
         !newRequestLocation ||
         !serviceCategories ||
-        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity)
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity) ||
+        photos.length <= 0
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -1446,7 +1454,7 @@ export default function DepartmentHeadDashboard() {
                   <CardTitle className="text-lg">Уведомления</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {loading ? (
+                  {notificationLoading ? (
                       <p>Загрузка...</p>
                   ) : (
                       <div className="space-y-3">
