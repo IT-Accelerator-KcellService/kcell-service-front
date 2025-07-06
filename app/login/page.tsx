@@ -51,10 +51,17 @@ export default function LoginPage() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        setFormError(error.message || "Ошибка входа")
-        return
+        const error = await response.json();
+        if(error?.details?.[0]?.message==="Invalid email or password"){
+          setFormError("Неверный email или пароль")
+        }else {
+          const message =
+              error?.details?.[0]?.message || error.message || "Ошибка входа";
+          setFormError(message);
+        }
+        return;
       }
+
 
       const data = await response.json()
       const role = data.role || "client"
