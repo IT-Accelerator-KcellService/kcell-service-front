@@ -320,13 +320,17 @@ export default function ClientDashboard() {
 
       const newRequests = response.data.requests ?? [];
 
-      setRequests((prev) => [...prev, ...newRequests]);
+      setRequests((prev: Request[]) => {
+        const existingIds = new Set(prev.map((r: Request) => r.id));
+        const filteredNew = newRequests.filter((r: Request) => !existingIds.has(r.id));
+        return [...prev, ...filteredNew];
+      });
 
       if (newRequests.length < pageSize) {
         setHasMore(false);
       }
 
-      setPage(page);
+      setPage(pageToFetch);
 
       // Проверка оценки
       newRequests.forEach((request: Request) => {
