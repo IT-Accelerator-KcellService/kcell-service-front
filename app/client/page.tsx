@@ -344,19 +344,24 @@ export default function ClientDashboard() {
     event.target.value = '';
   };
 
-  const fetchRequests = async (pageToFetch = 1) => {
+  const fetchRequests = async (pageToFetch = page) => {
     try {
       setLoading(true);
       const response = await api.get(`/requests/user?page=${pageToFetch}&pageSize=${pageSize}`);
+
       const newRequests = response.data.requests ?? [];
 
-      setRequests((prev) => [...prev, ...newRequests]);
+      setRequests((prev: Request[]) => {
+        const existingIds = new Set(prev.map((r: Request) => r.id));
+        const filteredNew = newRequests.filter((r: Request) => !existingIds.has(r.id));
+        return [...prev, ...filteredNew];
+      });
 
       if (newRequests.length < pageSize) {
         setHasMore(false);
-      } else {
-        setPage(pageToFetch);
       }
+
+      setPage(pageToFetch);
 
       // Проверка оценки
       newRequests.forEach((request: Request) => {
