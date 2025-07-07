@@ -1718,7 +1718,7 @@ export default function ManagerDashboard() {
                         <SelectValue placeholder="Роль" />
                       </SelectTrigger>
                       <SelectContent>
-                        {["client", "admin-worker", "department-head", "manager"].map((role) => (
+                        {["client", "admin-worker", "department-head", "manager", "executor"].map((role) => (
                             <SelectItem key={role} value={role}>
                               {role}
                             </SelectItem>
