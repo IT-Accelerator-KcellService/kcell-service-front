@@ -1681,8 +1681,10 @@ export default function ManagerDashboard() {
                   <CardTitle>Управление пользователями</CardTitle>
                   <CardDescription>Добавление, изменение и удаление пользователей</CardDescription>
                 </CardHeader>
+
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                  {/* Форма добавления */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     <Input
                         placeholder="Email"
                         value={newUser.email}
@@ -1724,42 +1726,47 @@ export default function ManagerDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Кнопка добавить/сохранить */}
                   <Button
                       onClick={handleAddOrUpdateUser}
                       disabled={!isValidUser || loading}
-                      className="bg-green-600 hover:bg-green-700"
+                      className="bg-green-600 hover:bg-green-700 w-full sm:w-fit"
                   >
                     {editingUserId ? "Сохранить" : "Добавить пользователя"}
                   </Button>
 
+                  {/* Список пользователей */}
                   <div className="space-y-2 mt-4">
                     <Label>Пользователи ({users.length}):</Label>
+
                     {users.length === 0 ? (
                         <p className="text-sm text-gray-500 italic">Нет пользователей.</p>
                     ) : (
-                        <div className="grid grid-cols-1 gap-2">
+                        <div className="grid grid-cols-1 gap-3">
                           {users.map((user: any, index: number) => (
                               <div
                                   key={index}
-                                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
+                                  className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 bg-gray-50 rounded-lg border"
                               >
-                                <div>
-                                  <div className="font-semibold text-gray-800">{user.full_name}</div>
-                                  <div className="text-sm text-gray-500">{user.email}</div>
-                                  <div className="text-xs text-gray-400">
-                                    {user.role} — {user.full_name}
-                                  </div>
+                                {/* Информация о пользователе */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-semibold text-gray-800 truncate">{user.full_name}</div>
+                                  <div className="text-sm text-gray-500 truncate">{user.email}</div>
+                                  <div className="text-xs text-gray-400">{user.role}</div>
                                 </div>
-                                <div className="flex space-x-2">
+
+                                {/* Кнопки действий */}
+                                <div className="flex space-x-2 justify-end">
                                   <Button
-                                      size="sm"
+                                      size="icon"
                                       variant="outline"
                                       onClick={() => handleEditUser(user)}
                                   >
                                     ✎
                                   </Button>
                                   <Button
-                                      size="sm"
+                                      size="icon"
                                       variant="ghost"
                                       className="text-red-500 hover:text-red-700"
                                       onClick={() => handleDeleteUser(user.id)}
