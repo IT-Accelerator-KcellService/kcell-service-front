@@ -1750,10 +1750,10 @@ export default function ManagerDashboard() {
                                   className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 bg-gray-50 rounded-lg border"
                               >
                                 {/* Информация о пользователе */}
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 max-w-full sm:max-w-[75%]">
                                   <div className="font-semibold text-gray-800 truncate">{user.full_name}</div>
                                   <div className="text-sm text-gray-500 truncate">{user.email}</div>
-                                  <div className="text-xs text-gray-400">{user.role}</div>
+                                  <div className="text-xs text-gray-400 truncate">{user.role}</div>
                                 </div>
 
                                 {/* Кнопки действий */}
