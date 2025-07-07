@@ -2243,7 +2243,7 @@ export default function ManagerDashboard() {
                     </AlertDialogContent>
                   </AlertDialog>
 
-                  <Button variant="outline" onClick={() => {
+                  <Button className="w-full sm:w-auto flex justify-center items-center gap-2 ml-2" variant="outline" onClick={() => {
                     setSelectedTaskDetails(null)
                     setComments([])
                   }}>

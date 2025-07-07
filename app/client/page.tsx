@@ -517,7 +517,7 @@ export default function ClientDashboard() {
         title: requestTitle,
         description: requestDescription,
         office_id: Number(newRequestOfficeId),
-        request_type: requestType === "urgent" ? "urgent" : "normal",
+        request_type: requestType,
         location: requestLocation,
         location_detail: requestLocationDetails,
         category_id: selectedCategoryId,
@@ -1029,7 +1029,7 @@ export default function ClientDashboard() {
                       className="w-full justify-start"
                       onClick={() => {
                         setRequestType("urgent")
-                        setShowCreateRequest(true)
+                        handleOpenCreateRequest()
                       }}
                   >
                     <AlertTriangle className="w-4 h-4 mr-2 text-red-500" />
@@ -1039,8 +1039,8 @@ export default function ClientDashboard() {
                       variant="outline"
                       className="w-full justify-start"
                       onClick={() => {
-                        setRequestType("regular")
-                        setShowCreateRequest(true)
+                        setRequestType("normal")
+                        handleOpenCreateRequest()
                       }}
                   >
                     <Clock className="w-4 h-4 mr-2 text-blue-500" />
@@ -1122,7 +1122,7 @@ export default function ClientDashboard() {
                         <SelectValue placeholder="Выберите тип заявки" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="regular">Обычная</SelectItem>
+                        <SelectItem value="normal">Обычная</SelectItem>
                         <SelectItem value="urgent">Экстренная</SelectItem>
                       </SelectContent>
                     </Select>
