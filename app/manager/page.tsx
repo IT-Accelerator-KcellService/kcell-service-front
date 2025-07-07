@@ -93,14 +93,22 @@ interface Comment {
 }
 
 interface Stats {
-  officeId: number,
+  officeId: number;
   data: {
-    date: {
-      totalRequests: number,
-      completedRequests: number,
-      overdueUrgentRequests: number
-    }
-  }
+    [date: string]: {
+      totalRequests: number;
+      completedRequests: number;
+      overdueUrgentRequests: number;
+      normalRequests: number,
+      urgentRequests: number,
+      plannedRequests: number
+    };
+  };
+}
+
+interface ChartData {
+  date: string;
+  count: number;
 }
 
 export default function ManagerDashboard() {
@@ -148,7 +156,6 @@ export default function ManagerDashboard() {
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [deleteReason, setDeleteReason] = useState("")
-  const [stats, setStats] = useState<Stats | null>(null);
   const [newUser, setNewUser] = useState({
     id: 0,
     email: "",
@@ -167,6 +174,14 @@ export default function ManagerDashboard() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
+  const [stats, setStats] = useState<Stats[]>([]);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [kpi, setKpi] = useState({
+    total: 0,
+    completed: 0,
+    overdue: 0,
+    emergency: 0,
+  })
 
   const lastRequestRef = useCallback(
       (node: any) => {
@@ -194,10 +209,174 @@ export default function ManagerDashboard() {
   }
 
   useEffect(() => {
-    if (!stats) {
-      fetchStats()
+    if (!stats.length) {
+      fetchStats();
     }
   }, []);
+
+  useEffect(() => {
+    if (stats.length) {
+      setKpi(calculateKPI(stats, office, period));
+      setChartData(prepareChartData(stats, office, period));
+      setDistribution(getRequestsDistribution(stats, office, period));
+    }
+  }, [stats, office, period]);
+
+  const getRequestsDistribution = (stats: Stats[], selectedOffice: string, selectedPeriod: string) => {
+    let filteredStats = stats;
+
+    if (selectedOffice !== "all") {
+      const officeId = parseInt(selectedOffice);
+      filteredStats = stats.filter(stat => stat.officeId === officeId);
+    }
+
+    const now = new Date();
+    let startDate: Date = new Date(0); // По умолчанию - все время
+
+    switch (selectedPeriod) {
+      case "week":
+        startDate = subDays(now, 7);
+        break;
+      case "month":
+        startDate = subMonths(now, 1);
+        break;
+      case "year":
+        startDate = subYears(now, 1);
+        break;
+    }
+
+    let total = 0;
+    let normal = 0;
+    let urgent = 0;
+    let planned = 0;
+
+    filteredStats.forEach(stat => {
+      Object.entries(stat.data).forEach(([date, data]) => {
+        const entryDate = new Date(date);
+        if (entryDate >= startDate) {
+          total += data.totalRequests;
+          normal += data.normalRequests || 0;
+          urgent += data.urgentRequests || 0;
+          planned += data.plannedRequests || 0;
+        }
+      });
+    });
+
+    return {
+      total,
+      normal,
+      urgent,
+      planned,
+      normalPercent: total > 0 ? Math.round((normal / total) * 100) : 0,
+      urgentPercent: total > 0 ? Math.round((urgent / total) * 100) : 0,
+      plannedPercent: total > 0 ? Math.round((planned / total) * 100) : 0,
+    };
+  };
+
+  const [distribution, setDistribution] = useState({
+    total: 0,
+    normal: 0,
+    urgent: 0,
+    planned: 0,
+    normalPercent: 0,
+    urgentPercent: 0,
+    plannedPercent: 0,
+  });
+
+  const calculateKPI = (stats: Stats[], selectedOffice: string, selectedPeriod: string) => {
+    let filteredStats = stats;
+
+    if (selectedOffice !== "all") {
+      const officeId = parseInt(selectedOffice);
+      filteredStats = stats.filter(stat => stat.officeId === officeId);
+    }
+
+    const now = new Date();
+    let startDate: Date;
+
+    switch (selectedPeriod) {
+      case "week":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case "month":
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 1);
+        break;
+      case "year":
+        startDate = new Date(now);
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        startDate = new Date(0);
+    }
+
+    let total = 0;
+    let completed = 0;
+    let overdue = 0;
+    let emergency = 0;
+
+    filteredStats.forEach(stat => {
+      Object.entries(stat.data).forEach(([date, data]) => {
+        const entryDate = new Date(date);
+        if (entryDate >= startDate) {
+          total += data.totalRequests;
+          completed += data.completedRequests;
+          overdue += data.totalRequests - data.completedRequests;
+          emergency += data.overdueUrgentRequests;
+        }
+      });
+    });
+
+    return { total, completed, overdue, emergency };
+  };
+
+  const prepareChartData = (stats: Stats[], selectedOffice: string, selectedPeriod: string) => {
+    let filteredStats = stats;
+
+    if (selectedOffice !== "all") {
+      const officeId = parseInt(selectedOffice);
+      filteredStats = stats.filter(stat => stat.officeId === officeId);
+    }
+
+    const now = new Date();
+    let startDate: Date;
+
+    switch (selectedPeriod) {
+      case "week":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case "month":
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 1);
+        break;
+      case "year":
+        startDate = new Date(now);
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        startDate = new Date(0);
+    }
+
+    const dataMap: Record<string, number> = {};
+
+    filteredStats.forEach(stat => {
+      Object.entries(stat.data).forEach(([date, data]) => {
+        const entryDate = new Date(date);
+        if (entryDate >= startDate) {
+          if (!dataMap[date]) {
+            dataMap[date] = 0;
+          }
+          dataMap[date] += data.totalRequests;
+        }
+      });
+    });
+
+    return Object.entries(dataMap)
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -257,17 +436,6 @@ export default function ManagerDashboard() {
       console.error("Ошибка при экспорте файла:", error);
       alert("Не удалось экспортировать файл");
     }
-  };
-
-  const handleSendEmail = async () => {
-    const res = await fetch("/analytics/email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emails }),
-    });
-    const json = await res.json();
-    if (res.ok) notification.success({ message: "Письмо отправлено" });
-    else notification.error({ message: json.error });
   };
 
   const handleAddOrUpdateUser = async () => {
@@ -696,54 +864,6 @@ export default function ManagerDashboard() {
     return statusMatch && typeMatch && officeMatch && periodMatch;
   })
 
-  useEffect(() => {
-    setLoading(true)
-    const byOffice = groupBy(filteredRequests, 'office_id');
-    const byDate = groupByDate(filteredRequests);
-    setData({ byOffice, byDate });
-    setLoading(false)
-  }, [office, period]);
-
-  const groupByDate = (requests: any[]) => {
-    const grouped: Record<string, number> = {};
-
-    for (const request of requests) {
-      const date = new Date(request.created_date).toISOString().split("T")[0];
-      if (!grouped[date]) grouped[date] = 0;
-      grouped[date]++;
-    }
-
-    return Object.entries(grouped)
-        .map(([date, count]) => ({ date, count }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  };
-
-  const groupBy = (arr:any, key:any)=> {
-    return arr.reduce((acc:any, cur:any) => {
-      acc[cur[key]] = (acc[cur[key]] || 0) + 1;
-      return acc;
-    }, {});
-  }
-
-  const completedRequests = requests.filter((request) => {
-    if (office === "all") return request.status === "completed"
-    if (office == String(request.office_id)) return request.status === "completed"
-  })
-  const [filters, setFilters] = useState<{
-    office_id: number | null;
-    request_type: string | null;
-    status: string | null;
-    date: [Date | null, Date | null];
-  }>({
-    office_id: null,
-    request_type: null,
-    status: null,
-    date: [null, null],
-  });
-  const [data, setData] = useState<any>(null);
-  const [emails, setEmails] = useState<string[]>([]);
-  const [chartData, setChartData] = useState(null);
-
   const urgentRequests = requests.filter((request) => {
     if (office === "all") return request.request_type === "urgent"
     if (office == String(request.office_id)) return request.request_type === "urgent"
@@ -753,18 +873,6 @@ export default function ManagerDashboard() {
     if(office === "all") return request.request_type === "normal"
     if (office == String(request.office_id)) return request.request_type === "normal"
   })
-
-  const planningRequests = requests.filter((request) => {
-    if (office === "all") return request.request_type === "planned"
-    if (office == String(request.office_id)) return request.request_type === "planned"
-  })
-
-  const kpi = {
-    total: filteredRequests.length,
-    completed: completedRequests.length,
-    overdue: 8,
-    emergency: urgentRequests.length,
-  }
 
   const StatCard = ({
     title,
@@ -1116,9 +1224,9 @@ export default function ManagerDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="h-48 sm:h-64">
-                  {data?.byDate && data.byDate.length > 0 ? (
+                  {chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={data.byDate}>
+                        <LineChart data={chartData}>
                           <defs>
                             <linearGradient id="kcellGradient" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="0%" stopColor="#8E24AA" stopOpacity={1} />
@@ -1320,27 +1428,27 @@ export default function ManagerDashboard() {
                     <span className="text-sm sm:text-base">Обычные</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${normalRequests.length * 100/requests.length}%` }}></div>
+                        <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${distribution.normalPercent}%`}}></div>
                       </div>
-                      <span className="text-sm font-medium w-8">{normalRequests.length}</span>
+                      <span className="text-sm font-medium w-8">{distribution.normal}</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm sm:text-base">Экстренные</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                        <div className="bg-red-600 h-2 rounded-full" style={{ width: `${urgentRequests.length * 100/requests.length}%` }}></div>
+                        <div className="bg-red-600 h-2 rounded-full" style={{ width: `${distribution.urgentPercent}%`}}></div>
                       </div>
-                      <span className="text-sm font-medium w-8">{urgentRequests.length}</span>
+                      <span className="text-sm font-medium w-8">{distribution.urgent}</span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm sm:text-base">Плановые</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-16 sm:w-24 bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-600 h-2 rounded-full" style={{ width: `${planningRequests.length * 100/requests.length}%` }}></div>
+                        <div className="bg-green-600 h-2 rounded-full" style={{ width: `${distribution.plannedPercent}%` }}></div>
                       </div>
-                      <span className="text-sm font-medium w-8">{planningRequests.length}</span>
+                      <span className="text-sm font-medium w-8">{distribution.planned}</span>
                     </div>
                   </div>
                 </div>
