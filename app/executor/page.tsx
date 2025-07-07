@@ -176,7 +176,7 @@ export default function ExecutorDashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await api.get("/analytics/stats/department-head");
+      const res = await api.get("/analytics/stats/executor");
       setStats(res.data);
     } catch (error) {
       console.error(error);
@@ -548,7 +548,7 @@ export default function ExecutorDashboard() {
 
   const handleCompleteTask = async (taskId: string) => {
     try {
-      if (!completedRequestComment.trim()) {
+      if (!completedRequestComment.trim() || photos.length <= 0) {
         setCompleteFormErrors("Пожалуйста, заполните поле и добавьте фото.")
         setIsSubmitting(false);
         return
@@ -566,7 +566,7 @@ export default function ExecutorDashboard() {
         photos.forEach((photo) => {
           formData.append('photos', photo);
         });
-        formData.append('type', 'before');
+        formData.append('type', 'after');
 
         try {
           await axios.post(`${API_BASE_URL}/request-photos/${response.data.id}/photos`, formData, {
@@ -577,7 +577,6 @@ export default function ExecutorDashboard() {
           });
         } catch (photoUploadError) {
           await api.delete(`/requests/${response.data.id}`);
-          alert("Ошибка при загрузке фото. Заявка не была создана.");
           return;
         }
       } else {
