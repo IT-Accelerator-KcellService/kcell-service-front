@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import {useRouter} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
+import {useSuccessModal} from "@/hooks/use-success-modal";
+import {SuccessModal} from "@/components/success-model";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -109,6 +111,7 @@ interface Stats {
 }
 
 export default function ClientDashboard() {
+  const successModal = useSuccessModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("requests")
   const [showCreateRequest, setShowCreateRequest] = useState(false)
@@ -558,6 +561,12 @@ export default function ClientDashboard() {
       setRequestTitle("")
       setRequestLocation("")
       setRequestLocationDetails("")
+      setrequestDescription("")
+      setNewRequestOfficeId("")
+      setRequestType("")
+      setRequestLocationDetails("")
+      setPhotos([])
+      successModal.showSuccess()
     } catch (error) {
       console.error("Failed to create request:", error)
       setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
@@ -1610,6 +1619,13 @@ export default function ClientDashboard() {
         </div>
       )}
       <Page />
+      <SuccessModal
+          isOpen={successModal.isOpen}
+          onClose={successModal.hideSuccess}
+          title={successModal.title}
+          message={successModal.message}
+          duration={successModal.duration}
+      />
     </div>
   )
 }
