@@ -1081,7 +1081,7 @@ export default function DepartmentHeadDashboard() {
             </div>
                 </TabsContent>
 
-                <TabsContent value="incoming">
+                <TabsContent value="incoming" className="pt-6 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {incomingRequests.map((request, index: number) => (
                         <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
