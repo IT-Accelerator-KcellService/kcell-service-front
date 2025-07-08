@@ -26,7 +26,7 @@ import {
   AlertCircle,
   AlertTriangle,
   BarChart3,
-  Calendar,
+  Calendar as CalendarLucid,
   Camera,
   CheckCircle,
   Clock,
@@ -52,10 +52,13 @@ import api from "@/lib/api";
 import {useRouter} from "next/navigation";
 import {notification,} from "antd";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
-import {isAfter, subDays, subMonths, subYears} from "date-fns";
+import {format, isAfter, subDays, subMonths, subYears} from "date-fns";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {SuccessModal} from "@/components/success-model";
 import {useSuccessModal} from "@/hooks/use-success-modal";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import {ru} from "date-fns/locale";
+import {Calendar} from "@/components/ui/calendar";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -113,6 +116,10 @@ interface ChartData {
   count: number;
 }
 
+const parseLocalDate = (dateString: string) => {
+  return new Date(dateString + "T00:00:00");
+};
+
 export default function ManagerDashboard() {
   const successModal = useSuccessModal()
   const router = useRouter()
@@ -159,6 +166,12 @@ export default function ManagerDashboard() {
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [deleteReason, setDeleteReason] = useState("")
+  const [newRequestPlannedDate, setNewRequestPlannedDate] = useState("")
+  const date = newRequestPlannedDate
+      ? parseLocalDate(newRequestPlannedDate)
+      : undefined;
+  const [newRequestSLA, setNewRequestSLA] = useState("1h");
+  const [newRequestComplexity, setNewRequestComplexity] = useState<'simple' | 'medium' | 'complex'>('simple');
   const [newUser, setNewUser] = useState({
     id: 0,
     email: "",
@@ -593,6 +606,7 @@ export default function ManagerDashboard() {
         !requestLocation ||
         !newRequestLocation ||
         !selectedCategoryId ||
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity) ||
         photos.length <= 0
     ) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
@@ -606,11 +620,14 @@ export default function ManagerDashboard() {
         title: newRequestTitle,
         description: description,
         office_id: Number(newRequestOfficeId),
-        request_type: newRequestType === "urgent" ? "urgent" : "normal",
+        request_type: newRequestType,
         location: requestLocation,
         location_detail: newRequestLocation,
         category_id: selectedCategoryId,
-        status: "in_progress"
+        status: "in_progress",
+        complexity: newRequestComplexity,
+        sla: newRequestSLA,
+        planned_date: newRequestPlannedDate || null,
       })
 
       const requestId = response.data.id;
@@ -652,7 +669,10 @@ export default function ManagerDashboard() {
       setRequestLocation("")
       setNewRequestLocation("")
       setDescription("")
+      setNewRequestPlannedDate("");
       setPhotos([])
+      setNewRequestSLA("1h")
+      setNewRequestComplexity("simple");
       successModal.showSuccess()
     } catch (error) {
       console.error("Failed to create request:", error)
@@ -1083,7 +1103,7 @@ export default function ManagerDashboard() {
       case "urgent":
         return <AlertCircle className="w-3 h-3" />
       case "planned":
-        return <Calendar className="w-3 h-3" />
+        return <CalendarLucid className="w-3 h-3" />
       case "normal":
         return <Clock className="w-3 h-3" />
       default:
@@ -1104,6 +1124,13 @@ export default function ManagerDashboard() {
         <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
     ))
   }
+
+  const formatDateToString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1344,7 +1371,7 @@ export default function ManagerDashboard() {
                             </div>
 
                             <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                              <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                              <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
                               <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                             </div>
 
@@ -1878,6 +1905,7 @@ export default function ManagerDashboard() {
                     <SelectContent>
                       <SelectItem value="regular">Обычная</SelectItem>
                       <SelectItem value="urgent">Экстренная</SelectItem>
+                      <SelectItem value="planned">Плановый</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1919,6 +1947,77 @@ export default function ManagerDashboard() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Сложность</Label>
+                    <Select
+                        value={newRequestComplexity}
+                        onValueChange={(value: 'simple' | 'medium' | 'complex') => setNewRequestComplexity(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите сложность" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="simple">Простая</SelectItem>
+                        <SelectItem value="medium">Средняя</SelectItem>
+                        <SelectItem value="complex">Сложная</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>SLA (Срок выполнения)</Label>
+                    <Select
+                        value={newRequestSLA}
+                        onValueChange={setNewRequestSLA}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите срок" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1h">1 час</SelectItem>
+                        <SelectItem value="4h">4 часа</SelectItem>
+                        <SelectItem value="8h">8 часов</SelectItem>
+                        <SelectItem value="1d">1 день</SelectItem>
+                        <SelectItem value="3d">3 дня</SelectItem>
+                        <SelectItem value="1w">1 неделя</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {newRequestType === "planned" && (
+                    <div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start text-left font-normal"
+                            >
+                              {date ? format(date, "dd MMMM yyyy", { locale: ru }) : <span>Выберите дату</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                                mode="single"
+                                selected={date}
+                                onSelect={(selectedDate) => {
+                                  if (selectedDate) {
+                                    setNewRequestPlannedDate(formatDateToString(selectedDate))
+                                  }
+                                }}
+                                initialFocus
+                                locale={ru}
+                                fromDate={new Date()}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                )}
 
                 <div>
                   <Label>Описание проблемы</Label>
@@ -2050,6 +2149,12 @@ export default function ManagerDashboard() {
                     <p className="text-sm font-medium text-gray-600">Создано:</p>
                     <p className="text-base text-gray-800">{selectedTaskDetails.created_date}</p>
                   </div>
+                  {selectedTaskDetails && selectedTaskDetails.request_type === "planned" ? (
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Запланированная время:</p>
+                        <p className="text-base text-gray-800">{selectedTaskDetails.planned_date}</p>
+                      </div>
+                  ): null}
                   <div>
                     <p className="text-sm font-medium text-gray-600">Деталь локаций:</p>
                     <p className="text-base text-gray-800">{selectedTaskDetails.location_detail}</p>

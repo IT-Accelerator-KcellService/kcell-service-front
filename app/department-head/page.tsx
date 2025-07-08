@@ -133,6 +133,10 @@ interface Stats {
   }
 }
 
+const parseLocalDate = (dateString: string) => {
+  return new Date(dateString + "T00:00:00");
+};
+
 export default function DepartmentHeadDashboard() {
   const successModal = useSuccessModal()
   const router = useRouter()
@@ -175,7 +179,9 @@ export default function DepartmentHeadDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
-  const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
+  const date = newRequestPlannedDate
+      ? parseLocalDate(newRequestPlannedDate)
+      : undefined;
   const [loading, setLoading] = useState(true)
   const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
@@ -839,29 +845,12 @@ export default function DepartmentHeadDashboard() {
     ))
   }
 
-  const newRequestsLength =
-      incomingRequests.filter(req => req.status === "in_progress").length +
-      myRequests.filter(req => req.status === "in_progress").length
-
-  const executionRequestsLength =
-      myRequests.filter(req => req.status === "execution").length +
-      incomingRequests.filter(req => req.status === "execution").length
-
-  const completedRequestsLength =
-      myRequests.filter(req => req.status === "completed").length +
-      incomingRequests.filter(req => req.status === "completed").length
-
-  const expiredRequestsLength =
-      myRequests.filter(req =>
-          req.status === "execution" &&
-          req.planned_date &&
-          new Date(req.planned_date) < new Date()
-      ).length +
-      incomingRequests.filter(req =>
-          req.status === "execution" &&
-          req.planned_date &&
-          new Date(req.planned_date) < new Date()
-      ).length
+  const formatDateToString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   return (
       <div className="min-h-screen bg-gray-50">
@@ -1581,6 +1570,16 @@ export default function DepartmentHeadDashboard() {
                         </p>
                       </div>
                   )}
+
+                  {selectedRequest.request_type === "planned" ? (
+                      <div>
+                        <Label>Заплонированная время</Label>
+                        <p className="text-sm font-medium">
+                          {selectedRequest.planned_date}
+                        </p>
+                      </div>
+                  ): null}
+
                   <div>
                     <Label>Локация</Label>
                     <p className="text-sm">{selectedRequest.location_detail || selectedRequest.location}</p>
@@ -2122,11 +2121,12 @@ export default function DepartmentHeadDashboard() {
                                   selected={date}
                                   onSelect={(selectedDate) => {
                                     if (selectedDate) {
-                                      setNewRequestPlannedDate(selectedDate.toISOString().split("T")[0])
+                                      setNewRequestPlannedDate(formatDateToString(selectedDate))
                                     }
                                   }}
                                   initialFocus
                                   locale={ru}
+                                  fromDate={new Date()}
                               />
                             </PopoverContent>
                           </Popover>

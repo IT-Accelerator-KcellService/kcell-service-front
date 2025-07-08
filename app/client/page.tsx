@@ -85,6 +85,7 @@ export interface Request {
   category_id?: number;
   photos?: Photo[];
   office_id: number;
+  planned_date: string
 }
 
 const roleTranslations: Record<string, string> = {

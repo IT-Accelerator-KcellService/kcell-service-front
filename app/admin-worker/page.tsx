@@ -116,6 +116,10 @@ interface Stats {
   }
 }
 
+const parseLocalDate = (dateString: string) => {
+  return new Date(dateString + "T00:00:00");
+};
+
 export default function AdminWorkerDashboard() {
   const successModal = useSuccessModal()
   const router = useRouter()
@@ -154,7 +158,9 @@ export default function AdminWorkerDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const date = newRequestPlannedDate ? new Date(newRequestPlannedDate) : undefined;
+  const date = newRequestPlannedDate
+      ? parseLocalDate(newRequestPlannedDate)
+      : undefined;
   const [loading, setLoading] = useState(true)
   const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
@@ -330,8 +336,6 @@ export default function AdminWorkerDashboard() {
     event.target.value = '';
   };
 
-
-
   const fetchRequests = async (currentPage = 1, pageSize = 10) => {
     if (loading && currentPage !== 1) return;
     setLoading(true);
@@ -396,7 +400,6 @@ export default function AdminWorkerDashboard() {
       setLoading(false);
     }
   };
-  // Запятая после массива зависимостей
 
   const fetchCategories = async () => {
     try {
@@ -406,6 +409,7 @@ export default function AdminWorkerDashboard() {
       console.error("Failed to fetch categories:", error);
     }
   };
+
   const fetchComments = async () => {
     if (!selectedRequest?.id) return;
     try {
@@ -473,7 +477,7 @@ export default function AdminWorkerDashboard() {
       fetchComments();
     }
   }, [selectedRequest]);
-  // Функция для получения информации о клиенте
+
   const fetchClientInfo = async (userId: number) => {
     if (clientInfo[userId]) return; // Уже загружено
 
@@ -488,12 +492,12 @@ export default function AdminWorkerDashboard() {
     }
   };
 
-  // При открытии деталей заявки загружаем информацию о клиенте
   useEffect(() => {
     if (selectedRequest?.client_id) {
       fetchClientInfo(selectedRequest.client_id);
     }
   }, [selectedRequest]);
+
   const handleApproveRequest = async (requestId: number, categoryId: number,sla: any ,complexity :any  ) => {
     try {
       await api.patch(`/requests/status/${requestId}`, {
@@ -522,22 +526,8 @@ export default function AdminWorkerDashboard() {
       console.error("Failed to reject request:", error);
     }
   };
-  const handleSendComment = async () => {
-    if (!comment.trim()) return;
 
-    try {
-      await api.post(`/comments`, {
-        request_id: selectedRequest?.id,
-        comment,
-      });
-      setComment("");
-      fetchComments();
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err);
-    }
-  };
   const handleCreateNewRequest = async () => {
-    // Валидация
     if (
         !newRequestType ||
         !newRequestTitle.trim() ||
@@ -556,7 +546,6 @@ export default function AdminWorkerDashboard() {
     setFormErrors(null);
 
     try {
-      // Создание заявки
       const response = await api.post('/requests', {
         title: newRequestTitle,
         description: newRequestDescription,
@@ -572,7 +561,6 @@ export default function AdminWorkerDashboard() {
 
       const requestId = response.data.id;
       let createdPhotos;
-      // Загрузка фото (если есть)
       if (photos.length > 0) {
         const formData = new FormData();
         photos.forEach((photo) => {
@@ -636,6 +624,7 @@ export default function AdminWorkerDashboard() {
       console.error("Failed to check user rating:", error);
     }
   };
+
   const handleRateExecutor = async () => {
     if (requestToRate && ratingValue > 0) {
       try {
@@ -655,8 +644,6 @@ export default function AdminWorkerDashboard() {
       }
     }
   }
-
-
 
   const handleLogout = async () => {
     try {
@@ -805,29 +792,12 @@ export default function AdminWorkerDashboard() {
     ))
   }
 
-  const newRequestsLength =
-      incomingRequests.filter(req => req.status === "in_progress").length +
-      myRequests.filter(req => req.status === "in_progress").length
-
-  const executionRequestsLength =
-      myRequests.filter(req => req.status === "execution").length +
-      incomingRequests.filter(req => req.status === "execution").length
-
-  const completedRequestsLength =
-      myRequests.filter(req => req.status === "completed").length +
-      incomingRequests.filter(req => req.status === "completed").length
-
-  const expiredRequestsLength =
-      myRequests.filter(req =>
-          req.status === "execution" &&
-          req.planned_date &&
-          new Date(req.planned_date) < new Date()
-      ).length +
-      incomingRequests.filter(req =>
-          req.status === "execution" &&
-          req.planned_date &&
-          new Date(req.planned_date) < new Date()
-      ).length
+  const formatDateToString = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   return (
       <div className="min-h-screen bg-gray-50">
@@ -1403,6 +1373,16 @@ export default function AdminWorkerDashboard() {
                         </p>
                       </div>
                   )}
+
+                  {selectedRequest.request_type === "planned" ? (
+                      <div>
+                        <Label>Заплонированная время</Label>
+                        <p className="text-sm font-medium">
+                          {selectedRequest.planned_date}
+                        </p>
+                      </div>
+                  ): null}
+
                   <div>
                     <Label>Локация</Label>
                     <p className="text-sm">{selectedRequest.location_detail || selectedRequest.location}</p>
@@ -1966,11 +1946,12 @@ export default function AdminWorkerDashboard() {
                                   selected={date}
                                   onSelect={(selectedDate) => {
                                     if (selectedDate) {
-                                      setNewRequestPlannedDate(selectedDate.toISOString().split("T")[0])
+                                      setNewRequestPlannedDate(formatDateToString(selectedDate))
                                     }
                                   }}
                                   initialFocus
                                   locale={ru}
+                                  fromDate={new Date()}
                               />
                             </PopoverContent>
                           </Popover>
