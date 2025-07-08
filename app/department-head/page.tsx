@@ -376,8 +376,8 @@ export default function DepartmentHeadDashboard() {
 
       const sortedOtherRequests = otherRequests.sort((a, b) => {
         // 1. приоритет "waiting_for_assignment"
-        if (a.status === "waiting_for_assignment" && b.status !== "waiting_for_assignment") return -1;
-        if (b.status === "waiting_for_assignment" && a.status !== "waiting_for_assignment") return 1;
+        if (a.status === "awaiting_assignment" && b.status !== "awaiting_assignment") return -1;
+        if (b.status === "awaiting_assignment" && a.status !== "awaiting_assignment") return 1;
 
         // 2. приоритет "in_progress"
         if (a.status === "in_progress" && b.status !== "in_progress") return -1;

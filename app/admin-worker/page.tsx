@@ -232,36 +232,40 @@ export default function AdminWorkerDashboard() {
       fetchStats()
     }
   }, []);
+  const sortRequests = (requests: Request[]): Request[] => {
+    return [...requests].sort((a, b) => {
+      // Сначала заявки в работе
+      const aInProgress = a.status === "in_progress";
+      const bInProgress = b.status === "in_progress";
+      if (aInProgress !== bInProgress) return aInProgress ? -1 : 1;
 
-  const filteredMyRequests = myRequests
-      .filter((request) => {
-        const statusMatch = filterMyStatus === "all" || request.status === filterMyStatus
-        const requestType = request.request_type
-        const typeMatch = filterMyType === "all" || requestType === filterMyType
-        return statusMatch && typeMatch
-      })
-      .sort((a, b) => {
-        const dateA = new Date(a.created_date).getTime();
-        const dateB = new Date(b.created_date).getTime();
-        const safeDateA = isNaN(dateA) ? 0 : dateA;
-        const safeDateB = isNaN(dateB) ? 0 : dateB;
-        return safeDateB - safeDateA;
-      });
+      // Затем срочные заявки
+      if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
+      if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
 
-  const filteredIncomingRequests = incomingRequests
-      .filter((request) => {
-        const statusMatch = filterIncomingStatus === "all" || request.status === filterIncomingStatus
-        const requestType = request.request_type
-        const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType
-        return statusMatch && typeMatch
+      // Затем по дате (новые выше)
+      const dateA = a.created_date ? new Date(a.created_date).getTime() : 0;
+      const dateB = b.created_date ? new Date(b.created_date).getTime() : 0;
+      return dateB - dateA;
+    });
+  };
+  const filteredMyRequests = sortRequests(
+      myRequests.filter((request) => {
+        const statusMatch = filterMyStatus === "all" || request.status === filterMyStatus;
+        const requestType = request.request_type;
+        const typeMatch = filterMyType === "all" || requestType === filterMyType;
+        return statusMatch && typeMatch;
       })
-      .sort((a, b) => {
-        const dateA = new Date(a.created_date).getTime();
-        const dateB = new Date(b.created_date).getTime();
-        const safeDateA = isNaN(dateA) ? 0 : dateA;
-        const safeDateB = isNaN(dateB) ? 0 : dateB;
-        return safeDateB - safeDateA;
-      });
+  );
+
+  const filteredIncomingRequests = sortRequests(
+      incomingRequests.filter((request) => {
+        const statusMatch = filterIncomingStatus === "all" || request.status === filterIncomingStatus;
+        const requestType = request.request_type;
+        const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType;
+        return statusMatch && typeMatch;
+      })
+  );
 
   useEffect(() => {
     if (notifications.length <= 0) {
@@ -346,20 +350,7 @@ export default function AdminWorkerDashboard() {
         myRequests: Request[];
       }>(`/requests/admin-worker/me?page=${currentPage}&pageSize=${pageSize}`);
 
-      const sortRequests = (requests: Request[]): Request[] => {
-        return [...requests].sort((a, b) => {
-          const aInProgress = a.status === "in_progress";
-          const bInProgress = b.status === "in_progress";
-          if (aInProgress !== bInProgress) return aInProgress ? -1 : 1;
 
-          if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
-          if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
-
-          const dateA = a.created_date ? new Date(a.created_date).getTime() : 0;
-          const dateB = b.created_date ? new Date(b.created_date).getTime() : 0;
-          return dateB - dateA;
-        });
-      };
 
       setIncomingRequests((prev) => {
         const newItems = response.data.otherRequests || [];
