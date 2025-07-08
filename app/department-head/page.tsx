@@ -50,6 +50,8 @@ import {format} from "date-fns";
 import {ru} from "date-fns/locale";
 import {useRouter} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
+import {SuccessModal} from "@/components/success-model";
+import {useSuccessModal} from "@/hooks/use-success-modal";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -132,6 +134,7 @@ interface Stats {
 }
 
 export default function DepartmentHeadDashboard() {
+  const successModal = useSuccessModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming")
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
@@ -612,6 +615,8 @@ export default function DepartmentHeadDashboard() {
       setNewRequestPlannedDate("")
       setNewRequestComplexity("simple")
       setNewRequestSLA("1h")
+      setPhotos([])
+      successModal.showSuccess()
     } catch (error) {
       console.error("Failed to create request:", error)
       setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
@@ -2279,6 +2284,13 @@ export default function DepartmentHeadDashboard() {
               </Card>
             </div>
         )}
+        <SuccessModal
+            isOpen={successModal.isOpen}
+            onClose={successModal.hideSuccess}
+            title={successModal.title}
+            message={successModal.message}
+            duration={successModal.duration}
+        />
       </div>
   )
 }

@@ -42,6 +42,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import {useRouter} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
+import {useSuccessModal} from "@/hooks/use-success-modal";
+import {SuccessModal} from "@/components/success-model";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -115,6 +117,7 @@ interface Stats {
 }
 
 export default function AdminWorkerDashboard() {
+  const successModal = useSuccessModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
@@ -611,6 +614,7 @@ export default function AdminWorkerDashboard() {
       setNewRequestSLA("1h");
       setPhotos([]);
       setPhotoPreviews([]);
+      successModal.showSuccess()
     } catch (error) {
       console.error("Ошибка при создании заявки:", error);
       setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
@@ -2121,7 +2125,13 @@ export default function AdminWorkerDashboard() {
               </Card>
             </div>
         )}
-
+        <SuccessModal
+            isOpen={successModal.isOpen}
+            onClose={successModal.hideSuccess}
+            title={successModal.title}
+            message={successModal.message}
+            duration={successModal.duration}
+        />
       </div>
   );
 }

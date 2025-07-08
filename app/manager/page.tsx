@@ -54,6 +54,8 @@ import {notification,} from "antd";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import {isAfter, subDays, subMonths, subYears} from "date-fns";
 import {useNotificationStore} from "@/stores/notificationStore";
+import {SuccessModal} from "@/components/success-model";
+import {useSuccessModal} from "@/hooks/use-success-modal";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -112,6 +114,7 @@ interface ChartData {
 }
 
 export default function ManagerDashboard() {
+  const successModal = useSuccessModal()
   const router = useRouter()
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
@@ -649,6 +652,8 @@ export default function ManagerDashboard() {
       setRequestLocation("")
       setNewRequestLocation("")
       setDescription("")
+      setPhotos([])
+      successModal.showSuccess()
     } catch (error) {
       console.error("Failed to create request:", error)
       alert("Не удалось создать заявку. Пожалуйста, попробуйте еще раз.")
@@ -2296,7 +2301,7 @@ export default function ManagerDashboard() {
                     </AlertDialogContent>
                   </AlertDialog>
 
-                  <Button variant="outline" onClick={() => {
+                  <Button className="w-full sm:w-auto flex justify-center items-center gap-2 ml-2" variant="outline" onClick={() => {
                     setSelectedTaskDetails(null)
                     setComments([])
                   }}>
@@ -2378,6 +2383,13 @@ export default function ManagerDashboard() {
             </Card>
           </div>
       )}
+      <SuccessModal
+          isOpen={successModal.isOpen}
+          onClose={successModal.hideSuccess}
+          title={successModal.title}
+          message={successModal.message}
+          duration={successModal.duration}
+      />
     </div>
   )
 }
