@@ -543,7 +543,17 @@ export default function ManagerDashboard() {
       setLoading(false);
     }
   };
-
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/users");
+      setUsers(response.data);
+    } catch (err) {
+      console.error("Ошибка при получении пользователей:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout')
@@ -1688,6 +1698,25 @@ export default function ManagerDashboard() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
+                  {/* Поиск пользователей */}
+                  <div>
+                    <Label>Поиск пользователей</Label>
+                    <Input
+                        placeholder="Поиск по имени или email"
+                        onChange={(e) => {
+                          const searchTerm = e.target.value.toLowerCase();
+                          if (searchTerm === '') {
+                            fetchUsers();
+                          } else {
+                            setUsers(users.filter(user =>
+                                user.full_name.toLowerCase().includes(searchTerm) ||
+                                user.email.toLowerCase().includes(searchTerm)
+                            ));
+                          }
+                        }}
+                    />
+                  </div>
+
                   {/* Форма добавления */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     <Input
@@ -1725,7 +1754,7 @@ export default function ManagerDashboard() {
                       <SelectContent>
                         {["client", "admin-worker", "department-head", "manager", "executor"].map((role) => (
                             <SelectItem key={role} value={role}>
-                              {role}
+                              {roleTranslations[role] || role}
                             </SelectItem>
                         ))}
                       </SelectContent>
@@ -1749,16 +1778,18 @@ export default function ManagerDashboard() {
                         <p className="text-sm text-gray-500 italic">Нет пользователей.</p>
                     ) : (
                         <div className="grid grid-cols-1 gap-3">
-                          {users.map((user: any, index: number) => (
+                          {users.map((user: any) => (
                               <div
-                                  key={index}
+                                  key={user.id}
                                   className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 bg-gray-50 rounded-lg border"
                               >
                                 {/* Информация о пользователе */}
                                 <div className="flex-1 min-w-0 max-w-full sm:max-w-[75%]">
                                   <div className="font-semibold text-gray-800 truncate">{user.full_name}</div>
                                   <div className="text-sm text-gray-500 truncate">{user.email}</div>
-                                  <div className="text-xs text-gray-400 truncate">{user.role}</div>
+                                  <div className="text-xs text-gray-400 truncate">
+                                    {roleTranslations[user.role] || user.role} • {user.office?.name || 'Офис не указан'}
+                                  </div>
                                 </div>
 
                                 {/* Кнопки действий */}
@@ -1770,14 +1801,36 @@ export default function ManagerDashboard() {
                                   >
                                     ✎
                                   </Button>
-                                  <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="text-red-500 hover:text-red-700"
-                                      onClick={() => handleDeleteUser(user.id)}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
+
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="text-red-500 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Вы уверены, что хотите удалить пользователя {user.full_name} ({user.email})?
+                                          Это действие нельзя отменить.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => handleDeleteUser(user.id)}
+                                            className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          Удалить
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </div>
                               </div>
                           ))}
