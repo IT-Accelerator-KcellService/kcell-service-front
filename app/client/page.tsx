@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Star,
-  Filter, Loader2, Calendar, User, ImageIcon, Zap, XCircle, AlertCircle,
+  Filter, Loader2, Calendar, User, ImageIcon, Zap, XCircle, AlertCircle, MessageCircle,
 } from "lucide-react"
 import axios from 'axios'
 import dynamic from "next/dynamic";
@@ -38,6 +38,7 @@ import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import BottomNav from "@/components/BottomNav";
+import Link from "next/link";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -728,11 +729,7 @@ export default function ClientDashboard() {
             notificationCount={notifications.length}
             role="Клиент"
         />
-        <UserProfile
-            open={showProfile}
-            onClose={() => setShowProfile(false)}
-            handleLogout={() => handleLogout()}
-        />
+        <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Stats */}
@@ -1626,7 +1623,13 @@ export default function ClientDashboard() {
           </Card>
         </div>
       )}
-        {isDesktop && <Page />}
+        {isDesktop && <Link
+            href="/chat-bot"
+            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
+        >
+          <MessageCircle className="w-7 h-7" />
+
+        </Link>}
       <SuccessModal
           isOpen={successModal.isOpen}
           onClose={successModal.hideSuccess}
