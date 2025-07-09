@@ -1,18 +1,21 @@
 import { User, MessageCircle, House, History, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 
 interface BottomNavProps {
-    activeTab?: 'home' | 'history' | 'chat' | 'profile';
-    onCreateRequest?: () => void; // Добавляем пропс для обработки создания заявки
+    activeTab?: "home" | "history" | "chat" | "profile";
+    onCreateRequest?: () => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({
+                                                        activeTab,
+                                                        onCreateRequest,
+                                                    }) => {
     const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
-        const storedRole = localStorage.getItem('role');
+        const storedRole = localStorage.getItem("role");
         setRole(storedRole);
     }, []);
 
@@ -23,7 +26,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest
                 <Button
                     variant="ghost"
                     size="sm"
-                    className={`flex flex-col items-center w-full ${activeTab === 'home' ? 'text-purple-600' : 'text-gray-600'}`}
+                    className={`flex flex-col items-center w-full ${
+                        activeTab === "home" ? "text-purple-600 font-semibold" : "text-gray-500"
+                    }`}
                 >
                     <House className="w-5 h-5" />
                     <span className="text-xs mt-1">Главная</span>
@@ -35,7 +40,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest
                 <Button
                     variant="ghost"
                     size="sm"
-                    className={`flex flex-col items-center w-full ${activeTab === 'history' ? 'text-purple-600' : 'text-gray-600'}`}
+                    className={`flex flex-col items-center w-full ${
+                        activeTab === "history"
+                            ? "text-purple-600 font-semibold"
+                            : "text-gray-500"
+                    }`}
                 >
                     <History className="w-5 h-5" />
                     <span className="text-xs mt-1">История</span>
@@ -43,15 +52,17 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest
             </Link>
 
             {/* Центральная кнопка */}
-            <div className="flex-1 flex justify-center relative">
-                <Button
-                    onClick={onCreateRequest} // Добавляем обработчик клика
-                    variant="ghost"
-                    size="sm"
-                    className="absolute -top-6 bg-purple-600 text-white rounded-full w-12 h-12 hover:bg-purple-700 shadow-lg"
-                >
-                    <Plus className="w-6 h-6" />
-                </Button>
+            <div className="relative flex justify-center w-16">
+                <div className="absolute -top-6 z-10">
+                    <Button
+                        onClick={onCreateRequest}
+                        variant="ghost"
+                        size="icon"
+                        className="w-12 h-12 bg-purple-600 text-white rounded-full shadow-xl hover:bg-purple-700"
+                    >
+                        <Plus className="w-6 h-6" />
+                    </Button>
+                </div>
             </div>
 
             {/* Чат */}
@@ -59,7 +70,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest
                 <Button
                     variant="ghost"
                     size="sm"
-                    className={`flex flex-col items-center w-full ${activeTab === 'chat' ? 'text-purple-600' : 'text-gray-600'}`}
+                    className={`flex flex-col items-center w-full ${
+                        activeTab === "chat" ? "text-purple-600 font-semibold" : "text-gray-500"
+                    }`}
                 >
                     <MessageCircle className="w-5 h-5" />
                     <span className="text-xs mt-1">Чат</span>
@@ -71,7 +84,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest
                 <Button
                     variant="ghost"
                     size="sm"
-                    className={`flex flex-col items-center w-full ${activeTab === 'profile' ? 'text-purple-600' : 'text-gray-600'}`}
+                    className={`flex flex-col items-center w-full ${
+                        activeTab === "profile"
+                            ? "text-purple-600 font-semibold"
+                            : "text-gray-500"
+                    }`}
                 >
                     <User className="w-5 h-5" />
                     <span className="text-xs mt-1">Профиль</span>
