@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useSearchParams } from "next/navigation"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -120,6 +121,8 @@ const parseLocalDate = (dateString: string) => {
 };
 
 export default function ManagerDashboard() {
+  const searchParams = useSearchParams()
+
   const successModal = useSuccessModal()
   const router = useRouter()
   const [period, setPeriod] = useState("month")
@@ -228,6 +231,17 @@ export default function ManagerDashboard() {
       fetchStats();
     }
   }, []);
+
+  useEffect(() => {
+    const create = searchParams.get("createRequest")
+    const role = localStorage.getItem('role')
+
+    if (create === "true") {
+      setShowCreateRequestModal(true)
+      router.replace(`/${role}`, { scroll: false })
+
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (stats.length) {

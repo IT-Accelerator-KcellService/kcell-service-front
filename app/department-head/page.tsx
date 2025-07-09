@@ -40,7 +40,6 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import Header from "@/app/header/Header"
-import UserProfile from "@/app/profile/page"
 import axios from 'axios'
 import dynamic from "next/dynamic"
 import api from "@/lib/api";
@@ -48,7 +47,7 @@ import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {Calendar as CalendarPlanned} from "@/components/ui/calendar";
 import {format} from "date-fns";
 import {ru} from "date-fns/locale";
-import {useRouter} from "next/navigation";
+import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {SuccessModal} from "@/components/success-model";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -139,6 +138,8 @@ const parseLocalDate = (dateString: string) => {
 };
 
 export default function DepartmentHeadDashboard() {
+  const searchParams = useSearchParams()
+
   const successModal = useSuccessModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming")
@@ -242,6 +243,15 @@ export default function DepartmentHeadDashboard() {
     }
   }, [])
 
+  useEffect(() => {
+    const create = searchParams.get("createRequest")
+    const role = localStorage.getItem('role')
+
+    if (create === "true") {
+      setShowCreateRequestModal(true)
+      router.replace(`/${role}`, { scroll: false })
+    }
+  }, [searchParams])
   const fetchNotifications = async () => {
     try {
       const res = await api.get('/notifications/me')
