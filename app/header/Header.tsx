@@ -4,8 +4,7 @@ import {Badge} from "@/components/ui/badge";
 import React, {useEffect, useRef, useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import api from "@/lib/api";
-import BottomNav from "@/app/header/BottomNav";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import {VisuallyHidden} from "@radix-ui/react-visually-hidden";
 
 
 interface HeaderProps {
