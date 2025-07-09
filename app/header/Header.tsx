@@ -4,8 +4,6 @@ import {Badge} from "@/components/ui/badge";
 import React, {useEffect, useRef, useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import api from "@/lib/api";
-import BottomNav from "@/app/header/BottomNav";
-
 
 interface HeaderProps {
     setShowProfile: (value: boolean) => void;
@@ -137,7 +135,7 @@ const Header: React.FC<HeaderProps> = ({
                             <span className="font-bold text-xl text-gray-900">Kcell Service</span>
                         </div>
                         {/* DESKTOP */}
-                        <div className="hidden sm:flex flex-row space-x-4 items-center">
+                        <div className="hidden md:flex flex-row space-x-4 items-center">
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -222,12 +220,7 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                 </DialogContent>
             </Dialog>
-            <BottomNav
-                setShowProfile={setShowProfile}
-                setIsModalOpen={setIsModalOpen}
-                handleLogout={handleLogout}
-                unreadNotificationCount={unreadNotificationCount}
-            />
+
         </>
     );
 };

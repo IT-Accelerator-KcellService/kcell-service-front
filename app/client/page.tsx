@@ -37,6 +37,7 @@ import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
 import {useMediaQuery} from "@/hooks/use-media-query";
+import BottomNav from "@/components/BottomNav";
 import Link from "next/link";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
@@ -1636,6 +1637,9 @@ export default function ClientDashboard() {
           message={successModal.message}
           duration={successModal.duration}
       />
+        <BottomNav
+            setShowProfile={setShowProfile}
+        />
     </div>
   )
 }
