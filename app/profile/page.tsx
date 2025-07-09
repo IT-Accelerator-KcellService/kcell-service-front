@@ -164,13 +164,13 @@ export default function ProfilePage() {
                 <Tabs defaultValue="profile" className="space-y-4">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="profile" className="text-xs sm:text-sm">
-                            <User className="h-3 w-3 mr-1 sm:h-4 sm:w-4" /> Профиль
+                             Профиль
                         </TabsTrigger>
                         <TabsTrigger value="password" className="text-xs sm:text-sm">
-                            <Lock className="h-3 w-3 mr-1 sm:h-4 sm:w-4" /> Пароль
+                             Пароль
                         </TabsTrigger>
                         <TabsTrigger value="notifications" className="text-xs sm:text-sm">
-                            <Bell className="h-3 w-3 mr-1 sm:h-4 sm:w-4" /> Уведомления
+                            Уведомления
                         </TabsTrigger>
                     </TabsList>
 
