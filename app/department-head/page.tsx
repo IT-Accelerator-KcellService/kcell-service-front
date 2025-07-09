@@ -52,7 +52,7 @@ import {useRouter} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {SuccessModal} from "@/components/success-model";
 import {useSuccessModal} from "@/hooks/use-success-modal";
-import BottomNav from "@/components/BottomNav";
+import {BottomNav} from "@/components/BottomNav";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -2292,7 +2292,7 @@ export default function DepartmentHeadDashboard() {
             duration={successModal.duration}
         />
         <BottomNav
-            setShowProfile={setShowProfile}
+
         />
       </div>
   )

@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Lock, Bell, Save, Eye, EyeOff, User } from "lucide-react"
+import { Lock, Bell, Save, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
+import {BottomNav} from "@/components/BottomNav"
 
 interface UserProfile {
     id: number
@@ -33,22 +33,16 @@ const roleTranslations: Record<string, string> = {
 
 export default function ProfilePage() {
     const [user, setUser] = useState<UserProfile | null>(null)
-
     const [oldPassword, setOldPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [error, setError] = useState("")
     const [success, setSuccess] = useState("")
     const [isChanging, setIsChanging] = useState(false)
-    const [showOldPassword, setShowOldPassword] = useState(false)
-    const [showNewPassword, setShowNewPassword] = useState(false)
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
     const [emailNotifications, setEmailNotifications] = useState(true)
     const [pushNotifications, setPushNotifications] = useState(false)
     const [securityNotifications, setSecurityNotifications] = useState(true)
     const [marketingNotifications, setMarketingNotifications] = useState(false)
-
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [profileError, setProfileError] = useState("")
     const [profileSuccess, setProfileSuccess] = useState("")
@@ -148,123 +142,171 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="container py-8">
-            <h1 className="text-2xl font-bold mb-6">Профиль</h1>
+        <div className="pb-16">
+            <div className="container px-4 py-6">
+                <h1 className="text-xl font-bold mb-4 sm:text-2xl sm:mb-6">Профиль</h1>
 
-            <Tabs defaultValue="profile" className="space-y-6">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="profile"><User className="h-4 w-4 mr-1" /> Профиль</TabsTrigger>
-                    <TabsTrigger value="password"><Lock className="h-4 w-4 mr-1" /> Пароль</TabsTrigger>
-                    <TabsTrigger value="notifications"><Bell className="h-4 w-4 mr-1" /> Уведомления</TabsTrigger>
-                </TabsList>
+                <Tabs defaultValue="profile" className="space-y-4">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="profile" className="text-xs sm:text-sm">
+                            <User className="h-3 w-3 mr-1 sm:h-4 sm:w-4" /> Профиль
+                        </TabsTrigger>
+                        <TabsTrigger value="password" className="text-xs sm:text-sm">
+                            <Lock className="h-3 w-3 mr-1 sm:h-4 sm:w-4" /> Пароль
+                        </TabsTrigger>
+                        <TabsTrigger value="notifications" className="text-xs sm:text-sm">
+                            <Bell className="h-3 w-3 mr-1 sm:h-4 sm:w-4" /> Уведомления
+                        </TabsTrigger>
+                    </TabsList>
 
-                {/* Вкладка: Профиль */}
-                <TabsContent value="profile" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Данные клиента</CardTitle>
-                            <CardDescription>Редактирование профиля</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div>
-                                <Label>ФИО</Label>
-                                <Input value={user.full_name} onChange={(e) => setUser({ ...user, full_name: e.target.value })} />
-                            </div>
+                    {/* Вкладка: Профиль */}
+                    <TabsContent value="profile" className="space-y-4">
+                        <Card className="border-0 shadow-sm">
+                            <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                                <CardTitle className="text-lg">Данные клиента</CardTitle>
+                                <CardDescription>Редактирование профиля</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3 px-4 py-2 sm:px-6 sm:py-4">
+                                <div className="space-y-1">
+                                    <Label className="text-sm">ФИО</Label>
+                                    <Input
+                                        value={user.full_name}
+                                        onChange={(e) => setUser({ ...user, full_name: e.target.value })}
+                                        className="text-sm"
+                                    />
+                                </div>
 
-                            <div>
-                                <Label>Email</Label>
-                                <Input type="email" value={user.email} onChange={(e) => setUser({ ...user, email: e.target.value })} />
-                            </div>
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Email</Label>
+                                    <Input
+                                        type="email"
+                                        value={user.email}
+                                        onChange={(e) => setUser({ ...user, email: e.target.value })}
+                                        className="text-sm"
+                                    />
+                                </div>
 
-                            <div>
-                                <Label>Роль</Label>
-                                <Badge>{roleTranslations[user.role] || user.role}</Badge>
-                            </div>
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Роль</Label>
+                                    <Badge className="text-sm">{roleTranslations[user.role] || user.role}</Badge>
+                                </div>
 
-                            <div>
-                                <Label>Офис</Label>
-                                <Input value={user.office.name} readOnly className="bg-muted cursor-not-allowed" />
-                            </div>
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Офис</Label>
+                                    <Input
+                                        value={user.office.name}
+                                        readOnly
+                                        className="bg-muted cursor-not-allowed text-sm"
+                                    />
+                                </div>
 
-                            <div>
-                                <Label>ID</Label>
-                                <p className="text-muted-foreground font-mono">#{user.id}</p>
-                            </div>
+                                <div className="space-y-1">
+                                    <Label className="text-sm">ID</Label>
+                                    <p className="text-muted-foreground font-mono text-sm">#{user.id}</p>
+                                </div>
 
-                            <Button onClick={handleSaveProfile} disabled={isSavingProfile}>
-                                <Save className="mr-2 h-4 w-4" />
-                                {isSavingProfile ? "Сохранение..." : "Сохранить"}
-                            </Button>
+                                <Button
+                                    onClick={handleSaveProfile}
+                                    disabled={isSavingProfile}
+                                    className="mt-2 w-full sm:w-auto"
+                                >
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {isSavingProfile ? "Сохранение..." : "Сохранить"}
+                                </Button>
 
-                            {profileError && <p className="text-sm text-red-500">{profileError}</p>}
-                            {profileSuccess && <p className="text-sm text-green-600">{profileSuccess}</p>}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                                {profileError && <p className="text-sm text-red-500">{profileError}</p>}
+                                {profileSuccess && <p className="text-sm text-green-600">{profileSuccess}</p>}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-                {/* Вкладка: Пароль */}
-                <TabsContent value="password" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Смена пароля</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div>
-                                <Label>Старый пароль</Label>
-                                <Input type={showOldPassword ? "text" : "password"} value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
-                            </div>
-                            <div>
-                                <Label>Новый пароль</Label>
-                                <Input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-                            </div>
-                            <div>
-                                <Label>Подтверждение</Label>
-                                <Input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                            </div>
+                    {/* Вкладка: Пароль */}
+                    <TabsContent value="password" className="space-y-4">
+                        <Card className="border-0 shadow-sm">
+                            <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                                <CardTitle className="text-lg">Смена пароля</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 px-4 py-2 sm:px-6 sm:py-4">
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Старый пароль</Label>
+                                    <Input
+                                        type="password"
+                                        value={oldPassword}
+                                        onChange={(e) => setOldPassword(e.target.value)}
+                                        className="text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Новый пароль</Label>
+                                    <Input
+                                        type="password"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        className="text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Подтверждение</Label>
+                                    <Input
+                                        type="password"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="text-sm"
+                                    />
+                                </div>
 
-                            <Button onClick={handleChangePassword} disabled={isChanging}>
-                                <Lock className="mr-2 h-4 w-4" />
-                                {isChanging ? "Смена..." : "Сменить пароль"}
-                            </Button>
+                                <Button
+                                    onClick={handleChangePassword}
+                                    disabled={isChanging}
+                                    className="mt-2 w-full sm:w-auto"
+                                >
+                                    <Lock className="mr-2 h-4 w-4" />
+                                    {isChanging ? "Смена..." : "Сменить пароль"}
+                                </Button>
 
-                            {error && <p className="text-sm text-red-500">{error}</p>}
-                            {success && <p className="text-sm text-green-600">{success}</p>}
-                        </CardContent>
-                    </Card>
-                </TabsContent>
+                                {error && <p className="text-sm text-red-500">{error}</p>}
+                                {success && <p className="text-sm text-green-600">{success}</p>}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-                {/* Вкладка: Уведомления */}
-                <TabsContent value="notifications" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Уведомления</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <Label>Email уведомления</Label>
-                                <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <Label>Безопасность</Label>
-                                <Switch checked={securityNotifications} onCheckedChange={setSecurityNotifications} />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <Label>Маркетинг</Label>
-                                <Switch checked={marketingNotifications} onCheckedChange={setMarketingNotifications} />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <Label>Push</Label>
-                                <Switch checked={pushNotifications} onCheckedChange={setPushNotifications} />
-                            </div>
+                    {/* Вкладка: Уведомления */}
+                    <TabsContent value="notifications" className="space-y-4">
+                        <Card className="border-0 shadow-sm">
+                            <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                                <CardTitle className="text-lg">Уведомления</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 px-4 py-2 sm:px-6 sm:py-4">
+                                <div className="flex items-center justify-between py-1">
+                                    <Label className="text-sm">Email уведомления</Label>
+                                    <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
+                                </div>
+                                <div className="flex items-center justify-between py-1">
+                                    <Label className="text-sm">Безопасность</Label>
+                                    <Switch checked={securityNotifications} onCheckedChange={setSecurityNotifications} />
+                                </div>
+                                <div className="flex items-center justify-between py-1">
+                                    <Label className="text-sm">Маркетинг</Label>
+                                    <Switch checked={marketingNotifications} onCheckedChange={setMarketingNotifications} />
+                                </div>
+                                <div className="flex items-center justify-between py-1">
+                                    <Label className="text-sm">Push</Label>
+                                    <Switch checked={pushNotifications} onCheckedChange={setPushNotifications} />
+                                </div>
 
-                            <Button onClick={handleSaveNotifications}>
-                                <Save className="mr-2 h-4 w-4" />
-                                Сохранить
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-            </Tabs>
+                                <Button
+                                    onClick={handleSaveNotifications}
+                                    className="mt-2 w-full sm:w-auto"
+                                >
+                                    <Save className="mr-2 h-4 w-4" />
+                                    Сохранить
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </div>
+            <BottomNav activeTab="profile" />
         </div>
     )
 }

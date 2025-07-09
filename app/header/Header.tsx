@@ -34,7 +34,6 @@ const Header: React.FC<HeaderProps> = ({
                                            notificationCount = 0,
                                            role = "Клиент",
                                        }) => {
-    const [isBurgerOpen, setIsBurgerOpen] = React.useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
     const [page, setPage] = useState(1);
@@ -164,6 +163,22 @@ const Header: React.FC<HeaderProps> = ({
                             <Button variant="ghost" size="sm" onClick={handleLogout}>
                                 <LogOut className="w-5 h-5"/>
                             </Button>
+                        </div>
+                        <div className="flex md:hidden items-center space-x-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setIsModalOpen(true)}
+                                className="relative p-2"
+                            >
+                                <Bell className="w-5 h-5"/>
+                                {unreadNotificationCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1 py-0.5 min-w-[1rem] text-center">
+              {unreadNotificationCount}
+            </span>
+                                )}
+                            </Button>
+
                         </div>
                     </div>
                 </div>

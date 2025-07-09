@@ -44,7 +44,7 @@ import {useRouter} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
-import BottomNav from "@/components/BottomNav";
+import {BottomNav} from "@/components/BottomNav";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -2105,7 +2105,6 @@ export default function AdminWorkerDashboard() {
             duration={successModal.duration}
         />
         <BottomNav
-            setShowProfile={setShowProfile}
         />
       </div>
   );
