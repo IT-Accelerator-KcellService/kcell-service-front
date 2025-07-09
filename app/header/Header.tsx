@@ -138,7 +138,7 @@ const Header: React.FC<HeaderProps> = ({
                             <span className="font-bold text-xl text-gray-900">Kcell Service</span>
                         </div>
                         {/* DESKTOP */}
-                        <div className="hidden sm:flex flex-row space-x-4 items-center">
+                        <div className="hidden md:flex flex-row space-x-4 items-center">
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -225,12 +225,7 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                 </DialogContent>
             </Dialog>
-            <BottomNav
-                setShowProfile={setShowProfile}
-                setIsModalOpen={setIsModalOpen}
-                handleLogout={handleLogout}
-                unreadNotificationCount={unreadNotificationCount}
-            />
+
         </>
     );
 };

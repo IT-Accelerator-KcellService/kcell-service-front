@@ -59,6 +59,7 @@ import {useSuccessModal} from "@/hooks/use-success-modal";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {ru} from "date-fns/locale";
 import {Calendar} from "@/components/ui/calendar";
+import BottomNav from "@/components/BottomNav";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -2493,6 +2494,9 @@ export default function ManagerDashboard() {
           title={successModal.title}
           message={successModal.message}
           duration={successModal.duration}
+      />
+      <BottomNav
+          setShowProfile={setShowProfile}
       />
     </div>
   )
