@@ -19,7 +19,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest
     return (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-sm flex justify-around items-center py-4 z-50">
             {/* Главная */}
-            <Link href="/" className="flex-1 flex justify-center">
+            <Link href="/home" className="flex-1 flex justify-center">
                 <Button
                     variant="ghost"
                     size="sm"
