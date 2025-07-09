@@ -13,6 +13,7 @@ import { Lock, Bell, Save, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
 import {BottomNav} from "@/components/BottomNav"
+import {useRouter} from "next/navigation";
 
 interface UserProfile {
     id: number
@@ -32,6 +33,7 @@ const roleTranslations: Record<string, string> = {
 }
 
 export default function ProfilePage() {
+    const router = useRouter();
     const [user, setUser] = useState<UserProfile | null>(null)
     const [oldPassword, setOldPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
@@ -52,7 +54,13 @@ export default function ProfilePage() {
             .then((res) => setUser(res.data))
             .catch((err) => console.error("Ошибка при получении профиля:", err))
     }, [])
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        // или localStorage.clear();
 
+        router.push("/login"); // или на главную: router.push("/")
+    };
     const handleSaveProfile = async () => {
         setProfileError("")
         setProfileSuccess("")
@@ -216,6 +224,14 @@ export default function ProfilePage() {
 
                                 {profileError && <p className="text-sm text-red-500">{profileError}</p>}
                                 {profileSuccess && <p className="text-sm text-green-600">{profileSuccess}</p>}
+                                {/* Кнопка Выйти */}
+                                <Button
+                                    variant="outline"
+                                    className="mt-4 w-full text-red-600 border-red-500 hover:bg-red-50"
+                                    onClick={handleLogout}
+                                >
+                                    Выйти
+                                </Button>
                             </CardContent>
                         </Card>
                     </TabsContent>

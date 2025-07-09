@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
-import {useRouter} from "next/navigation";
+import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
@@ -121,6 +121,8 @@ const parseLocalDate = (dateString: string) => {
 };
 
 export default function AdminWorkerDashboard() {
+  const searchParams = useSearchParams()
+
   const successModal = useSuccessModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming");
@@ -274,6 +276,15 @@ export default function AdminWorkerDashboard() {
       setNotificationLoading(false)
     }
   }, [])
+  useEffect(() => {
+    const create = searchParams.get("createRequest")
+    const role = localStorage.getItem('role')
+
+    if (create === "true") {
+      setShowCreateRequestModal(true)
+      router.replace(`/${role}`, { scroll: false })
+    }
+  }, [searchParams])
 
   const fetchNotifications = async () => {
     try {
@@ -488,6 +499,7 @@ export default function AdminWorkerDashboard() {
       fetchClientInfo(selectedRequest.client_id);
     }
   }, [selectedRequest]);
+
 
   const handleApproveRequest = async (requestId: number, categoryId: number,sla: any ,complexity :any  ) => {
     try {

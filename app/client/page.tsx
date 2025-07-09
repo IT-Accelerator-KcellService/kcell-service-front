@@ -36,6 +36,7 @@ import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {BottomNav} from "@/components/BottomNav";
+import { useSearchParams } from "next/navigation"
 import Link from "next/link";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
@@ -113,6 +114,7 @@ interface Stats {
 }
 
 export default function ClientDashboard() {
+  const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("requests")
@@ -218,6 +220,15 @@ export default function ClientDashboard() {
       fetchStats()
     }
   }, []);
+
+  useEffect(() => {
+    const create = searchParams.get("createRequest")
+    const role = localStorage.getItem('role')
+    if (create === "true") {
+      setShowCreateRequest(true)
+      router.replace(`/${role}`, { scroll: false })
+    }
+  }, [searchParams])
 
   const fetchNotifications = async () => {
     try {
@@ -1636,6 +1647,7 @@ export default function ClientDashboard() {
       />
         <BottomNav
             onCreateRequest={handleOpenCreateRequest}
+            activeTab ="history"
         />
     </div>
   )

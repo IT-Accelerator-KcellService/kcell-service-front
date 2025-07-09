@@ -16,16 +16,12 @@ import {
   Camera,
   Bell,
   User,
-  LogOut,
-  Filter,
-  MessageCircle,
   Star,
   Plus,
   MapPin,
   Calendar, Loader2, ImageIcon, Zap, XCircle, AlertCircle,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import UserProfile from "@/app/profile/page";
 import axios from "axios";
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
@@ -36,7 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog";
-import {useRouter} from "next/navigation";
+import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
@@ -112,6 +108,8 @@ interface Stats {
 }
 
 export default function ExecutorDashboard() {
+  const searchParams = useSearchParams()
+
   const successModal = useSuccessModal()
   const router = useRouter()
   const [assignedRequests, setAssignedRequests] = useState<any>([])
@@ -134,7 +132,6 @@ export default function ExecutorDashboard() {
   const [showProfile, setShowProfile] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
-  const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [requestLocation, setRequestLocation] = useState("")
@@ -387,7 +384,15 @@ export default function ExecutorDashboard() {
       setNotificationLoading(false)
     }
   }, [])
+  useEffect(() => {
+    const create = searchParams.get("createRequest")
+    const role = localStorage.getItem('role')
 
+    if (create === "true") {
+      setShowCreateRequestModal(true)
+      router.replace(`/${role}`, { scroll: false })
+    }
+  }, [searchParams])
   const fetchNotifications = async () => {
     try {
       const res = await api.get('/notifications/me')
