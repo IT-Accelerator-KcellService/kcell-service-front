@@ -1548,7 +1548,7 @@ export default function ExecutorDashboard() {
               <CardTitle>Завершение задачи #{selectedTask.id}</CardTitle>
               <CardDescription>Подтвердите выполнение работы</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pb-20">
               <div>
                 <h3 className="font-medium mb-2">{selectedTask.title}</h3>
                 <p className="text-sm text-gray-600">{selectedTask.description}</p>

@@ -1353,7 +1353,7 @@ export default function AdminWorkerDashboard() {
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
                   <CardDescription>Проверка и классификация заявки</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 pb-20">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Тип заявки</Label>

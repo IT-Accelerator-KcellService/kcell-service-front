@@ -2115,7 +2115,7 @@ export default function ManagerDashboard() {
                 <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
                 <CardDescription>{selectedTaskDetails.title}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 pb-20">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Тип:</p>
