@@ -22,8 +22,6 @@ import {
 import axios from 'axios'
 import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
-import UserProfile from "@/app/client/UserProfile";
-import Page from "@/app/chat-bot/page";
 import api from "@/lib/api";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -37,7 +35,7 @@ import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
 import {useMediaQuery} from "@/hooks/use-media-query";
-import BottomNav from "@/components/BottomNav";
+import {BottomNav} from "@/components/BottomNav";
 import Link from "next/link";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
@@ -729,7 +727,6 @@ export default function ClientDashboard() {
             notificationCount={notifications.length}
             role="Клиент"
         />
-        <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Stats */}
@@ -1638,7 +1635,7 @@ export default function ClientDashboard() {
           duration={successModal.duration}
       />
         <BottomNav
-            setShowProfile={setShowProfile}
+
         />
     </div>
   )

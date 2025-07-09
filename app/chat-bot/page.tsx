@@ -1,49 +1,23 @@
 "use client";
-
 import { useState, useEffect, useRef } from "react";
 import { Send, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import {BottomNav} from "@/components/BottomNav";
 
 export default function ChatPage() {
     const [messages, setMessages] = useState([
         { from: "bot", text: "Привет! Чем могу помочь?" },
     ]);
     const [inputValue, setInputValue] = useState("");
-    const [isMobile, setIsMobile] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
-        // Проверка на мобильное устройство
-        const checkIfMobile = () => {
-            setIsMobile(window.innerWidth < 768);
-        };
-
-        checkIfMobile();
-        window.addEventListener('resize', checkIfMobile);
-
-        return () => {
-            window.removeEventListener('resize', checkIfMobile);
-        };
-    }, []);
-
-    useEffect(() => {
-        // Прокрутка вниз при новых сообщениях
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
     }, [messages]);
-
-    const autoResize = () => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = "auto";
-            textareaRef.current.style.height = `${Math.min(
-                textareaRef.current.scrollHeight,
-                120
-            )}px`;
-        }
-    };
 
     const handleSend = () => {
         if (!inputValue.trim()) return;
@@ -59,52 +33,43 @@ export default function ChatPage() {
 
         setInputValue("");
         if (textareaRef.current) {
-            textareaRef.current.style.height = "40px";
+            textareaRef.current.style.height = "48px";
         }
     };
 
     return (
-        <div className="flex flex-col h-screen bg-white">
-            {/* Шапка чата (уменьшенная на мобильных) */}
-            <div className={`flex items-center justify-between p-3 ${isMobile ? 'py-2' : 'p-4'} bg-purple-100 border-b`}>
-                <Link
-                    href="/"
-                    className="p-1 rounded-full hover:bg-purple-200 flex items-center"
-                >
-                    <ArrowLeft className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} text-purple-700`} />
-                    {!isMobile && <span className="ml-1">Назад</span>}
-                </Link>
-                <span className={`font-semibold text-purple-700 ${isMobile ? 'text-sm' : ''}`}>
-                    Чат поддержки
-                </span>
-                <div className="w-6"></div> {/* Для выравнивания */}
+        <div className="flex flex-col h-screen pb-16 bg-gray-50">
+            {/* Шапка чата */}
+            <div className="sticky top-0 z-10 bg-purple-100 border-b p-3">
+                <div className="flex items-center justify-between max-w-2xl mx-auto">
+                    <Link href="/" className="p-1 rounded-full hover:bg-purple-200">
+                        <ArrowLeft className="w-5 h-5 text-purple-700" />
+                    </Link>
+                    <h1 className="font-semibold text-purple-700 text-sm">Чат поддержки</h1>
+                    <div className="w-6"></div>
+                </div>
             </div>
 
-            {/* Область сообщений (увеличенные отступы на мобильных) */}
-            <div className={`flex-1 overflow-y-auto ${isMobile ? 'p-3' : 'p-4'} space-y-3 custom-scrollbar bg-white`}>
+            {/* Область сообщений */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-3 max-w-2xl mx-auto w-full">
                 {messages.map((msg, idx) => (
                     <div
                         key={idx}
-                        className={`flex ${
-                            msg.from === "bot" ? "justify-start" : "justify-end"
-                        } items-end gap-2`}
+                        className={`flex ${msg.from === "bot" ? "justify-start" : "justify-end"} items-end gap-2`}
                     >
                         {msg.from === "bot" && (
                             <img
                                 src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png"
                                 alt="bot"
-                                className={`${isMobile ? 'w-6 h-6' : 'w-8 h-8'} rounded-full`}
+                                className="w-8 h-8 rounded-full"
                             />
                         )}
                         <div
-                            className={`
-                                relative px-3 py-2 ${isMobile ? 'max-w-[85%]' : 'max-w-[80%]'} 
-                                ${
+                            className={`px-3 py-2 max-w-[80%] rounded-lg ${
                                 msg.from === "bot"
-                                    ? "bg-purple-100 text-purple-700 rounded-xl rounded-bl-none before:content-[''] before:absolute before:left-[-8px] before:top-3 before:border-8 before:border-transparent before:border-r-purple-100"
-                                    : "bg-gray-200 text-gray-800 rounded-xl rounded-br-none before:content-[''] before:absolute before:right-[-8px] before:top-3 before:border-8 before:border-transparent before:border-l-gray-200"
-                            }
-                            `}
+                                    ? "bg-purple-100 text-purple-700 rounded-bl-none"
+                                    : "bg-gray-200 text-gray-800 rounded-br-none"
+                            }`}
                         >
                             {msg.text}
                         </div>
@@ -113,32 +78,30 @@ export default function ChatPage() {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Поле ввода (компактное на мобильных) */}
-            <div className={`${isMobile ? 'p-2' : 'p-3'} border-t flex gap-2 items-end`}>
-                <textarea
-                    ref={textareaRef}
-                    value={inputValue}
-                    onChange={(e) => {
-                        setInputValue(e.target.value);
-                        autoResize();
-                    }}
-                    placeholder="Напишите сообщение..."
-                    className="flex-1 border rounded-lg p-2 resize-none focus:outline-none"
-                    style={{
-                        height: "40px",
-                        maxHeight: "120px",
-                        fontSize: isMobile ? '14px' : '16px'
-                    }}
-                />
-                <button
-                    onClick={handleSend}
-                    className={`bg-purple-600 text-white rounded-full hover:bg-purple-700 flex items-center justify-center ${
-                        isMobile ? 'p-2' : 'p-2.5'
-                    }`}
-                >
-                    <Send className={isMobile ? 'w-4 h-4' : 'w-5 h-5'} />
-                </button>
+            {/* Поле ввода */}
+            <div className="sticky bottom-16 bg-white border-t p-2 max-w-2xl mx-auto w-full">
+                <div className="flex items-end gap-2">
+          <textarea
+              ref={textareaRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Напишите сообщение..."
+              className="flex-1 border rounded-lg p-2 resize-none focus:outline-none text-sm"
+              style={{
+                  minHeight: "48px",
+                  maxHeight: "120px",
+              }}
+          />
+                    <button
+                        onClick={handleSend}
+                        className="bg-purple-600 text-white rounded-lg p-2 hover:bg-purple-700 mb-1"
+                    >
+                        <Send className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
+
+            <BottomNav activeTab="chat" />
         </div>
     );
 }

@@ -4,6 +4,8 @@ import {Badge} from "@/components/ui/badge";
 import React, {useEffect, useRef, useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import api from "@/lib/api";
+import {VisuallyHidden} from "@radix-ui/react-visually-hidden";
+
 
 interface HeaderProps {
     setShowProfile: (value: boolean) => void;
@@ -32,7 +34,6 @@ const Header: React.FC<HeaderProps> = ({
                                            notificationCount = 0,
                                            role = "Клиент",
                                        }) => {
-    const [isBurgerOpen, setIsBurgerOpen] = React.useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
     const [page, setPage] = useState(1);
@@ -163,6 +164,22 @@ const Header: React.FC<HeaderProps> = ({
                                 <LogOut className="w-5 h-5"/>
                             </Button>
                         </div>
+                        <div className="flex md:hidden items-center space-x-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setIsModalOpen(true)}
+                                className="relative p-2"
+                            >
+                                <Bell className="w-5 h-5"/>
+                                {unreadNotificationCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1 py-0.5 min-w-[1rem] text-center">
+              {unreadNotificationCount}
+            </span>
+                                )}
+                            </Button>
+
+                        </div>
                     </div>
                 </div>
             </header>
@@ -171,7 +188,9 @@ const Header: React.FC<HeaderProps> = ({
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogContent className="w-full max-w-xs sm:max-w-md max-h-[80vh] overflow-y-auto p-4">
                     <DialogHeader>
+                        <VisuallyHidden asChild>
                         <DialogTitle>Все уведомления</DialogTitle>
+                        </VisuallyHidden>
                     </DialogHeader>
                     <div
                         ref={containerRef}

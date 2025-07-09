@@ -45,12 +45,10 @@ import {
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
-import UserProfile from "@/app/client/UserProfile";
 import dynamic from "next/dynamic";
 import {Request} from "@/app/client/page";
 import api from "@/lib/api";
 import {useRouter} from "next/navigation";
-import {notification,} from "antd";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import {format, isAfter, subDays, subMonths, subYears} from "date-fns";
 import {useNotificationStore} from "@/stores/notificationStore";
@@ -59,7 +57,7 @@ import {useSuccessModal} from "@/hooks/use-success-modal";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {ru} from "date-fns/locale";
 import {Calendar} from "@/components/ui/calendar";
-import BottomNav from "@/components/BottomNav";
+import {BottomNav} from "@/components/BottomNav";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -1142,7 +1140,6 @@ export default function ManagerDashboard() {
           notificationCount={notifications.length}
           role="Руководитель"
       />
-      <UserProfile open={showProfile} onClose={() => setShowProfile(false)} handleLogout={() => handleLogout()} />
 
       <main className="px-4 py-4 sm:px-6 sm:py-8 max-w-7xl mx-auto">
         {/* Mobile Filters */}
@@ -2497,7 +2494,7 @@ export default function ManagerDashboard() {
           duration={successModal.duration}
       />
       <BottomNav
-          setShowProfile={setShowProfile}
+
       />
     </div>
   )
