@@ -1,20 +1,11 @@
-import { Bell, LogOut, User, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import React, { useEffect, useRef, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle
-} from "@/components/ui/sheet";
+import {Bell, LogOut, User} from "lucide-react";
+import {Button} from "@/components/ui/button";
+import {Badge} from "@/components/ui/badge";
+import React, {useEffect, useRef, useState} from "react";
+import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import api from "@/lib/api";
+import BottomNav from "@/app/header/BottomNav";
+
 
 interface HeaderProps {
     setShowProfile: (value: boolean) => void;
@@ -95,7 +86,7 @@ const Header: React.FC<HeaderProps> = ({
         const el = containerRef.current;
         if (!el || isLoading || !hasMore) return;
 
-        const { scrollTop, scrollHeight, clientHeight } = el;
+        const {scrollTop, scrollHeight, clientHeight} = el;
         if (scrollHeight - (scrollTop + clientHeight) < 100) {
             const nextPage = page + 1;
             setPage(nextPage);
@@ -119,7 +110,7 @@ const Header: React.FC<HeaderProps> = ({
                 await api.patch(`/notifications/${notification.id}/read`);
                 setAllNotifications(prev =>
                     prev.map(n =>
-                        n.id === notification.id ? { ...n, is_read: true } : n
+                        n.id === notification.id ? {...n, is_read: true} : n
                     )
                 );
             } catch (error) {
@@ -153,9 +144,10 @@ const Header: React.FC<HeaderProps> = ({
                                 onClick={() => setIsModalOpen(true)}
                                 className="relative"
                             >
-                                <Bell className="w-5 h-5" />
+                                <Bell className="w-5 h-5"/>
                                 {unreadNotificationCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1 py-0.5 min-w-[1rem] text-center">
+                                    <span
+                                        className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1 py-0.5 min-w-[1rem] text-center">
                                         {unreadNotificationCount}
                                     </span>
                                 )}
@@ -165,22 +157,12 @@ const Header: React.FC<HeaderProps> = ({
                                 size="sm"
                                 onClick={() => setShowProfile(true)}
                             >
-                                <User className="w-5 h-5 text-gray-600" />
+                                <User className="w-5 h-5 text-gray-600"/>
                                 <span className="text-sm font-medium">Профиль</span>
                             </Button>
                             <Badge variant="secondary">{role}</Badge>
                             <Button variant="ghost" size="sm" onClick={handleLogout}>
-                                <LogOut className="w-5 h-5" />
-                            </Button>
-                        </div>
-                        {/* MOBILE BURGER */}
-                        <div className="flex sm:hidden">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setIsBurgerOpen(true)}
-                            >
-                                <Menu className="w-5 h-5" />
+                                <LogOut className="w-5 h-5"/>
                             </Button>
                         </div>
                     </div>
@@ -240,52 +222,12 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                 </DialogContent>
             </Dialog>
-
-            {/* Бургер меню */}
-            <Sheet open={isBurgerOpen} onOpenChange={setIsBurgerOpen}>
-                <SheetContent className="flex flex-col w-full max-w-xs px-4 py-4 space-y-2">
-                    <SheetHeader>
-                        <SheetTitle>Меню</SheetTitle>
-                    </SheetHeader>
-                    <div className="flex flex-col space-y-2 flex-grow">
-                        <Button
-                            variant="ghost"
-                            className="justify-start w-full"
-                            onClick={() => {
-                                setShowProfile(true);
-                                setIsBurgerOpen(false);
-                            }}
-                        >
-                            <User className="w-5 h-5 mr-2" />
-                            Профиль
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className="justify-start w-full"
-                            onClick={() => {
-                                setIsModalOpen(true);
-                                setIsBurgerOpen(false);
-                            }}
-                        >
-                            <Bell className="w-5 h-5 mr-2" />
-                            Уведомления
-                            {unreadNotificationCount > 0 && (
-                                <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-1 py-0.5 min-w-[1rem] text-center">
-                                    {unreadNotificationCount}
-                                </span>
-                            )}
-                        </Button>
-                    </div>
-                    <Button
-                        variant="ghost"
-                        className="justify-start w-full"
-                        onClick={handleLogout}
-                    >
-                        <LogOut className="w-5 h-5 mr-2" />
-                        Выйти
-                    </Button>
-                </SheetContent>
-            </Sheet>
+            <BottomNav
+                setShowProfile={setShowProfile}
+                setIsModalOpen={setIsModalOpen}
+                handleLogout={handleLogout}
+                unreadNotificationCount={unreadNotificationCount}
+            />
         </>
     );
 };

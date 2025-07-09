@@ -36,6 +36,7 @@ import {useRouter} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
+import {useMediaQuery} from "@/hooks/use-media-query";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -157,6 +158,7 @@ export default function ClientDashboard() {
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
   const [pageSize] = useState(10);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const lastRequestRef = useCallback(
       (node: any) => {
         if (loading) return;
@@ -1619,7 +1621,7 @@ export default function ClientDashboard() {
           </Card>
         </div>
       )}
-      <Page />
+        {isDesktop && <Page />}
       <SuccessModal
           isOpen={successModal.isOpen}
           onClose={successModal.hideSuccess}
