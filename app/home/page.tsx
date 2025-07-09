@@ -81,6 +81,7 @@ type User = {
     email: string;
     office_id: string;
     role: string;
+    office: any
 }
 
 interface ExecutorStats {
@@ -285,6 +286,7 @@ export default function HomePage() {
             full_name: user.full_name,
             office_id: user.office_id,
             role: user.role,
+
         });
         setEditingUserId(user.id);
     };

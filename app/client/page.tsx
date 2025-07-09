@@ -758,72 +758,74 @@ export default function ClientDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Clock className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Активные заявки</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {stats && stats.activeRequests? (
-                        stats.activeRequests
-                      ): 0}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Завершено</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {stats && stats.doneRequests ? (
-                        stats.doneRequests
-                    ): 0}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Star className="w-6 h-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Средняя оценка</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {stats && stats.averageRating ? (
-                        stats.averageRating
-                    ): 0}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <AlertTriangle className="w-6 h-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                  <p className="text-2xl font-bold text-gray-900">Gold</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {isDesktop ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Clock className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Активные заявки</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {stats && stats.activeRequests? (
+                            stats.activeRequests
+                        ): 0}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <CheckCircle className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Завершено</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {stats && stats.doneRequests ? (
+                            stats.doneRequests
+                        ): 0}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-yellow-100 rounded-lg">
+                      <Star className="w-6 h-6 text-yellow-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Средняя оценка</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {stats && stats.averageRating ? (
+                            stats.averageRating
+                        ): 0}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <AlertTriangle className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Рейтинг</p>
+                      <p className="text-2xl font-bold text-gray-900">Gold</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+        ): null}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -832,13 +834,15 @@ export default function ClientDashboard() {
               <div className="mb-6">
                 {/* на телефоне кнопка сверху */}
                 <div className="flex flex-col sm:hidden gap-3 mb-4">
-                  <Button
-                      onClick={handleOpenCreateRequest}
-                      className="bg-violet-600 hover:bg-violet-700 w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать заявку
-                  </Button>
+                  {isDesktop ? (
+                      <Button
+                          onClick={handleOpenCreateRequest}
+                          className="bg-violet-600 hover:bg-violet-700 w-full"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Создать заявку
+                      </Button>
+                  ): null}
                   <TabsList>
                     <TabsTrigger value="requests">Мои заявки</TabsTrigger>
                     <TabsTrigger value="statistics">Статистика</TabsTrigger>

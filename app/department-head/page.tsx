@@ -52,6 +52,7 @@ import {useNotificationStore} from "@/stores/notificationStore";
 import {SuccessModal} from "@/components/success-model";
 import {useSuccessModal} from "@/hooks/use-success-modal";
 import {BottomNav} from "@/components/BottomNav";
+import {useMediaQuery} from "@/hooks/use-media-query";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -195,7 +196,7 @@ export default function DepartmentHeadDashboard() {
   const [searchTerm, setSearchTerm] = useState("")
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [stats, setStats] = useState<Stats | null>(null);
-
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -860,84 +861,87 @@ export default function DepartmentHeadDashboard() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <Clock className="w-6 h-6 text-yellow-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Новые заявки</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats && stats.statusCounts && stats.statusCounts.new ? (stats.statusCounts.new) : 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Users className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">В работе</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Завершено</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <AlertTriangle className="w-6 h-6 text-red-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Просрочено</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {isDesktop ? (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <Clock className="w-6 h-6 text-yellow-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Новые заявки</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {stats && stats.statusCounts && stats.statusCounts.new ? (stats.statusCounts.new) : 0}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Users className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">В работе</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <CheckCircle className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Завершено</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <AlertTriangle className="w-6 h-6 text-red-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Просрочено</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+          ): null}
 
           {/* Main Content */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-                  {/* кнопка приоритетно сверху на мобиле */}
-                  <div className="order-1 sm:order-2 w-full sm:w-auto">
-                    <Button
-                        onClick={() => setShowCreateRequestModal(true)}
-                        className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Создать заявку
-                    </Button>
-                  </div>
+                  {isDesktop ? (
+                      <div className="order-1 sm:order-2 w-full sm:w-auto">
+                        <Button
+                            onClick={() => setShowCreateRequestModal(true)}
+                            className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Создать заявку
+                        </Button>
+                      </div>
+                  ): null}
                   {/* табы */}
                   <div className="order-2 sm:order-1 w-full sm:w-auto">
                     <TabsList className="flex flex-wrap gap-2 w-full sm:w-auto">

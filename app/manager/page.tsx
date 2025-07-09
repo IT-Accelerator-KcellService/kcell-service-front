@@ -59,6 +59,7 @@ import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {ru} from "date-fns/locale";
 import {Calendar} from "@/components/ui/calendar";
 import {BottomNav} from "@/components/BottomNav";
+import {useMediaQuery} from "@/hooks/use-media-query";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -169,6 +170,7 @@ export default function ManagerDashboard() {
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [deleteReason, setDeleteReason] = useState("")
   const [newRequestPlannedDate, setNewRequestPlannedDate] = useState("")
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const date = newRequestPlannedDate
       ? parseLocalDate(newRequestPlannedDate)
       : undefined;
@@ -1205,56 +1207,59 @@ export default function ManagerDashboard() {
               <Download className="w-4 h-4 mr-2" />
               Power BI
             </Button>
-
-            <Button
-                onClick={() => {
-                  setNewRequestType("Обычная")
-                  setShowCreateRequestModal(true)
-                  handleOpenCreateRequest()
-                }}
-                className="flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white min-w-[150px] h-10 px-4"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Создать заявку
-            </Button>
+            {isDesktop ? (
+                <Button
+                    onClick={() => {
+                      setNewRequestType("Обычная")
+                      setShowCreateRequestModal(true)
+                      handleOpenCreateRequest()
+                    }}
+                    className="flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white min-w-[150px] h-10 px-4"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Создать заявку
+                </Button>
+            ): null}
           </div>
         </div>
 
         {/* KPI Cards - Mobile optimized grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
-          <StatCard
-            title="Всего заявок"
-            value={kpi.total}
-            icon={<BarChart3 className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />}
-            delta="+12%"
-            positive
-            bg="bg-blue-100"
-          />
-          <StatCard
-            title="Завершено"
-            value={kpi.completed}
-            icon={<CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-green-600" />}
-            delta="+8%"
-            positive
-            bg="bg-green-100"
-          />
-          <StatCard
-            title="Просрочено"
-            value={kpi.overdue}
-            icon={<AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 text-red-600" />}
-            delta="-3%"
-            positive={false}
-            bg="bg-red-100"
-          />
-          <StatCard
-            title="Экстренные"
-            value={kpi.emergency}
-            icon={<AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 text-orange-600" />}
-            delta="+2"
-            positive
-            bg="bg-orange-100"
-          />
-        </div>
+        {isDesktop ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+              <StatCard
+                  title="Всего заявок"
+                  value={kpi.total}
+                  icon={<BarChart3 className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />}
+                  delta="+12%"
+                  positive
+                  bg="bg-blue-100"
+              />
+              <StatCard
+                  title="Завершено"
+                  value={kpi.completed}
+                  icon={<CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 text-green-600" />}
+                  delta="+8%"
+                  positive
+                  bg="bg-green-100"
+              />
+              <StatCard
+                  title="Просрочено"
+                  value={kpi.overdue}
+                  icon={<AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 text-red-600" />}
+                  delta="-3%"
+                  positive={false}
+                  bg="bg-red-100"
+              />
+              <StatCard
+                  title="Экстренные"
+                  value={kpi.emergency}
+                  icon={<AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 text-orange-600" />}
+                  delta="+2"
+                  positive
+                  bg="bg-orange-100"
+              />
+            </div>
+          ):null}
 
         {/* Mobile-optimized Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
