@@ -533,20 +533,6 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const handleSendComment = async () => {
-    if (!comment.trim()) return
-
-    try {
-      await api.post(`/comments`, {
-        request_id: selectedRequest?.id,
-        comment,
-      })
-      setComment("")
-      fetchComments()
-    } catch (err) {
-      console.error("Ошибка при отправке комментария", err)
-    }
-  }
   const assignExecutorToRequest = async (requestId: number,executorId: number) => {
     try {
       await api.patch(`requests/${requestId}/assign-executor/${executorId}`)
