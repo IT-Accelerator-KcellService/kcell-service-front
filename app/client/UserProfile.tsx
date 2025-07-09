@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
+import {LogOut} from "lucide-react";
 
 interface User {
     id: number
@@ -23,6 +24,7 @@ interface User {
 interface UserProfileProps {
     open: boolean
     onClose: (open: boolean) => void
+    handleLogout: () => void;
 }
 
 const roleTranslations: Record<string, string> = {
@@ -33,7 +35,7 @@ const roleTranslations: Record<string, string> = {
     manager: "Руководитель"
 }
 
-export default function UserProfile({ open, onClose }: UserProfileProps) {
+export default function UserProfile({ open, onClose, handleLogout }: UserProfileProps) {
     const [user, setUser] = useState<User | null>(null)
     const [oldPassword, setOldPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
@@ -132,6 +134,12 @@ export default function UserProfile({ open, onClose }: UserProfileProps) {
                 <DialogFooter className="mt-2">
                     <Button onClick={handleChangePassword} disabled={isChanging}>
                         {isChanging ? "Сохранение..." : "Сменить пароль"}
+                    </Button>
+                </DialogFooter>
+                <DialogFooter className="mt-2">
+                    <Button onClick={handleLogout}>
+                        <LogOut className="w-5 h-5 mb-1" />
+                        Выйти
                     </Button>
                 </DialogFooter>
             </DialogContent>

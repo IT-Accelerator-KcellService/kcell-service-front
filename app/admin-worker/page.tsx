@@ -44,6 +44,7 @@ import {useRouter} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
+import BottomNav from "@/components/BottomNav";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -798,7 +799,7 @@ export default function AdminWorkerDashboard() {
             notificationCount={3}
             role="Администратор"
         />
-        <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
+        <UserProfile open={showProfile} onClose={() => setShowProfile(false)} handleLogout={() => handleLogout()} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Quick Stats */}
@@ -2103,6 +2104,9 @@ export default function AdminWorkerDashboard() {
             title={successModal.title}
             message={successModal.message}
             duration={successModal.duration}
+        />
+        <BottomNav
+            setShowProfile={setShowProfile}
         />
       </div>
   );
