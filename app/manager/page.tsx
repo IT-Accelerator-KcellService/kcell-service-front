@@ -2514,6 +2514,7 @@ export default function ManagerDashboard() {
       />
       <BottomNav
           onCreateRequest={handleOpenCreateRequest}
+          activeTab="history"
       />
     </div>
   )
