@@ -1635,7 +1635,7 @@ export default function ClientDashboard() {
           duration={successModal.duration}
       />
         <BottomNav
-
+            onCreateRequest={handleOpenCreateRequest}
         />
     </div>
   )

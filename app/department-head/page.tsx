@@ -2292,7 +2292,7 @@ export default function DepartmentHeadDashboard() {
             duration={successModal.duration}
         />
         <BottomNav
-
+            onCreateRequest={() => setShowCreateRequestModal(true)}
         />
       </div>
   )

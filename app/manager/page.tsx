@@ -2494,7 +2494,7 @@ export default function ManagerDashboard() {
           duration={successModal.duration}
       />
       <BottomNav
-
+          onCreateRequest={handleOpenCreateRequest}
       />
     </div>
   )

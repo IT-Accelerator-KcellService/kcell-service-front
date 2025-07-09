@@ -2068,7 +2068,7 @@ export default function ExecutorDashboard() {
           duration={successModal.duration}
       />
       <BottomNav
-
+            onCreateRequest={handleOpenCreateRequest}
       />
     </div>
   )

@@ -23,7 +23,6 @@ import {
   MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import UserProfile from "@/app/profile/page";
 import axios from 'axios';
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
@@ -2105,6 +2104,7 @@ export default function AdminWorkerDashboard() {
             duration={successModal.duration}
         />
         <BottomNav
+            onCreateRequest={() => setShowCreateRequestModal(true)}
         />
       </div>
   );
