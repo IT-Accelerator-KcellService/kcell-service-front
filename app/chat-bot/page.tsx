@@ -9,9 +9,24 @@ export default function Page() {
         { from: "bot", text: "Привет! Чем могу помочь?" },
     ]);
     const [inputValue, setInputValue] = useState("");
+    const [isMobile, setIsMobile] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        // Проверяем размер экрана при загрузке и при изменении размера
+        const checkIfMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+
+        checkIfMobile();
+        window.addEventListener('resize', checkIfMobile);
+
+        return () => {
+            window.removeEventListener('resize', checkIfMobile);
+        };
+    }, []);
 
     useEffect(() => {
         if (isOpen && window.innerWidth < 768) {
@@ -61,12 +76,14 @@ export default function Page() {
 
     return (
         <>
-            <button
-                onClick={() => setIsOpen(true)}
-                className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
-            >
-                <MessageCircle className="w-7 h-7" />
-            </button>
+            {!isMobile && ( // Показываем кнопку только в десктопной версии
+                <button
+                    onClick={() => setIsOpen(true)}
+                    className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
+                >
+                    <MessageCircle className="w-7 h-7" />
+                </button>
+            )}
 
             {isOpen && (
                 <div
