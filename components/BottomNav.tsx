@@ -5,15 +5,17 @@ import {useEffect, useState} from "react";
 
 interface BottomNavProps {
     activeTab?: 'home' | 'history' | 'chat' | 'profile';
+    onCreateRequest?: () => void; // Добавляем пропс для обработки создания заявки
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activeTab }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest }) => {
     const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
         const storedRole = localStorage.getItem('role');
         setRole(storedRole);
     }, []);
+
     return (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-sm flex justify-around items-center py-2 z-50">
             {/* Главная */}
@@ -29,7 +31,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab }) => {
             </Link>
 
             {/* История */}
-            <Link href= {`/${role}`} className="flex-1 flex justify-center">
+            <Link href={`/${role}`} className="flex-1 flex justify-center">
                 <Button
                     variant="ghost"
                     size="sm"
@@ -43,6 +45,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab }) => {
             {/* Центральная кнопка */}
             <div className="flex-1 flex justify-center relative">
                 <Button
+                    onClick={onCreateRequest} // Добавляем обработчик клика
                     variant="ghost"
                     size="sm"
                     className="absolute -top-6 bg-purple-600 text-white rounded-full w-12 h-12 hover:bg-purple-700 shadow-lg"
