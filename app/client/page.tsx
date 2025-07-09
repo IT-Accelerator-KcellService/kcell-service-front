@@ -495,10 +495,27 @@ export default function ClientDashboard() {
             const { latitude, longitude, accuracy } = position.coords;
             setRequestLocation(`Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`);
           },
-          (error) => {
-            console.error("Ошибка геолокации:", error);
-            setRequestLocation("Не удалось определить местоположение");
-          },
+          (error: GeolocationPositionError) => {
+            console.error("Ошибка геолокации:", {
+              code: error.code,
+              message: error.message
+            });
+
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                setRequestLocation("Доступ к геолокации запрещён");
+                break;
+              case error.POSITION_UNAVAILABLE:
+                setRequestLocation("Информация о местоположении недоступна");
+                break;
+              case error.TIMEOUT:
+                setRequestLocation("Превышено время ожидания определения местоположения");
+                break;
+              default:
+                setRequestLocation("Не удалось определить местоположение");
+            }
+          }
+          ,
           {
             enableHighAccuracy: true,
             timeout: 10000,
@@ -1136,7 +1153,7 @@ export default function ClientDashboard() {
                   <CardTitle>Создать заявку</CardTitle>
                   <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 pb-20">
                   <div>
                     <Label>Тип заявки</Label>
                     <Select value={requestType} onValueChange={setRequestType}>

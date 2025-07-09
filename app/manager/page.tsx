@@ -1894,7 +1894,7 @@ export default function ManagerDashboard() {
                 <CardTitle>Создать заявку</CardTitle>
                 <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 pb-20">
                 <div>
                   <Label>Офис</Label>
                   <Select value={newRequestOfficeId} onValueChange={setNewRequestOfficeId}>

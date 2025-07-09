@@ -1799,7 +1799,7 @@ export default function AdminWorkerDashboard() {
                   <CardTitle>Создать {translateType(newRequestType).toLowerCase()} заявку</CardTitle>
                   <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-6 pb-20">
                   <div>
                     <Label>Тип заявки</Label>
                     <Select value={newRequestType} onValueChange={setNewRequestType}>
