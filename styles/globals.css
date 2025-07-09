@@ -11,7 +11,27 @@ body {
     text-wrap: balance;
   }
 }
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
 
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-padding {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Оптимизация textarea для мобильных */
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
 @layer base {
   :root {
     --background: 0 0% 100%;
