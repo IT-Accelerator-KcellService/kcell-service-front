@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react"
 import {
     Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card"
@@ -61,6 +61,7 @@ export default function ProfilePage() {
 
         router.push("/login"); // или на главную: router.push("/")
     };
+
     const handleSaveProfile = async () => {
         setProfileError("")
         setProfileSuccess("")
@@ -143,8 +144,8 @@ export default function ProfilePage() {
 
     if (!user) {
         return (
-            <div className="flex items-center justify-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
             </div>
         )
     }
@@ -152,7 +153,13 @@ export default function ProfilePage() {
     return (
         <div className="pb-16">
             <div className="container px-4 py-6">
-                <h1 className="text-xl font-bold mb-4 sm:text-2xl sm:mb-6">Профиль</h1>
+                <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
+                        <span className="text-white font-bold">K</span>
+                    </div>
+                    <span className="font-bold text-xl text-gray-900">Profile</span>
+                </div>
+
 
                 <Tabs defaultValue="profile" className="space-y-4">
                     <TabsList className="grid w-full grid-cols-3">
