@@ -5,6 +5,7 @@ import React, {useEffect, useRef, useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import api from "@/lib/api";
 import BottomNav from "@/app/header/BottomNav";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 
 
 interface HeaderProps {
@@ -173,7 +174,9 @@ const Header: React.FC<HeaderProps> = ({
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogContent className="w-full max-w-xs sm:max-w-md max-h-[80vh] overflow-y-auto p-4">
                     <DialogHeader>
+                        <VisuallyHidden asChild>
                         <DialogTitle>Все уведомления</DialogTitle>
+                        </VisuallyHidden>
                     </DialogHeader>
                     <div
                         ref={containerRef}
