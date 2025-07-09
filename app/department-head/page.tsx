@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import Header from "@/app/header/Header"
-import UserProfile from "@/app/client/UserProfile"
+import UserProfile from "@/app/profile/page"
 import axios from 'axios'
 import dynamic from "next/dynamic"
 import api from "@/lib/api";
@@ -860,7 +860,6 @@ export default function DepartmentHeadDashboard() {
             notificationCount={3}
             role="Руководитель направления"
         />
-        <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Quick Stats */}

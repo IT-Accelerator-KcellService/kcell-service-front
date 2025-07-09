@@ -25,7 +25,7 @@ import {
   Calendar, Loader2, ImageIcon, Zap, XCircle, AlertCircle,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import UserProfile from "@/app/client/UserProfile";
+import UserProfile from "@/app/profile/page";
 import axios from "axios";
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
@@ -760,7 +760,6 @@ export default function ExecutorDashboard() {
           notificationCount={notifications.length}
           role="Исполнитель"
       />
-      <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Stats */}

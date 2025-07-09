@@ -45,7 +45,7 @@ import {
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
-import UserProfile from "@/app/client/UserProfile";
+import UserProfile from "@/app/profile/page";
 import dynamic from "next/dynamic";
 import {Request} from "@/app/client/page";
 import api from "@/lib/api";
@@ -1141,7 +1141,6 @@ export default function ManagerDashboard() {
           notificationCount={notifications.length}
           role="Руководитель"
       />
-      <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
 
       <main className="px-4 py-4 sm:px-6 sm:py-8 max-w-7xl mx-auto">
         {/* Mobile Filters */}
