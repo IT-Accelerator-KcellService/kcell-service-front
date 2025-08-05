@@ -2092,7 +2092,7 @@ export default function AdminWorkerDashboard() {
                 onClick={() => setShowMapModal(false)}
             >
               <Card
-                  className="w-full max-w-4xl h-[90vh] max-h-[90vh] flex flex-col"
+                  className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
                   onClick={(e) => e.stopPropagation()}
               >
                 <CardHeader>

@@ -1,38 +1,63 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, ArrowLeft } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, FormEvent, KeyboardEvent } from "react";
+import { Send, ArrowLeft, Trash2, Copy } from "lucide-react";
 import Link from "next/link";
 import { BottomNav } from "@/components/BottomNav";
+import axios, { AxiosError } from "axios";
+import api from "@/lib/api";
+import ReactMarkdown from 'react-markdown';
 
 type Message = {
     from: "user" | "bot";
     text: string;
 };
+type ApiError = {
+    error?: string;
+}
 
 export default function ChatPage() {
     const [messages, setMessages] = useState<Message[]>([
-        { from: "bot", text: "Привет! Чем могу помочь?" },
+        { from: "bot", text: "Привет! Чем могу помочь по проекту?" },
     ]);
     const [inputValue, setInputValue] = useState("");
     const [isSending, setIsSending] = useState(false);
-
+    const [isBotTyping, setIsBotTyping] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const formRef = useRef<HTMLFormElement>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
 
-    // Автопрокрутка при новых сообщениях
+    // Загрузка сохраненных сообщений
+    useEffect(() => {
+        const saved = localStorage.getItem('chat-messages');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    setMessages(parsed);
+                }
+            } catch (e) {
+                localStorage.removeItem('chat-messages');
+            }
+        }
+        textareaRef.current?.focus();
+    }, []);
+
+    // Сохранение сообщений
+    useEffect(() => {
+        if (messages.length > 1) {
+            localStorage.setItem('chat-messages', JSON.stringify(messages));
+        }
+    }, [messages]);
+
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, []);
 
-    // Адаптация высоты textarea
     const adjustTextareaHeight = useCallback(() => {
         if (textareaRef.current) {
-            textareaRef.current.style.height = "auto";
-            textareaRef.current.style.height = `${Math.min(
-                textareaRef.current.scrollHeight,
-                150
-            )}px`;
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
         }
     }, []);
 
@@ -44,38 +69,78 @@ export default function ChatPage() {
         adjustTextareaHeight();
     }, [inputValue, adjustTextareaHeight]);
 
-    const handleSubmit = useCallback(
-        async (e?: React.FormEvent) => {
-            e?.preventDefault();
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        const trimmed = inputValue.trim();
+        if (!trimmed || isSending) return;
 
-            if (!inputValue.trim() || isSending) return;
+        setMessages((prev) => [...prev, { from: "user", text: trimmed }]);
+        setInputValue("");
+        setIsSending(true);
+        setIsBotTyping(true);
+        setError(null);
 
-            const userMessage = inputValue;
-            setInputValue("");
-            setIsSending(true);
-
-            // Добавляем сообщение пользователя
-            setMessages((prev) => [...prev, { from: "user", text: userMessage }]);
-
-            try {
-                // Имитация ответа бота
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-                setMessages((prev) => [
-                    ...prev,
-                    { from: "bot", text: "Спасибо за сообщение! Я свяжусь с вами в ближайшее время." },
-                ]);
-            } finally {
-                setIsSending(false);
-            }
-        },
-        [inputValue, isSending]
-    );
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSubmit();
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
         }
+
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+
+        try {
+            const response = await api.post("/chat", {
+                message: trimmed,
+            }, {
+                signal: abortController.signal
+            });
+
+            const botText = response.data?.answer ?? "Не получилось обработать ответ.";
+            setMessages((prev) => [...prev, { from: "bot", text: botText }]);
+        } catch (err) {
+            if (axios.isCancel(err)) {
+                return;
+            }
+
+            const error = err as AxiosError<ApiError>;
+            const errorMessage = error.response?.data?.error || "Ошибка сервера. Попробуйте позже.";
+            setError(errorMessage);
+            setMessages((prev) => [...prev, { from: "bot", text: errorMessage }]);
+        } finally {
+            setIsSending(false);
+            setIsBotTyping(false);
+        }
+    };
+
+    const handleClearChat = () => {
+        if (confirm('Очистить историю чата?')) {
+            setMessages([{ from: "bot", text: "Чат очищен. Чем могу помочь?" }]);
+            localStorage.removeItem('chat-messages');
+        }
+    };
+
+    const handleCopyMessage = (text: string) => {
+        navigator.clipboard.writeText(text);
+        // Можно добавить toast-уведомление здесь
+    };
+
+    const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit(e);
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
+
+    const messageStyles = {
+        bot: "bg-purple-100 text-purple-700 rounded-bl-none",
+        user: "bg-gray-200 text-gray-800 rounded-br-none"
     };
 
     return (
@@ -90,16 +155,25 @@ export default function ChatPage() {
                     >
                         <ArrowLeft className="w-5 h-5 text-purple-700" />
                     </Link>
-                    <h1 className="font-semibold text-purple-700 text-sm">Чат поддержки</h1>
+                    <div className="flex items-center gap-2">
+                        <h1 className="font-semibold text-purple-700 text-sm">Чат поддержки</h1>
+                        <button
+                            onClick={handleClearChat}
+                            className="text-xs text-purple-500 hover:text-purple-700"
+                            title="Очистить чат"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
                     <div className="w-6" aria-hidden></div>
                 </div>
             </header>
 
             {/* Область сообщений */}
-            <main className="flex-1 overflow-y-auto p-3 space-y-3 max-w-2xl mx-auto w-full pb-24">
+            <main className="flex-1 overflow-y-auto p-3 space-y-3 max-w-2xl mx-auto w-full pb-[130px]">
                 {messages.map((msg, idx) => (
                     <div
-                        key={`${msg.from}-${idx}`}
+                        key={`${msg.from}-${idx}-${Date.now()}`}
                         className={`flex ${msg.from === "bot" ? "justify-start" : "justify-end"} items-end gap-2`}
                     >
                         {msg.from === "bot" && (
@@ -111,38 +185,73 @@ export default function ChatPage() {
                                 height={32}
                             />
                         )}
-                        <div
-                            className={`px-3 py-2 max-w-[80%] rounded-lg ${
-                                msg.from === "bot"
-                                    ? "bg-purple-100 text-purple-700 rounded-bl-none"
-                                    : "bg-gray-200 text-gray-800 rounded-br-none"
-                            }`}
-                        >
-                            {msg.text}
+                        <div className="relative group">
+                            <div className={`px-3 py-2 max-w-[80%] rounded-lg ${messageStyles[msg.from]}`}>
+                                {typeof msg.text === 'string' ? (
+                                    <ReactMarkdown components={{
+                                        p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                        ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-2" {...props} />,
+                                        ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-2" {...props} />,
+                                        li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                                        code: ({ node, ...props }) => <code className="bg-gray-100 px-1 rounded text-sm" {...props} />
+                                    }}>
+                                        {msg.text}
+                                    </ReactMarkdown>
+                                ) : (
+                                    <div className="text-red-500 text-sm">Ошибка отображения сообщения</div>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => handleCopyMessage(typeof msg.text === 'string' ? msg.text : '')}
+                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-black/10"
+                                title="Копировать"
+                            >
+                                <Copy className="w-3 h-3" />
+                            </button>
                         </div>
                     </div>
                 ))}
+                {isBotTyping && (
+                    <div className="flex justify-start items-end gap-2">
+                        <img
+                            src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png"
+                            alt="Аватар бота"
+                            className="w-8 h-8 rounded-full flex-shrink-0"
+                            width={32}
+                            height={32}
+                        />
+                        <div className="px-3 py-2 max-w-[80%] rounded-lg bg-purple-100 text-purple-700 rounded-bl-none">
+                            <div className="flex space-x-2">
+                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce"></div>
+                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <div ref={messagesEndRef} aria-hidden />
             </main>
 
             {/* Поле ввода */}
             <form
-                ref={formRef}
                 onSubmit={handleSubmit}
                 className="fixed bottom-16 left-0 right-0 bg-white border-t p-2 max-w-2xl mx-auto w-full safe-area-bottom"
             >
+                {error && (
+                    <div className="text-red-500 text-xs mb-1 px-2">{error}</div>
+                )}
                 <div className="flex items-end gap-2">
-          <textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Напишите сообщение..."
-              className="flex-1 border rounded-lg p-2 resize-none focus:outline-none text-sm min-h-[48px] max-h-[150px]"
-              rows={1}
-              aria-label="Поле ввода сообщения"
-              disabled={isSending}
-          />
+                    <textarea
+                        ref={textareaRef}
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Напишите сообщение..."
+                        className="flex-1 border rounded-lg p-2 resize-none focus:outline-none text-sm min-h-[48px] max-h-[150px]"
+                        rows={1}
+                        aria-label="Поле ввода сообщения"
+                        disabled={isSending}
+                    />
                     <button
                         type="submit"
                         className="bg-purple-600 text-white rounded-lg p-2 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -155,7 +264,7 @@ export default function ChatPage() {
             </form>
 
             {/* Навигация */}
-            <BottomNav activeTab="chat"  />
+            <BottomNav activeTab="chat" />
         </div>
     );
 }
