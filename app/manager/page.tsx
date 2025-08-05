@@ -1771,7 +1771,7 @@ export default function ManagerDashboard() {
                   <CardDescription>Добавление, изменение и удаление пользователей</CardDescription>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 mb-8">
                   {/* Поиск пользователей */}
                   <div className="flex gap-2">
                     {/* Поле ввода */}
@@ -1930,7 +1930,7 @@ export default function ManagerDashboard() {
                     )}
 
                     {/* Пагинация */}
-                    <div className="flex justify-between items-center mt-4">
+                    <div className="flex justify-between items-center mt-4" >
                       <div className="text-sm text-gray-500">
                         Показано {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}-
                         {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} из {pagination.totalItems}
@@ -2514,7 +2514,7 @@ export default function ManagerDashboard() {
               onClick={() => setShowMapModal(false)}
           >
             <Card
-                className="w-full max-w-4xl h-[90vh] max-h-[90vh] flex flex-col"
+                className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
               <CardHeader>
