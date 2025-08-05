@@ -1467,7 +1467,7 @@ export default function HomePage() {
                 </div>
             </div>
 
-            <BottomNav />
+            <BottomNav activeTab="home"/>
         </div>
     )
 }

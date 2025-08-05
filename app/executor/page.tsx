@@ -768,7 +768,7 @@ export default function ExecutorDashboard() {
           role="Исполнитель"
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
         {/* Quick Stats */}
         {isDesktop ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -2079,6 +2079,7 @@ export default function ExecutorDashboard() {
       />
       <BottomNav
             onCreateRequest={handleOpenCreateRequest}
+            activeTab="history"
       />
     </div>
   )
