@@ -170,6 +170,12 @@ export default function ManagerDashboard() {
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [deleteReason, setDeleteReason] = useState("")
   const [newRequestPlannedDate, setNewRequestPlannedDate] = useState("")
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    itemsPerPage: 10,
+    totalItems: 0,
+  });
+
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const date = newRequestPlannedDate
       ? parseLocalDate(newRequestPlannedDate)
@@ -183,6 +189,8 @@ export default function ManagerDashboard() {
     office_id: "",
     role: "",
   });
+  const [searchInput, setSearchInput] = useState(''); // Отдельное состояние для input
+  const [isSearching, setIsSearching] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [editingOfficeId, setEditingOfficeId] = useState(null)
@@ -409,21 +417,29 @@ export default function ManagerDashboard() {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get("/users");
-        setUsers(response.data);
-      } catch (err) {
-        console.error("Ошибка при получении пользователей:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchUsers = async (page: number = 1) => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/users?page=${page}&limit=${pagination.itemsPerPage}`);
+      setUsers(response.data.users || response.data);
+      setPagination(prev => ({
+        ...prev,
+        currentPage: page,
+        totalItems: response.data.total,
+      }));
+    } catch (error) {
+      setLoading(false);
+      console.error('Ошибка при загрузке пользователей:', error);
+    }
+  };
 
-    fetchUsers();
+  useEffect(() => {
+    fetchUsers(1); // при загрузке
   }, []);
+
+  const handlePageChange = (newPage: number) => {
+    fetchUsers(newPage); // при переключении
+  };
 
   const handleExport = async (format: "xlsx" | "pbix") => {
     try {
@@ -571,17 +587,7 @@ export default function ManagerDashboard() {
       setLoading(false);
     }
   };
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const response = await api.get("/users");
-      setUsers(response.data);
-    } catch (err) {
-      console.error("Ошибка при получении пользователей:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout')
@@ -913,16 +919,29 @@ export default function ManagerDashboard() {
 
     return statusMatch && typeMatch && officeMatch && periodMatch;
   })
+  const handleSearch = async () => {
+    if (!searchInput.trim()) {
+      return;
+    }
 
-  const urgentRequests = requests.filter((request) => {
-    if (office === "all") return request.request_type === "urgent"
-    if (office == String(request.office_id)) return request.request_type === "urgent"
-  })
+    try {
+      const response = await api.get('/users/search', {
+        params: {
+          q: searchInput,
+          limit: 5
+        }
+      });
 
-  const normalRequests = requests.filter((request) => {
-    if(office === "all") return request.request_type === "normal"
-    if (office == String(request.office_id)) return request.request_type === "normal"
-  })
+      if (response.data.success) {
+        setUsers(response.data.users);
+      } else {
+
+        console.error(response.data.message);
+      }
+    } catch (error) {
+
+    }
+  };
 
   const StatCard = ({
     title,
@@ -1019,25 +1038,35 @@ export default function ManagerDashboard() {
   }
 
   const handleAddOffice = async () => {
-    const city = newOfficeName.trim()
-    const address = newOfficeName.trim()
-    const name = newOfficeName.trim()
+    const city = newOfficeCity.trim();
+    const address = newOfficeAddress.trim();
+    const name = newOfficeName.trim();
+
+    // Проверка заполненности всех полей
+    if (!city || !address || !name) {
+      alert("Пожалуйста, заполните все поля офиса");
+      return;
+    }
 
     try {
       const response = await api.post("/offices/", {
         city: city,
         address: address,
         name: name
-      })
-      console.log(response.data)
-      setOffices((prev) => [...prev, {name, city, address}])
-      setNewOfficeName("")
-      setNewOfficeAddress("")
-      setNewOfficeCity("")
+      });
+
+      // Обновляем список офисов
+      setOffices((prev) => [...prev, response.data]);
+
+      // Очищаем поля формы
+      setNewOfficeName("");
+      setNewOfficeAddress("");
+      setNewOfficeCity("");
     } catch (err) {
-      console.log("Error create office, ", err)
+      console.error("Error creating office:", err);
+      alert("Не удалось создать офис. Пожалуйста, попробуйте снова.");
     }
-  }
+  };
 
   const handleRemoveOffice = async (id: any) => {
     try {
@@ -1581,21 +1610,22 @@ export default function ManagerDashboard() {
                   <CardDescription>Добавление и управление офисами компании</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Форма добавления офиса */}
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Input
-                        placeholder="Город нового офиса (например: Алматы)"
+                        placeholder="Город нового офиса"
                         value={newOfficeCity}
                         onChange={(e) => setNewOfficeCity(e.target.value)}
                         className="w-full sm:flex-1"
                     />
                     <Input
-                        placeholder="Расположение нового офиса (например: Сатпаева 30А)"
+                        placeholder="Расположение нового офиса"
                         value={newOfficeAddress}
                         onChange={(e) => setNewOfficeAddress(e.target.value)}
                         className="w-full sm:flex-1"
                     />
                     <Input
-                        placeholder="Название нового офиса (например: БЦ Сатпаева)"
+                        placeholder="Название нового офиса"
                         value={newOfficeName}
                         onChange={(e) => setNewOfficeName(e.target.value)}
                         className="w-full sm:flex-1"
@@ -1674,7 +1704,7 @@ export default function ManagerDashboard() {
                                       </div>
                                       <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
                                         <Button
-                                            variant="ghost"
+                                            variant="outline"
                                             size="sm"
                                             onClick={() => {
                                               setEditingOfficeId(officeItem.id);
@@ -1686,7 +1716,7 @@ export default function ManagerDashboard() {
                                             }}
                                             className="w-full sm:w-auto"
                                         >
-                                          ✏️
+                                          ✎
                                         </Button>
                                         <AlertDialog>
                                           <AlertDialogTrigger asChild>
@@ -1743,22 +1773,40 @@ export default function ManagerDashboard() {
 
                 <CardContent className="space-y-4">
                   {/* Поиск пользователей */}
-                  <div>
-                    <Label>Поиск пользователей</Label>
+                  <div className="flex gap-2">
+                    {/* Поле ввода */}
                     <Input
                         placeholder="Поиск по имени или email"
-                        onChange={(e) => {
-                          const searchTerm = e.target.value.toLowerCase();
-                          if (searchTerm === '') {
-                            fetchUsers();
-                          } else {
-                            setUsers(users.filter(user =>
-                                user.full_name.toLowerCase().includes(searchTerm) ||
-                                user.email.toLowerCase().includes(searchTerm)
-                            ));
-                          }
-                        }}
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()} // Поиск по Enter
                     />
+
+                    {/* Кнопка поиска */}
+                    <Button
+                        onClick={handleSearch}
+                        disabled={isSearching}
+                        className="min-w-[120px]"
+                    >
+                      {isSearching ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                          "Найти"
+                      )}
+                    </Button>
+
+                    {/* Кнопка сброса */}
+                    {searchInput && (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                              setSearchInput('');
+                              fetchUsers(1);
+                            }}
+                        >
+                          Сбросить
+                        </Button>
+                    )}
                   </div>
 
                   {/* Форма добавления */}
@@ -1816,7 +1864,7 @@ export default function ManagerDashboard() {
 
                   {/* Список пользователей */}
                   <div className="space-y-2 mt-4">
-                    <Label>Пользователи ({users.length}):</Label>
+                    <Label>Пользователи ({pagination.totalItems}):</Label>
 
                     {users.length === 0 ? (
                         <p className="text-sm text-gray-500 italic">Нет пользователей.</p>
@@ -1880,6 +1928,30 @@ export default function ManagerDashboard() {
                           ))}
                         </div>
                     )}
+
+                    {/* Пагинация */}
+                    <div className="flex justify-between items-center mt-4">
+                      <div className="text-sm text-gray-500">
+                        Показано {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}-
+                        {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} из {pagination.totalItems}
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                            variant="outline"
+                            disabled={pagination.currentPage === 1}
+                            onClick={() => handlePageChange(pagination.currentPage - 1)}
+                        >
+                          Назад
+                        </Button>
+                        <Button
+                            variant="outline"
+                            disabled={pagination.currentPage * pagination.itemsPerPage >= pagination.totalItems}
+                            onClick={() => handlePageChange(pagination.currentPage + 1)}
+                        >
+                          Вперед
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
