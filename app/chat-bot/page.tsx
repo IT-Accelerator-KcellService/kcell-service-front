@@ -26,10 +26,15 @@ export default function ChatPage() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-
-    // Загрузка сохраненных сообщений
+    const [userToken, setUserToken] = useState<string | null>(null)
+    const getChatStorageKey = useCallback(() => {
+        return userToken ? `chat-messages-${userToken}` : 'chat-messages';
+    }, [userToken]);
     useEffect(() => {
-        const saved = localStorage.getItem('chat-messages');
+        const token = localStorage.getItem('authToken'); // Замените на ваш ключ
+        setUserToken(token);
+
+        const saved = localStorage.getItem(getChatStorageKey());
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
@@ -37,18 +42,18 @@ export default function ChatPage() {
                     setMessages(parsed);
                 }
             } catch (e) {
-                localStorage.removeItem('chat-messages');
+                localStorage.removeItem(getChatStorageKey());
             }
         }
         textareaRef.current?.focus();
-    }, []);
+    }, [getChatStorageKey]);
 
     // Сохранение сообщений
     useEffect(() => {
         if (messages.length > 1) {
-            localStorage.setItem('chat-messages', JSON.stringify(messages));
+            localStorage.setItem(getChatStorageKey(), JSON.stringify(messages));
         }
-    }, [messages]);
+    }, [messages, getChatStorageKey]);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -114,7 +119,7 @@ export default function ChatPage() {
     const handleClearChat = () => {
         if (confirm('Очистить историю чата?')) {
             setMessages([{ from: "bot", text: "Чат очищен. Чем могу помочь?" }]);
-            localStorage.removeItem('chat-messages');
+            localStorage.removeItem(getChatStorageKey());
         }
     };
 
