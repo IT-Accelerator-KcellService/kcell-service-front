@@ -290,7 +290,7 @@ export default function AdminWorkerDashboard() {
 
   const fetchNotifications = async () => {
     try {
-      const res = await api.get('/notifications/me')
+      const res = await api.get('/notifications/me?page=1&pageSize=5')
       setNotifications(res.data.notifications)
     } catch (error) {
       console.error('Ошибка при загрузке уведомлений:', error)
