@@ -109,7 +109,12 @@ interface ManagerStats {
     };
 }
 
-
+type OfficeType = {
+    id: number
+    name: string
+    city: string
+    address: string
+}
 
 interface ChartData {
     date: string;
@@ -129,12 +134,28 @@ export default function HomePage() {
     const [depHedStats, setDepHeadStats] = useState<DepHeadStats | null>(null);
     const [tab, setTab] = useState("requests")
     const [users, setUsers] = useState<User[]>([]);
+    const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
+    const [newOfficeName, setNewOfficeName] = useState("")
+    const [newOfficeAddress, setNewOfficeAddress] = useState("")
+    const [newOfficeCity, setNewOfficeCity] = useState("")
     const [chartData, setChartData] = useState<ChartData[]>([]);
-
+    const [myRating, setMyRating] = useState<number | null>(null)
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const [isLoggedIn, setIsLoggedIn] = useState(true)
 
+    const [newUser, setNewUser] = useState({
+        id: 0,
+        email: "",
+        full_name: "",
+        office_id: "",
+        role: "",
+    });
 
-
+    const isValidUser =
+        newUser.email.trim() &&
+        newUser.full_name.trim() &&
+        newUser.office_id &&
+        newUser.role;
 
     const [kpi, setKpi] = useState({
         total: 0,
@@ -145,7 +166,13 @@ export default function HomePage() {
     const [period, setPeriod] = useState("month")
     const [office, setOffice] = useState("all")
     const [offices, setOffices] = useState([{}])
-
+    const [editedOffice, setEditedOffice] = useState<Partial<OfficeType>>({
+        name: "",
+        city: "",
+        address: "",
+    })
+    const [editingOfficeId, setEditingOfficeId] = useState(null)
+    const [editingUserId, setEditingUserId] = useState<number | null>(null);
 
     const fetchUsers = async () => {
         try {
@@ -175,6 +202,26 @@ export default function HomePage() {
         }
     }, [isLoggedIn])
 
+    const handleAddOffice = async () => {
+        const city = newOfficeName.trim()
+        const address = newOfficeName.trim()
+        const name = newOfficeName.trim()
+
+        try {
+            const response = await api.post("/offices/", {
+                city: city,
+                address: address,
+                name: name
+            })
+            console.log(response.data)
+            setOffices((prev) => [...prev, {name, city, address}])
+            setNewOfficeName("")
+            setNewOfficeAddress("")
+            setNewOfficeCity("")
+        } catch (err) {
+            console.log("Error create office, ", err)
+        }
+    }
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -232,6 +279,40 @@ export default function HomePage() {
         }
     }
 
+    const handleEditUser = (user: User) => {
+        setNewUser({
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            office_id: user.office_id,
+            role: user.role,
+
+        });
+        setEditingUserId(user.id);
+    };
+
+    const handleUpdateOffice = async (id:any) => {
+        try {
+            await api.put(`/offices/${id}`, editedOffice) // Передаём данные для обновления
+            const updatedOffices = offices.map((office: any) =>
+                office.id === id ? { ...office, ...editedOffice } : office
+            )
+            setOffices(updatedOffices)
+            setEditingOfficeId(null)
+        } catch (error) {
+            console.error("Ошибка при обновлении офиса:", error)
+        }
+    }
+
+    const handleRemoveOffice = async (id: any) => {
+        try {
+            const response = await api.delete(`/offices/${id}`)
+            console.log(response.data)
+            setOffices((prev) => prev.filter((office:any) => office.id !== id))
+        } catch (err) {
+            console.log(err)
+        }
+    }
 
 
     useEffect(() => {
@@ -316,7 +397,13 @@ export default function HomePage() {
         plannedPercent: 0,
     });
 
-
+    const roleTranslations: Record<string, string> = {
+        client: "Клиент",
+        "admin-worker": "Администратор офиса",
+        "department-head": "Руководитель направления",
+        executor: "Испольнитель",
+        manager: "Руководитель"
+    };
 
     const calculateKPI = (stats: ManagerStats[], selectedOffice: string, selectedPeriod: string) => {
         let filteredStats = stats;
@@ -474,7 +561,50 @@ export default function HomePage() {
         }
     };
 
+    const handleAddOrUpdateUser = async () => {
+        try {
+            setLoading(true);
 
+            if (editingUserId) {
+                // Обновить пользователя
+                const response = await api.put(`/users/${editingUserId}`, newUser);
+                setUsers((prev) =>
+                    prev.map((user) => (user.id === editingUserId ? response.data : user))
+                );
+            } else {
+                // Добавить нового пользователя
+                const response = await api.post("/users", newUser);
+                setUsers(prev => prev.map(user => ({
+                    ...user,
+                    id: user.id,
+                    email: user.email,
+                    full_name: user.full_name,
+                    office_id: user.office_id,
+                    role: user.role,
+                    office: user.office // Добавляем обязательное поле
+                })));
+            }
+
+            setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "" });
+            setEditingUserId(null);
+        } catch (err) {
+            console.error("Ошибка при сохранении пользователя:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteUser = async (userId: number) => {
+        try {
+            setLoading(true);
+            await api.delete(`/users/${userId}`);
+            setUsers((prev) => prev.filter((user) => user.id !== userId));
+        } catch (err) {
+            console.error("Ошибка при удалении пользователя:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -957,7 +1087,7 @@ export default function HomePage() {
                                     <CardContent className="p-0">
                                         <Tabs value={tab} onValueChange={setTab} className="w-full">
                                             <div className="border-b bg-gray-50 px-4 py-2">
-                                                <TabsList className="grid w-full grid-cols-3 h-12 bg-white">
+                                                <TabsList className="grid w-full grid-cols-2 h-12 bg-white">
                                                     <TabsTrigger value="requests" className="text-xs sm:text-sm py-2 flex items-center justify-center">
                                                         <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
                                                         <span className="hidden sm:inline">Заявки</span>
@@ -1072,10 +1202,268 @@ export default function HomePage() {
                                                         </div>
                                                     </div>
                                                 )}
+
+                                                {tab === "management" && (
+                                                    <div className="space-y-6">
+                                                        {/* Управление офисами */}
+                                                        <div>
+                                                            <div className="flex items-center mb-4">
+                                                                <Building2 className="w-5 h-5 mr-2 text-blue-600" />
+                                                                <h3 className="text-lg font-semibold">Управление офисами</h3>
+                                                            </div>
+
+                                                            <div className="space-y-4 mb-6">
+                                                                <Input
+                                                                    placeholder="Название офиса"
+                                                                    value={newOfficeName}
+                                                                    onChange={(e) => setNewOfficeName(e.target.value)}
+                                                                    className="h-11"
+                                                                />
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                    <Input
+                                                                        placeholder="Город"
+                                                                        value={newOfficeCity}
+                                                                        onChange={(e) => setNewOfficeCity(e.target.value)}
+                                                                        className="h-11"
+                                                                    />
+                                                                    <Input
+                                                                        placeholder="Адрес"
+                                                                        value={newOfficeAddress}
+                                                                        onChange={(e) => setNewOfficeAddress(e.target.value)}
+                                                                        className="h-11"
+                                                                    />
+                                                                </div>
+                                                                <Button onClick={handleAddOffice} disabled={!newOfficeName.trim()} className="w-full h-11">
+                                                                    <Plus className="w-4 h-4 mr-2" />
+                                                                    Добавить офис
+                                                                </Button>
+                                                            </div>
+
+                                                            <div className="space-y-3">
+                                                                <h4 className="font-medium text-gray-700">Список офисов ({offices.length})</h4>
+                                                                {offices.length === 0 ? (
+                                                                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+                                                                        <Building2 className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                                                                        <p>Нет добавленных офисов</p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-3">
+                                                                        {offices.map((office: any, index: number) => (
+                                                                            <Card key={index} className="shadow-sm">
+                                                                                <CardContent className="p-4">
+                                                                                    <div className="flex justify-between items-start">
+                                                                                        <div className="flex-1 min-w-0">
+                                                                                            <h5 className="font-semibold text-gray-900 mb-1">{office.name}</h5>
+                                                                                            <div className="flex items-center text-sm text-gray-600 mb-1">
+                                                                                                <MapPin className="w-4 h-4 mr-1" />
+                                                                                                {office.city}
+                                                                                            </div>
+                                                                                            <p className="text-sm text-gray-500">{office.address}</p>
+                                                                                        </div>
+                                                                                        <div className="flex space-x-2 ml-4">
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className="h-9 w-9"
+                                                                                                onClick={() => handleUpdateOffice(office.id)}
+                                                                                            >
+                                                                                                <Edit className="w-4 h-4" />
+                                                                                            </Button>
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className="h-9 w-9 text-red-500 hover:bg-red-50"
+                                                                                                onClick={() => setOfficeToDelete(office)}
+                                                                                            >
+                                                                                                <Trash2 className="w-4 h-4" />
+                                                                                            </Button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </CardContent>
+                                                                            </Card>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Управление пользователями */}
+                                                        <div>
+                                                            <div className="flex items-center mb-4">
+                                                                <Users className="w-5 h-5 mr-2 text-green-600" />
+                                                                <h3 className="text-lg font-semibold">Управление пользователями</h3>
+                                                            </div>
+
+                                                            <div className="space-y-4 mb-6">
+                                                                <Input
+                                                                    placeholder="Поиск пользователей"
+                                                                    className="h-11"
+                                                                    onChange={(e) => {
+                                                                        const term = e.target.value.toLowerCase()
+                                                                        // Search logic here
+                                                                    }}
+                                                                />
+                                                                <div className="space-y-3">
+                                                                    <Input
+                                                                        placeholder="Email пользователя"
+                                                                        value={newUser.email}
+                                                                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                                                                        className="h-11"
+                                                                    />
+                                                                    <Input
+                                                                        placeholder="Полное имя"
+                                                                        value={newUser.full_name}
+                                                                        onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                                                                        className="h-11"
+                                                                    />
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                        <Select
+                                                                            value={newUser.office_id}
+                                                                            onValueChange={(val) => setNewUser({ ...newUser, office_id: val })}
+                                                                        >
+                                                                            <SelectTrigger className="h-11">
+                                                                                <SelectValue placeholder="Офис" />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                {offices.map((office: any, index: number) => (
+                                                                                    <SelectItem key={index} value={office.id}>
+                                                                                        {office.name}
+                                                                                    </SelectItem>
+                                                                                ))}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <Select value={newUser.role} onValueChange={(val) => setNewUser({ ...newUser, role: val })}>
+                                                                            <SelectTrigger className="h-11">
+                                                                                <SelectValue placeholder="Роль" />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                {["client", "admin-worker", "department-head", "manager", "executor"].map((role) => (
+                                                                                    <SelectItem key={role} value={role}>
+                                                                                        {roleTranslations[role] || role}
+                                                                                    </SelectItem>
+                                                                                ))}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    </div>
+                                                                    <Button onClick={handleAddOrUpdateUser} disabled={!isValidUser} className="w-full h-11">
+                                                                        {editingUserId ? "Сохранить изменения" : "Добавить пользователя"}
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="space-y-3">
+                                                                <h4 className="font-medium text-gray-700">Список пользователей ({users.length})</h4>
+                                                                {users.length === 0 ? (
+                                                                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+                                                                        <Users className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                                                                        <p>Нет пользователей</p>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-3">
+                                                                        {users.map((user) => (
+                                                                            <Card key={user.id} className="shadow-sm">
+                                                                                <CardContent className="p-4">
+                                                                                    <div className="flex justify-between items-start">
+                                                                                        <div className="flex-1 min-w-0">
+                                                                                            <h5 className="font-semibold text-gray-900 mb-1">{user.full_name}</h5>
+                                                                                            <div className="flex items-center text-sm text-gray-600 mb-2">
+                                                                                                <Mail className="w-4 h-4 mr-1" />
+                                                                                                {user.email}
+                                                                                            </div>
+                                                                                            <div className="flex flex-wrap gap-2">
+                                                                                                    <span className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                                                                                      {roleTranslations[user.role] || user.role}
+                                                                                                    </span>
+                                                                                                {user.office?.name && (
+                                                                                                    <span className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded-full">
+                                                                                                    {user.office.name}
+                                                                                                  </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div className="flex space-x-2 ml-4">
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className="h-9 w-9"
+                                                                                                onClick={() => handleEditUser(user)}
+                                                                                            >
+                                                                                                <Edit className="w-4 h-4" />
+                                                                                            </Button>
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                size="icon"
+                                                                                                className="h-9 w-9 text-red-500 hover:bg-red-50"
+                                                                                                onClick={() => setUserToDelete(user)}
+                                                                                            >
+                                                                                                <Trash2 className="w-4 h-4" />
+                                                                                            </Button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </CardContent>
+                                                                            </Card>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </Tabs>
                                     </CardContent>
                                 </Card>
+
+                                {/* Диалоговые окна */}
+                                {officeToDelete && (
+                                    <AlertDialog open={!!officeToDelete} onOpenChange={() => setOfficeToDelete(null)}>
+                                        <AlertDialogContent className="mx-4 max-w-md">
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Подтвердите удаление</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Вы действительно хотите удалить офис "{officeToDelete.name}"?
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                                <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    onClick={() => {
+                                                        handleRemoveOffice(officeToDelete.id)
+                                                        setOfficeToDelete(null)
+                                                    }}
+                                                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
+                                                >
+                                                    Удалить
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+
+                                {userToDelete && (
+                                    <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+                                        <AlertDialogContent className="mx-4 max-w-md">
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Подтвердите удаление</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Вы действительно хотите удалить пользователя {userToDelete.full_name} ({userToDelete.email})?
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                                <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    onClick={() => {
+                                                        handleDeleteUser(userToDelete.id)
+                                                        setUserToDelete(null)
+                                                    }}
+                                                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
+                                                >
+                                                    Удалить
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
                             </div>
                         </div>
                     )}
