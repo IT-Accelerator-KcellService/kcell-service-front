@@ -894,14 +894,12 @@ export default function AdminWorkerDashboard() {
                         Создать заявку
                       </Button>
                   ): null}
-                  <TabsList className="w-full sm:w-auto justify-center sm:justify-start">
+                  <TabsList className="flex flex-wrap gap-2 w-full sm:w-auto sm:flex-nowrap mb-2">
                     <TabsTrigger value="incoming">Входящие заявки</TabsTrigger>
                     <TabsTrigger value="my-requests">Мои заявки</TabsTrigger>
                     <TabsTrigger value="statistics">Статистика</TabsTrigger>
                   </TabsList>
                 </div>
-
-
                 <TabsContent value="my-requests">
                   <div className="space-y-4">
                     <div className="flex items-center space-x-4 mb-4">
@@ -1289,7 +1287,7 @@ export default function AdminWorkerDashboard() {
                 <CardHeader>
                   <CardTitle className="text-lg">Уведомления</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="mb-12">
                   {notificationLoading ? (
                       <p>Загрузка...</p>
                   ) : (

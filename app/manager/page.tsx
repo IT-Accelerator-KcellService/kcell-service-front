@@ -1547,7 +1547,7 @@ export default function ManagerDashboard() {
               <CardHeader>
                 <CardTitle className="text-lg">Уведомления</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="mb-12">
                 {notificationLoading ? (
                     <p>Загрузка...</p>
                 ) : (
