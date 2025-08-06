@@ -1102,7 +1102,6 @@ export default function ClientDashboard() {
                   ) : (
                       <div className="space-y-3">
                         {notifications
-                            .slice(0, 5)
                             .map((n: any) => (
                                 <div
                                     key={n.id}

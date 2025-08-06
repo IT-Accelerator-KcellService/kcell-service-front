@@ -1484,7 +1484,6 @@ export default function DepartmentHeadDashboard() {
                   ) : (
                       <div className="space-y-3">
                         {notifications
-                            .slice(0, 5)
                             .map((n: any) => (
                                 <div
                                     key={n.id}
