@@ -31,7 +31,7 @@ export default function ChatPage() {
         return userToken ? `chat-messages-${userToken}` : 'chat-messages';
     }, [userToken]);
     useEffect(() => {
-        const token = localStorage.getItem('authToken'); // Замените на ваш ключ
+        const token = localStorage.getItem('token'); // Замените на ваш ключ
         setUserToken(token);
 
         const saved = localStorage.getItem(getChatStorageKey());
