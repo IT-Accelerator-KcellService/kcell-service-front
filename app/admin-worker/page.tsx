@@ -894,7 +894,7 @@ export default function AdminWorkerDashboard() {
                         Создать заявку
                       </Button>
                   ): null}
-                  <TabsList className="flex flex-wrap gap-2 w-full sm:w-auto sm:flex-nowrap mb-2">
+                  <TabsList className="flex flex-wrap gap-2 w-full sm:w-auto sm:flex-nowrap mb-3">
                     <TabsTrigger value="incoming">Входящие заявки</TabsTrigger>
                     <TabsTrigger value="my-requests">Мои заявки</TabsTrigger>
                     <TabsTrigger value="statistics">Статистика</TabsTrigger>
