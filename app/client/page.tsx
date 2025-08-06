@@ -647,6 +647,7 @@ export default function ClientDashboard() {
     try {
       await api.post('/auth/logout')
       setIsLoggedIn(false)
+      setNotifications([]);
       localStorage.removeItem('token')
       router.push("/login")
     } catch (error) {
