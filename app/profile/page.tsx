@@ -1,5 +1,4 @@
 "use client"
-
 import React, { useEffect, useState } from "react"
 import {
     Card, CardContent, CardDescription, CardHeader, CardTitle,
@@ -9,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Lock, Bell, Save, User } from "lucide-react"
+import { Lock, Bell, Save, User, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
 import {BottomNav} from "@/components/BottomNav"
@@ -22,6 +21,10 @@ interface UserProfile {
     office_id: number
     office: { name: string }
     role: string
+    email_notifications: boolean
+    security_notifications: boolean
+    marketing_notifications: boolean
+    push_notifications: boolean
 }
 
 const roleTranslations: Record<string, string> = {
@@ -41,24 +44,33 @@ export default function ProfilePage() {
     const [error, setError] = useState("")
     const [success, setSuccess] = useState("")
     const [isChanging, setIsChanging] = useState(false)
-    const [emailNotifications, setEmailNotifications] = useState(true)
-    const [securityNotifications, setSecurityNotifications] = useState(true)
-    const [marketingNotifications, setMarketingNotifications] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [profileError, setProfileError] = useState("")
     const [profileSuccess, setProfileSuccess] = useState("")
+    const [isSavingNotifications, setIsSavingNotifications] = useState(false)
+    const [notificationError, setNotificationError] = useState("")
+    const [notificationSuccess, setNotificationSuccess] = useState("")
 
     useEffect(() => {
-        api.get("/users/me")
-            .then((res) => setUser(res.data))
-            .catch((err) => console.error("Ошибка при получении профиля:", err))
+        const fetchUserData = async () => {
+            try {
+                setIsLoading(true)
+                const response = await api.get("/users/me")
+                setUser(response.data)
+                setIsLoading(false)
+            } catch (err) {
+                console.error("Ошибка при получении профиля:", err)
+                setIsLoading(false)
+            }
+        }
+        fetchUserData()
     }, [])
+
     const handleLogout = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("role");
-        // или localStorage.clear();
-
-        router.push("/login"); // или на главную: router.push("/")
+        router.push("/login");
     };
 
     const handleSaveProfile = async () => {
@@ -129,21 +141,31 @@ export default function ProfilePage() {
     }
 
     const handleSaveNotifications = async () => {
+        if (!user) return
+
+        setIsSavingNotifications(true)
+        setNotificationError("")
+        setNotificationSuccess("")
+
         try {
             await api.put("/users/notifications-settings", {
-                emailNotifications,
-                securityNotifications,
-                marketingNotifications,
+                emailNotifications: user.email_notifications,
+                securityNotifications: user.security_notifications,
+                marketingNotifications: user.marketing_notifications,
             })
+            setNotificationSuccess("Настройки уведомлений сохранены")
         } catch (err) {
             console.error("Ошибка при сохранении уведомлений:", err)
+            setNotificationError("Ошибка при сохранении настроек")
+        } finally {
+            setIsSavingNotifications(false)
         }
     }
 
-    if (!user) {
+    if (isLoading || !user) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+                <Loader2 className="animate-spin h-12 w-12 text-purple-500" />
             </div>
         )
     }
@@ -158,14 +180,13 @@ export default function ProfilePage() {
                     <span className="font-bold text-xl text-gray-900">Profile</span>
                 </div>
 
-
                 <Tabs defaultValue="profile" className="space-y-4">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="profile" className="text-xs sm:text-sm">
-                             Профиль
+                            Профиль
                         </TabsTrigger>
                         <TabsTrigger value="password" className="text-xs sm:text-sm">
-                             Пароль
+                            Пароль
                         </TabsTrigger>
                         <TabsTrigger value="notifications" className="text-xs sm:text-sm">
                             Уведомления
@@ -300,24 +321,46 @@ export default function ProfilePage() {
                             <CardContent className="space-y-3 px-4 py-2 sm:px-6 sm:py-4">
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Email уведомления</Label>
-                                    <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
+                                    <Switch
+                                        checked={user.email_notifications}
+                                        onCheckedChange={(checked) => setUser({...user, email_notifications: checked})}
+                                    />
                                 </div>
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Безопасность</Label>
-                                    <Switch checked={securityNotifications} onCheckedChange={setSecurityNotifications} />
+                                    <Switch
+                                        checked={user.security_notifications}
+                                        onCheckedChange={(checked) => setUser({...user, security_notifications: checked})}
+                                    />
                                 </div>
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Маркетинг</Label>
-                                    <Switch checked={marketingNotifications} onCheckedChange={setMarketingNotifications} />
+                                    <Switch
+                                        checked={user.marketing_notifications}
+                                        onCheckedChange={(checked) => setUser({...user, marketing_notifications: checked})}
+                                    />
                                 </div>
 
                                 <Button
                                     onClick={handleSaveNotifications}
+                                    disabled={isSavingNotifications}
                                     className="mt-2 w-full sm:w-auto"
                                 >
-                                    <Save className="mr-2 h-4 w-4" />
-                                    Сохранить
+                                    {isSavingNotifications ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Сохранение...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="mr-2 h-4 w-4" />
+                                            Сохранить
+                                        </>
+                                    )}
                                 </Button>
+
+                                {notificationError && <p className="text-sm text-red-500 mt-2">{notificationError}</p>}
+                                {notificationSuccess && <p className="text-sm text-green-600 mt-2">{notificationSuccess}</p>}
                             </CardContent>
                         </Card>
                     </TabsContent>
