@@ -1282,61 +1282,6 @@ export default function AdminWorkerDashboard() {
               </Tabs>
             </div>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Уведомления</CardTitle>
-                </CardHeader>
-                <CardContent className="mb-12">
-                  {notificationLoading ? (
-                      <p>Загрузка...</p>
-                  ) : (
-                      <div className="space-y-3">
-                        {notifications
-                            .map((n: any) => (
-                                <div
-                                    key={n.id}
-                                    onClick={() => handleNotificationClick(n)}
-                                    className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
-                                        n.title
-                                    )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
-                                >
-                                  <div className="flex justify-between">
-                                    <p className="text-sm font-medium">{n.title}</p>
-                                    {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
-                                  </div>
-                                  <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
-                                </div>
-                            ))}
-                      </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Модалка */}
-              {isModalOpen && selectedNotification && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
-                        <button
-                            className="text-gray-500 hover:text-black"
-                            onClick={() => setIsModalOpen(false)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                      <p className="text-sm text-gray-800 whitespace-pre-line">
-                        {selectedNotification.content}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-4">
-                        Получено: {new Date(selectedNotification.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-              )}
-            </div>
           </div>
         </div>
 
@@ -1346,7 +1291,7 @@ export default function AdminWorkerDashboard() {
               setSelectedRequest(null)
               setComments([])
             }}>
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
                   <CardDescription>Проверка и классификация заявки</CardDescription>
