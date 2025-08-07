@@ -1608,7 +1608,7 @@ export default function ExecutorDashboard() {
                 <CardTitle>Создать заявку</CardTitle>
                 <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6 pb-20">
+              <CardContent className="space-y-6 pb-16">
                 <div>
                   <Label>Тип заявки</Label>
                   <Select value={newRequestType} onValueChange={setNewRequestType}>
@@ -1740,7 +1740,7 @@ export default function ExecutorDashboard() {
                 <CardDescription>{selectedTaskDetails.title}</CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 pb-16">
                 {/* Основная информация */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -1991,9 +1991,9 @@ export default function ExecutorDashboard() {
                     </div>
                 )}
 
-                <div className="flex space-x-4 m-4">
+                <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
                   {/* Закрыть */}
-                    <Button className="flex-1" variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
+                    <Button className="w-full sm:w-auto" variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
                 </div>
 
 
