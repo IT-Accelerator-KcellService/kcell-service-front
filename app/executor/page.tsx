@@ -38,7 +38,7 @@ import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
-
+import PerformerCard from "@/components/rating";
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
@@ -1418,14 +1418,7 @@ export default function ExecutorDashboard() {
                       <CardDescription>Ваш текущий статус</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-center mb-6">
-                        <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Star className="w-10 h-10 text-yellow-600" />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900">Золотой исполнитель</h3>
-                        <p className="text-sm text-gray-600">Рейтинг: {myRating}/5</p>
-                      </div>
-
+                      <PerformerCard myRating={myRating ?? 0}/>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
                           <span className="text-sm">Быстрое выполнение</span>

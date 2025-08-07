@@ -22,12 +22,11 @@ import {
     TrendingDown,
     Download, Plus, MapPin, Calendar as CalendarLucid, ImageIcon, Trash2, AlertCircle, Edit, Mail, Building2
 } from "lucide-react"
+import { Medal, Gem } from "lucide-react"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
-import {Badge} from "@/components/ui/badge";
 import {Input} from "@/components/ui/input";
-import {Label} from "@/components/ui/label";
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel,
     AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -517,6 +516,31 @@ export default function HomePage() {
         fetchUsers();
     }, []);
 
+    const getRatingInfo = (doneRequests: number) => {
+        if (doneRequests >= 20) {
+            return {
+                label: "Platinum",
+                icon: <Gem className="w-5 h-5 text-indigo-600" />,
+            }
+        }
+        if (doneRequests >= 10) {
+            return {
+                label: "Gold",
+                icon: <Star className="w-5 h-5 text-yellow-500" />,
+            }
+        }
+        if (doneRequests >= 5) {
+            return {
+                label: "Silver",
+                icon: <Medal className="w-5 h-5 text-gray-400" />,
+            }
+        }
+        return {
+            label: "Bronze",
+            icon: <Medal className="w-5 h-5 text-orange-500" />,
+        }
+    }
+
     const handleExport = async (format: "xlsx" | "pbix") => {
         try {
             const now = new Date();
@@ -593,6 +617,9 @@ export default function HomePage() {
             setLoading(false);
         }
     };
+    const rating = getRatingInfo((clientStats && clientStats.doneRequests ? (
+        clientStats.doneRequests
+    ): 0))
 
     const handleDeleteUser = async (userId: number) => {
         try {
@@ -730,14 +757,15 @@ export default function HomePage() {
                             </Card>
 
                             <Card>
+
                                 <CardContent className="p-4">
                                     <div className="flex items-center">
                                         <div className="p-2 bg-purple-100 rounded-lg">
-                                            <AlertTriangle className="w-5 h-5 text-purple-600" />
+                                            {rating.icon}
                                         </div>
                                         <div className="ml-3">
                                             <p className="text-xs font-medium text-gray-600">Рейтинг</p>
-                                            <p className="text-lg font-bold text-gray-900">Gold</p>
+                                            <p className="text-lg font-bold text-gray-900">{rating.label}</p>
                                         </div>
                                     </div>
                                 </CardContent>

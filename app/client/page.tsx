@@ -528,6 +528,12 @@ export default function ClientDashboard() {
 
     setShowCreateRequest(true);
   };
+  const getRatingLabel = (doneRequests: number): string => {
+    if (doneRequests >= 20) return "Platinum"
+    if (doneRequests >= 10) return "Gold"
+    if (doneRequests >= 5) return "Silver"
+    return "Bronze"
+  }
 
   const handleCreateRequest = async () => {
     if (
@@ -802,7 +808,7 @@ export default function ClientDashboard() {
                       <Star className="w-6 h-6 text-yellow-600" />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Средняя оценка</p>
+                      <p className="text-sm font-medium text-gray-600">Средняя оценка исполнителей</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {stats && stats.averageRating ? (
                             stats.averageRating
@@ -820,7 +826,11 @@ export default function ClientDashboard() {
                     </div>
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                      <p className="text-2xl font-bold text-gray-900">Gold</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {getRatingLabel(stats && stats.doneRequests ? (
+                            stats.doneRequests
+                        ): 0)}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
