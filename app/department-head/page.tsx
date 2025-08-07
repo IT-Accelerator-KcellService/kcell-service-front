@@ -1473,6 +1473,61 @@ export default function DepartmentHeadDashboard() {
               </Tabs>
             </div>
 
+            {/* Sidebar */}
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Уведомления</CardTitle>
+                </CardHeader>
+                <CardContent className="mb-12">
+                  {notificationLoading ? (
+                      <p>Загрузка...</p>
+                  ) : (
+                      <div className="space-y-3">
+                        {notifications
+                            .map((n: any) => (
+                                <div
+                                    key={n.id}
+                                    onClick={() => handleNotificationClick(n)}
+                                    className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
+                                        n.title
+                                    )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
+                                >
+                                  <div className="flex justify-between">
+                                    <p className="text-sm font-medium">{n.title}</p>
+                                    {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
+                                  </div>
+                                  <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
+                                </div>
+                            ))}
+                      </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Модалка */}
+              {isModalOpen && selectedNotification && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
+                      <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                        <button
+                            className="text-gray-500 hover:text-black"
+                            onClick={() => setIsModalOpen(false)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-800 whitespace-pre-line">
+                        {selectedNotification.content}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-4">
+                        Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1487,7 +1542,7 @@ export default function DepartmentHeadDashboard() {
                   <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
                   <CardDescription>Проверка и классификация заявки</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6 pb-20">
+                <CardContent className="space-y-6 pb-16">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Тип заявки</Label>
@@ -1877,19 +1932,18 @@ export default function DepartmentHeadDashboard() {
                       </div>
                     </CardContent>
                   </Card>
-
+                  <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
+                    <Button variant="outline"
+                            onClick={() => {
+                              setSelectedRequest(null)
+                              setComments([]);
+                            }}
+                            className="w-full sm:w-auto"
+                    >
+                      Закрыть
+                    </Button>
+                  </div>
                 </CardContent>
-                <div className="flex space-x-4 m-4">
-                  <Button variant="outline"
-                          onClick={() => {
-                            setSelectedRequest(null)
-                            setComments([]);
-                          }}
-                          className="flex-1"
-                  >
-                    Закрыть
-                  </Button>
-                </div>
               </Card>
             </div>
         )}
@@ -1917,7 +1971,7 @@ export default function DepartmentHeadDashboard() {
                   <CardTitle>Создать {translateType(newRequestType).toLowerCase()} заявку</CardTitle>
                   <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6 pb-20">
+                <CardContent className="space-y-6 pb-16">
                   <div>
                     <Label>Тип заявки</Label>
                     <Select value={newRequestType} onValueChange={setNewRequestType}>
