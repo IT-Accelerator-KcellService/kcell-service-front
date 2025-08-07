@@ -42,7 +42,6 @@ export default function ProfilePage() {
     const [success, setSuccess] = useState("")
     const [isChanging, setIsChanging] = useState(false)
     const [emailNotifications, setEmailNotifications] = useState(true)
-    const [pushNotifications, setPushNotifications] = useState(false)
     const [securityNotifications, setSecurityNotifications] = useState(true)
     const [marketingNotifications, setMarketingNotifications] = useState(false)
     const [isSavingProfile, setIsSavingProfile] = useState(false)
@@ -133,7 +132,6 @@ export default function ProfilePage() {
         try {
             await api.put("/users/notifications-settings", {
                 emailNotifications,
-                pushNotifications,
                 securityNotifications,
                 marketingNotifications,
             })
@@ -311,10 +309,6 @@ export default function ProfilePage() {
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Маркетинг</Label>
                                     <Switch checked={marketingNotifications} onCheckedChange={setMarketingNotifications} />
-                                </div>
-                                <div className="flex items-center justify-between py-1">
-                                    <Label className="text-sm">Push</Label>
-                                    <Switch checked={pushNotifications} onCheckedChange={setPushNotifications} />
                                 </div>
 
                                 <Button
