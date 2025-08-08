@@ -51,6 +51,7 @@ export default function ProfilePage() {
     const [isSavingNotifications, setIsSavingNotifications] = useState(false)
     const [notificationError, setNotificationError] = useState("")
     const [notificationSuccess, setNotificationSuccess] = useState("")
+    const [isLoggingOut, setIsLoggingOut] = useState(false)
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -68,6 +69,7 @@ export default function ProfilePage() {
     }, [])
 
     const handleLogout = () => {
+        setIsLoggingOut(true)
         localStorage.removeItem("token");
         localStorage.removeItem("role");
         router.push("/login");
@@ -256,7 +258,16 @@ export default function ProfilePage() {
                                     className="mt-4 w-full text-red-600 border-red-500 hover:bg-red-50"
                                     onClick={handleLogout}
                                 >
-                                    Выйти
+                                    {isLoggingOut ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Выходим...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Выйти из аккаунта
+                                        </>
+                                    )}
                                 </Button>
                             </CardContent>
                         </Card>

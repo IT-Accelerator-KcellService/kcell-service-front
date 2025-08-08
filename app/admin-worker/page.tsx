@@ -375,6 +375,9 @@ export default function AdminWorkerDashboard() {
   }
 
   const handleNotificationClick = async (notification: any) => {
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
+
     if (!notification.is_read) {
       try {
         const updatedNotifications = notifications.map((n:any) =>
@@ -390,9 +393,6 @@ export default function AdminWorkerDashboard() {
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
-
-    setSelectedNotification(notification)
-    setIsModalOpen(true)
   }
 
   const getBgColor = (title:any) => {
@@ -753,7 +753,6 @@ export default function AdminWorkerDashboard() {
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout');
       setIsLoggedIn(false)
       setNotifications([]);
       localStorage.removeItem('token');

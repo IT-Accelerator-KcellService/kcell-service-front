@@ -215,12 +215,12 @@ const Header: React.FC<HeaderProps> = ({
                         </div>
                     </div>
 
-                    {/* Контент с прокруткой */}
-                    <div className="max-h-[60vh] overflow-y-auto p-1">
-                        <div
-                            ref={containerRef}
-                            className="px-4 py-3 space-y-3"
-                        >
+                    {/* Контент с прокруткой — ref здесь! */}
+                    <div
+                        ref={containerRef}
+                        className="max-h-[60vh] overflow-y-auto p-1"
+                    >
+                        <div className="px-4 py-3 space-y-3">
                             {allNotifications.length === 0 && !isLoading ? (
                                 <p className="text-sm text-gray-500 text-center py-6">
                                     Нет уведомлений

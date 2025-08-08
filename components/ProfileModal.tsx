@@ -56,6 +56,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     const [isSavingNotifications, setIsSavingNotifications] = useState(false)
     const [notificationError, setNotificationError] = useState("")
     const [notificationSuccess, setNotificationSuccess] = useState("")
+    const [isLoggingOut, setIsLoggingOut] = useState(false)
 
     // Функция закрытия — централизованная
     const handleClose = useCallback(() => {
@@ -414,7 +415,16 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                             window.location.href = "/login"
                         }}
                     >
-                        Выйти из аккаунта
+                        {isLoggingOut ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Выходим...
+                            </>
+                        ) : (
+                            <>
+                                Выйти из аккаунта
+                            </>
+                        )}
                     </Button>
                 </div>
             </div>

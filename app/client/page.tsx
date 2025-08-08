@@ -278,6 +278,8 @@ export default function ClientDashboard() {
   }
 
   const handleNotificationClick = async (notification: any) => {
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
     if (!notification.is_read) {
       try {
         const updatedNotifications = notifications.map((n:any) =>
@@ -293,9 +295,6 @@ export default function ClientDashboard() {
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
-
-    setSelectedNotification(notification)
-    setIsModalOpen(true)
   }
 
   const getBgColor = (title:any) => {
@@ -578,10 +577,9 @@ export default function ClientDashboard() {
         !requestLocation.trim() ||
         !requestDescription.trim() ||
         !selectedCategoryId ||
-        !requestLocationDetails.trim() ||
-        photos.length <= 0
+        !requestLocationDetails.trim()
     ) {
-      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      setFormErrors("Заполните все обязательные поля.");
       return;
     }
 
@@ -589,65 +587,54 @@ export default function ClientDashboard() {
     setFormErrors(null);
 
     try {
-      const response = await api.post('/requests', {
-        title: requestTitle,
-        description: requestDescription,
-        office_id: Number(newRequestOfficeId),
-        request_type: requestType,
-        location: requestLocation,
-        location_detail: requestLocationDetails,
-        category_id: selectedCategoryId,
-        status: "in_progress"
-      })
+      const formData = new FormData();
 
-      const requestId = response.data.id;
+      // Поля заявки
+      formData.append('title', requestTitle);
+      formData.append('description', requestDescription);
+      formData.append('office_id', newRequestOfficeId);
+      formData.append('request_type', requestType);
+      formData.append('location', requestLocation);
+      formData.append('location_detail', requestLocationDetails);
+      formData.append('category_id', selectedCategoryId.toString());
 
-      console.log("Created request ID:", requestId);
-      let createdPhotos;
-      if (photos.length > 0) {
-        const formData = new FormData();
-        photos.forEach((photo) => {
-          formData.append('photos', photo);
-        });
-        formData.append('type', 'before');
+      // Фото
+      photos.forEach(photo => formData.append('photos', photo));
 
-        try {
-          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
-            withCredentials: true,
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-          });
-        } catch (photoUploadError) {
-          await api.delete(`/requests/${requestId}`);
-          alert("Ошибка при загрузке фото. Заявка не была создана.");
-          return;
-        }
-      }
-      const newRequest = {
-        ...response.data,
-        photos: createdPhotos?.data?.photos,
-      }
-      setRequests(prev => [newRequest, ...prev])
-      setShowCreateRequest(false)
-      setRequestType("")
-      setRequestTitle("")
-      setRequestLocation("")
-      setRequestLocationDetails("")
-      setrequestDescription("")
-      setNewRequestOfficeId("")
-      setRequestType("")
-      setRequestLocationDetails("")
-      setPhotos([])
-      setPhotoPreviews([])
-      successModal.showSuccess()
-    } catch (error) {
-      console.error("Failed to create request:", error)
-      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
-    }finally {
+      // Один запрос вместо двух
+      const response = await api.post('/requests/with-photos', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const newRequest = response.data;
+
+      // Обновляем состояние
+      setRequests(prev => [newRequest, ...prev]);
+      successModal.showSuccess();
+
+      // Сброс формы
+      resetForm();
+    } catch (error: any) {
+      console.error("Ошибка при создании заявки:", error);
+      setFormErrors(
+          error.response?.data?.error || "Не удалось создать заявку. Повторите попытку."
+      );
+    } finally {
       setIsSubmitting(false);
     }
-  }
+  };
+
+  const resetForm = () => {
+    setShowCreateRequest(false);
+    setRequestType("");
+    setRequestTitle("");
+    setRequestLocation("");
+    setRequestLocationDetails("");
+    setrequestDescription("");
+    setPhotos([]);
+    setPhotoPreviews([]);
+    setFormErrors(null);
+  };
 
   const handleRateExecutor = async () => {
     if (requestToRate && ratingValue > 0) {
@@ -688,7 +675,6 @@ export default function ClientDashboard() {
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout')
       setIsLoggedIn(false)
       setNotifications([]);
       localStorage.removeItem('token')

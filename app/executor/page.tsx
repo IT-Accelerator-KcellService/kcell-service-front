@@ -476,6 +476,9 @@ export default function ExecutorDashboard() {
   }
 
   const handleNotificationClick = async (notification: any) => {
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
+
     if (!notification.is_read) {
       try {
         const updatedNotifications = notifications.map((n:any) =>
@@ -491,9 +494,6 @@ export default function ExecutorDashboard() {
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
-
-    setSelectedNotification(notification)
-    setIsModalOpen(true)
   }
 
   const getBgColor = (title:any) => {
@@ -703,7 +703,6 @@ export default function ExecutorDashboard() {
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout')
       setIsLoggedIn(false)
       setNotifications([]);
       localStorage.removeItem('token')
