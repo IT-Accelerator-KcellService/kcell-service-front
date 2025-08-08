@@ -1,4 +1,4 @@
-import {Bell, LogOut, User} from "lucide-react";
+import {Bell, Loader2, LogOut, User} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Badge} from "@/components/ui/badge";
 import React, {useEffect, useRef, useState} from "react";
@@ -104,15 +104,20 @@ const Header: React.FC<HeaderProps> = ({
 
     // Пометить как прочитанное
     const handleNotificationClick = async (notification: Notification) => {
+        setAllNotifications(prev =>
+            prev.map(n =>
+                n.id === notification.id ? {...n, is_read: true} : n
+            )
+        );
         if (!notification.is_read) {
             try {
                 await api.patch(`/notifications/${notification.id}/read`);
+            } catch (error) {
                 setAllNotifications(prev =>
                     prev.map(n =>
-                        n.id === notification.id ? {...n, is_read: true} : n
+                        n.id === notification.id ? {...n, is_read: false} : n
                     )
                 );
-            } catch (error) {
                 console.error("Ошибка при пометке уведомления как прочитано", error)
             }
         }
@@ -186,56 +191,97 @@ const Header: React.FC<HeaderProps> = ({
 
             {/* Уведомления */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="w-full max-w-xs sm:max-w-md max-h-[80vh] overflow-y-auto p-4">
+                <DialogContent
+                    className="max-w-xs sm:max-w-md w-full max-h-[80vh] overflow-hidden p-0 border border-gray-200 rounded-2xl shadow-2xl"
+                >
                     <DialogHeader>
                         <VisuallyHidden asChild>
-                        <DialogTitle>Все уведомления</DialogTitle>
+                            <DialogTitle>Уведомления</DialogTitle>
                         </VisuallyHidden>
                     </DialogHeader>
-                    <div
-                        ref={containerRef}
-                        className="space-y-3 mt-4 overflow-y-auto max-h-[65vh] pr-2"
-                    >
-                        {allNotifications.length === 0 && !isLoading ? (
-                            <p className="text-sm text-gray-500">Нет уведомлений</p>
-                        ) : (
-                            allNotifications.map((n: any) => (
-                                <div
-                                    key={n.id}
-                                    onClick={() => handleNotificationClick(n)}
-                                    className={`p-3 rounded-lg border break-words ${
-                                        n.is_read
-                                            ? "bg-gray-50 border-gray-200"
-                                            : "bg-blue-50 border-blue-200"
-                                    }`}
-                                >
-                                    <div className="flex justify-between items-center">
-                                        <p className="text-sm font-medium truncate">
-                                            {n.title}
-                                        </p>
-                                        {!n.is_read && (
-                                            <span className="text-blue-500 text-xs ml-2">Новое</span>
-                                        )}
-                                    </div>
-                                    <p className="text-xs text-gray-600 mt-1">
-                                        {new Date(n.created_at).toLocaleString()}
-                                    </p>
-                                    <p className="text-sm text-gray-700 mt-2 whitespace-pre-line">
-                                        {n.content}
-                                    </p>
-                                </div>
-                            ))
-                        )}
-                        {isLoading && (
-                            <div className="flex justify-center py-4">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+
+                    {/* Заголовок (визуальный) */}
+                    <div className="flex items-center justify-between border-b px-5 py-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                                <Bell className="h-5 w-5 text-white" />
                             </div>
-                        )}
-                        {!hasMore && allNotifications.length > 0 && (
-                            <p className="text-sm text-center text-gray-500 py-4">
-                                Вы достигли конца списка
-                            </p>
-                        )}
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-900">Уведомления</h2>
+                                <p className="text-sm text-gray-500">
+                                    {allNotifications.filter((n: any) => !n.is_read).length} новых
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Контент с прокруткой */}
+                    <div className="max-h-[60vh] overflow-y-auto p-1">
+                        <div
+                            ref={containerRef}
+                            className="px-4 py-3 space-y-3"
+                        >
+                            {allNotifications.length === 0 && !isLoading ? (
+                                <p className="text-sm text-gray-500 text-center py-6">
+                                    Нет уведомлений
+                                </p>
+                            ) : (
+                                allNotifications.map((n: any) => (
+                                    <div
+                                        key={n.id}
+                                        onClick={() => handleNotificationClick(n)}
+                                        className={`p-3 rounded-lg border break-words cursor-pointer transition-colors ${
+                                            n.is_read
+                                                ? "bg-gray-50 border-gray-200 hover:bg-gray-100"
+                                                : "bg-blue-50 border-blue-200 hover:bg-blue-100"
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <p className="text-sm font-medium text-gray-900 line-clamp-2">
+                                                {n.title}
+                                            </p>
+                                            {!n.is_read && (
+                                                <span className="ml-2 px-2 py-0.5 text-xs font-medium text-blue-600 bg-blue-100 rounded-full whitespace-nowrap">
+                                        Новое
+                                    </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {new Date(n.created_at).toLocaleString("ru-RU", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                year: "2-digit",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })}
+                                        </p>
+                                        <p className="text-sm text-gray-700 mt-2 whitespace-pre-line leading-relaxed">
+                                            {n.content}
+                                        </p>
+                                    </div>
+                                ))
+                            )}
+                            {isLoading && (
+                                <div className="flex justify-center py-4">
+                                    <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+                                </div>
+                            )}
+                            {!hasMore && allNotifications.length > 0 && !isLoading && (
+                                <p className="text-xs text-center text-gray-400 py-3">
+                                    Вы достигли конца списка
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Кнопка "Закрыть" внизу */}
+                    <div className="border-t px-5 py-3 bg-gray-50">
+                        <button
+                            onClick={() => setIsModalOpen(false)}
+                            className="w-full text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                            Закрыть
+                        </button>
                     </div>
                 </DialogContent>
             </Dialog>
