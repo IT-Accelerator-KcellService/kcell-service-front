@@ -596,6 +596,7 @@ export default function ClientDashboard() {
       formData.append('request_type', requestType);
       formData.append('location', requestLocation);
       formData.append('location_detail', requestLocationDetails);
+      formData.append('status', 'in_progress');
       formData.append('category_id', selectedCategoryId.toString());
 
       // Фото

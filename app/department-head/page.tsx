@@ -612,84 +612,62 @@ export default function DepartmentHeadDashboard() {
         !newRequestType ||
         !newRequestLocationDetails ||
         !newRequestLocation ||
-        !serviceCategories ||
-        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity) ||
-        photos.length <= 0
+        !newRequestCategory ||
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity)
     ) {
-      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      setFormErrors("Заполните все обязательные поля.");
       return;
     }
+
     setIsSubmitting(true);
     setFormErrors(null);
 
     try {
-      const response = await api.post('/requests', {
-        title: newRequestTitle,
-        office_id: Number(newRequestOfficeId),
-        description: newRequestDescription,
-        request_type: newRequestType,
-        location: newRequestLocation,
-        location_detail: newRequestLocationDetails,
-        category_id: serviceCategories.find(c => c.name === newRequestCategory)?.id,
-        status: "awaiting_assignment",
-        complexity: newRequestComplexity,
-        sla: newRequestSLA,
-        planned_date: newRequestPlannedDate || null,
-      })
+      const formData = new FormData();
+      formData.append('title', newRequestTitle);
+      formData.append('description', newRequestDescription);
+      formData.append('request_type', newRequestType);
+      formData.append('location', newRequestLocation);
+      formData.append('location_detail', newRequestLocationDetails);
+      formData.append('category_id', String(serviceCategories.find(c => c.name === newRequestCategory)?.id));
+      formData.append('office_id', newRequestOfficeId);
+      formData.append('status', 'awaiting_assignment');
+      if (newRequestComplexity) formData.append('complexity', newRequestComplexity);
+      if (newRequestSLA) formData.append('sla', newRequestSLA);
+      if (newRequestPlannedDate) formData.append('planned_date', newRequestPlannedDate);
+      photos.forEach(photo => formData.append('photos', photo));
+      formData.append('type', 'before');
 
-      const requestId = response.data.id;
+      const response = await api.post('/requests/with-photos', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
 
-      console.log("Created request ID:", requestId);
-      let createdPhotos;
-      if (photos.length > 0) {
-        const formData = new FormData();
-        photos.forEach((photo) => {
-          formData.append('photos', photo);
-        });
-        formData.append('type', 'before');
-
-        try {
-
-          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
-            withCredentials: true,
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-          });
-
-          console.log("Фотографии успешно загружены");
-        } catch (photoUploadError) {
-          await api.delete(`/requests/${requestId}`);
-          console.error("Ошибка при загрузке фото. Заявка удалена.");
-          alert("Ошибка при загрузке фото. Заявка не была создана.");
-          throw photoUploadError;
-        }
-      }
-      const newRequest = {
-        ...response.data,
-        photos: createdPhotos?.data?.photos,
-      }
-      setMyRequests(prev => [newRequest, ...prev])
-      setShowCreateRequestModal(false)
-      setNewRequestTitle("")
-      setNewRequestDescription("")
-      setNewRequestLocation("")
-      setNewRequestType("normal")
-      setNewRequestLocationDetails("")
-      setNewRequestCategory("")
-      setNewRequestPlannedDate("")
-      setNewRequestComplexity("simple")
-      setNewRequestSLA("1h")
-      setPhotos([])
-      setPhotoPreviews([])
-      successModal.showSuccess()
-    } catch (error) {
-      console.error("Failed to create request:", error)
-      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+      const newRequest = response.data;
+      setMyRequests(prev => [newRequest, ...prev]);
+      successModal.showSuccess();
+      resetForm();
+    } catch (error: any) {
+      console.error("Ошибка при создании заявки:", error);
+      setFormErrors(error.response?.data?.error || "Не удалось создать заявку.");
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
+
+  const resetForm = () => {
+    setShowCreateRequestModal(false);
+    setNewRequestTitle("");
+    setNewRequestDescription("");
+    setNewRequestLocation("");
+    setNewRequestType("normal");
+    setNewRequestLocationDetails("");
+    setNewRequestCategory("");
+    setNewRequestPlannedDate("");
+    setNewRequestComplexity("simple");
+    setNewRequestSLA("1h");
+    setPhotos([]);
+    setPhotoPreviews([]);
+  };
 
   const checkUserRating = async (requestId: number) => {
     try {
