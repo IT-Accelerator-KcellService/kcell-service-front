@@ -49,6 +49,7 @@ import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {RejectRequestModal} from "@/components/RejectRequestModal";
 import {AcceptRequestModal} from "@/components/AcceptRequestModal";
+import {ProfileModal} from "@/components/ProfileModal";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -845,6 +846,7 @@ export default function AdminWorkerDashboard() {
             notificationCount={3}
             role="Администратор"
         />
+        <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
           {/* Quick Stats */}

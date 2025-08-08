@@ -60,6 +60,7 @@ import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {AcceptRequestModal} from "@/components/AcceptRequestModal";
 import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
+import { ProfileModal } from "@/components/ProfileModal"
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -1191,6 +1192,7 @@ export default function ManagerDashboard() {
           notificationCount={notifications.length}
           role="Руководитель"
       />
+      <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 
       <main className="px-4 py-4 sm:px-6 sm:py-8 max-w-7xl mx-auto">
         {/* Mobile Filters */}

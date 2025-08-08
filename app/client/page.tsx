@@ -38,6 +38,7 @@ import {useMediaQuery} from "@/hooks/use-media-query";
 import {BottomNav} from "@/components/BottomNav";
 import { useSearchParams } from "next/navigation"
 import Link from "next/link";
+import {ProfileModal} from "@/components/ProfileModal";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -763,6 +764,7 @@ export default function ClientDashboard() {
             notificationCount={notifications.length}
             role="Клиент"
         />
+        <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
         {/* Quick Stats */}
