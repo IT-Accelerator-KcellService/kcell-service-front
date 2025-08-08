@@ -283,7 +283,34 @@ export default function ExecutorDashboard() {
       console.error("Ошибка при удалении", err);
     }
   };
+  const closeAllModalsExcept = (modalName: string) => {
+    // Закрываем все модалки, кроме указанной
+    if (modalName !== 'createRequest') {
+      setShowCreateRequestModal(false);
+    }
+    if (modalName !== 'taskComplete') {
+      setSelectedTask(null);
+    }
+    if (modalName !== 'taskDetails') {
+      setSelectedTaskDetails(null);
+    }
+    if (modalName !== 'mapModal') {
+      setShowMapModal(false);
+    }
+    if (modalName !== 'photoPreview') {
+      setSelectedPhoto(null);
+    }
+    if (modalName !== 'notification') {
+      setIsModalOpen(false);
+    }
+    if (modalName !== 'commentDelete') {
+      setCommentToDelete(null);
+    }
 
+    // Очищаем стек и добавляем только текущую модалку
+    setModalStack([modalName]);
+    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+  };
   const handleSend = () => {
     if (comment.trim() === "") return;
     if (editCommentId) {
@@ -424,6 +451,7 @@ export default function ExecutorDashboard() {
     const role = localStorage.getItem('role')
     if (create === "true") {
       setShowCreateRequestModal(true)
+      closeAllModalsExcept('createRequest');
       openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })
     }
