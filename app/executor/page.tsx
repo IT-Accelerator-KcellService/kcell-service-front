@@ -1912,6 +1912,7 @@ export default function ExecutorDashboard() {
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   setCommentToDelete(c);
+                                                  openModal('commentDelete')
                                                 }}
                                                 className="px-2 py-1 rounded border border-red-300 bg-red-100 hover:bg-red-200 text-red-600 transition w-full sm:w-auto"
                                             >
@@ -1932,6 +1933,7 @@ export default function ExecutorDashboard() {
                                                   onClick={() => {
                                                     handleDelete(c.id);
                                                     setCommentToDelete(null);
+                                                    closeModal()
                                                   }}
                                               >
                                                 Удалить
