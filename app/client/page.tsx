@@ -223,6 +223,11 @@ export default function ClientDashboard() {
             setSelectedRequest(null);
             setComments([]);
             break;
+          case 'ratingModal':
+            setShowRatingModal(false);
+            setRatingValue(0);
+            setRequestToRate(null);
+            break;
           case 'mapModal':
             setShowMapModal(false);
             break;
@@ -257,7 +262,31 @@ export default function ClientDashboard() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, [modalStack]);
+  const closeAllModalsExcept = (modalName: string) => {
+    setLoading(true);
+    if (modalName !== 'createRequest') {
+      setShowCreateRequest(false);
+    }
+    if (modalName !== 'requestDetails') {
+      setSelectedRequest(null);
+    }
+    if (modalName !== 'mapModal') {
+      setShowMapModal(false);
+    }
+    if (modalName !== 'photoPreview') {
+      setSelectedPhoto(null);
+    }
+    if (modalName !== 'notification') {
+      setIsModalOpen(false);
+    }
+    if (modalName !== 'commentDelete') {
+      setCommentToDelete(null);
+    }
 
+    setModalStack([modalName]);
+    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+    setLoading(false);
+  };
   useEffect(() => {
     if (notifications.length <= 0) {
       fetchNotifications()
@@ -286,6 +315,7 @@ export default function ClientDashboard() {
     const role = localStorage.getItem('role')
     if (create === "true") {
       setShowCreateRequest(true);
+      closeAllModalsExcept('createRequest')
       openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })
     }
@@ -679,6 +709,7 @@ export default function ClientDashboard() {
         setShowRatingModal(false)
         setRatingValue(0)
         setRequestToRate(null)
+        closeModal()
       } catch (error) {
         console.error("Failed to rate executor:", error)
         alert("Не удалось отправить оценку.")
@@ -1647,6 +1678,7 @@ export default function ClientDashboard() {
                             onClick={() => {
                               setRequestToRate(selectedRequest)
                               setShowRatingModal(true)
+                              openModal('ratingModal')
                               setSelectedRequest(null);
                               closeModal()
                             }}
@@ -1692,7 +1724,8 @@ export default function ClientDashboard() {
       )}
       {/* Rating Modal */}
       {showRatingModal && requestToRate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowRatingModal(false)} >
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {setShowRatingModal(false)
+        closeModal()}} >
           <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <CardTitle>Оценить исполнителя</CardTitle>
@@ -1723,6 +1756,7 @@ export default function ClientDashboard() {
                   setShowRatingModal(false)
                   setRatingValue(0)
                   setRequestToRate(null)
+                  closeModal()
                 }}
                 className="w-full"
               >
