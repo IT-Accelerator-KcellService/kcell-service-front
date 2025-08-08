@@ -1,16 +1,15 @@
 "use client"
 
-import React, {useCallback} from "react"
-import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { useSearchParams } from "next/navigation"
+import React, {useCallback, useEffect, useRef, useState} from "react"
+import {Button} from "@/components/ui/button"
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
+import {Badge} from "@/components/ui/badge"
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
+import {Input} from "@/components/ui/input"
+import {Label} from "@/components/ui/label"
+import {Textarea} from "@/components/ui/textarea"
+import {useRouter, useSearchParams} from "next/navigation"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,7 +48,6 @@ import Header from "@/app/header/Header";
 import dynamic from "next/dynamic";
 import {Request} from "@/app/client/page";
 import api from "@/lib/api";
-import {useRouter} from "next/navigation";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import {format, isAfter, subDays, subMonths, subYears} from "date-fns";
 import {useNotificationStore} from "@/stores/notificationStore";
@@ -60,6 +58,8 @@ import {ru} from "date-fns/locale";
 import {Calendar} from "@/components/ui/calendar";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
+import {AcceptRequestModal} from "@/components/AcceptRequestModal";
+import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -125,6 +125,7 @@ export default function ManagerDashboard() {
   const searchParams = useSearchParams()
 
   const successModal = useSuccessModal()
+  const approveModal = useAcceptRequestModal()
   const router = useRouter()
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
@@ -193,7 +194,7 @@ export default function ManagerDashboard() {
   const [isSearching, setIsSearching] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
-  const [editingOfficeId, setEditingOfficeId] = useState(null)
+  const [editingOfficeId, setEditingOfficeId] = useState(null);
   const [editedOffice, setEditedOffice] = useState<Partial<OfficeType>>({
     name: "",
     city: "",
@@ -487,6 +488,7 @@ export default function ManagerDashboard() {
 
   const handleAddOrUpdateUser = async () => {
     try {
+      setFormErrors(null);
       setLoading(true);
 
       if (editingUserId) {
@@ -504,6 +506,7 @@ export default function ManagerDashboard() {
       setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "" });
       setEditingUserId(null);
     } catch (err) {
+      setFormErrors("Ошибка при сохранении пользователя");
       console.error("Ошибка при сохранении пользователя:", err);
     } finally {
       setLoading(false);
@@ -613,6 +616,7 @@ export default function ManagerDashboard() {
         setShowDeleteRequestModal(false)
         setRequestToDelete(null)
         setDeleteReason("")
+        approveModal.showAccept()
       } catch (error) {
         console.error("Failed to delete request:", error)
       }
@@ -693,6 +697,7 @@ export default function ManagerDashboard() {
       setDescription("")
       setNewRequestPlannedDate("");
       setPhotos([])
+      setPhotoPreviews([])
       setNewRequestSLA("1h")
       setNewRequestComplexity("simple");
       successModal.showSuccess()
@@ -1773,13 +1778,13 @@ export default function ManagerDashboard() {
 
                 <CardContent className="space-y-4 mb-8">
                   {/* Поиск пользователей */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     {/* Поле ввода */}
                     <Input
                         placeholder="Поиск по имени или email"
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()} // Поиск по Enter
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     />
 
                     {/* Кнопка поиска */}
@@ -1852,6 +1857,7 @@ export default function ManagerDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
 
                   {/* Кнопка добавить/сохранить */}
                   <Button
@@ -1992,7 +1998,7 @@ export default function ManagerDashboard() {
                       <SelectValue placeholder="Выберите тип заявки" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="regular">Обычная</SelectItem>
+                      <SelectItem value="normal">Обычная</SelectItem>
                       <SelectItem value="urgent">Экстренная</SelectItem>
                       <SelectItem value="planned">Плановый</SelectItem>
                     </SelectContent>
@@ -2583,6 +2589,13 @@ export default function ManagerDashboard() {
           title={successModal.title}
           message={successModal.message}
           duration={successModal.duration}
+      />
+      <AcceptRequestModal
+          isOpen={approveModal.isOpen}
+          onClose={approveModal.hideAccept}
+          title='Заявка удалена'
+          message='Заявка была успешно удалена.'
+          duration={approveModal.duration}
       />
       <BottomNav
           onCreateRequest={handleOpenCreateRequest}

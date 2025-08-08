@@ -603,6 +603,7 @@ export default function ClientDashboard() {
       setRequestType("")
       setRequestLocationDetails("")
       setPhotos([])
+      setPhotoPreviews([])
       successModal.showSuccess()
     } catch (error) {
       console.error("Failed to create request:", error)

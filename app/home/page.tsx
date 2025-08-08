@@ -255,6 +255,8 @@ export default function HomePage() {
                 setManagerStats(res.data)
             } else if (role === "executor") {
                 setExecutorStats(res.data)
+                const responseMyRating = await api.get('executors/average-rating')
+                setMyRating(responseMyRating.data.average_rating)
             } else if (role === "admin-worker") {
                 setAdminWorkerStats(res.data)
             } else if (role === "department-head") {
@@ -952,7 +954,7 @@ export default function HomePage() {
                                         </div>
                                         <div className="ml-4">
                                             <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                                            <p className="text-2xl font-bold text-gray-900">0</p>
+                                            <p className="text-2xl font-bold text-gray-900">{myRating}</p>
                                         </div>
                                     </div>
                                 </CardContent>

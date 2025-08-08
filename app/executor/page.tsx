@@ -348,6 +348,7 @@ export default function ExecutorDashboard() {
       setNewRequestLocation("")
       setDescription("")
       setPhotos([])
+      setPhotoPreviews([])
       successModal.showSuccess()
     } catch (error) {
       console.error("Failed to create request:", error)

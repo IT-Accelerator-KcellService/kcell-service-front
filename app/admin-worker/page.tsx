@@ -45,6 +45,10 @@ import {useSuccessModal} from "@/hooks/use-success-modal";
 import {SuccessModal} from "@/components/success-model";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
+import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
+import {useRejectRequestModal} from "@/hooks/use-reject-modal";
+import {RejectRequestModal} from "@/components/RejectRequestModal";
+import {AcceptRequestModal} from "@/components/AcceptRequestModal";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -125,6 +129,8 @@ export default function AdminWorkerDashboard() {
   const searchParams = useSearchParams()
 
   const successModal = useSuccessModal()
+  const rejectModal = useRejectRequestModal()
+  const approveModal = useAcceptRequestModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
@@ -502,8 +508,25 @@ export default function AdminWorkerDashboard() {
     }
   }, [selectedRequest]);
 
+  const validateForApprove = async () => {
+    if (
+        !selectedRequest.id ||
+        !selectedRequest.category_id ||
+        !selectedRequest.sla ||
+        !selectedRequest.complexity
+    ) {
+      return true;
+    }
+    return false;
+  }
 
   const handleApproveRequest = async (requestId: number, categoryId: number,sla: any ,complexity :any  ) => {
+    if (await validateForApprove()) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
+    }
+    setIsSubmitting(true);
+    setFormErrors(null);
     try {
       await api.patch(`/requests/status/${requestId}`, {
         status: "awaiting_assignment",
@@ -513,12 +536,20 @@ export default function AdminWorkerDashboard() {
       });
       fetchRequests();
       setSelectedRequest(null);
+      approveModal.showAccept()
     } catch (error) {
       console.error("Failed to approve request:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleRejectRequest = async (requestId: number) => {
+    if (!rejectionReason) {
+      setFormErrors("Пожалуйста, заполните все обязательные поля.");
+      return;
+    }
+    setFormErrors(null);
     try {
       await api.patch(`/requests/status/${requestId}`, {
         status: "rejected",
@@ -527,6 +558,7 @@ export default function AdminWorkerDashboard() {
       setSelectedRequest(null);
       fetchRequests();
       setRejectionReason("");
+      rejectModal.showReject()
     } catch (error) {
       console.error("Failed to reject request:", error);
     }
@@ -1613,7 +1645,13 @@ export default function AdminWorkerDashboard() {
                               }
                             }}
                             className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
-                            disabled={!selectedRequest.category_id}
+                            disabled={
+                              !selectedRequest.category_id ||
+                              !selectedRequest.sla ||
+                              !selectedRequest.complexity ||
+                              !selectedRequest.id ||
+                              isSubmitting
+                            }
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Принять в работу
@@ -1633,6 +1671,7 @@ export default function AdminWorkerDashboard() {
                         </Button>
                       </div>
                   )}
+                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
 
                   {/* Поле причины отклонения */}
                   {selectedRequest.status === "in_progress" && (
@@ -2118,6 +2157,21 @@ export default function AdminWorkerDashboard() {
             title={successModal.title}
             message={successModal.message}
             duration={successModal.duration}
+        />
+        <AcceptRequestModal
+            isOpen={approveModal.isOpen}
+            onClose={approveModal.hideAccept}
+            title={approveModal.title}
+            message={approveModal.message}
+            duration={approveModal.duration}
+        />
+
+        <RejectRequestModal
+            isOpen={rejectModal.isOpen}
+            onClose={rejectModal.hideReject}
+            title={rejectModal.title}
+            message={rejectModal.message}
+            duration={rejectModal.duration}
         />
         <BottomNav
             onCreateRequest={() => setShowCreateRequestModal(true)}
