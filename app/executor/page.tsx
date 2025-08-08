@@ -1951,7 +1951,7 @@ export default function ExecutorDashboard() {
                                               </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
-                                              <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                              <AlertDialogCancel onClick={() => closeModal()}>Отмена</AlertDialogCancel>
                                               <AlertDialogAction
                                                   onClick={() => {
                                                     handleDelete(c.id);
