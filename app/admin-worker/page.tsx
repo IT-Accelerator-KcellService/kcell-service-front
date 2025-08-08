@@ -675,7 +675,7 @@ export default function AdminWorkerDashboard() {
       resetForm();
     } catch (error: any) {
       console.error("Ошибка при создании заявки:", error);
-      setFormErrors(error.response?.data?.error || "Не удалось создать заявку.");
+      setFormErrors("Не удалось создать заявку.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1023,7 +1023,7 @@ export default function AdminWorkerDashboard() {
                                   #{request.id}
                                 </span>
                                     <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
+                                  {request?.category?.name}
                                 </span>
                                   </div>
                                 </div>
@@ -1183,7 +1183,7 @@ export default function AdminWorkerDashboard() {
                                   #{request.id}
                                 </span>
                                     <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
+                                  {request?.category?.name}
                                 </span>
                                   </div>
                                 </div>
