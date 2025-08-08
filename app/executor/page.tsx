@@ -933,7 +933,8 @@ export default function ExecutorDashboard() {
                             return typeOrderA - typeOrderB
                           }).map((request:any, index: number) => (
                               <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                                    onClick={() => setSelectedTaskDetails(request)}>
+                                    onClick={() => {setSelectedTaskDetails(request)
+                                      openModal('taskDetails')}}>
                                 {/* Заголовок с ID и статусами */}
                                 <CardHeader className="pb-3 px-5 pt-5">
                                   <div className="flex items-start justify-between gap-3">
@@ -1105,7 +1106,8 @@ export default function ExecutorDashboard() {
                           })
                           .map((request:any, index: number) => (
                               <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                                    onClick={() => setSelectedTaskDetails(request)}>
+                                    onClick={() => {setSelectedTaskDetails(request)
+                                      openModal('taskDetails')}}>
                                 {/* Заголовок с ID и статусами */}
                                 <CardHeader className="pb-3 px-5 pt-5">
                                   <div className="flex items-start justify-between gap-3">
@@ -1259,7 +1261,9 @@ export default function ExecutorDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {filteredRequests.map((request:any, index: number) => (
                           <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                                onClick={() => setSelectedTaskDetails(request)}>
+                                onClick={() => {setSelectedTaskDetails(request)
+                                  openModal('taskDetails')}
+                          }>
                             {/* Заголовок с ID и статусами */}
                             <CardHeader className="pb-3 px-5 pt-5">
                               <div className="flex items-start justify-between gap-3">
@@ -1765,6 +1769,7 @@ export default function ExecutorDashboard() {
                                   accuracy: parseInt(accMatch[1])
                                 });
                                 setShowMapModal(true);
+                                openModal('mapModal')
                               } else {
                                 alert("Не удалось определить координаты из локации");
                               }
@@ -1839,7 +1844,8 @@ export default function ExecutorDashboard() {
                                     src={photo.photo_url || "/placeholder.svg"}
                                     alt={`Photo ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border border-gray-300 shadow-sm"
-                                    onClick={() => setSelectedPhoto(photo.photo_url)}
+                                    onClick={() => {setSelectedPhoto(photo.photo_url)
+                                    openModal('photoPreview')}}
                                 />
                             ))}
                           </div>
@@ -1980,7 +1986,8 @@ export default function ExecutorDashboard() {
 
                   <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
                     {/* Закрыть */}
-                    <Button className="w-full sm:w-auto" variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
+                    <Button className="w-full sm:w-auto" variant="outline" onClick={() => {setSelectedTaskDetails(null)
+                      closeModal()}}>Закрыть</Button>
                   </div>
 
 
