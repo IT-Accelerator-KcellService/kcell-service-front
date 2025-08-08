@@ -945,7 +945,7 @@ export default function ExecutorDashboard() {
                                   #{request.id}
                                 </span>
                                         <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
+                                  {request?.category?.name}
                                 </span>
                                       </div>
                                     </div>
@@ -1118,7 +1118,7 @@ export default function ExecutorDashboard() {
                                   #{request.id}
                                 </span>
                                         <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
+                                  {request?.category?.name}
                                 </span>
                                       </div>
                                     </div>
@@ -1274,7 +1274,7 @@ export default function ExecutorDashboard() {
                                   #{request.id}
                                 </span>
                                     <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
+                                  {request?.category?.name}
                                 </span>
                                   </div>
                                 </div>
@@ -1501,22 +1501,45 @@ export default function ExecutorDashboard() {
                   )}
                 </CardContent>
               </Card>
-
-              {isModalOpen && selectedNotification && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => { setIsModalOpen(false); closeModal(); }}>
-                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
-                        <button onClick={() => { setIsModalOpen(false); closeModal(); }} className="text-gray-500 hover:text-black">×</button>
-                      </div>
-                      <p className="text-sm text-gray-800 whitespace-pre-line">{selectedNotification.content}</p>
-                      <p className="text-xs text-gray-500 mt-4">Получено: {new Date(selectedNotification.created_at).toLocaleString()}</p>
-                    </div>
-                  </div>
-              )}
             </div>
           </div>
         </div>
+
+        {/* Модалка */}
+        {isModalOpen && selectedNotification && (
+            <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  closeModal();
+                }}
+            >
+              <div
+                  className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
+                  onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри модалки
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                  <button
+                      className="text-gray-500 hover:text-black text-2xl focus:outline-none"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        closeModal();
+                      }}
+                      aria-label="Закрыть модальное окно"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="text-sm text-gray-800 whitespace-pre-line">
+                  {selectedNotification.content}
+                </p>
+                <p className="text-xs text-gray-500 mt-4">
+                  Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                </p>
+              </div>
+            </div>
+        )}
 
         {/* Complete Task Modal */}
         {selectedTask && (

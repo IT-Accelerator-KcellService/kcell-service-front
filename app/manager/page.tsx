@@ -211,7 +211,9 @@ export default function ManagerDashboard() {
     completed: 0,
     overdue: 0,
     emergency: 0,
-  })
+  });
+
+  const [modalStack, setModalStack] = useState<string[]>([]);
 
   const lastRequestRef = useCallback(
       (node: any) => {
@@ -238,6 +240,15 @@ export default function ManagerDashboard() {
     }
   }
 
+  const openModal = (name: string) => {
+    setModalStack(prev => [...prev, name]);
+    window.history.pushState({ modal: name }, '', window.location.pathname);
+  };
+
+  const closeModal = () => {
+    setModalStack(prev => prev.slice(0, -1));
+  };
+
   useEffect(() => {
     if (!stats.length) {
       fetchStats();
@@ -250,6 +261,7 @@ export default function ManagerDashboard() {
 
     if (create === "true") {
       setShowCreateRequestModal(true)
+      openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })
 
     }
@@ -434,74 +446,61 @@ export default function ManagerDashboard() {
       console.error('Ошибка при загрузке пользователей:', error);
     }
   };
+
   useEffect(() => {
-    const handleBackButton = (e: PopStateEvent) => {
-      // Список всех возможных модальных состояний
-      const modalStates = [
-        showCreateRequestModal,
-        selectedTaskDetails,
-        showMapModal,
-        isModalOpen,
-        selectedPhoto,
-        commentToDelete,
-        showDeleteRequestModal
-      ];
-
-      // Если хотя бы одно модальное окно открыто
-      if (modalStates.some(state => Boolean(state))) {
+    const handlePopState = (e: PopStateEvent) => {
+      if (modalStack.length > 0) {
         e.preventDefault();
+        const lastModal = modalStack[modalStack.length - 1];
 
-        // Закрываем модалки в определённом порядке
-        if (showDeleteRequestModal) {
-          setShowDeleteRequestModal(false);
-          setRequestToDelete(null);
-          setDeleteReason("");
-        }
-        else if (commentToDelete) setCommentToDelete(null);
-        else if (selectedPhoto) setSelectedPhoto(null);
-        else if (isModalOpen) setIsModalOpen(false);
-        else if (showMapModal) setShowMapModal(false);
-        else if (selectedTaskDetails) {
-          setSelectedTaskDetails(null);
-          setComments([]);
-        }
-        else if (showCreateRequestModal) {
-          setShowCreateRequestModal(false);
-          setPhotos([]);
-          setPhotoPreviews([]);
+        switch (lastModal) {
+          case 'createRequest':
+            setShowCreateRequestModal(false);
+            break;
+          case 'taskDetails':
+            setSelectedTaskDetails(null);
+            setComments([]);
+            break;
+          case 'mapModal':
+            setShowMapModal(false);
+            break;
+          case 'photoPreview':
+            setSelectedPhoto(null);
+            break;
+          case 'notification':
+            setIsModalOpen(false);
+            break;
+          case 'commentDelete':
+            setCommentToDelete(null);
+            break;
+          case 'deleteRequest':
+            setShowDeleteRequestModal(false);
+            setRequestToDelete(null);
+            setDeleteReason("");
+            break;
+          default:
+            break;
         }
 
-        // Добавляем запись в историю только если её ещё нет
-        if (window.history.state?.modal !== 'blocked') {
-          window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+        closeModal();
+
+        if (modalStack.length > 1) {
+          window.history.pushState({ modal: modalStack[modalStack.length - 2] }, '', window.location.pathname);
         }
       }
     };
 
-    window.addEventListener('popstate', handleBackButton);
+    window.addEventListener('popstate', handlePopState);
 
-    // Инициализируем историю
-    if (window.history.state?.modal !== 'blocked') {
-      window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+    if (!window.history.state?.modal) {
+      window.history.replaceState({ modal: null }, '', window.location.pathname);
     }
 
     return () => {
-      window.removeEventListener('popstate', handleBackButton);
-
-      // Восстанавливаем историю при размонтировании
-      if (window.history.state?.modal === 'blocked') {
-        window.history.back();
-      }
+      window.removeEventListener('popstate', handlePopState);
     };
-  }, [
-    showCreateRequestModal,
-    selectedTaskDetails,
-    showMapModal,
-    isModalOpen,
-    selectedPhoto,
-    commentToDelete,
-    showDeleteRequestModal
-  ]);
+  }, [modalStack]);
+
   useEffect(() => {
     fetchUsers(1); // при загрузке
   }, []);
@@ -672,7 +671,9 @@ export default function ManagerDashboard() {
 
   const handleDeleteRequest = (request: Request) => {
     setRequestToDelete(request)
-    setShowDeleteRequestModal(true)
+    closeModal()
+    setShowDeleteRequestModal(true);
+    openModal('deleteRequest');
   }
 
   const confirmDeleteRequest = async () => {
@@ -680,7 +681,9 @@ export default function ManagerDashboard() {
       try {
         await api.delete(`/requests/${requestToDelete.id}`)
         fetchRequests()
-        setShowDeleteRequestModal(false)
+        setShowDeleteRequestModal(false);
+        closeModal()
+        closeModal();
         setRequestToDelete(null)
         setDeleteReason("")
         approveModal.showAccept()
@@ -742,6 +745,7 @@ export default function ManagerDashboard() {
 
   const resetForm = () => {
     setShowCreateRequestModal(false);
+    closeModal();
     setNewRequestType("");
     setNewRequestTitle("");
     setRequestLocation("");
@@ -872,6 +876,7 @@ export default function ManagerDashboard() {
     }
 
     setShowCreateRequestModal(true);
+    openModal('createRequest');
   };
 
   const fetchCategories = async () => {
@@ -907,7 +912,8 @@ export default function ManagerDashboard() {
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification)
-    setIsModalOpen(true)
+    setIsModalOpen(true);
+    openModal('notification');
     if (!notification.is_read) {
       try {
         const updatedNotifications = notifications.map((n:any) =>
@@ -1291,6 +1297,7 @@ export default function ManagerDashboard() {
                     onClick={() => {
                       setNewRequestType("Обычная")
                       setShowCreateRequestModal(true)
+                      openModal('createRequest');
                       handleOpenCreateRequest()
                     }}
                     className="flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white min-w-[150px] h-10 px-4"
@@ -1427,7 +1434,7 @@ export default function ManagerDashboard() {
                           key={request.id}
                           ref={isLast ? lastRequestRef : null}
                           className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                          onClick={() => setSelectedTaskDetails(request)}
+                          onClick={() => {setSelectedTaskDetails(request); openModal('taskDetails'); }}
                       >
                         {/* Заголовок с ID и статусами */}
                         <CardHeader className="pb-3 px-5 pt-5">
@@ -1439,7 +1446,7 @@ export default function ManagerDashboard() {
                 #{request.id}
               </span>
                                 <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                {request.category.name}
+                {request?.category?.name}
               </span>
                               </div>
                             </div>
@@ -1624,29 +1631,6 @@ export default function ManagerDashboard() {
                 )}
               </CardContent>
             </Card>
-
-            {/* Модалка */}
-            {isModalOpen && selectedNotification && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
-                      <button
-                          className="text-gray-500 hover:text-black"
-                          onClick={() => setIsModalOpen(false)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <p className="text-sm text-gray-800 whitespace-pre-line">
-                      {selectedNotification.content}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-4">
-                      Получено: {new Date(selectedNotification.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-            )}
           </TabsContent>
 
           {/* Management Tab Content for Manager */}
@@ -2014,6 +1998,7 @@ export default function ManagerDashboard() {
       {showCreateRequestModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
             setShowCreateRequestModal(false)
+            closeModal()
             setComments([])
           }}>
             <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2217,7 +2202,7 @@ export default function ManagerDashboard() {
                         "Отправить заявку"
                     )}
                   </Button>
-                  <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
+                  <Button variant="outline" onClick={() => {setShowCreateRequestModal(false); closeModal(); }} className="flex-1">
                     Отмена
                   </Button>
                 </div>
@@ -2226,10 +2211,47 @@ export default function ManagerDashboard() {
           </div>
       )}
 
+      {/* Модалка */}
+      {isModalOpen && selectedNotification && (
+          <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+              onClick={() => {
+                setIsModalOpen(false);
+                closeModal();
+              }}
+          >
+            <div
+                className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
+                onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри модалки
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                <button
+                    className="text-gray-500 hover:text-black text-2xl focus:outline-none"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      closeModal();
+                    }}
+                    aria-label="Закрыть модальное окно"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="text-sm text-gray-800 whitespace-pre-line">
+                {selectedNotification.content}
+              </p>
+              <p className="text-xs text-gray-500 mt-4">
+                Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+              </p>
+            </div>
+          </div>
+      )}
+
       {/* Task Details Modal */}
       {selectedTaskDetails && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
-            setSelectedTaskDetails(null)
+            setSelectedTaskDetails(null);
+            closeModal();
             setComments([])
           }}>
             <Card className="w-full max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2273,6 +2295,7 @@ export default function ManagerDashboard() {
                                   accuracy: parseInt(accMatch[1])
                                 });
                                 setShowMapModal(true);
+                                openModal('mapModal');
                               } else {
                                 alert("Не удалось определить координаты из локации");
                               }
@@ -2353,7 +2376,7 @@ export default function ManagerDashboard() {
                                               src={photo.photo_url || "/placeholder.svg"}
                                               alt={`До ${index + 1}`}
                                               className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                              onClick={() => setSelectedPhoto(photo.photo_url)}
+                                              onClick={() => {setSelectedPhoto(photo.photo_url); openModal('photoPreview'); }}
                                           />
                                       ))}
                                     </div>
@@ -2371,7 +2394,7 @@ export default function ManagerDashboard() {
                                               src={photo.photo_url || "/placeholder.svg"}
                                               alt={`После ${index + 1}`}
                                               className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                              onClick={() => setSelectedPhoto(photo.photo_url)}
+                                              onClick={() => {setSelectedPhoto(photo.photo_url); openModal('photoPreview'); }}
                                           />
                                       ))}
                                     </div>
@@ -2398,7 +2421,7 @@ export default function ManagerDashboard() {
                       {selectedPhoto && (
                           <div
                               className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                              onClick={() => setSelectedPhoto(null)}
+                              onClick={() => {setSelectedPhoto(null); closeModal(); }}
                           >
                             <img
                                 src={selectedPhoto}
@@ -2437,7 +2460,7 @@ export default function ManagerDashboard() {
                                       <AlertDialog>
                                         <AlertDialogTrigger asChild>
                                           <button
-                                              onClick={() => setCommentToDelete(c)}
+                                              onClick={() => {setCommentToDelete(c); openModal('commentDelete'); }}
                                               className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
                                           >
                                             Удалить
@@ -2458,6 +2481,7 @@ export default function ManagerDashboard() {
                                                   if (commentToDelete) {
                                                     handleDelete(commentToDelete.id);
                                                     setCommentToDelete(null);
+                                                    closeModal();
                                                   }
                                                 }}
                                             >
@@ -2536,6 +2560,7 @@ export default function ManagerDashboard() {
                               if (selectedTaskDetails) {
                                 handleDeleteRequest(selectedTaskDetails);
                                 setSelectedTaskDetails(null);
+                                closeModal()
                               }
                             }}
                         >
@@ -2547,6 +2572,7 @@ export default function ManagerDashboard() {
 
                   <Button className="w-full sm:w-auto flex justify-center items-center gap-2 ml-2" variant="outline" onClick={() => {
                     setSelectedTaskDetails(null)
+                    closeModal()
                     setComments([])
                   }}>
                     Закрыть
@@ -2561,7 +2587,7 @@ export default function ManagerDashboard() {
       {showMapModal && (
           <div
               className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-              onClick={() => setShowMapModal(false)}
+              onClick={() => {setShowMapModal(false); closeModal(); }}
           >
             <Card
                 className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
@@ -2579,7 +2605,7 @@ export default function ManagerDashboard() {
                 />
               </CardContent>
               <div className="p-4 flex justify-end border-t">
-                <Button onClick={() => setShowMapModal(false)}>
+                <Button onClick={() => {setShowMapModal(false); closeModal(); }}>
                   Закрыть
                 </Button>
               </div>
@@ -2612,7 +2638,8 @@ export default function ManagerDashboard() {
                   <Button
                       variant="outline"
                       onClick={() => {
-                        setShowDeleteRequestModal(false)
+                        setShowDeleteRequestModal(false);
+                        closeModal();
                         setRequestToDelete(null)
                         setDeleteReason("")
                       }}

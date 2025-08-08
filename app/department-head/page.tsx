@@ -194,6 +194,17 @@ export default function DepartmentHeadDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
+  const [modalStack, setModalStack] = useState<string[]>([]);
+
+  const openModal = (name: string) => {
+    setModalStack(prev => [...prev, name]);
+    window.history.pushState({ modal: name }, '', window.location.pathname);
+  };
+
+  const closeModal = () => {
+    setModalStack(prev => prev.slice(0, -1));
+  };
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -217,71 +228,64 @@ export default function DepartmentHeadDashboard() {
     checkAuth();
   }, []);
   useEffect(() => {
-    const handleBackButton = (e: PopStateEvent) => {
-      // Список всех возможных модальных состояний
-      const modalStates = [
-        showCreateRequestModal,
-        selectedRequest,
-        showRatingModal,
-        showMapModal,
-        isModalOpen,
-        selectedPhoto,
-        executorToDelete,
-        categoryToDelete,
-        commentToDelete
-      ];
-
-      // Если хотя бы одно модальное окно открыто
-      if (modalStates.some(state => Boolean(state))) {
+    const handlePopState = (e: PopStateEvent) => {
+      if (modalStack.length > 0) {
         e.preventDefault();
+        const lastModal = modalStack[modalStack.length - 1];
 
-        // Закрываем модалки в определённом порядке (от последнего к первому)
-        if (commentToDelete) setCommentToDelete(null);
-        else if (categoryToDelete) setCategoryToDelete(null);
-        else if (executorToDelete) setExecutorToDelete(null);
-        else if (selectedPhoto) setSelectedPhoto(null);
-        else if (isModalOpen) setIsModalOpen(false);
-        else if (showMapModal) setShowMapModal(false);
-        else if (showRatingModal) setShowRatingModal(false);
-        else if (selectedRequest) {
-          setSelectedRequest(null);
-          setComments([]);
+        switch (lastModal) {
+          case 'createRequest':
+            setShowCreateRequestModal(false);
+            break;
+          case 'requestDetails':
+            setSelectedRequest(null);
+            setComments([]);
+            break;
+          case 'ratingModal':
+            setShowRatingModal(false);
+            setRatingValue(0);
+            setRequestToRate(null);
+            break;
+          case 'mapModal':
+            setShowMapModal(false);
+            break;
+          case 'photoPreview':
+            setSelectedPhoto(null);
+            break;
+          case 'notification':
+            setIsModalOpen(false);
+            break;
+          case 'executorDelete':
+            setExecutorToDelete(null);
+            break;
+          case 'categoryDelete':
+            setCategoryToDelete(null);
+            break;
+          case 'commentDelete':
+            setCommentToDelete(null);
+            break;
+          default:
+            break;
         }
-        else if (showCreateRequestModal) setShowCreateRequestModal(false);
 
-        // Добавляем запись в историю только если её ещё нет
-        if (window.history.state?.modal !== 'blocked') {
-          window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+        closeModal();
+
+        if (modalStack.length > 1) {
+          window.history.pushState({ modal: modalStack[modalStack.length - 2] }, '', window.location.pathname);
         }
       }
     };
 
-    window.addEventListener('popstate', handleBackButton);
+    window.addEventListener('popstate', handlePopState);
 
-    // Инициализируем историю
-    if (window.history.state?.modal !== 'blocked') {
-      window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+    if (!window.history.state?.modal) {
+      window.history.replaceState({ modal: null }, '', window.location.pathname);
     }
 
     return () => {
-      window.removeEventListener('popstate', handleBackButton);
-
-      // Восстанавливаем историю при размонтировании
-      if (window.history.state?.modal === 'blocked') {
-        window.history.back();
-      }
+      window.removeEventListener('popstate', handlePopState);
     };
-  }, [
-    showCreateRequestModal,
-    selectedRequest,
-    showRatingModal,
-    showMapModal,
-    isModalOpen,
-    selectedPhoto,
-    executorToDelete,
-    categoryToDelete,
-    commentToDelete
-  ]);
+  }, [modalStack]);
   const fetchStats = async () => {
     try {
       const res = await api.get("/analytics/stats/department-head");
@@ -327,7 +331,8 @@ export default function DepartmentHeadDashboard() {
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification)
-    setIsModalOpen(true)
+    setIsModalOpen(true);
+    openModal('notification');
 
     if (!notification.is_read) {
       try {
@@ -588,7 +593,8 @@ export default function DepartmentHeadDashboard() {
         rejection_reason: rejectionReason
       })
       fetchRequests()
-      setSelectedRequest(null)
+      setSelectedRequest(null);
+      closeModal();
       setRejectionReason("")
     } catch (error) {
       console.error("Failed to reject request:", error)
@@ -599,7 +605,8 @@ export default function DepartmentHeadDashboard() {
     try {
       await api.patch(`requests/${requestId}/assign-executor/${executorId}`)
       fetchRequests()
-      setSelectedRequest(null)
+      setSelectedRequest(null);
+      closeModal();
     }catch (error) {
       console.error("Failed to create request:", error)
     }
@@ -694,7 +701,8 @@ export default function DepartmentHeadDashboard() {
           ...prev,
           [requestToRate.id]: response.data
         }))
-        setShowRatingModal(false)
+        setShowRatingModal(false);
+        closeModal();
         setRatingValue(0)
         setRequestToRate(null)
       } catch (error) {
@@ -999,7 +1007,10 @@ export default function DepartmentHeadDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {myRequests.map((request, index: number) => (
                       <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                            onClick={() => setSelectedRequest(request)}>
+                            onClick={() => {
+                              setSelectedRequest(request);
+                              openModal("requestDetails")
+                            }}>
                         {/* Заголовок с ID и статусами */}
                         <CardHeader className="pb-3 px-5 pt-5">
                           <div className="flex items-start justify-between gap-3">
@@ -1010,7 +1021,7 @@ export default function DepartmentHeadDashboard() {
                                   #{request.id}
                                 </span>
                                 <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
+                                  {request?.category?.name}
                                 </span>
                               </div>
                             </div>
@@ -1126,7 +1137,10 @@ export default function DepartmentHeadDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {incomingRequests.map((request, index: number) => (
                         <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                              onClick={() => setSelectedRequest(request)}>
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                openModal("requestDetails");
+                              }}>
                           {/* Заголовок с ID и статусами */}
                           <CardHeader className="pb-3 px-5 pt-5">
                             <div className="flex items-start justify-between gap-3">
@@ -1137,7 +1151,7 @@ export default function DepartmentHeadDashboard() {
                                   #{request.id}
                                 </span>
                                   <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
+                                  {request?.category?.name}
                                 </span>
                                 </div>
                               </div>
@@ -1407,7 +1421,10 @@ export default function DepartmentHeadDashboard() {
                                           <Button
                                               variant="ghost"
                                               size="sm"
-                                              onClick={() => setExecutorToDelete(executor)}
+                                              onClick={() => {
+                                                setExecutorToDelete(executor);
+                                                openModal('executorDelete');
+                                              }}
                                               className="text-red-500 hover:text-red-700"
                                           >
                                             <Trash2 className="w-4 h-4" />
@@ -1429,6 +1446,7 @@ export default function DepartmentHeadDashboard() {
                                                   if (executorToDelete) {
                                                     handleRemoveExecutor(executorToDelete.user.id);
                                                     setExecutorToDelete(null);
+                                                    closeModal()
                                                   }
                                                 }}
                                             >
@@ -1475,7 +1493,10 @@ export default function DepartmentHeadDashboard() {
                                           <Button
                                               variant="ghost"
                                               size="sm"
-                                              onClick={() => setCategoryToDelete(category)}
+                                              onClick={() => {
+                                                setCategoryToDelete(category);
+                                                openModal("categoryDelete");
+                                              }}
                                           >
                                             <Trash2 className="w-4 h-4 text-red-500" />
                                           </Button>
@@ -1492,8 +1513,9 @@ export default function DepartmentHeadDashboard() {
                                             <AlertDialogAction
                                                 onClick={() => {if(categoryToDelete){
                                                   handleRemoveCategory(categoryToDelete.id)
-                                                  setCategoryToDelete(null)}
-                                                }}
+                                                  setCategoryToDelete(null);
+                                                  closeModal();
+                                                }}}
                                             >
                                               Удалить
                                             </AlertDialogAction>
@@ -1544,37 +1566,51 @@ export default function DepartmentHeadDashboard() {
                   )}
                 </CardContent>
               </Card>
-
-              {/* Модалка */}
-              {isModalOpen && selectedNotification && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-                      <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
-                        <button
-                            className="text-gray-500 hover:text-black"
-                            onClick={() => setIsModalOpen(false)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                      <p className="text-sm text-gray-800 whitespace-pre-line">
-                        {selectedNotification.content}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-4">
-                        Получено: {new Date(selectedNotification.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-              )}
             </div>
           </div>
         </div>
 
+        {/* Модалка */}
+        {isModalOpen && selectedNotification && (
+            <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  closeModal();
+                }}
+            >
+              <div
+                  className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
+                  onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри модалки
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                  <button
+                      className="text-gray-500 hover:text-black text-2xl focus:outline-none"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        closeModal();
+                      }}
+                      aria-label="Закрыть модальное окно"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="text-sm text-gray-800 whitespace-pre-line">
+                  {selectedNotification.content}
+                </p>
+                <p className="text-xs text-gray-500 mt-4">
+                  Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                </p>
+              </div>
+            </div>
+        )}
+
         {/* Request Details Modal */}
         {selectedRequest && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>{
-              setSelectedRequest(null)
+              setSelectedRequest(null);
+              closeModal();
               setComments([])
             }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -1641,7 +1677,8 @@ export default function DepartmentHeadDashboard() {
                                 lon: parseFloat(lonMatch[1]),
                                 accuracy: parseInt(accMatch[1])
                               })
-                              setShowMapModal(true)
+                              setShowMapModal(true);
+                              openModal('mapModal');
                             } else {
                               alert("Не удалось определить координаты из локации")
                             }
@@ -1805,7 +1842,10 @@ export default function DepartmentHeadDashboard() {
                                   src={photo.photo_url || "/placeholder.svg"}
                                   alt={`Photo ${index + 1}`}
                                   className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                  onClick={() => setSelectedPhoto(photo.photo_url)}
+                                  onClick={() => {
+                                    setSelectedPhoto(photo.photo_url);
+                                    openModal('photoPreview');
+                                  }}
                               />
                           ))}
                         </div>
@@ -1817,6 +1857,7 @@ export default function DepartmentHeadDashboard() {
                           onClick={() => {
                             setRequestToRate(selectedRequest)
                             setShowRatingModal(true)
+                            openModal('ratingModal');
                           }}
                           className="mt-4"
                       >
@@ -1895,7 +1936,10 @@ export default function DepartmentHeadDashboard() {
                                   <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                       <button
-                                          onClick={() => setCommentToDelete(c)}
+                                          onClick={() => {
+                                            setCommentToDelete(c);
+                                            openModal('commentDelete');
+                                          }}
                                           className="px-3 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600 w-full sm:w-auto"
                                       >
                                         Удалить
@@ -1923,6 +1967,7 @@ export default function DepartmentHeadDashboard() {
                                               if (commentToDelete) {
                                                 handleDelete(commentToDelete.id);
                                                 setCommentToDelete(null);
+                                                closeModal();
                                               }
                                             }}
                                         >
@@ -1975,7 +2020,8 @@ export default function DepartmentHeadDashboard() {
                   <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
                     <Button variant="outline"
                             onClick={() => {
-                              setSelectedRequest(null)
+                              setSelectedRequest(null);
+                              closeModal();
                               setComments([]);
                             }}
                             className="w-full sm:w-auto"
@@ -1992,7 +2038,7 @@ export default function DepartmentHeadDashboard() {
         {selectedPhoto && (
             <div
                 className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                onClick={() => setSelectedPhoto(null)}
+                onClick={() => {setSelectedPhoto(null); closeModal(); }}
             >
               <img
                   src={selectedPhoto}
@@ -2253,7 +2299,7 @@ export default function DepartmentHeadDashboard() {
 
         {/* Rating Modal */}
         {showRatingModal && requestToRate && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> setShowRatingModal(false)}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {setShowRatingModal(false); closeModal()}}>
               <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Оценить клиента</CardTitle>
@@ -2281,7 +2327,8 @@ export default function DepartmentHeadDashboard() {
                   <Button
                       variant="outline"
                       onClick={() => {
-                        setShowRatingModal(false)
+                        setShowRatingModal(false);
+                        closeModal();
                         setRatingValue(0)
                         setRequestToRate(null)
                       }}
@@ -2298,7 +2345,8 @@ export default function DepartmentHeadDashboard() {
         {showMapModal && (
             <div
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-                onClick={() => setShowMapModal(false)}
+                onClick={() =>
+                {setShowMapModal(false); closeModal() }}
             >
               <Card
                   className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
@@ -2316,7 +2364,7 @@ export default function DepartmentHeadDashboard() {
                   />
                 </CardContent>
                 <div className="p-4 flex justify-end border-t">
-                  <Button onClick={() => setShowMapModal(false)}>
+                  <Button onClick={() => {setShowMapModal(false); closeModal() }}>
                     Закрыть
                   </Button>
                 </div>
