@@ -198,28 +198,39 @@ export default function ClientDashboard() {
     checkAuth();
   }, []);
   useEffect(() => {
-    const handleBackButton = () => {
-      // Закрываем все модальные окна
+    const handleBackButton = (e: PopStateEvent) => {
+      // Если есть открытые модалки, предотвращаем стандартное поведение "Назад"
       if (showCreateRequest || selectedRequest || showRatingModal || showMapModal || isModalOpen) {
-        setShowCreateRequest(false);
-        setSelectedRequest(null);
-        setShowRatingModal(false);
-        setShowMapModal(false);
-        setIsModalOpen(false);
-        // Предотвращаем стандартное поведение кнопки "Назад"
-        window.history.pushState(null, '', window.location.pathname);
+        e.preventDefault();
+
+        // Закрываем модалки в определённом порядке (например, последнюю открытую)
+        if (isModalOpen) setIsModalOpen(false);
+        else if (showMapModal) setShowMapModal(false);
+        else if (showRatingModal) setShowRatingModal(false);
+        else if (selectedRequest) setSelectedRequest(null);
+        else if (showCreateRequest) setShowCreateRequest(false);
+
+        // Добавляем запись в историю только если её ещё нет
+        if (window.history.state?.modal !== 'blocked') {
+          window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+        }
       }
     };
 
-    // Добавляем слушатель события popstate
     window.addEventListener('popstate', handleBackButton);
 
-    // При монтировании добавляем запись в историю
-    window.history.pushState(null, '', window.location.pathname);
+    // Инициализируем историю
+    if (window.history.state?.modal !== 'blocked') {
+      window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+    }
 
     return () => {
-      // Удаляем слушатель при размонтировании
       window.removeEventListener('popstate', handleBackButton);
+
+      // Восстанавливаем историю при размонтировании
+      if (window.history.state?.modal === 'blocked') {
+        window.history.back();
+      }
     };
   }, [showCreateRequest, selectedRequest, showRatingModal, showMapModal, isModalOpen]);
   useEffect(() => {

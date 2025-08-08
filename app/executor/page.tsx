@@ -175,7 +175,75 @@ export default function ExecutorDashboard() {
 
     checkAuth();
   }, []);
+  useEffect(() => {
+    const handleBackButton = (e: PopStateEvent) => {
+      // Список всех возможных модальных состояний
+      const modalStates = [
+        showCreateRequestModal,
+        selectedTask,
+        selectedTaskDetails,
+        showMapModal,
+        isModalOpen,
+        selectedPhoto,
+        commentToDelete
+      ];
 
+      // Если хотя бы одно модальное окно открыто
+      if (modalStates.some(state => Boolean(state))) {
+        e.preventDefault();
+
+        // Закрываем модалки в определённом порядке
+        if (commentToDelete) setCommentToDelete(null);
+        else if (selectedPhoto) setSelectedPhoto(null);
+        else if (isModalOpen) setIsModalOpen(false);
+        else if (showMapModal) setShowMapModal(false);
+        else if (selectedTaskDetails) {
+          setSelectedTaskDetails(null);
+          setComments([]);
+        }
+        else if (selectedTask) {
+          setSelectedTask(null);
+          setPhotos([]);
+          setPhotoPreviews([]);
+          setCompletedRequestComment("");
+        }
+        else if (showCreateRequestModal) {
+          setShowCreateRequestModal(false);
+          setPhotos([]);
+          setPhotoPreviews([]);
+        }
+
+        // Добавляем запись в историю только если её ещё нет
+        if (window.history.state?.modal !== 'blocked') {
+          window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handleBackButton);
+
+    // Инициализируем историю
+    if (window.history.state?.modal !== 'blocked') {
+      window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handleBackButton);
+
+      // Восстанавливаем историю при размонтировании
+      if (window.history.state?.modal === 'blocked') {
+        window.history.back();
+      }
+    };
+  }, [
+    showCreateRequestModal,
+    selectedTask,
+    selectedTaskDetails,
+    showMapModal,
+    isModalOpen,
+    selectedPhoto,
+    commentToDelete
+  ]);
   const fetchStats = async () => {
     try {
       const res = await api.get("/analytics/stats/executor");

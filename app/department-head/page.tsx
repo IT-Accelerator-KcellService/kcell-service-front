@@ -15,17 +15,13 @@ import {
   Clock,
   AlertTriangle,
   Users,
-  BarChart3,
-  Bell,
   User,
   Star,
   Plus,
   Camera,
   Calendar,
   MapPin,
-  Trash2,
-  Download,
-  ExternalLink, Loader2, Zap, AlertCircle, ImageIcon,
+  Trash2, Loader2, Zap, AlertCircle, ImageIcon,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -185,7 +181,6 @@ export default function DepartmentHeadDashboard() {
   const date = newRequestPlannedDate
       ? parseLocalDate(newRequestPlannedDate)
       : undefined;
-  const [loading, setLoading] = useState(true)
   const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -220,7 +215,72 @@ export default function DepartmentHeadDashboard() {
 
     checkAuth();
   }, []);
+  useEffect(() => {
+    const handleBackButton = (e: PopStateEvent) => {
+      // Список всех возможных модальных состояний
+      const modalStates = [
+        showCreateRequestModal,
+        selectedRequest,
+        showRatingModal,
+        showMapModal,
+        isModalOpen,
+        selectedPhoto,
+        executorToDelete,
+        categoryToDelete,
+        commentToDelete
+      ];
 
+      // Если хотя бы одно модальное окно открыто
+      if (modalStates.some(state => Boolean(state))) {
+        e.preventDefault();
+
+        // Закрываем модалки в определённом порядке (от последнего к первому)
+        if (commentToDelete) setCommentToDelete(null);
+        else if (categoryToDelete) setCategoryToDelete(null);
+        else if (executorToDelete) setExecutorToDelete(null);
+        else if (selectedPhoto) setSelectedPhoto(null);
+        else if (isModalOpen) setIsModalOpen(false);
+        else if (showMapModal) setShowMapModal(false);
+        else if (showRatingModal) setShowRatingModal(false);
+        else if (selectedRequest) {
+          setSelectedRequest(null);
+          setComments([]);
+        }
+        else if (showCreateRequestModal) setShowCreateRequestModal(false);
+
+        // Добавляем запись в историю только если её ещё нет
+        if (window.history.state?.modal !== 'blocked') {
+          window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handleBackButton);
+
+    // Инициализируем историю
+    if (window.history.state?.modal !== 'blocked') {
+      window.history.pushState({ modal: 'blocked' }, '', window.location.pathname);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handleBackButton);
+
+      // Восстанавливаем историю при размонтировании
+      if (window.history.state?.modal === 'blocked') {
+        window.history.back();
+      }
+    };
+  }, [
+    showCreateRequestModal,
+    selectedRequest,
+    showRatingModal,
+    showMapModal,
+    isModalOpen,
+    selectedPhoto,
+    executorToDelete,
+    categoryToDelete,
+    commentToDelete
+  ]);
   const fetchStats = async () => {
     try {
       const res = await api.get("/analytics/stats/department-head");
