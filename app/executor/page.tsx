@@ -39,6 +39,7 @@ import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import PerformerCard from "@/components/rating";
 import {ProfileModal} from "@/components/ProfileModal";
+import Loading from "@/app/loading";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
@@ -147,6 +148,7 @@ export default function ExecutorDashboard() {
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [myRating, setMyRating] = useState<number | null>(null)
   const [stats, setStats] = useState<Stats | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   // ✅ НОВОЕ: Стек модалок
@@ -288,16 +290,27 @@ export default function ExecutorDashboard() {
       console.error("Ошибка при удалении", err);
     }
   };
-  const closeAllModalsExcept = (modalName: string) => {
+  const closeAllModalsExcept = async (modalName: string) => {
+    setIsLoading(true); // Показываем лоадер
+
+    // Имитация загрузки (можно удалить в проде)
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     // Закрываем все модалки, кроме указанной
     if (modalName !== 'createRequest') {
       setShowCreateRequestModal(false);
+      setPhotos([]);
+      setPhotoPreviews([]);
     }
     if (modalName !== 'taskComplete') {
       setSelectedTask(null);
+      setPhotos([]);
+      setPhotoPreviews([]);
+      setCompletedRequestComment("");
     }
     if (modalName !== 'taskDetails') {
       setSelectedTaskDetails(null);
+      setComments([]);
     }
     if (modalName !== 'mapModal') {
       setShowMapModal(false);
@@ -315,6 +328,8 @@ export default function ExecutorDashboard() {
     // Очищаем стек и добавляем только текущую модалку
     setModalStack([modalName]);
     window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+
+    setIsLoading(false); // Скрываем лоадер
   };
   const handleSend = () => {
     if (comment.trim() === "") return;
@@ -458,6 +473,11 @@ export default function ExecutorDashboard() {
       setShowCreateRequestModal(true)
       closeAllModalsExcept('createRequest');
       openModal('createRequest');
+      router.replace(`/${role}`, { scroll: false })
+    }
+    if(create === "false") {
+      setShowCreateRequestModal(false)
+      closeModal()
       router.replace(`/${role}`, { scroll: false })
     }
   }, [searchParams])

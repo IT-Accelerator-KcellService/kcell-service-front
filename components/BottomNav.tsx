@@ -35,7 +35,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest
             </Link>
 
             {/* История */}
-            <Link href={`/${role}`} className="flex-1 flex justify-center">
+            <Link href={`/${role}?createRequest=false`} className="flex-1 flex justify-center">
                 <Button
                     variant="ghost"
                     size="sm"
