@@ -148,7 +148,6 @@ export default function ExecutorDashboard() {
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [myRating, setMyRating] = useState<number | null>(null)
   const [stats, setStats] = useState<Stats | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   // ✅ НОВОЕ: Стек модалок
@@ -464,8 +463,8 @@ export default function ExecutorDashboard() {
     const create = searchParams.get("createRequest")
     const role = localStorage.getItem('role')
     if (create === "true") {
-      setShowCreateRequestModal(true)
       closeAllModalsExcept('createRequest');
+      setShowCreateRequestModal(true)
       openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })
     }

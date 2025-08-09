@@ -263,7 +263,6 @@ export default function ClientDashboard() {
     };
   }, [modalStack]);
   const closeAllModalsExcept = (modalName: string) => {
-    setLoading(true);
     if (modalName !== 'createRequest') {
       setShowCreateRequest(false);
     }
@@ -285,7 +284,6 @@ export default function ClientDashboard() {
 
     setModalStack([modalName]);
     window.history.replaceState({ modal: modalName }, '', window.location.pathname);
-    setLoading(false);
   };
   useEffect(() => {
     if (notifications.length <= 0) {
@@ -314,8 +312,8 @@ export default function ClientDashboard() {
     const create = searchParams.get("createRequest")
     const role = localStorage.getItem('role')
     if (create === "true") {
-      setShowCreateRequest(true);
       closeAllModalsExcept('createRequest')
+      setShowCreateRequest(true);
       openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })
     }

@@ -260,6 +260,7 @@ export default function ManagerDashboard() {
     const role = localStorage.getItem('role')
 
     if (create === "true") {
+      closeAllModalsExcept('createRequest');
       setShowCreateRequestModal(true)
       openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })
@@ -504,6 +505,36 @@ export default function ManagerDashboard() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, [modalStack]);
+
+  const closeAllModalsExcept = (modalName: string) => {
+    if (modalName !== 'createRequest') {
+      setShowCreateRequestModal(false);
+    }
+    if (modalName !== 'taskDetails') {
+      setSelectedTaskDetails(null);
+    }
+    if (modalName !== 'mapModal') {
+      setShowMapModal(false);
+    }
+    if (modalName !== 'photoPreview') {
+      setSelectedPhoto(null);
+    }
+    if (modalName !== 'notification') {
+      setIsModalOpen(false);
+    }
+
+    if (modalName !== 'commentDelete') {
+      setCommentToDelete(null);
+    }
+    if (modalName !== 'deleteRequest') {
+      setShowDeleteRequestModal(false);
+      setRequestToDelete(null);
+      setDeleteReason("");
+    }
+    setModalStack([modalName]);
+    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+  };
+
 
   useEffect(() => {
     fetchUsers(1); // при загрузке

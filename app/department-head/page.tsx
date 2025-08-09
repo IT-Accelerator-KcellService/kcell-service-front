@@ -286,6 +286,42 @@ export default function DepartmentHeadDashboard() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, [modalStack]);
+
+
+  const closeAllModalsExcept = (modalName: string) => {
+    if (modalName !== 'createRequest') {
+      setShowCreateRequestModal(false);
+    }
+    if (modalName !== 'requestDetails') {
+      setSelectedRequest(null);
+    }
+    if (modalName !== 'mapModal') {
+      setShowMapModal(false);
+    }
+    if (modalName !== 'photoPreview') {
+      setSelectedPhoto(null);
+    }
+    if (modalName !== 'notification') {
+      setIsModalOpen(false);
+    }
+    if (modalName !== 'ratingModal') {
+      setShowRatingModal(false);
+      setRatingValue(0);
+      setRequestToRate(null);
+    }
+    if (modalName !== 'commentDelete') {
+      setCommentToDelete(null);
+    }
+    if (modalName !== 'categoryDelete') {
+      setCategoryToDelete(null);
+    }
+    if (modalName !== 'executorDelete') {
+      setExecutorToDelete(null);
+    }
+    setModalStack([modalName]);
+    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+  };
+
   const fetchStats = async () => {
     try {
       const res = await api.get("/analytics/stats/department-head");
@@ -314,6 +350,7 @@ export default function DepartmentHeadDashboard() {
     const role = localStorage.getItem('role')
 
     if (create === "true") {
+      closeAllModalsExcept('createRequest')
       setShowCreateRequestModal(true)
       openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })

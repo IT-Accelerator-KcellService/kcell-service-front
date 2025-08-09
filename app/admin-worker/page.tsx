@@ -293,6 +293,35 @@ export default function AdminWorkerDashboard() {
     };
   }, [modalStack]);
 
+  const closeAllModalsExcept = (modalName: string) => {
+    if (modalName !== 'createRequest') {
+      setShowCreateRequestModal(false);
+    }
+    if (modalName !== 'requestDetails') {
+      setSelectedRequest(null);
+    }
+    if (modalName !== 'mapModal') {
+      setShowMapModal(false);
+    }
+    if (modalName !== 'photoPreview') {
+      setSelectedPhoto(null);
+    }
+    if (modalName !== 'notification') {
+      setIsModalOpen(false);
+    }
+    if (modalName !== 'ratingModal') {
+      setShowRatingModal(false);
+      setRatingValue(0);
+      setRequestToRate(null);
+    }
+    if (modalName !== 'commentDelete') {
+      setCommentToDelete(null);
+    }
+
+    setModalStack([modalName]);
+    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+  };
+
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
@@ -358,6 +387,7 @@ export default function AdminWorkerDashboard() {
     const role = localStorage.getItem('role')
 
     if (create === "true") {
+      closeAllModalsExcept("createRequest");
       setShowCreateRequestModal(true);
       openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })
