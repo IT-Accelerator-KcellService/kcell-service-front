@@ -319,6 +319,11 @@ export default function ClientDashboard() {
       openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })
     }
+    if(create === "false") {
+      setShowCreateRequest(false)
+      closeModal()
+      router.replace(`/${role}`, { scroll: false })
+    }
   }, [searchParams])
 
   const fetchNotifications = async () => {

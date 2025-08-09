@@ -315,6 +315,12 @@ export default function DepartmentHeadDashboard() {
 
     if (create === "true") {
       setShowCreateRequestModal(true)
+      openModal('createRequest');
+      router.replace(`/${role}`, { scroll: false })
+    }
+    if(create === "false") {
+      setShowCreateRequestModal(false)
+      closeModal()
       router.replace(`/${role}`, { scroll: false })
     }
   }, [searchParams])

@@ -291,10 +291,6 @@ export default function ExecutorDashboard() {
     }
   };
   const closeAllModalsExcept = async (modalName: string) => {
-    setIsLoading(true); // Показываем лоадер
-
-    // Имитация загрузки (можно удалить в проде)
-    await new Promise(resolve => setTimeout(resolve, 300));
 
     // Закрываем все модалки, кроме указанной
     if (modalName !== 'createRequest') {
@@ -328,8 +324,6 @@ export default function ExecutorDashboard() {
     // Очищаем стек и добавляем только текущую модалку
     setModalStack([modalName]);
     window.history.replaceState({ modal: modalName }, '', window.location.pathname);
-
-    setIsLoading(false); // Скрываем лоадер
   };
   const handleSend = () => {
     if (comment.trim() === "") return;

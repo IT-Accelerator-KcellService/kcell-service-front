@@ -362,6 +362,11 @@ export default function AdminWorkerDashboard() {
       openModal('createRequest');
       router.replace(`/${role}`, { scroll: false })
     }
+    if(create === "false") {
+      setShowCreateRequestModal(false)
+      closeModal()
+      router.replace(`/${role}`, { scroll: false })
+    }
   }, [searchParams])
 
   const fetchNotifications = async () => {
