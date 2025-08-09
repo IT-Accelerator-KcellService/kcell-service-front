@@ -273,10 +273,6 @@ export default function AdminWorkerDashboard() {
         }
 
         closeModal();
-
-        if (modalStack.length > 1) {
-          window.history.pushState({ modal: modalStack[modalStack.length - 2] }, '', window.location.pathname);
-        }
       }
     };
 
