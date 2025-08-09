@@ -50,6 +50,7 @@ import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
+import {CommentList} from "@/components/comment/Comment";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -1904,94 +1905,20 @@ export default function DepartmentHeadDashboard() {
                   )}
 
                   {/* Секция для комментариев */}
-                  <Card className="mt-4 border border-gray-200 shadow-sm rounded-md">
-                    <CardContent className="p-4 space-y-4">
-                      <h4 className="font-semibold text-gray-800">Комментарии</h4>
+                  <Card className="mt-2 border-t border-gray-100">
+                    <CardContent className="p-4">
+                      <CommentList
+                          comments={comments}
+                          currentUserId={currentUserId}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                      />
 
-                      {comments.map((c: any) => (
-                          <div
-                              key={c.id}
-                              className="bg-white border border-gray-200 rounded-md p-3 shadow transition hover:shadow-md"
-                          >
-                            {/* заголовок */}
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-1">
-                              <div className="text-sm font-medium text-gray-800">
-                                {c.user.full_name || "Неизвестный пользователь"}
-                                {c.user.role && (
-                                    <span className="ml-1 text-xs text-gray-500">
-                ({roleTranslations[c.user.role] || c.user.role})
-              </span>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
-                            </div>
-
-                            {/* сам комментарий */}
-                            <div className="text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
-
-                            {/* кнопки */}
-                            {c.user.id === currentUserId && (
-                                <div className="mt-2 flex flex-col sm:flex-row gap-2 text-xs">
-                                  <button
-                                      onClick={() => handleEdit(c.id, c.comment)}
-                                      className="px-3 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700 w-full sm:w-auto"
-                                  >
-                                    Изменить
-                                  </button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <button
-                                          onClick={() => {
-                                            setCommentToDelete(c);
-                                            openModal('commentDelete');
-                                          }}
-                                          className="px-3 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600 w-full sm:w-auto"
-                                      >
-                                        Удалить
-                                      </button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent className="max-w-[90%] sm:max-w-md p-4 sm:p-6">
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle className="text-base sm:text-lg font-semibold">
-                                          Вы уверены?
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription className="text-sm sm:text-base mt-2 text-gray-600">
-                                          Это действие нельзя отменить. <br />
-                                          Вы действительно хотите удалить комментарий:
-                                          <br />
-                                          <span className="italic text-gray-800">«{commentToDelete?.comment}»</span>?
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
-                                        <AlertDialogCancel className="w-full sm:w-auto">
-                                          Отмена
-                                        </AlertDialogCancel>
-                                        <AlertDialogAction
-                                            className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
-                                            onClick={() => {
-                                              if (commentToDelete) {
-                                                handleDelete(commentToDelete.id);
-                                                setCommentToDelete(null);
-                                                closeModal();
-                                              }
-                                            }}
-                                        >
-                                          Удалить
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-
-                                  </AlertDialog>
-                                </div>
-                            )}
-                          </div>
-                      ))}
-
-                      {/* форма добавления */}
-                      <div className="space-y-2">
+                      {/* Поле ввода — остаётся здесь */}
+                      <div className="mt-4 flex flex-col space-y-2">
                         {editCommentId && (
                             <div className="text-xs text-gray-500">
-                              Редактируется комментарий #{editCommentId}
+                              Редактируется комментарий
                               <button
                                   className="ml-2 text-red-500 hover:underline"
                                   onClick={() => {
@@ -2003,18 +1930,18 @@ export default function DepartmentHeadDashboard() {
                               </button>
                             </div>
                         )}
-                        <div className="flex flex-col sm:flex-row items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <input
                               type="text"
                               value={comment}
                               onChange={(e) => setComment(e.target.value)}
                               placeholder="Написать комментарий..."
-                              className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+                              className="flex-1 p-2.5 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                           />
                           <Button
                               size="sm"
-                              className="w-full sm:w-auto"
                               onClick={handleSend}
+                              className="bg-violet-600 hover:bg-violet-700"
                           >
                             {editCommentId ? "Сохранить" : "Отправить"}
                           </Button>
