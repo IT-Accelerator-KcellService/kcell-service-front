@@ -72,7 +72,7 @@ export default function LoginPage() {
       const role = data.role || "client"
       localStorage.setItem("token", data.token)
       localStorage.setItem("role", data.role)
-      router.push(`/${role.toLowerCase().replace(" ", "-")}`)
+      router.push(`/home`)
     } catch (err) {
       setLoading(false)
       console.error("Ошибка логина:", err)
