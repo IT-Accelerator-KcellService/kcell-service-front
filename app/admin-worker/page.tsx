@@ -172,7 +172,7 @@ export default function AdminWorkerDashboard() {
       ? parseLocalDate(newRequestPlannedDate)
       : undefined;
   const [loading, setLoading] = useState(true)
-  const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
+  const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
@@ -376,12 +376,18 @@ export default function AdminWorkerDashboard() {
   );
 
   useEffect(() => {
-    if (notifications.length <= 0) {
-      fetchNotifications()
-    } else {
+    if (notifications.length > 0) {
       setNotificationLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      setNotificationLoading(true)
+      fetchNotifications()
+    }
+  }, [isLoggedIn])
+
   useEffect(() => {
     const create = searchParams.get("createRequest")
     const role = localStorage.getItem('role')
@@ -774,7 +780,7 @@ export default function AdminWorkerDashboard() {
   const handleLogout = async () => {
     try {
       setIsLoggedIn(false)
-      setNotifications([]);
+      clearNotifications()
       localStorage.removeItem('token');
       router.push("/login")
     } catch (error) {

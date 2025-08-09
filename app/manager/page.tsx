@@ -142,7 +142,7 @@ export default function ManagerDashboard() {
   const [newRequestLocation, setNewRequestLocation] = useState("")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [showProfile, setShowProfile] = useState(false)
-  const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
+  const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -696,7 +696,7 @@ export default function ManagerDashboard() {
   const handleLogout = async () => {
     try {
       setIsLoggedIn(false)
-      setNotifications([]);
+      clearNotifications()
       localStorage.removeItem('token')
       router.push("/login")
     } catch (error) {
@@ -927,16 +927,21 @@ export default function ManagerDashboard() {
   }
 
   useEffect(() => {
-    if (notifications.length <= 0) {
-      fetchNotifications()
-    } else {
+    if (notifications.length > 0) {
       setNotificationLoading(false)
     }
   }, [])
 
+  useEffect(() => {
+    if (isLoggedIn) {
+      setNotificationLoading(true)
+      fetchNotifications()
+    }
+  }, [isLoggedIn])
+
   const fetchNotifications = async () => {
     try {
-      const res = await api.get('/notifications/me')
+      const res = await api.get('/notifications/me?page=1&pageSize=5')
       setNotifications(res.data.notifications)
     } catch (error) {
       console.error('Ошибка при загрузке уведомлений:', error)

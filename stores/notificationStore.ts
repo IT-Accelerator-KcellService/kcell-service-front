@@ -5,6 +5,7 @@ interface NotificationState {
     notificationLoading: boolean
     setNotifications: (notifications: any[]) => void
     setNotificationLoading: (loading: boolean) => void
+    clearNotifications: () => void
 }
 
 export const useNotificationStore = create<NotificationState>((set) => ({
@@ -12,4 +13,5 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     notificationLoading: true,
     setNotifications: (notifications:any) => set({ notifications }),
     setNotificationLoading: (notificationLoading) => set({ notificationLoading }),
+    clearNotifications: () => set({ notifications: [], notificationLoading: true }),
 }))

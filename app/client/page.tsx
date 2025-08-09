@@ -148,7 +148,7 @@ export default function ClientDashboard() {
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [requestDescription,setrequestDescription]=useState("");
-  const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
+  const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -285,13 +285,19 @@ export default function ClientDashboard() {
     setModalStack([modalName]);
     window.history.replaceState({ modal: modalName }, '', window.location.pathname);
   };
+
   useEffect(() => {
-    if (notifications.length <= 0) {
-      fetchNotifications()
-    } else {
+    if (notifications.length > 0) {
       setNotificationLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      setNotificationLoading(true)
+      fetchNotifications()
+    }
+  }, [isLoggedIn])
 
   const fetchStats = async () => {
     try {
@@ -739,7 +745,7 @@ export default function ClientDashboard() {
   const handleLogout = async () => {
     try {
       setIsLoggedIn(false)
-      setNotifications([]);
+      clearNotifications()
       localStorage.removeItem('token')
       router.push("/login")
     } catch (error) {

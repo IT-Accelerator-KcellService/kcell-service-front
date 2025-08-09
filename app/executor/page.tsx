@@ -128,7 +128,7 @@ export default function ExecutorDashboard() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
-  const { notifications, notificationLoading, setNotificationLoading, setNotifications } = useNotificationStore()
+  const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [requestLocation, setRequestLocation] = useState("")
@@ -452,12 +452,17 @@ export default function ExecutorDashboard() {
   };
 
   useEffect(() => {
-    if (notifications.length <= 0) {
-      fetchNotifications()
-    } else {
+    if (notifications.length > 0) {
       setNotificationLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      setNotificationLoading(true)
+      fetchNotifications()
+    }
+  }, [isLoggedIn])
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
@@ -698,7 +703,7 @@ export default function ExecutorDashboard() {
   const handleLogout = async () => {
     try {
       setIsLoggedIn(false)
-      setNotifications([]);
+      clearNotifications()
       localStorage.removeItem('token')
       router.push("/login")
     } catch (error) {
