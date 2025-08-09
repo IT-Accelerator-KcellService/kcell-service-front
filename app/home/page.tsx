@@ -635,13 +635,7 @@ export default function HomePage() {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-            </div>
-        )
-    }
+    // Removed full-screen page loader to rely solely on global route loader (app/loading.tsx)
 
     const StatCard = ({
                           title,
