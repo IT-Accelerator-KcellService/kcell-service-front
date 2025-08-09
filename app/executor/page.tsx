@@ -220,11 +220,16 @@ export default function ExecutorDashboard() {
             break;
         }
 
-        closeModal();
+        // Удаляем текущую модалку из стека
+        setModalStack(prev => prev.slice(0, -1));
 
         // Восстанавливаем предыдущее состояние в истории
         if (modalStack.length > 1) {
+          // Если есть предыдущая модалка - восстанавливаем её состояние
           window.history.pushState({ modal: modalStack[modalStack.length - 2] }, '', window.location.pathname);
+        } else {
+          // Если это последняя модалка - заменяем состояние на null
+          window.history.replaceState({ modal: null }, '', window.location.pathname);
         }
       }
     };
