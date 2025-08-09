@@ -15,7 +15,6 @@ import {
   Clock,
   AlertTriangle,
   Users,
-  BarChart3,
   User,
   Star,
   Plus,
@@ -23,7 +22,6 @@ import {
   MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import axios from 'axios';
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
@@ -50,13 +48,12 @@ import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {RejectRequestModal} from "@/components/RejectRequestModal";
 import {AcceptRequestModal} from "@/components/AcceptRequestModal";
 import {ProfileModal} from "@/components/ProfileModal";
+import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
 })
-
-const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
 interface User {
   id: number;
@@ -436,22 +433,6 @@ export default function AdminWorkerDashboard() {
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
-  }
-
-  const getBgColor = (title:any) => {
-    if (title.includes("принята")) return "bg-blue-50"
-    if (title.includes("завершена")) return "bg-green-50"
-    if (title.includes("просрочена")) return "bg-red-50"
-    return "bg-gray-100"
-  }
-
-  const formatTimeAgo = (dateStr:any) => {
-    const date = new Date(dateStr)
-    const diff = (Date.now() - date.getTime()) / 1000
-    if (diff < 60) return "только что"
-    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
-    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
-    return `${Math.floor(diff / 86400)} дней назад`
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1409,35 +1390,10 @@ export default function AdminWorkerDashboard() {
               </Tabs>
             </div>
 
-            {/* Sidebar */}
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Уведомления</CardTitle>
-                </CardHeader>
-                <CardContent className="mb-12">
-                  {notificationLoading ? (
-                      <p>Загрузка...</p>
-                  ) : (
-                      <div className="space-y-3">
-                        {notifications
-                            .map((n: any) => (
-                                <div
-                                    key={n.id}
-                                    onClick={() => handleNotificationClick(n)}
-                                    className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
-                                        n.title
-                                    )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
-                                >
-                                  <div className="flex justify-between">
-                                    <p className="text-sm font-medium">{n.title}</p>
-                                    {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
-                                  </div>
-                                  <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
-                                </div>
-                            ))}
-                      </div>
-                  )}
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <NotificationsSidebar onNotificationClick={handleNotificationClick} />
                 </CardContent>
               </Card>
             </div>

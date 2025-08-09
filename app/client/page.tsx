@@ -19,7 +19,6 @@ import {
   Star,
  Loader2, Calendar, User, ImageIcon, Zap, XCircle, AlertCircle, MessageCircle,
 } from "lucide-react"
-import axios from 'axios'
 import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
 import api from "@/lib/api";
@@ -39,9 +38,7 @@ import {BottomNav} from "@/components/BottomNav";
 import { useSearchParams } from "next/navigation"
 import Link from "next/link";
 import {ProfileModal} from "@/components/ProfileModal";
-
-const API_BASE_URL = 'https://kcell-service.onrender.com/api';
-
+import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -360,22 +357,6 @@ export default function ClientDashboard() {
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
-  }
-
-  const getBgColor = (title:any) => {
-    if (title.includes("принята")) return "bg-blue-50"
-    if (title.includes("завершена")) return "bg-green-50"
-    if (title.includes("просрочена")) return "bg-red-50"
-    return "bg-gray-100"
-  }
-
-  const formatTimeAgo = (dateStr:any) => {
-    const date = new Date(dateStr)
-    const diff = (Date.now() - date.getTime()) / 1000
-    if (diff < 60) return "только что"
-    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
-    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
-    return `${Math.floor(diff / 86400)} дней назад`
   }
 
   const fetchComments = async () => {
@@ -1196,33 +1177,9 @@ export default function ClientDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Уведомления</CardTitle>
-                </CardHeader>
-                <CardContent className="mb-12">
-                  {notificationLoading ? (
-                      <p>Загрузка...</p>
-                  ) : (
-                      <div className="space-y-3">
-                        {notifications
-                            .map((n: any) => (
-                                <div
-                                    key={n.id}
-                                    onClick={() => handleNotificationClick(n)}
-                                    className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
-                                        n.title
-                                    )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
-                                >
-                                  <div className="flex justify-between">
-                                    <p className="text-sm font-medium">{n.title}</p>
-                                    {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
-                                  </div>
-                                  <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
-                                </div>
-                            ))}
-                      </div>
-                  )}
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <NotificationsSidebar onNotificationClick={handleNotificationClick} />
                 </CardContent>
               </Card>
             </div>

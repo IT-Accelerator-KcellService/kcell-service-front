@@ -61,8 +61,7 @@ import {useMediaQuery} from "@/hooks/use-media-query";
 import {AcceptRequestModal} from "@/components/AcceptRequestModal";
 import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
 import { ProfileModal } from "@/components/ProfileModal"
-
-const API_BASE_URL = 'https://kcell-service.onrender.com/api';
+import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -971,22 +970,6 @@ export default function ManagerDashboard() {
     }
   }
 
-  const getBgColor = (title:any) => {
-    if (title.includes("принята")) return "bg-blue-50"
-    if (title.includes("завершена")) return "bg-green-50"
-    if (title.includes("просрочена")) return "bg-red-50"
-    return "bg-gray-100"
-  }
-
-  const formatTimeAgo = (dateStr:any) => {
-    const date = new Date(dateStr)
-    const diff = (Date.now() - date.getTime()) / 1000
-    if (diff < 60) return "только что"
-    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
-    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
-    return `${Math.floor(diff / 86400)} дней назад`
-  }
-
   const filteredRequests = requests.filter((request) => {
     const now = new Date();
     let periodStartDate: Date | null = null;
@@ -1640,35 +1623,9 @@ export default function ManagerDashboard() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Уведомления</CardTitle>
-              </CardHeader>
-              <CardContent className="mb-12">
-                {notificationLoading ? (
-                    <p>Загрузка...</p>
-                ) : (
-                    <div className="space-y-3">
-                      {notifications.length > 0?
-                      notifications
-                              .map((n: any) => (
-                              <div
-                              key={n.id}
-                            onClick={() => handleNotificationClick(n)}
-                            className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
-                                n.title
-                            )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
-                          >
-                            <div className="flex justify-between">
-                              <p className="text-sm font-medium">{n.title}</p>
-                              {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
-                            </div>
-                            <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
-                          </div>
-                      )): <p className="text-sm text-gray-500">Нет уведомлений</p>}
-
-                    </div>
-                )}
+            <Card className="overflow-hidden">
+              <CardContent className="p-0">
+                <NotificationsSidebar onNotificationClick={handleNotificationClick} />
               </CardContent>
             </Card>
           </TabsContent>
