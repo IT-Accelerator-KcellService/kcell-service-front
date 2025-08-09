@@ -2,6 +2,16 @@
 
 import {useState} from "react";
 import {useMediaQuery} from "@/hooks/use-media-query";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Comment {
     id: number;
@@ -42,6 +52,8 @@ export function CommentList({
         comment: Comment | null;
     }>({ visible: false, comment: null });
     const [activeCommentId, setActiveCommentId] = useState<number | null>(null); // Для подсветки
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null);
 
     const [visibleCount, setVisibleCount] = useState(6);
 
@@ -55,6 +67,25 @@ export function CommentList({
     const closeActions = () => {
         setShowActions({ visible: false, comment: null });
         setActiveCommentId(null);
+    };
+
+    const handleDeleteClick = (comment: Comment) => {
+        setCommentToDelete(comment);
+        setShowDeleteDialog(true);
+        closeActions();
+    };
+
+    const handleConfirmDelete = () => {
+        if (commentToDelete) {
+            onDelete(commentToDelete.id);
+        }
+        setShowDeleteDialog(false);
+        setCommentToDelete(null);
+    };
+
+    const handleCancelDelete = () => {
+        setShowDeleteDialog(false);
+        setCommentToDelete(null);
     };
 
     const showAllComments = () => setVisibleCount(comments.length);
@@ -162,6 +193,46 @@ export function CommentList({
                 </>
             )}
 
+                        {/* Десктопное меню действий */}
+            {isDesktop && showActions.visible && showActions.comment && (
+                <div
+                    className="fixed inset-0 z-50"
+                    onClick={closeActions}
+                >
+                    <div
+                        className="absolute inset-0 bg-black bg-opacity-20"
+                        onClick={closeActions}
+                    />
+                    <div 
+                        className="absolute bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[120px]"
+                        style={{
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => {
+                                onEdit(showActions.comment!.id, showActions.comment!.comment);
+                                closeActions();
+                            }}
+                            className="w-full text-left text-sm text-gray-800 py-2 px-4 hover:bg-gray-100 transition-colors rounded-t-lg"
+                        >
+                            Изменить
+                        </button>
+                        <button
+                            onClick={() => {
+                                handleDeleteClick(showActions.comment!);
+                            }}
+                            className="w-full text-left text-sm text-red-600 py-2 px-4 hover:bg-red-50 transition-colors rounded-b-lg"
+                        >
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Мобильное bottom sheet (Instagram-style) */}
             {!isDesktop && showActions.visible && showActions.comment && (
                 <div
@@ -173,7 +244,6 @@ export function CommentList({
                         onClick={closeActions}
                     />
                     <div className="relative bg-white w-full rounded-t-2xl shadow-2xl pb-4 animate-slide-up">
-                        <div className="mx-auto w-12 h-1 bg-gray-300 rounded-full mt-2" />
                         <div className="flex flex-col space-y-1 px-4 pt-2">
                             <button
                                 onClick={() => {
@@ -186,8 +256,7 @@ export function CommentList({
                             </button>
                             <button
                                 onClick={() => {
-                                    onDelete(showActions.comment!.id);
-                                    closeActions();
+                                    handleDeleteClick(showActions.comment!);
                                 }}
                                 className="text-left text-sm font-medium text-red-600 py-3 px-4 rounded-lg hover:bg-red-50 transition-colors"
                             >
@@ -203,6 +272,27 @@ export function CommentList({
                     </div>
                 </div>
             )}
+
+            {/* Диалог подтверждения удаления */}
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Вы действительно хотите удалить этот комментарий? Это действие нельзя отменить.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={handleCancelDelete}>Отменить</AlertDialogCancel>
+                        <AlertDialogAction 
+                            onClick={handleConfirmDelete}
+                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+                        >
+                            Удалить
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* CSS для анимаций (можно вынести в CSS файл) */}
             <style jsx>{`

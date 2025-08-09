@@ -1558,18 +1558,18 @@ export default function ClientDashboard() {
                               </button>
                             </div>
                         )}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full">
                           <input
                               type="text"
                               value={comment}
                               onChange={(e) => setComment(e.target.value)}
                               placeholder="Написать комментарий..."
-                              className="flex-1 p-2.5 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                              className="flex-1 min-w-0 p-2.5 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                           />
                           <Button
                               size="sm"
                               onClick={handleSend}
-                              className="bg-violet-600 hover:bg-violet-700 p-2.5"
+                              className="bg-violet-600 hover:bg-violet-700 p-2.5 flex-shrink-0"
                               aria-label="Отправить комментарий"
                           >
                             <Send className="w-4 h-4" />
