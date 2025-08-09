@@ -21,7 +21,7 @@ import {
   Camera,
   Calendar,
   MapPin,
-  Trash2, Loader2, Zap, AlertCircle, ImageIcon,
+  Trash2, Loader2, Zap, AlertCircle, ImageIcon, Send,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -1914,7 +1914,7 @@ export default function DepartmentHeadDashboard() {
                           onDelete={handleDelete}
                       />
 
-                      {/* Поле ввода — остаётся здесь */}
+                      {/* Поле ввода */}
                       <div className="mt-4 flex flex-col space-y-2">
                         {editCommentId && (
                             <div className="text-xs text-gray-500">
@@ -1941,14 +1941,16 @@ export default function DepartmentHeadDashboard() {
                           <Button
                               size="sm"
                               onClick={handleSend}
-                              className="bg-violet-600 hover:bg-violet-700"
+                              className="bg-violet-600 hover:bg-violet-700 p-2.5"
+                              aria-label="Отправить комментарий"
                           >
-                            {editCommentId ? "Сохранить" : "Отправить"}
+                            <Send className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
+
                   <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
                     <Button variant="outline"
                             onClick={() => {

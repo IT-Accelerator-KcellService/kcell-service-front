@@ -20,7 +20,7 @@ import {
   Loader2,
   MapPin,
   MessageCircle,
-  Plus,
+  Plus, Send,
   Star,
   User,
   XCircle,
@@ -1546,7 +1546,7 @@ export default function ClientDashboard() {
                           onDelete={handleDelete}
                       />
 
-                      {/* Поле ввода — остаётся здесь */}
+                      {/* Поле ввода */}
                       <div className="mt-4 flex flex-col space-y-2">
                         {editCommentId && (
                             <div className="text-xs text-gray-500">
@@ -1573,9 +1573,10 @@ export default function ClientDashboard() {
                           <Button
                               size="sm"
                               onClick={handleSend}
-                              className="bg-violet-600 hover:bg-violet-700"
+                              className="bg-violet-600 hover:bg-violet-700 p-2.5"
+                              aria-label="Отправить комментарий"
                           >
-                            {editCommentId ? "Сохранить" : "Отправить"}
+                            <Send className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>

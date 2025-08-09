@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import {useState} from "react";
+import {useMediaQuery} from "@/hooks/use-media-query";
 
 interface Comment {
     id: number;
@@ -41,36 +41,24 @@ export function CommentList({
         visible: boolean;
         comment: Comment | null;
     }>({ visible: false, comment: null });
+    const [activeCommentId, setActiveCommentId] = useState<number | null>(null); // Для подсветки
 
-    // 🔹 Контроль количества видимых комментариев
     const [visibleCount, setVisibleCount] = useState(6);
 
     const openActions = (comment: Comment) => {
         if (comment.user.id !== currentUserId) return;
 
-        // 🔁 Если уже открыто для этого комментария — закрываем
-        if (showActions.visible && showActions.comment?.id === comment.id) {
-            setShowActions({ visible: false, comment: null });
-        } else {
-            setShowActions({ visible: true, comment });
-        }
+        setActiveCommentId(comment.id);
+        setShowActions({ visible: true, comment });
     };
 
     const closeActions = () => {
         setShowActions({ visible: false, comment: null });
+        setActiveCommentId(null);
     };
 
-    // Показать все комментарии
-    const showAllComments = () => {
-        setVisibleCount(comments.length);
-    };
-
-    // Показать только первые 6
-    const collapseComments = () => {
-        setVisibleCount(6);
-    };
-
-    // Отображаем только нужное количество
+    const showAllComments = () => setVisibleCount(comments.length);
+    const collapseComments = () => setVisibleCount(6);
     const displayedComments = comments.slice(0, visibleCount);
 
     return (
@@ -92,8 +80,10 @@ export function CommentList({
                             return (
                                 <div
                                     key={c.id}
-                                    className="flex items-start gap-2.5 group relative"
-                                    style={{ position: 'relative' }}
+                                    className={`flex items-start gap-2.5 group relative transition-colors duration-150 ${
+                                        activeCommentId === c.id ? "bg-violet-50" : "hover:bg-gray-50"
+                                    }`}
+                                    style={{ position: 'relative', borderRadius: '0.5rem', padding: '0.5rem' }}
                                     onContextMenu={(e) => {
                                         if (!isDesktop || !isOwnComment) return;
                                         e.preventDefault();
@@ -145,39 +135,11 @@ export function CommentList({
                                             <span className="text-lg">⋯</span>
                                         </button>
                                     )}
-
-                                    {/* Меню действий (десктоп) */}
-                                    {isOwnComment && isDesktop && showActions.visible && showActions.comment?.id === c.id && (
-                                        <div
-                                            className="absolute right-0 top-full mt-1 w-28 bg-white border border-gray-200 rounded-md shadow-lg z-10 py-1 text-sm"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <button
-                                                onClick={() => {
-                                                    onEdit(c.id, c.comment);
-                                                    closeActions();
-                                                }}
-                                                className="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-50"
-                                            >
-                                                Изменить
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    onDelete(c.id);
-                                                    closeActions();
-                                                }}
-                                                className="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50"
-                                            >
-                                                Удалить
-                                            </button>
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}
                     </div>
 
-                    {/* Кнопка "Показать ещё" или "Скрыть" */}
                     {comments.length > 6 && (
                         <div className="mt-2">
                             {visibleCount >= comments.length ? (
@@ -200,21 +162,25 @@ export function CommentList({
                 </>
             )}
 
-            {/* Мобильное bottom sheet */}
+            {/* Мобильное bottom sheet (Instagram-style) */}
             {!isDesktop && showActions.visible && showActions.comment && (
                 <div
-                    className="fixed inset-0 z-50 flex items-end"
+                    className="fixed inset-0 z-50 flex items-end animate-fade-in"
                     onClick={closeActions}
                 >
-                    <div className="bg-black bg-opacity-50 w-full h-full" />
-                    <div className="bg-white w-full rounded-t-2xl p-4 shadow-lg">
-                        <div className="flex flex-col space-y-3">
+                    <div
+                        className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
+                        onClick={closeActions}
+                    />
+                    <div className="relative bg-white w-full rounded-t-2xl shadow-2xl pb-4 animate-slide-up">
+                        <div className="mx-auto w-12 h-1 bg-gray-300 rounded-full mt-2" />
+                        <div className="flex flex-col space-y-1 px-4 pt-2">
                             <button
                                 onClick={() => {
                                     onEdit(showActions.comment!.id, showActions.comment!.comment);
                                     closeActions();
                                 }}
-                                className="text-left text-sm font-medium text-gray-800 py-3 px-4 hover:bg-gray-100 rounded-lg transition"
+                                className="text-left text-sm font-medium text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-100 transition-colors"
                             >
                                 Изменить
                             </button>
@@ -223,7 +189,7 @@ export function CommentList({
                                     onDelete(showActions.comment!.id);
                                     closeActions();
                                 }}
-                                className="text-left text-sm font-medium text-red-600 py-3 px-4 hover:bg-red-50 rounded-lg transition"
+                                className="text-left text-sm font-medium text-red-600 py-3 px-4 rounded-lg hover:bg-red-50 transition-colors"
                             >
                                 Удалить
                             </button>
@@ -232,11 +198,29 @@ export function CommentList({
                             onClick={closeActions}
                             className="mt-4 w-full text-center text-sm text-gray-500 py-2"
                         >
-                            Отмена
+                            Отменить
                         </button>
                     </div>
                 </div>
             )}
+
+            {/* CSS для анимаций (можно вынести в CSS файл) */}
+            <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.2s ease-out;
+        }
+        .animate-slide-up {
+          animation: slideUp 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+      `}</style>
         </div>
     );
 }

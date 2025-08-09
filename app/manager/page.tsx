@@ -34,7 +34,7 @@ import {
   ImageIcon,
   Loader2,
   MapPin,
-  Plus,
+  Plus, Send,
   Star,
   Trash2,
   TrendingDown,
@@ -2431,6 +2431,7 @@ export default function ManagerDashboard() {
                       )}
                     </div>
                 )}
+
                 {/* Секция для комментариев */}
                 <Card className="mt-2 border-t border-gray-100">
                   <CardContent className="p-4">
@@ -2441,7 +2442,7 @@ export default function ManagerDashboard() {
                         onDelete={handleDelete}
                     />
 
-                    {/* Поле ввода — остаётся здесь */}
+                    {/* Поле ввода */}
                     <div className="mt-4 flex flex-col space-y-2">
                       {editCommentId && (
                           <div className="text-xs text-gray-500">
@@ -2468,14 +2469,16 @@ export default function ManagerDashboard() {
                         <Button
                             size="sm"
                             onClick={handleSend}
-                            className="bg-violet-600 hover:bg-violet-700"
+                            className="bg-violet-600 hover:bg-violet-700 p-2.5"
+                            aria-label="Отправить комментарий"
                         >
-                          {editCommentId ? "Сохранить" : "Отправить"}
+                          <Send className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
+
                 <div className="flex justify-end sm:justify-start mt-6">
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
