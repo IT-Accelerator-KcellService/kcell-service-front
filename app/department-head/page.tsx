@@ -21,7 +21,7 @@ import {
   Camera,
   Calendar,
   MapPin,
-  Trash2, Loader2, Zap, AlertCircle, ImageIcon, Send,
+  Trash2, Loader2, Zap, AlertCircle, ImageIcon, Send, MessageCircle,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -53,6 +53,7 @@ import {NotificationsSidebar} from "@/components/notification/NotificationsSideb
 import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore, Request} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
+import Link from "next/link";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -944,8 +945,6 @@ export default function DepartmentHeadDashboard() {
 
   return (
       <>
-        <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-gray-50">
         <Header
             setShowProfile={setShowProfile}
             handleLogout={handleLogout}
@@ -953,7 +952,8 @@ export default function DepartmentHeadDashboard() {
             role="Руководитель направления"
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
-
+        <PullToRefresh onRefresh={handleRefresh}>
+      <div className="min-h-screen bg-gray-50">
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
           {/* Quick Stats */}
           {isDesktop ? (
@@ -1590,6 +1590,8 @@ export default function DepartmentHeadDashboard() {
             </div>
           </div>
         </div>
+      </div>
+      </PullToRefresh>
 
         {/* Модалка */}
         {isModalOpen && selectedNotification && (
@@ -2327,12 +2329,18 @@ export default function DepartmentHeadDashboard() {
             message={successModal.message}
             duration={successModal.duration}
         />
-      </div>
-      </PullToRefresh>
+
         <BottomNav
             onCreateRequest={() => setShowCreateRequestModal(true)}
             activeTab="history"
         />
+        {isDesktop && <Link
+            href="/chat-bot"
+            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
+        >
+          <MessageCircle className="w-7 h-7" />
+
+        </Link>}
       </>
   )
 }

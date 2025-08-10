@@ -17,7 +17,7 @@ import {
   Star,
   Plus,
   MapPin,
-  Calendar, Loader2, ImageIcon, Zap, XCircle, AlertCircle, Send,
+  Calendar, Loader2, ImageIcon, Zap, XCircle, AlertCircle, Send, MessageCircle,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import axios from "axios";
@@ -35,6 +35,7 @@ import {NotificationsSidebar} from "@/components/notification/NotificationsSideb
 import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore, Request} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
+import Link from "next/link";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
@@ -766,8 +767,6 @@ export default function ExecutorDashboard() {
 
   return (
       <>
-      <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-gray-50">
         <Header
             setShowProfile={setShowProfile}
             handleLogout={handleLogout}
@@ -776,6 +775,8 @@ export default function ExecutorDashboard() {
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 
+      <PullToRefresh onRefresh={handleRefresh}>
+      <div className="min-h-screen bg-gray-50">
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
           {isDesktop ? (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -1448,6 +1449,9 @@ export default function ExecutorDashboard() {
           </div>
         </div>
 
+      </div>
+      </PullToRefresh>
+
         {/* Модалка */}
         {isModalOpen && selectedNotification && (
             <div
@@ -1811,7 +1815,7 @@ export default function ExecutorDashboard() {
                                     alt={`Photo ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border border-gray-300 shadow-sm"
                                     onClick={() => {setSelectedPhoto(photo.photo_url)
-                                    openModal('photoPreview')}}
+                                      openModal('photoPreview')}}
                                 />
                             ))}
                           </div>
@@ -1928,12 +1932,18 @@ export default function ExecutorDashboard() {
             duration={successModal.duration}
         />
 
-      </div>
-      </PullToRefresh>
         <BottomNav
             onCreateRequest={handleOpenCreateRequest}
             activeTab="history"
         />
+
+        {isDesktop && <Link
+            href="/chat-bot"
+            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
+        >
+          <MessageCircle className="w-7 h-7" />
+
+        </Link>}
       </>
   )
 }

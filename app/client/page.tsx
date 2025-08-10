@@ -826,8 +826,6 @@ export default function ClientDashboard() {
 
   return (
       <>
-      <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <Header
             setShowProfile={setShowProfile}
@@ -836,7 +834,8 @@ export default function ClientDashboard() {
             role="Клиент"
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
-
+      <PullToRefresh onRefresh={handleRefresh}>
+      <div className="min-h-screen bg-gray-50">
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
         {/* Quick Stats */}
         {isDesktop ? (
@@ -1187,170 +1186,12 @@ export default function ClientDashboard() {
             </div>
           </div>
         </div>
-
-        {/* Модалка */}
-        {isModalOpen && selectedNotification && (
-            <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  closeModal();
-                }}
-            >
-              <div
-                  className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
-                  onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри модалки
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
-                  <button
-                      className="text-gray-500 hover:text-black text-2xl focus:outline-none"
-                      onClick={() => {
-                        setIsModalOpen(false);
-                        closeModal();
-                      }}
-                      aria-label="Закрыть модальное окно"
-                  >
-                    ×
-                  </button>
-                </div>
-                <p className="text-sm text-gray-800 whitespace-pre-line">
-                  {selectedNotification.content}
-                </p>
-                <p className="text-xs text-gray-500 mt-4">
-                  Получено: {new Date(selectedNotification.created_at).toLocaleString()}
-                </p>
-              </div>
-            </div>
-        )}
-
-        {/* Create Request Modal */}
-        {showCreateRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {setShowCreateRequest(false); closeModal(); }}>
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <CardHeader>
-                  <CardTitle>Создать заявку</CardTitle>
-                  <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6 pb-16">
-                  <div>
-                    <Label>Тип заявки</Label>
-                    <Select value={requestType} onValueChange={setRequestType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите тип заявки" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="normal">Обычная</SelectItem>
-                        <SelectItem value="urgent">Экстренная</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Название заявки</Label>
-                    <Input placeholder="Введите название заявки" value={requestTitle} onChange={e => setRequestTitle(e.target.value)} />
-                  </div>
-
-                  <div>
-                    <Label>Локация</Label>
-                    <Input
-                        placeholder="Определение вашего местоположения..."
-                        value={requestLocation}
-                        readOnly
-                        className="bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <Label>Расположение в офисе</Label>
-                    <Input placeholder="Введите расположение" value={requestLocationDetails} onChange={e => setRequestLocationDetails(e.target.value)} />
-                  </div>
-
-                  <div>
-                    <Label>Категория услуги</Label>
-                    <Select
-                        value={selectedCategoryId?.toString() || ""}
-                        onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите категорию" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {serviceCategories.map((category) => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.name}
-                            </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Описание проблемы</Label>
-                    <Textarea placeholder="Опишите проблему подробно..." className="min-h-[100px]" value={requestDescription} onChange={e => setrequestDescription(e.target.value)} />
-                  </div>
-
-                  <div>
-                    <Label>Фотографии (до 3 шт.)</Label>
-                    <div className="flex flex-wrap gap-4 mt-2">
-                      {photoPreviews.map((photo, index) => (
-                          <div key={index} className="relative">
-                            <img
-                                src={photo || "/placeholder.svg"}
-                                alt={`Photo ${index + 1}`}
-                                className="w-20 h-20 object-cover rounded-lg"
-                            />
-                            <button
-                                onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                            >
-                              ×
-                            </button>
-                          </div>
-                      ))}
-                      {photoPreviews.length < 3 && (
-                          <button
-                              type="button"
-                              onClick={handleButtonClick}
-                              className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                          >
-                            <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                            />
-                            <Camera className="w-6 h-6 text-gray-400" />
-                          </button>
-                      )}
-                    </div>
-                  </div>
-                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
-                  <div className="flex space-x-4">
-                    <Button
-                        onClick={handleCreateRequest}
-                        className="flex-1 bg-violet-600 hover:bg-violet-700"
-                        disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Отправка...
-                          </>
-                      ) : (
-                          "Отправить заявку"
-                      )}
-                    </Button>
-                    <Button variant="outline" onClick={() => {setShowCreateRequest(false); closeModal(); }} className="flex-1">
-                      Отмена
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-        )}
-
+    </div>
+      </PullToRefresh>
+  <BottomNav
+      onCreateRequest={handleOpenCreateRequest}
+      activeTab ="history"
+  />
         {/* Request Details Modal */}
         {selectedRequest && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
@@ -1606,79 +1447,251 @@ export default function ClientDashboard() {
             </div>
         )}
 
-      {/* Map Modal */}
-      {showMapModal && (
-          <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-              onClick={() => {setShowMapModal(false); closeModal(); }}
-          >
-            <Card
-                className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
-                onClick={(e) => e.stopPropagation()}
+        {/* Map Modal */}
+        {showMapModal && (
+            <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                onClick={() => {setShowMapModal(false); closeModal(); }}
             >
-              <CardHeader>
-                <CardTitle>Локация заявки</CardTitle>
-                <CardDescription>Точное местоположение проблемы</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-hidden">
-                <MapView
-                    lat={mapLocation.lat}
-                    lon={mapLocation.lon}
-                    accuracy={mapLocation.accuracy}
-                />
-              </CardContent>
-              <div className="p-4 flex justify-end border-t">
-                <Button onClick={() => {setShowMapModal(false); closeModal(); }}>
-                  Закрыть
-                </Button>
-              </div>
-            </Card>
-          </div>
-      )}
-      {/* Rating Modal */}
-      {showRatingModal && requestToRate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {setShowRatingModal(false)
-        closeModal()}} >
-          <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle>Оценить исполнителя</CardTitle>
-              <CardDescription>Пожалуйста, оцените работу по заявке #{requestToRate.id}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex justify-center space-x-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className={`w-10 h-10 cursor-pointer ${
-                      star <= ratingValue ? "text-yellow-400 fill-current" : "text-gray-300"
-                    }`}
-                    onClick={() => setRatingValue(star)}
+              <Card
+                  className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
+                  onClick={(e) => e.stopPropagation()}
+              >
+                <CardHeader>
+                  <CardTitle>Локация заявки</CardTitle>
+                  <CardDescription>Точное местоположение проблемы</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-hidden">
+                  <MapView
+                      lat={mapLocation.lat}
+                      lon={mapLocation.lon}
+                      accuracy={mapLocation.accuracy}
                   />
-                ))}
-              </div>
-              <Button
-                onClick={handleRateExecutor}
-                disabled={ratingValue === 0}
-                className="w-full bg-violet-600 hover:bg-violet-700"
-              >
-                Отправить оценку
-              </Button>
-              <Button
-                variant="outline"
+                </CardContent>
+                <div className="p-4 flex justify-end border-t">
+                  <Button onClick={() => {setShowMapModal(false); closeModal(); }}>
+                    Закрыть
+                  </Button>
+                </div>
+              </Card>
+            </div>
+        )}
+        {/* Rating Modal */}
+        {showRatingModal && requestToRate && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {setShowRatingModal(false)
+              closeModal()}} >
+              <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                <CardHeader>
+                  <CardTitle>Оценить исполнителя</CardTitle>
+                  <CardDescription>Пожалуйста, оцените работу по заявке #{requestToRate.id}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex justify-center space-x-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                            key={star}
+                            className={`w-10 h-10 cursor-pointer ${
+                                star <= ratingValue ? "text-yellow-400 fill-current" : "text-gray-300"
+                            }`}
+                            onClick={() => setRatingValue(star)}
+                        />
+                    ))}
+                  </div>
+                  <Button
+                      onClick={handleRateExecutor}
+                      disabled={ratingValue === 0}
+                      className="w-full bg-violet-600 hover:bg-violet-700"
+                  >
+                    Отправить оценку
+                  </Button>
+                  <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowRatingModal(false)
+                        setRatingValue(0)
+                        setRequestToRate(null)
+                        closeModal()
+                      }}
+                      className="w-full"
+                  >
+                    Отмена
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+        )}
+
+        {/* Модалка */}
+        {isModalOpen && selectedNotification && (
+            <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
                 onClick={() => {
-                  setShowRatingModal(false)
-                  setRatingValue(0)
-                  setRequestToRate(null)
-                  closeModal()
+                  setIsModalOpen(false);
+                  closeModal();
                 }}
-                className="w-full"
+            >
+              <div
+                  className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
+                  onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри модалки
               >
-                Отмена
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                  <button
+                      className="text-gray-500 hover:text-black text-2xl focus:outline-none"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        closeModal();
+                      }}
+                      aria-label="Закрыть модальное окно"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="text-sm text-gray-800 whitespace-pre-line">
+                  {selectedNotification.content}
+                </p>
+                <p className="text-xs text-gray-500 mt-4">
+                  Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                </p>
+              </div>
+            </div>
+        )}
+
+        {/* Create Request Modal */}
+        {showCreateRequest && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {setShowCreateRequest(false); closeModal(); }}>
+              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <CardHeader>
+                  <CardTitle>Создать заявку</CardTitle>
+                  <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6 pb-16">
+                  <div>
+                    <Label>Тип заявки</Label>
+                    <Select value={requestType} onValueChange={setRequestType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите тип заявки" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="normal">Обычная</SelectItem>
+                        <SelectItem value="urgent">Экстренная</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Название заявки</Label>
+                    <Input placeholder="Введите название заявки" value={requestTitle} onChange={e => setRequestTitle(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <Label>Локация</Label>
+                    <Input
+                        placeholder="Определение вашего местоположения..."
+                        value={requestLocation}
+                        readOnly
+                        className="bg-gray-100 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <Label>Расположение в офисе</Label>
+                    <Input placeholder="Введите расположение" value={requestLocationDetails} onChange={e => setRequestLocationDetails(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <Label>Категория услуги</Label>
+                    <Select
+                        value={selectedCategoryId?.toString() || ""}
+                        onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите категорию" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {serviceCategories.map((category) => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              {category.name}
+                            </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Описание проблемы</Label>
+                    <Textarea placeholder="Опишите проблему подробно..." className="min-h-[100px]" value={requestDescription} onChange={e => setrequestDescription(e.target.value)} />
+                  </div>
+
+                  <div>
+                    <Label>Фотографии (до 3 шт.)</Label>
+                    <div className="flex flex-wrap gap-4 mt-2">
+                      {photoPreviews.map((photo, index) => (
+                          <div key={index} className="relative">
+                            <img
+                                src={photo || "/placeholder.svg"}
+                                alt={`Photo ${index + 1}`}
+                                className="w-20 h-20 object-cover rounded-lg"
+                            />
+                            <button
+                                onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                            >
+                              ×
+                            </button>
+                          </div>
+                      ))}
+                      {photoPreviews.length < 3 && (
+                          <button
+                              type="button"
+                              onClick={handleButtonClick}
+                              className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
+                          >
+                            <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
+                            <Camera className="w-6 h-6 text-gray-400" />
+                          </button>
+                      )}
+                    </div>
+                  </div>
+                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+                  <div className="flex space-x-4">
+                    <Button
+                        onClick={handleCreateRequest}
+                        className="flex-1 bg-violet-600 hover:bg-violet-700"
+                        disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Отправка...
+                          </>
+                      ) : (
+                          "Отправить заявку"
+                      )}
+                    </Button>
+                    <Button variant="outline" onClick={() => {setShowCreateRequest(false); closeModal(); }} className="flex-1">
+                      Отмена
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+        )}
+
+        <SuccessModal
+            isOpen={successModal.isOpen}
+            onClose={successModal.hideSuccess}
+            title={successModal.title}
+            message={successModal.message}
+            duration={successModal.duration}
+        />
+
         {isDesktop && <Link
             href="/chat-bot"
             className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
@@ -1686,19 +1699,6 @@ export default function ClientDashboard() {
           <MessageCircle className="w-7 h-7" />
 
         </Link>}
-      <SuccessModal
-          isOpen={successModal.isOpen}
-          onClose={successModal.hideSuccess}
-          title={successModal.title}
-          message={successModal.message}
-          duration={successModal.duration}
-      />
-    </div>
-        </PullToRefresh>
-  <BottomNav
-      onCreateRequest={handleOpenCreateRequest}
-      activeTab ="history"
-  />
   </>
   )
 }

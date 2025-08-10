@@ -19,7 +19,7 @@ import {
   Star,
   Plus,
   Camera,
-  MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle, Send,
+  MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle, Send, MessageCircle,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import dynamic from "next/dynamic";
@@ -44,6 +44,7 @@ import {Calendar} from "@/components/ui/calendar";
 import {sortRequests, useRequestStore} from "@/stores/useRequestStore";
 import {Request} from '@/stores/useRequestStore'
 import PullToRefresh from "@/components/pull-to-refresh";
+import Link from "next/link";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -910,8 +911,6 @@ export default function AdminWorkerDashboard() {
 
   return (
       <>
-        <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-gray-50">
         <Header
             setShowProfile={setShowProfile}
             handleLogout={handleLogout}
@@ -919,7 +918,8 @@ export default function AdminWorkerDashboard() {
             role="Администратор"
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
-
+        <PullToRefresh onRefresh={handleRefresh}>
+      <div className="min-h-screen bg-gray-50">
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
           {/* Quick Stats */}
           {isDesktop ? (
@@ -1397,7 +1397,8 @@ export default function AdminWorkerDashboard() {
             </div>
           </div>
         </div>
-
+      </div>
+        </PullToRefresh>
         {/* Модалка */}
         {isModalOpen && selectedNotification && (
             <div
@@ -1710,11 +1711,11 @@ export default function AdminWorkerDashboard() {
                             }}
                             className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
                             disabled={
-                              !selectedRequest.category_id ||
-                              !selectedRequest.sla ||
-                              !selectedRequest.complexity ||
-                              !selectedRequest.id ||
-                              isSubmitting
+                                !selectedRequest.category_id ||
+                                !selectedRequest.sla ||
+                                !selectedRequest.complexity ||
+                                !selectedRequest.id ||
+                                isSubmitting
                             }
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
@@ -2187,12 +2188,17 @@ export default function AdminWorkerDashboard() {
             message={rejectModal.message}
             duration={rejectModal.duration}
         />
-      </div>
-        </PullToRefresh>
         <BottomNav
             onCreateRequest={() => {setShowCreateRequestModal(true); openModal('createRequest'); }}
             activeTab="history"
         />
+        {isDesktop && <Link
+            href="/chat-bot"
+            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
+        >
+          <MessageCircle className="w-7 h-7" />
+
+        </Link>}
       </>
   );
 }

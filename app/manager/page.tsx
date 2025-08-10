@@ -33,7 +33,7 @@ import {
   Download,
   ImageIcon,
   Loader2,
-  MapPin,
+  MapPin, MessageCircle,
   Plus, Send,
   Star,
   Trash2,
@@ -64,6 +64,7 @@ import {NotificationsSidebar} from "@/components/notification/NotificationsSideb
 import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore, Request} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
+import Link from "next/link";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -1318,9 +1319,6 @@ export default function ManagerDashboard() {
 
   return (
     <>
-    <PullToRefresh onRefresh={handleRefresh}>
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <Header
           setShowProfile={setShowProfile}
           handleLogout={handleLogout}
@@ -1329,6 +1327,9 @@ export default function ManagerDashboard() {
       />
       <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 
+    <PullToRefresh onRefresh={handleRefresh}>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       <main className="px-4 py-4 sm:px-6 sm:py-8 max-w-7xl mx-auto">
         {/* Mobile Filters */}
         <div className="flex flex-col space-y-3 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-6">
@@ -2054,6 +2055,8 @@ export default function ManagerDashboard() {
           </TabsContent>
         </Tabs>
       </main>
+    </div>
+    </PullToRefresh>
 
       {/* Create Request Modal */}
       {showCreateRequestModal && (
@@ -2077,7 +2080,7 @@ export default function ManagerDashboard() {
                     <SelectContent>
                       {offices.map((officeItem:any, index: number) => (
                           <SelectItem key={index} value={String(officeItem.id)}>{officeItem.name}</SelectItem>
-                        ))}
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -2677,12 +2680,19 @@ export default function ManagerDashboard() {
           message='Заявка была успешно удалена.'
           duration={approveModal.duration}
       />
-    </div>
-    </PullToRefresh>
+
       <BottomNav
           onCreateRequest={handleOpenCreateRequest}
           activeTab="history"
       />
+
+      {isDesktop && <Link
+          href="/chat-bot"
+          className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
+      >
+        <MessageCircle className="w-7 h-7" />
+
+      </Link>}
      </>
   )
 }
