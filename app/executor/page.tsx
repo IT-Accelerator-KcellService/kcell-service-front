@@ -1716,10 +1716,12 @@ export default function ExecutorDashboard() {
                         {translateStatus(selectedTaskDetails.status)}
                       </Badge>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Клиент:</p>
-                      <p className="text-base text-gray-800">{selectedTaskDetails.client.full_name}</p>
-                    </div>
+                    {selectedTaskDetails.client && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Клиент:</p>
+                          <p className="text-base text-gray-800">{selectedTaskDetails.client.full_name}</p>
+                        </div>
+                    )}
                     <div>
                       <p className="text-sm font-medium text-gray-600">Локация:</p>
                       <div className="flex items-center gap-2">
