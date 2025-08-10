@@ -23,6 +23,7 @@ interface Comment {
     };
     comment: string;
     timestamp: string | Date;
+    sender_id: number;
 }
 
 interface CommentListProps {

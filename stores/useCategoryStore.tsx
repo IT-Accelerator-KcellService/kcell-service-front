@@ -8,7 +8,7 @@ interface Category {
 
 interface CategoryState {
   categories: Category[];
-  fetchCategories: () => Promise<void>;
+  fetchCategories: (token: string) => Promise<void>;
   clearCategories: () => void;
     updateCategories: (
         updater: Category[] | ((prev: Category[]) => Category[])
@@ -20,12 +20,13 @@ export const useCategoryStore = create<CategoryState>()(
     (set) => ({
       categories: [],
 
-      fetchCategories: async () => {
+      fetchCategories: async (token) => {
         try {
           const res = await fetch("https://kcell-service.onrender.com/api/service-categories", {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
             },
           });
 

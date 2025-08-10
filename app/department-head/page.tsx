@@ -499,45 +499,73 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    try {
-      await api.delete(`/comments/${id}`);
-      fetchComments();
-      setEditCommentId(null);
-      setComment("")
-    } catch (err) {
+  const handleDelete = (id: number) => {
+    // Убираем из UI сразу
+    const oldComments = comments;
+    setComments(prev => prev.filter(c => c.id !== id));
+
+    api.delete(`/comments/${id}`).catch(err => {
       console.error("Ошибка при удалении", err);
-    }
+      setComments(oldComments); // Восстанавливаем при ошибке
+    });
   };
+
   const handleSend = () => {
     if (comment.trim() === "") return;
 
     if (editCommentId) {
-      api
-          .put(`/comments/${editCommentId}`, {
-            request_id: selectedRequest?.id,
-            comment: comment.trim()
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-            setEditCommentId(null);
-          })
-          .catch((err) => console.error("Ошибка при обновлении", err));
+      // Оптимистично обновляем UI
+      setComments(prev =>
+          prev.map(c => c.id === editCommentId ? { ...c, comment: comment.trim() } : c)
+      );
+
+      const currentEditId = editCommentId;
+      const currentComment = comment.trim();
+
+      setComment("");
+      setEditCommentId(null);
+
+      api.put(`/comments/${currentEditId}`, {
+        comment: currentComment,
+        request_id: selectedRequest?.id!,
+      }).catch(err => {
+        console.error("Ошибка при обновлении", err);
+        fetchComments(); // Откатываем, если ошибка
+      });
+
     } else {
-      api
-          .post(`/comments`, {
-            comment: comment.trim(),
-            request_id: selectedRequest?.id,
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-          })
-          .catch((err) => console.error("Ошибка при добавлении", err));
+      // Создаём временный ID для UI
+      const tempId = -(comments.length + 111);
+      const newComment = {
+        id: tempId,
+        comment: comment.trim(),
+        request_id: selectedRequest?.id!,
+        isTemp: true,
+        timestamp: new Date(),
+        sender_id: user?.id!,
+        user: {
+          id: user?.id!,
+          full_name: user?.full_name!,
+          role: role!,
+        }
+      };
+
+      setComments(prev => [...prev, newComment]);
+
+      const currentComment = comment.trim();
+      setComment("");
+
+      api.post(`/comments`, {
+        comment: currentComment,
+        request_id: selectedRequest?.id!,
+      })
+          .then(() => fetchComments()) // Обновляем ID с сервера
+          .catch(err => {
+            console.error("Ошибка при добавлении", err);
+            fetchComments(); // Откат
+          });
     }
   };
-
 
   const handleEdit = (id: number, oldComment: string) => {
     setComment(oldComment);
@@ -706,12 +734,15 @@ export default function DepartmentHeadDashboard() {
   const handleLogout = async () => {
     try {
       setIsLoggedIn(false)
-      clearNotifications()
-      clearAuth()
-      clearRequests()
-      clearCategories()
-      useStatsStore.getState().resetStats();
       router.push("/login")
+
+      Promise.all([
+        clearNotifications,
+        clearAuth,
+        useStatsStore.getState().resetStats,
+        clearRequests,
+        clearCategories,
+      ])
     } catch (error) {
       console.error("Logout failed:", error)
     }
@@ -924,7 +955,7 @@ export default function DepartmentHeadDashboard() {
       await Promise.all([
         fetchRequests(),
         fetchStats(),
-        fetchCategories(),
+        fetchCategories(token!),
         fetchNotifications(),
         fetchExecutors(),
       ]);

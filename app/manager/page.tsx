@@ -163,7 +163,7 @@ export default function ManagerDashboard() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [comment, setComment] = useState("");
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState<any[]>([]);
   const {requests, setRequests, clearRequests} = useRequestStore()
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
@@ -725,13 +725,15 @@ export default function ManagerDashboard() {
 
   const handleLogout = async () => {
     try {
-      setIsLoggedIn(false)
-      clearNotifications()
-      clearAuth()
-      useStatsStore.getState().resetStats();
-      clearRequests()
-      clearCategories()
+      setIsLoggedIn(false),
       router.push("/login")
+      Promise.all([
+        clearNotifications,
+        clearAuth,
+        useStatsStore.getState().resetStats,
+        clearRequests,
+        clearCategories,
+      ])
     } catch (error) {
       console.error("Logout failed:", error)
     }
@@ -857,43 +859,71 @@ export default function ManagerDashboard() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      await api.delete(`/comments/${id}`);
-      fetchComments();
-      setEditCommentId(null);
-      setComment("")
-    } catch (err) {
+  const handleDelete = (id: number) => {
+    // Убираем из UI сразу
+    const oldComments = comments;
+    setComments(prev => prev.filter(c => c.id !== id));
+
+    api.delete(`/comments/${id}`).catch(err => {
       console.error("Ошибка при удалении", err);
-    }
+      setComments(oldComments); // Восстанавливаем при ошибке
+    });
   };
+
   const handleSend = () => {
     if (comment.trim() === "") return;
 
     if (editCommentId) {
-      // редактируем существующий комментарий
-      api
-          .put(`/comments/${editCommentId}`, {
-            comment: comment.trim(),
-            request_id: selectedTaskDetails.id,
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-            setEditCommentId(null);
-          })
-          .catch((err) => console.error("Ошибка при обновлении", err));
+      // Оптимистично обновляем UI
+      setComments(prev =>
+          prev.map(c => c.id === editCommentId ? { ...c, comment: comment.trim() } : c)
+      );
+
+      const currentEditId = editCommentId;
+      const currentComment = comment.trim();
+
+      setComment("");
+      setEditCommentId(null);
+
+      api.put(`/comments/${currentEditId}`, {
+        comment: currentComment,
+        request_id: selectedTaskDetails.id,
+      }).catch(err => {
+        console.error("Ошибка при обновлении", err);
+        fetchComments(); // Откатываем, если ошибка
+      });
+
     } else {
-      api
-          .post(`/comments`, {
-            comment: comment.trim(),
-            request_id: selectedTaskDetails.id,
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-          })
-          .catch((err) => console.error("Ошибка при добавлении", err));
+      // Создаём временный ID для UI
+      const tempId = -(comments.length + 111);
+      const newComment = {
+        id: tempId,
+        comment: comment.trim(),
+        request_id: selectedTaskDetails.id,
+        isTemp: true,
+        timestamp: new Date(),
+        sender_id: user?.id!,
+        user: {
+          id: user?.id!,
+          full_name: user?.full_name!,
+          role: role!,
+        }
+      };
+
+      setComments(prev => [...prev, newComment]);
+
+      const currentComment = comment.trim();
+      setComment("");
+
+      api.post(`/comments`, {
+        comment: currentComment,
+        request_id: selectedTaskDetails.id,
+      })
+          .then(() => fetchComments()) // Обновляем ID с сервера
+          .catch(err => {
+            console.error("Ошибка при добавлении", err);
+            fetchComments(); // Откат
+          });
     }
   };
 
@@ -1292,7 +1322,7 @@ export default function ManagerDashboard() {
       await Promise.all([
         fetchRequests(),
         fetchStats(),
-        fetchCategories(),
+        fetchCategories(token!),
         fetchNotifications(),
         fetchOffices(),
         fetchUsers()

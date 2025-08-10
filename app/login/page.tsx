@@ -86,7 +86,7 @@ export default function LoginPage() {
       const role = data.role || "client"
       useAuthStore.getState().setAuth(data.token, role, userData)
       useStatsStore.getState().fetchStats(data.role)
-      useCategoryStore.getState().fetchCategories()
+      useCategoryStore.getState().fetchCategories(data.token)
       router.push(`/${role.toLowerCase().replace(" ", "-")}`)
     } catch (err) {
       setLoading(false)

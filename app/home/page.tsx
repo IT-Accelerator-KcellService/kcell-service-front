@@ -171,7 +171,7 @@ export default function HomePage() {
         if (isDesktop) {
             router.push(`/${role}`)
         }
-    }, []);
+    }, [isDesktop]);
 
     const handleEditUser = (user: User) => {
         setNewUser({
