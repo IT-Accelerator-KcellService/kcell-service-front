@@ -146,29 +146,37 @@ export default function AdminWorkerDashboard() {
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const observer = useRef<IntersectionObserver | null>(null);
+
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
+  const lastElementRef = useRef<HTMLDivElement | null>(null);
 
-  const lastRequestRef = useCallback(
-      (node: any) => {
-        if (loading || !hasMore) return;
-        if (observer.current) observer.current.disconnect();
+  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+    lastElementRef.current = node;
+  }, []);
 
-        observer.current = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting && hasMore && !loading) {
-            setPage(prevPage => {
-              const nextPage = prevPage + 1;
-              fetchRequests(nextPage);
-              return nextPage;
-            });
-          }
+  useEffect(() => {
+    if (loading) return;
+
+    if (observer.current) {
+      observer.current.disconnect();
+    }
+
+    observer.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !loading) {
+        setPage((prevPage) => {
+          const nextPage = prevPage + 1;
+          fetchRequests(nextPage);
+          return nextPage;
         });
+      }
+    });
 
-        if (node) observer.current.observe(node);
-      },
-      [loading, hasMore]
-  );
+    if (lastElementRef.current) {
+      observer.current.observe(lastElementRef.current);
+    }
+  }, [loading, hasMore, incomingRequests, myRequests]);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);

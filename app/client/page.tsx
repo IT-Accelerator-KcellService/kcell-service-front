@@ -122,24 +122,55 @@ export default function ClientDashboard() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useRef<HTMLDivElement | null>(null);
   const [pageSize] = useState(10);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [modalStack, setModalStack] = useState<string[]>([]);
-  const lastRequestRef = useCallback(
-      (node: any) => {
-        if (loading) return;
-        if (observer.current) observer.current.disconnect();
 
-        observer.current = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting && hasMore) {
-            fetchRequests(page + 1);
-          }
-        });
+  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+    lastElementRef.current = node;
+  }, []);
 
-        if (node) observer.current.observe(node);
-      },
-      [loading, hasMore, page]
-  );
+  const filteredRequests = requests
+      .filter((request) => {
+        const statusMatch = filterStatus === "all" || request.status === filterStatus
+        const requestType = request.request_type
+        const typeMatch = filterType === "all" || requestType === filterType
+        return statusMatch && typeMatch
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.created_date).getTime();
+        const dateB = new Date(b.created_date).getTime();
+        // если дата невалидная, ставим приоритет 0
+        const safeDateA = isNaN(dateA) ? 0 : dateA;
+        const safeDateB = isNaN(dateB) ? 0 : dateB;
+        return safeDateB - safeDateA;
+      });
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (observer.current) {
+      observer.current.disconnect();
+    }
+
+    observer.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore) {
+        fetchRequests(page + 1);
+      }
+    });
+
+    if (lastElementRef.current) {
+      observer.current.observe(lastElementRef.current);
+    }
+  }, [loading, hasMore, page, filteredRequests]); // добавил filteredRequests
+
+// При заходе на страницу сбросим пагинацию
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+    fetchRequests(1);
+  }, []);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
@@ -664,22 +695,6 @@ export default function ClientDashboard() {
     }
   }
 
-  const filteredRequests = requests
-      .filter((request) => {
-        const statusMatch = filterStatus === "all" || request.status === filterStatus
-        const requestType = request.request_type
-        const typeMatch = filterType === "all" || requestType === filterType
-        return statusMatch && typeMatch
-      })
-      .sort((a, b) => {
-        const dateA = new Date(a.created_date).getTime();
-        const dateB = new Date(b.created_date).getTime();
-        // если дата невалидная, ставим приоритет 0
-        const safeDateA = isNaN(dateA) ? 0 : dateA;
-        const safeDateB = isNaN(dateB) ? 0 : dateB;
-        return safeDateB - safeDateA;
-      });
-
   const handleLogout = async () => {
     try {
       setIsLoggedIn(false)
@@ -939,13 +954,15 @@ export default function ClientDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredRequests.map((request, index) => {
                       const isLast = index === filteredRequests.length - 1;
-
                       return (
                           <Card
                               key={request.id}
                               ref={isLast ? lastRequestRef : null}
                               className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                              onClick={() => {setSelectedRequest(request); openModal('requestDetails'); }}
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                openModal("requestDetails");
+                              }}
                           >
                           {/* Заголовок с ID и статусами */}
                           <CardHeader className="pb-3 px-5 pt-5">

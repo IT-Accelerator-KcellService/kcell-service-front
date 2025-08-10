@@ -204,6 +204,10 @@ export default function ManagerDashboard() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useRef<HTMLDivElement | null>(null);
+  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+    lastElementRef.current = node;
+  }, []);
   const [stats, setStats] = useState<Stats[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [kpi, setKpi] = useState({
@@ -215,21 +219,51 @@ export default function ManagerDashboard() {
 
   const [modalStack, setModalStack] = useState<string[]>([]);
 
-  const lastRequestRef = useCallback(
-      (node: any) => {
-        if (loading) return;
-        if (observer.current) observer.current.disconnect();
+  const filteredRequests = requests.filter((request) => {
+    const now = new Date();
+    let periodStartDate: Date | null = null;
 
-        observer.current = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting && hasMore) {
-            fetchRequests(page + 1);
-          }
-        });
+    switch (period) {
+      case 'week':
+        periodStartDate = subDays(now, 7);
+        break;
+      case 'month':
+        periodStartDate = subMonths(now, 1);
+        break;
+      case 'year':
+        periodStartDate = subYears(now, 1);
+        break;
+      default:
+        periodStartDate = null;
+    }
+    const statusMatch = filterStatus === "all" || request.status === filterStatus;
+    const requestType = request.request_type;
+    const typeMatch = filterType === "all" || requestType === filterType;
+    const officeMatch = office === "all" || office == String(request.office_id);
 
-        if (node) observer.current.observe(node);
-      },
-      [loading, hasMore, page]
-  );
+    const createdDate = new Date(request.created_date);
+    const periodMatch = !periodStartDate || isAfter(createdDate, periodStartDate);
+
+    return statusMatch && typeMatch && officeMatch && periodMatch;
+  })
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (observer.current) {
+      observer.current.disconnect();
+    }
+
+    observer.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore) {
+        fetchRequests(page + 1);
+      }
+    });
+
+    if (lastElementRef.current) {
+      observer.current.observe(lastElementRef.current);
+    }
+  }, [loading, hasMore, page, filteredRequests]); // добавил filteredRequests
 
   const fetchStats = async () => {
     try {
@@ -968,33 +1002,6 @@ export default function ManagerDashboard() {
     }
   }
 
-  const filteredRequests = requests.filter((request) => {
-    const now = new Date();
-    let periodStartDate: Date | null = null;
-
-    switch (period) {
-      case 'week':
-        periodStartDate = subDays(now, 7);
-        break;
-      case 'month':
-        periodStartDate = subMonths(now, 1);
-        break;
-      case 'year':
-        periodStartDate = subYears(now, 1);
-        break;
-      default:
-        periodStartDate = null;
-    }
-    const statusMatch = filterStatus === "all" || request.status === filterStatus;
-    const requestType = request.request_type;
-    const typeMatch = filterType === "all" || requestType === filterType;
-    const officeMatch = office === "all" || office == String(request.office_id);
-
-    const createdDate = new Date(request.created_date);
-    const periodMatch = !periodStartDate || isAfter(createdDate, periodStartDate);
-
-    return statusMatch && typeMatch && officeMatch && periodMatch;
-  })
   const handleSearch = async () => {
     if (!searchInput.trim()) {
       return;
