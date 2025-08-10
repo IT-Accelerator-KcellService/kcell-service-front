@@ -1,61 +1,28 @@
 "use client"
 
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import Image from "next/image"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import React, { useEffect, useState } from "react"
-import api from "@/lib/api"
-import { useMediaQuery } from "@/hooks/use-media-query"
-import { BottomNav } from "@/components/BottomNav"
+import {Card, CardContent} from "@/components/ui/card"
+import {Button} from "@/components/ui/button"
+import {useRouter} from "next/navigation"
+import React, {useEffect, useMemo, useState} from "react"
+import {useMediaQuery} from "@/hooks/use-media-query"
+import {BottomNav} from "@/components/BottomNav"
 import Header from "@/app/header/Header"
-import {
-    Clock,
-    CheckCircle,
-    Star,
-    AlertTriangle,
-    User,
-    Users,
-    BarChart3,
-    TrendingUp,
-    TrendingDown,
-    Download, Plus, MapPin, Calendar as CalendarLucid, ImageIcon, Trash2, AlertCircle, Edit, Mail, Building2
-} from "lucide-react"
-import { Medal, Gem } from "lucide-react"
+import OfficeMap, {type OfficePoint} from "@/components/office-map/OfficeMap"
+import {AlertCircle, AlertTriangle, BarChart3, Calendar as CalendarLucid, Gem, MapPin, Medal, Star} from "lucide-react"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
-import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
-import {Input} from "@/components/ui/input";
-import {
-    AlertDialog, AlertDialogAction, AlertDialogCancel,
-    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger
-} from "@/components/ui/alert-dialog";
-import {isAfter, subDays, subMonths, subYears} from "date-fns";
-import axios from "axios";
+import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import PullToRefresh from "@/components/pull-to-refresh";
-import {useStatsStore, ManagerStats, DepHeadStats, ExecutorStats} from "@/stores/statsStore";
-import {useNotificationStore} from "@/stores/notificationStore";
-import {useRequestStore} from "@/stores/useRequestStore";
+import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
-
-type User = {
-    id: number;
-    full_name: string;
-    email: string;
-    office_id: string;
-    role: string;
-    office: any
-}
+import {CardModal} from "@/components/home-modal/CardModal";
 
 type OfficeType = {
     id: number
     name: string
     city: string
     address: string
+    lat: number
+    lon: number
 }
 
 interface ChartData {
@@ -64,9 +31,20 @@ interface ChartData {
 }
 
 export default function HomePage() {
+
+    // Offices across Kazakhstan
+    const [offices] = useState<OfficeType[]>([
+        { id: 1, name: "Kcell HQ", city: "Almaty", address: "Auezov 50", lat: 43.238949, lon: 76.889709 },
+        { id: 2, name: "Kcell North", city: "Astana", address: "Baitursynov 12", lat: 51.169392, lon: 71.449074 },
+        { id: 3, name: "Kcell East", city: "Shymkent", address: "Zhibek Zholy 7", lat: 42.3417, lon: 69.5901 },
+    ])
+
     const router = useRouter()
     const {role, token} = useAuthStore()
     const isDesktop = useMediaQuery("(min-width: 768px)")
+    const [mapOpen, setMapOpen] = useState(false)
+    const [period, setPeriod] = useState("month")
+    const [office, setOffice] = useState("all")
     const {
         clientStats,
         adminWorkerStats,
@@ -74,98 +52,12 @@ export default function HomePage() {
         executorStats,
         managerStats,
         myRating,
-        lastUpdated,
-        loading: statsLoading,
         fetchStats,
         resetStats,
     } = useStatsStore();
-    const [tab, setTab] = useState("requests")
-    const [users, setUsers] = useState<User[]>([]);
-    const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
-    const [newOfficeName, setNewOfficeName] = useState("")
-    const [newOfficeAddress, setNewOfficeAddress] = useState("")
-    const [newOfficeCity, setNewOfficeCity] = useState("")
-    const [chartData, setChartData] = useState<ChartData[]>([]);
-    const [userToDelete, setUserToDelete] = useState<User | null>(null);
-    const [newUser, setNewUser] = useState({
-        id: 0,
-        email: "",
-        full_name: "",
-        office_id: "",
-        role: "",
-    });
+    const HERO_SRC = "https://img.forbes.kz/forbes-photobank/media/2024-06-09/b47e8a4b-14f2-4c8c-9697-f58fd2c560c8.webp"
 
-    const isValidUser =
-        newUser.email.trim() &&
-        newUser.full_name.trim() &&
-        newUser.office_id &&
-        newUser.role;
-
-    const [kpi, setKpi] = useState({
-        total: 0,
-        completed: 0,
-        overdue: 0,
-        emergency: 0,
-    })
-    const [period, setPeriod] = useState("month")
-    const [office, setOffice] = useState("all")
-    const [offices, setOffices] = useState([{}])
-    const [editedOffice, setEditedOffice] = useState<Partial<OfficeType>>({
-        name: "",
-        city: "",
-        address: "",
-    })
-    const [editingOfficeId, setEditingOfficeId] = useState(null)
-    const [editingUserId, setEditingUserId] = useState<number | null>(null);
-
-    useEffect(() => {
-        const fetchOffices = async () => {
-            if (offices.length !== 0) return false;
-            try {
-                const response = await api.get('/offices')
-                setOffices(response.data)
-            } catch (error) {
-                console.error("Failed to fetch categories:", error)
-            }
-        }
-
-        const fetchUsers = async () => {
-            if (users.length !== 0) return
-            try {
-                const response = await api.get("/users");
-                setUsers(response.data);
-            } catch (err) {
-                console.error("Ошибка при получении пользователей:", err);
-            } finally {
-            }
-        };
-
-        if (role === 'manager') {
-            fetchOffices()
-            fetchUsers()
-        }
-    }, [])
-
-    const handleAddOffice = async () => {
-        const city = newOfficeName.trim()
-        const address = newOfficeName.trim()
-        const name = newOfficeName.trim()
-
-        try {
-            const response = await api.post("/offices/", {
-                city: city,
-                address: address,
-                name: name
-            })
-            console.log(response.data)
-            setOffices((prev) => [...prev, {name, city, address}])
-            setNewOfficeName("")
-            setNewOfficeAddress("")
-            setNewOfficeCity("")
-        } catch (err) {
-            console.log("Error create office, ", err)
-        }
-    }
+    const officePoints: OfficePoint[] = offices.map((o) => ({ ...o }))
 
     useEffect(() => {
         if (isDesktop) {
@@ -173,109 +65,62 @@ export default function HomePage() {
         }
     }, [isDesktop]);
 
-    const handleEditUser = (user: User) => {
-        setNewUser({
-            id: user.id,
-            email: user.email,
-            full_name: user.full_name,
-            office_id: user.office_id,
-            role: user.role,
+    const chartData: ChartData[] = useMemo(() => {
+        if (role !== 'manager') return [];
+        const subset = office === "all" ? managerStats : managerStats!.filter((s) => s.officeId === Number(office))
+        const now = new Date()
+        const start = new Date(
+            period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
+            period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
+            period === "week" ? now.getDate() - 7 : now.getDate(),
+        )
+        const map: Record<string, number> = {}
+        subset!.forEach((s) => {
+            Object.entries(s.data).forEach(([date, d]) => {
+                const dd = new Date(date)
+                if (dd >= start) map[date] = (map[date] || 0) + d.totalRequests
+            })
+        })
+        return Object.entries(map)
+            .map(([date, count]) => ({ date, count }))
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    }, [managerStats, office, period])
 
-        });
-        setEditingUserId(user.id);
-    };
-
-    const handleUpdateOffice = async (id:any) => {
-        try {
-            await api.put(`/offices/${id}`, editedOffice) // Передаём данные для обновления
-            const updatedOffices = offices.map((office: any) =>
-                office.id === id ? { ...office, ...editedOffice } : office
-            )
-            setOffices(updatedOffices)
-            setEditingOfficeId(null)
-        } catch (error) {
-            console.error("Ошибка при обновлении офиса:", error)
-        }
-    }
-
-    const handleRemoveOffice = async (id: any) => {
-        try {
-            const response = await api.delete(`/offices/${id}`)
-            console.log(response.data)
-            setOffices((prev) => prev.filter((office:any) => office.id !== id))
-        } catch (err) {
-            console.log(err)
-        }
-    }
-
-    useEffect(() => {
-        if (role === "manager" && managerStats) {
-            setKpi(calculateKPI(managerStats, office, period));
-            setChartData(prepareChartData(managerStats, office, period));
-            setDistribution(getRequestsDistribution(managerStats, office, period));
-        }
-    }, [clientStats, adminWorkerStats, depHeadStats, executorStats, managerStats, office, period]);
-
-    const getRequestsDistribution = (stats: ManagerStats[], selectedOffice: string, selectedPeriod: string) => {
-        let filteredStats = stats;
-
-        if (selectedOffice !== "all") {
-            const officeId = parseInt(selectedOffice);
-            filteredStats = stats.filter(stat => stat.officeId === officeId);
-        }
-
-        const now = new Date();
-        let startDate: Date = new Date(0); // По умолчанию - все время
-
-        switch (selectedPeriod) {
-            case "week":
-                startDate = subDays(now, 7);
-                break;
-            case "month":
-                startDate = subMonths(now, 1);
-                break;
-            case "year":
-                startDate = subYears(now, 1);
-                break;
-        }
-
-        let total = 0;
-        let normal = 0;
-        let urgent = 0;
-        let planned = 0;
-
-        filteredStats.forEach(stat => {
+    const distribution = useMemo(() => {
+        if (role !== 'manager') return;
+        const subset = office === "all" ? managerStats : managerStats!.filter((s) => s.officeId === Number(office))
+        const now = new Date()
+        const start = new Date(
+            period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
+            period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
+            period === "week" ? now.getDate() - 7 : now.getDate(),
+        )
+        let total = 0
+        let normal = 0
+        let urgent = 0
+        let planned = 0
+        subset!.forEach((stat) => {
             Object.entries(stat.data).forEach(([date, data]) => {
-                const entryDate = new Date(date);
-                if (entryDate >= startDate) {
-                    total += data.totalRequests;
-                    normal += data.normalRequests || 0;
-                    urgent += data.urgentRequests || 0;
-                    planned += data.plannedRequests || 0;
+                const d = new Date(date)
+                if (d >= start) {
+                    total += data.totalRequests
+                    normal += data.normalRequests || 0
+                    urgent += data.urgentRequests || 0
+                    planned += data.plannedRequests || 0
                 }
-            });
-        });
-
+            })
+        })
+        const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
         return {
             total,
             normal,
             urgent,
             planned,
-            normalPercent: total > 0 ? Math.round((normal / total) * 100) : 0,
-            urgentPercent: total > 0 ? Math.round((urgent / total) * 100) : 0,
-            plannedPercent: total > 0 ? Math.round((planned / total) * 100) : 0,
-        };
-    };
-
-    const [distribution, setDistribution] = useState({
-        total: 0,
-        normal: 0,
-        urgent: 0,
-        planned: 0,
-        normalPercent: 0,
-        urgentPercent: 0,
-        plannedPercent: 0,
-    });
+            normalPercent: pct(normal),
+            urgentPercent: pct(urgent),
+            plannedPercent: pct(planned),
+        }
+    }, [managerStats, office, period])
 
     const roleTranslations: Record<string, string> = {
         client: "Клиент",
@@ -283,101 +128,6 @@ export default function HomePage() {
         "department-head": "Руководитель направления",
         executor: "Испольнитель",
         manager: "Руководитель"
-    };
-
-    const calculateKPI = (stats: ManagerStats[], selectedOffice: string, selectedPeriod: string) => {
-        let filteredStats = stats;
-
-        if (selectedOffice !== "all") {
-            const officeId = parseInt(selectedOffice);
-            filteredStats = stats.filter(stat => stat.officeId === officeId);
-        }
-
-        const now = new Date();
-        let startDate: Date;
-
-        switch (selectedPeriod) {
-            case "week":
-                startDate = new Date(now);
-                startDate.setDate(now.getDate() - 7);
-                break;
-            case "month":
-                startDate = new Date(now);
-                startDate.setMonth(now.getMonth() - 1);
-                break;
-            case "year":
-                startDate = new Date(now);
-                startDate.setFullYear(now.getFullYear() - 1);
-                break;
-            default:
-                startDate = new Date(0);
-        }
-
-        let total = 0;
-        let completed = 0;
-        let overdue = 0;
-        let emergency = 0;
-
-        filteredStats.forEach(stat => {
-            Object.entries(stat.data).forEach(([date, data]) => {
-                const entryDate = new Date(date);
-                if (entryDate >= startDate) {
-                    total += data.totalRequests;
-                    completed += data.completedRequests;
-                    overdue += data.totalRequests - data.completedRequests;
-                    emergency += data.overdueUrgentRequests;
-                }
-            });
-        });
-
-        return { total, completed, overdue, emergency };
-    };
-
-    const prepareChartData = (stats: ManagerStats[], selectedOffice: string, selectedPeriod: string) => {
-        let filteredStats = stats;
-
-        if (selectedOffice !== "all") {
-            const officeId = parseInt(selectedOffice);
-            filteredStats = stats.filter(stat => stat.officeId === officeId);
-        }
-
-        const now = new Date();
-        let startDate: Date;
-
-        switch (selectedPeriod) {
-            case "week":
-                startDate = new Date(now);
-                startDate.setDate(now.getDate() - 7);
-                break;
-            case "month":
-                startDate = new Date(now);
-                startDate.setMonth(now.getMonth() - 1);
-                break;
-            case "year":
-                startDate = new Date(now);
-                startDate.setFullYear(now.getFullYear() - 1);
-                break;
-            default:
-                startDate = new Date(0);
-        }
-
-        const dataMap: Record<string, number> = {};
-
-        filteredStats.forEach(stat => {
-            Object.entries(stat.data).forEach(([date, data]: [string, any]) => {
-                const entryDate = new Date(date);
-                if (entryDate >= startDate) {
-                    if (!dataMap[date]) {
-                        dataMap[date] = 0;
-                    }
-                    dataMap[date] += data.totalRequests;
-                }
-            });
-        });
-
-        return Object.entries(dataMap)
-            .map(([date, count]) => ({ date, count }))
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     };
 
     const getRatingInfo = (doneRequests: number) => {
@@ -405,90 +155,40 @@ export default function HomePage() {
         }
     }
 
-    const handleExport = async (format: "xlsx" | "pbix") => {
-        try {
-            const now = new Date();
-            let periodStartDate: Date | null = null;
+    const summary = useMemo(() => {
+        if (role !== "manager") return;
+        const subset = office === "all" ? managerStats : managerStats!.filter((s) => s.officeId === Number(office))
+        const now = new Date()
+        const start = new Date(
+            period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
+            period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
+            period === "week" ? now.getDate() - 7 : now.getDate(),
+        )
+        let total = 0
+        let completed = 0
+        let overdue = 0
+        const dayCounts = new Set<string>()
+        subset!.forEach((stat) => {
+            Object.entries(stat.data).forEach(([date, data]) => {
+                const d = new Date(date)
+                if (d >= start) {
+                    total += data.totalRequests
+                    completed += data.completedRequests
+                    overdue += data.totalRequests - data.completedRequests
+                    dayCounts.add(date)
+                }
+            })
+        })
+        const days = dayCounts.size || 1
+        const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+        const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0
+        const avgPerDay = Math.round(total / days)
+        return { total, completed, overdue, completionRate, overdueRate, avgPerDay }
+    }, [managerStats, office, period])
 
-            switch (period) {
-                case 'week':
-                    periodStartDate = subDays(now, 7);
-                    break;
-                case 'month':
-                    periodStartDate = subMonths(now, 1);
-                    break;
-                case 'year':
-                    periodStartDate = subYears(now, 1);
-                    break;
-                default:
-                    periodStartDate = null;
-            }
-            const params = new URLSearchParams();
-            if (office && office !== 'all') params.append("office_id", String(office));
-            if (periodStartDate) params.append("from", periodStartDate.toISOString());
-            params.append("format", format);
-
-            const res = await axios.get(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
-                responseType: "blob",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            const url = window.URL.createObjectURL(res.data);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `analytics.${format}`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error("Ошибка при экспорте файла:", error);
-            alert("Не удалось экспортировать файл");
-        }
-    };
-
-    const handleAddOrUpdateUser = async () => {
-        try {
-            if (editingUserId) {
-                // Обновить пользователя
-                const response = await api.put(`/users/${editingUserId}`, newUser);
-                setUsers((prev) =>
-                    prev.map((user) => (user.id === editingUserId ? response.data : user))
-                );
-            } else {
-                // Добавить нового пользователя
-                const response = await api.post("/users", newUser);
-                setUsers(prev => prev.map(user => ({
-                    ...user,
-                    id: user.id,
-                    email: user.email,
-                    full_name: user.full_name,
-                    office_id: user.office_id,
-                    role: user.role,
-                    office: user.office // Добавляем обязательное поле
-                })));
-            }
-
-            setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "" });
-            setEditingUserId(null);
-        } catch (err) {
-            console.error("Ошибка при сохранении пользователя:", err);
-        }
-    };
     const rating = getRatingInfo((clientStats && clientStats.doneRequests ? (
         clientStats.doneRequests
     ): 0))
-
-    const handleDeleteUser = async (userId: number) => {
-        try {
-            await api.delete(`/users/${userId}`);
-            setUsers((prev) => prev.filter((user) => user.id !== userId));
-        } catch (err) {
-            console.error("Ошибка при удалении пользователя:", err);
-        }
-    };
 
     const handleRefresh = async () => {
         try {
@@ -504,334 +204,83 @@ export default function HomePage() {
 
     const resetAllStates = async () => {
         resetStats()
-        setNewOfficeName("")
-        setNewOfficeAddress("")
-        setNewOfficeCity("")
-        setChartData([])
-        setUsers([])
-        setDistribution({
-            total: 0,
-            normal: 0,
-            urgent: 0,
-            planned: 0,
-            normalPercent: 0,
-            urgentPercent: 0,
-            plannedPercent: 0,
-        })
     }
+
+    const Stat = ({ label, value }: { label: string; value: number | string }) => (
+        <div className="rounded-lg border bg-white">
+            <div className="p-3">
+                <div className="text-xs text-neutral-500">{label}</div>
+                <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
+            </div>
+        </div>
+    )
 
     return (
         <>
             <Header
-                setShowProfile={() => {}}
+                role={roleTranslations[role!]}
                 handleLogout={() => {}}
-                role={role === 'client' ? 'Клиент' : role || ''}
+                setShowProfile={() => {}}
             />
-
-        <PullToRefresh onRefresh={handleRefresh}>
-        <div className="min-h-screen bg-gray-50 pb-20">
-
-            {/* Фото Kcell на всю ширину */}
-            <div className="px-3 pt-3">
-                <div className="relative w-full aspect-[4/4] rounded-xl overflow-hidden shadow-sm">
-                    <Image
-                        src="https://img.forbes.kz/forbes-photobank/media/2024-06-09/b47e8a4b-14f2-4c8c-9697-f58fd2c560c8.webp"
-                        alt="Kcell Office"
-                        fill
-                        className="object-cover"
-                        priority
-                        quality={100}
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                    />
-                </div>
-            </div>
-
-            {/* Статистические карточки из вашего кода */}
-            <div className="min-h-screen bg-gray-50 p-3 sm:p-4">
-                <div className="max-w-7xl mx-auto space-y-4">
-                    {role === "client" ? (
-                        <>
-                            <Card>
-                                <CardContent className="p-4"> {/* Уменьшил padding */}
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-blue-100 rounded-lg">
-                                            <Clock className="w-5 h-5 text-blue-600" /> {/* Уменьшил размер иконки */}
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-xs font-medium text-gray-600">Активные</p> {/* Уменьшил текст */}
-                                            <p className="text-lg font-bold text-gray-900"> {/* Уменьшил размер цифр */}
-                                                {clientStats?.activeRequests || 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardContent className="p-4">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-green-100 rounded-lg">
-                                            <CheckCircle className="w-5 h-5 text-green-600" />
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-xs font-medium text-gray-600">Завершено</p>
-                                            <p className="text-lg font-bold text-gray-900">
-                                                {clientStats?.doneRequests || 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-                                <CardContent className="p-4">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-yellow-100 rounded-lg">
-                                            <Star className="w-5 h-5 text-yellow-600" />
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-xs font-medium text-gray-600">Оценка</p>
-                                            <p className="text-lg font-bold text-gray-900">
-                                                {clientStats?.averageRating || "0"}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card>
-
-                                <CardContent className="p-4">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-purple-100 rounded-lg">
-                                            {rating.icon}
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-xs font-medium text-gray-600">Рейтинг</p>
-                                            <p className="text-lg font-bold text-gray-900">{rating.label}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </>
-                    ): role === "admin-worker" ? (
-                        <>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-yellow-100 rounded-lg">
-                                            <Clock className="w-6 h-6 text-yellow-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Новые заявки</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {adminWorkerStats && adminWorkerStats.statusCounts && adminWorkerStats.statusCounts.new ? (adminWorkerStats.statusCounts.new): 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-blue-100 rounded-lg">
-                                            <Users className="w-6 h-6 text-blue-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">В работе</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {adminWorkerStats && adminWorkerStats.statusCounts && adminWorkerStats.statusCounts.inWork ? (adminWorkerStats.statusCounts.inWork): 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-green-100 rounded-lg">
-                                            <CheckCircle className="w-6 h-6 text-green-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Завершено</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {adminWorkerStats && adminWorkerStats.statusCounts && adminWorkerStats.statusCounts.completed ? (adminWorkerStats.statusCounts.completed): 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-red-100 rounded-lg">
-                                            <AlertTriangle className="w-6 h-6 text-red-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Просрочено</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {adminWorkerStats && adminWorkerStats.statusCounts && adminWorkerStats.statusCounts.overdue ? (adminWorkerStats.statusCounts.overdue): 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </>
-                    ): role === "department-head" ? (
-                        <>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-yellow-100 rounded-lg">
-                                            <Clock className="w-6 h-6 text-yellow-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Новые заявки</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {depHeadStats && depHeadStats.statusCounts && depHeadStats.statusCounts.new ? (depHeadStats.statusCounts.new) : 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-blue-100 rounded-lg">
-                                            <Users className="w-6 h-6 text-blue-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">В работе</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {depHeadStats && depHeadStats.statusCounts && depHeadStats.statusCounts.inWork ? (depHeadStats.statusCounts.inWork) : 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-green-100 rounded-lg">
-                                            <CheckCircle className="w-6 h-6 text-green-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Завершено</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {depHeadStats && depHeadStats.statusCounts && depHeadStats.statusCounts.completed ? (depHeadStats.statusCounts.completed) : 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-red-100 rounded-lg">
-                                            <AlertTriangle className="w-6 h-6 text-red-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Просрочено</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {depHeadStats && depHeadStats.statusCounts && depHeadStats.statusCounts.overdue ? (depHeadStats.statusCounts.overdue) : 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </>
-                    ): role === "executor" ? (
-                        <>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-red-100 rounded-lg">
-                                            <AlertTriangle className="w-6 h-6 text-red-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Экстренные</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {executorStats && executorStats.urgent ? (executorStats.urgent) : 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-blue-100 rounded-lg">
-                                            <Clock className="w-6 h-6 text-blue-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">В работе</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {executorStats && executorStats.inWork ? (executorStats.inWork) : 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-green-100 rounded-lg">
-                                            <CheckCircle className="w-6 h-6 text-green-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Завершено</p>
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {executorStats && executorStats.completed ? (executorStats.completed) : 0}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center">
-                                        <div className="p-2 bg-yellow-100 rounded-lg">
-                                            <Star className="w-6 h-6 text-yellow-600" />
-                                        </div>
-                                        <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                                            <p className="text-2xl font-bold text-gray-900">{myRating}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </>
-                    ): role === "manager" && (
-                        <div className="min-h-screen bg-gray-50 p-3 sm:p-4">
-                            <div className="max-w-7xl mx-auto space-y-4">
-                                {/* Заголовок */}
-                                <div className="text-center sm:text-left">
-                                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Аналитика заявок</h1>
-                                    <p className="text-sm text-gray-600 mt-1">Мониторинг и управление заявками</p>
+            <PullToRefresh onRefresh={handleRefresh}>
+                <main className="min-h-screen bg-white pb-[calc(120px_+_env(safe-area-inset-bottom))]">
+                    {/* Full-bleed vivid hero */}
+                    <section className="relative w-full">
+                        <div className="relative h-[50vh] min-h-[340px] w-full overflow-hidden">
+                            <img
+                                src={HERO_SRC || "/placeholder.svg?height=900&width=1400&query=kcell office hero"}
+                                alt="Kcell hero"
+                                className="h-full w-full object-cover"
+                                onClick={() => setMapOpen(true)}
+                            />
+                            <div className="absolute left-3 top-3 flex gap-2">
+                                <span className="rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-purple-700 shadow">
+                                  Kcell Kazakhstan
+                                </span>
+                                <span className="rounded-full bg-white/80 px-2 py-1 text-[11px] text-neutral-700 shadow">Mobile</span>
+                            </div>
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
+                            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                                <div className="rounded-full bg-white/90 px-3 py-1 text-xs text-purple-700 shadow">
+                                    Нажмите, чтобы открыть карту офисов
                                 </div>
+                                <button
+                                    onClick={() => setMapOpen(true)}
+                                    className="rounded-full bg-purple-700 px-3 py-2 text-xs font-medium text-white shadow active:scale-[0.98]"
+                                >
+                                  <span className="inline-flex items-center gap-1">
+                                    <MapPin className="h-4 w-4" />
+                                    Карта
+                                  </span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
 
-                                {/* Улучшенные фильтры для мобильных */}
-                                <Card className="shadow-sm">
-                                    <CardContent className="p-4 space-y-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Controls container with max-width wrapper */}
+                    <section className="pt-3">
+                        <div className="mx-auto max-w-screen-sm px-3">
+                            <Card className="border bg-white">
+                                <CardContent className="flex flex-col gap-3 p-3">
+                                    <div className="flex gap-3">
+                                        <div className="flex-1">
                                             <Select value={office} onValueChange={setOffice}>
-                                                <SelectTrigger className="w-full h-11">
-                                                    <SelectValue placeholder="Выберите офис" />
+                                                <SelectTrigger className="h-10 w-full">
+                                                    <SelectValue placeholder="Офис" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="all">Все офисы</SelectItem>
-                                                    {offices.map((office: any, index: number) => (
-                                                        <SelectItem key={index} value={office.id}>
-                                                            <div className="flex flex-col items-start">
-                                                                <span className="font-medium">{office.name}</span>
-                                                                <span className="text-xs text-gray-500">{office.city}</span>
-                                                            </div>
+                                                    <SelectItem value="all">Все</SelectItem>
+                                                    {offices.map((o) => (
+                                                        <SelectItem key={o.id} value={String(o.id)}>
+                                                            {o.name}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            <Select value={period} onValueChange={setPeriod}>
-                                                <SelectTrigger className="w-full h-11">
+                                        </div>
+                                        <div className="flex-1">
+                                            <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+                                                <SelectTrigger className="h-10 w-full">
                                                     <SelectValue placeholder="Период" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -841,508 +290,267 @@ export default function HomePage() {
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <Button
-                                                variant="outline"
-                                                className="h-11 text-sm font-medium bg-transparent"
-                                                onClick={() => handleExport("xlsx")}
-                                            >
-                                                <Download className="w-4 h-4 mr-2" />
-                                                Excel
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="h-11 text-sm font-medium bg-transparent"
-                                                onClick={() => handleExport("pbix")}
-                                            >
-                                                <Download className="w-4 h-4 mr-2" />
-                                                Power BI
-                                            </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </section>
+
+                    {/* Summary for roles */}
+                    <section className="pt-3">
+                        <div className="mx-auto max-w-screen-sm px-3">
+                            <div className="grid grid-cols-2 gap-3">
+                                {role === "client" && (
+                                    <>
+                                        <Stat label="Активные" value={clientStats?.activeRequests ?? 0} />
+                                        <Stat label="Завершено" value={clientStats?.doneRequests ?? 0} />
+                                        <Stat label="Оценка" value={clientStats?.averageRating ?? 0} />
+                                        <div className="rounded-lg border bg-white p-3">
+                                            <div className="text-xs text-neutral-500">Рейтинг</div>
+                                            <div className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
+                                                <span className="text-purple-700">{rating.label}</span> {rating.icon}
+                                            </div>
                                         </div>
-                                    </CardContent>
-                                </Card>
+                                    </>
+                                )}
 
-                                {/* KPI Cards - оптимизированный для мобильных */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm">
-                                        <CardContent className="p-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center mb-2">
-                                                        <div className="p-2 bg-blue-500 rounded-lg mr-3">
-                                                            <BarChart3 className="w-5 h-5 text-white" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium text-blue-700">Всего</p>
-                                                            <p className="text-2xl font-bold text-blue-900">{kpi.total}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center">
-                                                        <TrendingUp className="w-4 h-4 text-green-600 mr-1" />
-                                                        <span className="text-sm font-medium text-green-600">+12%</span>
-                                                    </div>
+                                {role === "admin-worker" && (
+                                    <>
+                                        <Stat label="Новые" value={adminWorkerStats?.statusCounts?.new ?? 0} />
+                                        <Stat label="В работе" value={adminWorkerStats?.statusCounts?.inWork ?? 0} />
+                                        <Stat label="Завершено" value={adminWorkerStats?.statusCounts?.completed ?? 0} />
+                                        <Stat label="Просрочено" value={adminWorkerStats?.statusCounts?.overdue ?? 0} />
+                                    </>
+                                )}
+
+                                {role === "department-head" && (
+                                    <>
+                                        <Stat label="Новые" value={depHeadStats?.statusCounts?.new ?? 0} />
+                                        <Stat label="В работе" value={depHeadStats?.statusCounts?.inWork ?? 0} />
+                                        <Stat label="Завершено" value={depHeadStats?.statusCounts?.completed ?? 0} />
+                                        <Stat label="Просрочено" value={depHeadStats?.statusCounts?.overdue ?? 0} />
+                                    </>
+                                )}
+
+                                {role === "executor" && (
+                                    <>
+                                        <Stat label="Экстренные" value={executorStats?.urgent ?? 0} />
+                                        <Stat label="В работе" value={executorStats?.inWork ?? 0} />
+                                        <Stat label="Завершено" value={executorStats?.completed ?? 0} />
+                                        <Stat label="Мой рейтинг" value={myRating!} />
+                                    </>
+                                )}
+
+                                {role === "manager" && (
+                                    <>
+                                        <Stat label="Всего" value={summary!.total} />
+                                        <Stat label="Завершено" value={`${summary!.completed} (${summary!.completionRate}%)`} />
+                                        <Stat label="Просрочено" value={`${summary!.overdue} (${summary!.overdueRate}%)`} />
+                                        <Stat label="В день (ср.)" value={summary!.avgPerDay} />
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Manager only: show BOTH sections inline (no tabs) */}
+                    {role === "manager" && (
+                        <>
+                            {/* Chart: near max phone width via wrapper max-width, full width inside */}
+                            <section className="pt-3" id="stats">
+                                <div className="mx-auto max-w-screen-sm">
+                                    <div className="px-3">
+                                        <div className="rounded-t-xl border-x border-t bg-white">
+                                            <div className="px-3 pt-3">
+                                                <div className="text-sm font-medium">Динамика заявок</div>
+                                                <div className="text-xs text-neutral-500">
+                                                    За последний {period === "week" ? "неделю" : period === "month" ? "месяц" : "год"}
                                                 </div>
                                             </div>
-                                        </CardContent>
-                                    </Card>
+                                        </div>
+                                    </div>
 
-                                    <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 shadow-sm">
-                                        <CardContent className="p-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center mb-2">
-                                                        <div className="p-2 bg-green-500 rounded-lg mr-3">
-                                                            <CheckCircle className="w-5 h-5 text-white" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium text-green-700">Завершено</p>
-                                                            <p className="text-2xl font-bold text-green-900">{kpi.completed}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center">
-                                                        <TrendingUp className="w-4 h-4 text-green-600 mr-1" />
-                                                        <span className="text-sm font-medium text-green-600">+8%</span>
-                                                    </div>
+                                    <div className="h-64 w-full">
+                                        {chartData.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart data={chartData} margin={{ left: 10, right: 10, top: 12, bottom: 6 }}>
+                                                    <defs>
+                                                        <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%" stopColor="rgb(126,34,206)" stopOpacity={0.35} />
+                                                            <stop offset="100%" stopColor="rgb(126,34,206)" stopOpacity={0.05} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#EAEAEA" />
+                                                    <XAxis
+                                                        dataKey="date"
+                                                        tick={{ fontSize: 11, fill: "#6B7280" }}
+                                                        tickLine={false}
+                                                        axisLine={{ stroke: "#E5E7EB" }}
+                                                        tickFormatter={(value: string) => {
+                                                            const d = new Date(value)
+                                                            return period === "year"
+                                                                ? d.toLocaleDateString("ru-RU", { month: "short" })
+                                                                : d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })
+                                                        }}
+                                                    />
+                                                    <YAxis
+                                                        allowDecimals={false}
+                                                        tick={{ fontSize: 11, fill: "#6B7280" }}
+                                                        tickLine={false}
+                                                        axisLine={{ stroke: "#E5E7EB" }}
+                                                    />
+                                                    <Tooltip
+                                                        cursor={{ stroke: "#D1D5DB" }}
+                                                        contentStyle={{
+                                                            borderRadius: 10,
+                                                            border: "1px solid #eee",
+                                                            background: "rgba(255,255,255,0.95)",
+                                                            fontSize: 12,
+                                                        }}
+                                                        labelFormatter={(value) => {
+                                                            const d = new Date(value as string)
+                                                            return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })
+                                                        }}
+                                                        formatter={(val: any) => [val, "Заявки"]}
+                                                    />
+                                                    <Area
+                                                        type="monotone"
+                                                        dataKey="count"
+                                                        stroke="rgb(126,34,206)"
+                                                        strokeWidth={2.2}
+                                                        fill="url(#purpleGradient)"
+                                                        activeDot={{ r: 4, strokeWidth: 0, fill: "rgb(126,34,206)" }}
+                                                        dot={{ r: 2, fill: "rgb(126,34,206)" }}
+                                                    />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center gap-2 text-neutral-500">
+                                                <AlertCircle className="h-5 w-5" />
+                                                <span className="text-sm">Нет данных для отображения</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="px-3">
+                                        <div className="rounded-b-xl border-x border-b bg-white">
+                                            <div className="px-3 py-3 text-xs text-neutral-500">
+                                                Суммарные заявки по выбранному периоду и офису.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            {/* Overview section below, same wrapper max-width */}
+                            <section className="pt-3">
+                                <div className="mx-auto max-w-screen-sm px-3">
+                                    <Card className="border bg-white">
+                                        <CardContent className="p-3">
+                                            <div className="mb-2">
+                                                <div className="text-sm font-medium">Краткий обзор</div>
+                                                <div className="text-xs text-neutral-500">
+                                                    Выполнено {summary!.completed} из {summary!.total} ({summary!.completionRate}
+                                                    %), просрочено {summary!.overdue} ({summary!.overdueRate}%).
                                                 </div>
                                             </div>
-                                        </CardContent>
-                                    </Card>
 
-                                    <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200 shadow-sm">
-                                        <CardContent className="p-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center mb-2">
-                                                        <div className="p-2 bg-red-500 rounded-lg mr-3">
-                                                            <AlertTriangle className="w-5 h-5 text-white" />
+                                            <div className="space-y-3">
+                                                {[
+                                                    {
+                                                        key: "normal",
+                                                        label: "Обычные",
+                                                        pctKey: "normalPercent",
+                                                        icon: <BarChart3 className="h-4 w-4 text-purple-700" />,
+                                                    },
+                                                    {
+                                                        key: "urgent",
+                                                        label: "Экстренные",
+                                                        pctKey: "urgentPercent",
+                                                        icon: <AlertTriangle className="h-4 w-4 text-purple-700" />,
+                                                    },
+                                                    {
+                                                        key: "planned",
+                                                        label: "Плановые",
+                                                        pctKey: "plannedPercent",
+                                                        icon: <CalendarLucid className="h-4 w-4 text-purple-700" />,
+                                                    },
+                                                ].map((row) => {
+                                                    const totalKey = row.key as "normal" | "urgent" | "planned"
+                                                    const pctKey = row.pctKey as "normalPercent" | "urgentPercent" | "plannedPercent"
+                                                    return (
+                                                        <div key={row.key} className="space-y-2">
+                                                            <div className="flex items-center justify-between text-sm">
+                                                                <div className="flex items-center gap-2">
+                                                                    {row.icon}
+                                                                    <span>{row.label}</span>
+                                                                </div>
+                                                                <span className="font-medium">
+                                                                  {distribution![totalKey]} ({distribution![pctKey]}%)
+                                                                </span>
+                                                            </div>
+                                                            <div className="h-2 w-full overflow-hidden rounded bg-neutral-200">
+                                                                <div
+                                                                    className="h-full bg-purple-700 transition-all"
+                                                                    style={{ width: `${distribution![pctKey]}%` }}
+                                                                />
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium text-red-700">Просрочено</p>
-                                                            <p className="text-2xl font-bold text-red-900">{kpi.overdue}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center">
-                                                        <TrendingDown className="w-4 h-4 text-red-600 mr-1" />
-                                                        <span className="text-sm font-medium text-red-600">-3%</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 shadow-sm">
-                                        <CardContent className="p-4">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center mb-2">
-                                                        <div className="p-2 bg-orange-500 rounded-lg mr-3">
-                                                            <AlertTriangle className="w-5 h-5 text-white" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium text-orange-700">Экстренные</p>
-                                                            <p className="text-2xl font-bold text-orange-900">{kpi.emergency}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center">
-                                                        <TrendingUp className="w-4 h-4 text-green-600 mr-1" />
-                                                        <span className="text-sm font-medium text-green-600">+2</span>
-                                                    </div>
-                                                </div>
+                                                    )
+                                                })}
                                             </div>
                                         </CardContent>
                                     </Card>
                                 </div>
+                            </section>
+                        </>
+                    )}
+                </main>
+            </PullToRefresh>
 
-                                {/* Табы с улучшенным мобильным дизайном */}
-                                <Card className="shadow-sm">
-                                    <CardContent className="p-0">
-                                        <Tabs value={tab} onValueChange={setTab} className="w-full">
-                                            <div className="border-b bg-gray-50 px-4 py-2">
-                                                <TabsList className="grid w-full grid-cols-2 h-12 bg-white">
-                                                    <TabsTrigger value="requests" className="text-xs sm:text-sm py-2 flex items-center justify-center">
-                                                        <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
-                                                        <span className="hidden sm:inline">Заявки</span>
-                                                        <span className="sm:hidden">Заявки</span>
-                                                    </TabsTrigger>
-                                                    <TabsTrigger value="overview" className="text-xs sm:text-sm py-2 flex items-center justify-center">
-                                                        <Users className="w-4 h-4 mr-1 sm:mr-2" />
-                                                        <span className="hidden sm:inline">Обзор</span>
-                                                        <span className="sm:hidden">Обзор</span>
-                                                    </TabsTrigger>
-                                                </TabsList>
-                                            </div>
+            <BottomNav activeTab="home"/>
 
-                                            <div className="p-4">
-                                                {tab === "requests" && (
-                                                    <div>
-                                                        <div className="mb-4">
-                                                            <h3 className="text-lg font-semibold">Динамика заявок</h3>
-                                                            <p className="text-sm text-gray-600">
-                                                                За последний {period === "week" ? "неделю" : period === "month" ? "месяц" : "год"}
-                                                            </p>
-                                                        </div>
-                                                        <div className="h-64 sm:h-80">
-                                                            {chartData.length > 0 ? (
-                                                                <ResponsiveContainer width="100%" height="100%">
-                                                                    <LineChart data={chartData}>
-                                                                        <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                                                                        <XAxis
-                                                                            dataKey="date"
-                                                                            tick={{ fontSize: 10 }}
-                                                                            tickFormatter={(value) => {
-                                                                                const date = new Date(value)
-                                                                                return period === "year"
-                                                                                    ? date.toLocaleDateString("ru-RU", { month: "short" })
-                                                                                    : date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })
-                                                                            }}
-                                                                        />
-                                                                        <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
-                                                                        <Tooltip
-                                                                            contentStyle={{
-                                                                                borderRadius: "8px",
-                                                                                fontSize: "12px",
-                                                                            }}
-                                                                        />
-                                                                        <Line
-                                                                            type="monotone"
-                                                                            dataKey="count"
-                                                                            stroke="#8E24AA"
-                                                                            strokeWidth={2}
-                                                                            dot={{ r: 3 }}
-                                                                            activeDot={{ r: 5, strokeWidth: 1 }}
-                                                                        />
-                                                                    </LineChart>
-                                                                </ResponsiveContainer>
-                                                            ) : (
-                                                                <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                                                                    <AlertCircle className="w-8 h-8 mb-2" />
-                                                                    <p>Нет данных для отображения</p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
+            {/* Modern animated modal with the map */}
+            <CardModal
+                open={mapOpen}
+                onClose={() => setMapOpen(false)}
+                title="Офисы Kcell на карте"
+                description="Коснитесь маркеров для информации. Карта с плавным появлением и жестами."
+                footer={
+                    <div className="flex gap-2">
+                        <Button variant="outline" className="w-full bg-transparent" onClick={() => setMapOpen(false)}>
+                            Закрыть
+                        </Button>
+                        <Button className="w-full bg-purple-700 hover:bg-purple-700/90" onClick={() => setMapOpen(false)}>
+                            Готово
+                        </Button>
+                    </div>
+                }
+            >
+                <div className="h-64 w-full overflow-hidden rounded-xl border">
+                    <OfficeMap offices={officePoints} className="relative h-full w-full" />
+                </div>
 
-                                                {tab === "overview" && (
-                                                    <div>
-                                                        <div className="mb-4">
-                                                            <h3 className="text-lg font-semibold">Распределение заявок</h3>
-                                                        </div>
-                                                        <div className="space-y-6">
-                                                            {[
-                                                                {
-                                                                    type: "normal",
-                                                                    label: "Обычные",
-                                                                    color: "bg-blue-500",
-                                                                    icon: <BarChart3 className="w-4 h-4" />,
-                                                                },
-                                                                {
-                                                                    type: "urgent",
-                                                                    label: "Экстренные",
-                                                                    color: "bg-red-500",
-                                                                    icon: <AlertTriangle className="w-4 h-4" />,
-                                                                },
-                                                                {
-                                                                    type: "planned",
-                                                                    label: "Плановые",
-                                                                    color: "bg-green-500",
-                                                                    icon: <CalendarLucid className="w-4 h-4" />,
-                                                                },
-                                                            ].map(({ type, label, color, icon }) => (
-                                                                <div key={type} className="space-y-2">
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div className="flex items-center">
-                                                                            <span className={`${color} p-2 rounded-lg mr-3 text-white`}>{icon}</span>
-                                                                            <span className="font-medium">{label}</span>
-                                                                        </div>
-                                                                        <span className="text-lg font-bold">{distribution[type as keyof typeof distribution]}</span>
-                                                                    </div>
-                                                                    <div className="w-full bg-gray-200 rounded-full h-3">
-                                                                        <div
-                                                                            className={`h-3 rounded-full ${color} transition-all duration-300`}
-                                                                            style={{
-                                                                                width: `${distribution[`${type}Percent` as keyof typeof distribution]}%`,
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                    <div className="text-right text-sm text-gray-600">
-                                                                        {distribution[`${type}Percent` as keyof typeof distribution]}% от общего числа
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {tab === "management" && (
-                                                    <div className="space-y-6">
-                                                        {/* Управление офисами */}
-                                                        <div>
-                                                            <div className="flex items-center mb-4">
-                                                                <Building2 className="w-5 h-5 mr-2 text-blue-600" />
-                                                                <h3 className="text-lg font-semibold">Управление офисами</h3>
-                                                            </div>
-
-                                                            <div className="space-y-4 mb-6">
-                                                                <Input
-                                                                    placeholder="Название офиса"
-                                                                    value={newOfficeName}
-                                                                    onChange={(e) => setNewOfficeName(e.target.value)}
-                                                                    className="h-11"
-                                                                />
-                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                                    <Input
-                                                                        placeholder="Город"
-                                                                        value={newOfficeCity}
-                                                                        onChange={(e) => setNewOfficeCity(e.target.value)}
-                                                                        className="h-11"
-                                                                    />
-                                                                    <Input
-                                                                        placeholder="Адрес"
-                                                                        value={newOfficeAddress}
-                                                                        onChange={(e) => setNewOfficeAddress(e.target.value)}
-                                                                        className="h-11"
-                                                                    />
-                                                                </div>
-                                                                <Button onClick={handleAddOffice} disabled={!newOfficeName.trim()} className="w-full h-11">
-                                                                    <Plus className="w-4 h-4 mr-2" />
-                                                                    Добавить офис
-                                                                </Button>
-                                                            </div>
-
-                                                            <div className="space-y-3">
-                                                                <h4 className="font-medium text-gray-700">Список офисов ({offices.length})</h4>
-                                                                {offices.length === 0 ? (
-                                                                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
-                                                                        <Building2 className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                                                                        <p>Нет добавленных офисов</p>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="space-y-3">
-                                                                        {offices.map((office: any, index: number) => (
-                                                                            <Card key={index} className="shadow-sm">
-                                                                                <CardContent className="p-4">
-                                                                                    <div className="flex justify-between items-start">
-                                                                                        <div className="flex-1 min-w-0">
-                                                                                            <h5 className="font-semibold text-gray-900 mb-1">{office.name}</h5>
-                                                                                            <div className="flex items-center text-sm text-gray-600 mb-1">
-                                                                                                <MapPin className="w-4 h-4 mr-1" />
-                                                                                                {office.city}
-                                                                                            </div>
-                                                                                            <p className="text-sm text-gray-500">{office.address}</p>
-                                                                                        </div>
-                                                                                        <div className="flex space-x-2 ml-4">
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                className="h-9 w-9"
-                                                                                                onClick={() => handleUpdateOffice(office.id)}
-                                                                                            >
-                                                                                                <Edit className="w-4 h-4" />
-                                                                                            </Button>
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                className="h-9 w-9 text-red-500 hover:bg-red-50"
-                                                                                                onClick={() => setOfficeToDelete(office)}
-                                                                                            >
-                                                                                                <Trash2 className="w-4 h-4" />
-                                                                                            </Button>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </CardContent>
-                                                                            </Card>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Управление пользователями */}
-                                                        <div>
-                                                            <div className="flex items-center mb-4">
-                                                                <Users className="w-5 h-5 mr-2 text-green-600" />
-                                                                <h3 className="text-lg font-semibold">Управление пользователями</h3>
-                                                            </div>
-
-                                                            <div className="space-y-4 mb-6">
-                                                                <Input
-                                                                    placeholder="Поиск пользователей"
-                                                                    className="h-11"
-                                                                    onChange={(e) => {
-                                                                        const term = e.target.value.toLowerCase()
-                                                                        // Search logic here
-                                                                    }}
-                                                                />
-                                                                <div className="space-y-3">
-                                                                    <Input
-                                                                        placeholder="Email пользователя"
-                                                                        value={newUser.email}
-                                                                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                                                                        className="h-11"
-                                                                    />
-                                                                    <Input
-                                                                        placeholder="Полное имя"
-                                                                        value={newUser.full_name}
-                                                                        onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-                                                                        className="h-11"
-                                                                    />
-                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                                        <Select
-                                                                            value={newUser.office_id}
-                                                                            onValueChange={(val) => setNewUser({ ...newUser, office_id: val })}
-                                                                        >
-                                                                            <SelectTrigger className="h-11">
-                                                                                <SelectValue placeholder="Офис" />
-                                                                            </SelectTrigger>
-                                                                            <SelectContent>
-                                                                                {offices.map((office: any, index: number) => (
-                                                                                    <SelectItem key={index} value={office.id}>
-                                                                                        {office.name}
-                                                                                    </SelectItem>
-                                                                                ))}
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                        <Select value={newUser.role} onValueChange={(val) => setNewUser({ ...newUser, role: val })}>
-                                                                            <SelectTrigger className="h-11">
-                                                                                <SelectValue placeholder="Роль" />
-                                                                            </SelectTrigger>
-                                                                            <SelectContent>
-                                                                                {["client", "admin-worker", "department-head", "manager", "executor"].map((role) => (
-                                                                                    <SelectItem key={role} value={role}>
-                                                                                        {roleTranslations[role] || role}
-                                                                                    </SelectItem>
-                                                                                ))}
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                    </div>
-                                                                    <Button onClick={handleAddOrUpdateUser} disabled={!isValidUser} className="w-full h-11">
-                                                                        {editingUserId ? "Сохранить изменения" : "Добавить пользователя"}
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="space-y-3">
-                                                                <h4 className="font-medium text-gray-700">Список пользователей ({users.length})</h4>
-                                                                {users.length === 0 ? (
-                                                                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
-                                                                        <Users className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                                                                        <p>Нет пользователей</p>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="space-y-3">
-                                                                        {users.map((user) => (
-                                                                            <Card key={user.id} className="shadow-sm">
-                                                                                <CardContent className="p-4">
-                                                                                    <div className="flex justify-between items-start">
-                                                                                        <div className="flex-1 min-w-0">
-                                                                                            <h5 className="font-semibold text-gray-900 mb-1">{user.full_name}</h5>
-                                                                                            <div className="flex items-center text-sm text-gray-600 mb-2">
-                                                                                                <Mail className="w-4 h-4 mr-1" />
-                                                                                                {user.email}
-                                                                                            </div>
-                                                                                            <div className="flex flex-wrap gap-2">
-                                                                                                    <span className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-                                                                                                      {roleTranslations[user.role] || user.role}
-                                                                                                    </span>
-                                                                                                {user.office?.name && (
-                                                                                                    <span className="text-xs px-3 py-1 bg-gray-100 text-gray-700 rounded-full">
-                                                                                                    {user.office.name}
-                                                                                                  </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                        <div className="flex space-x-2 ml-4">
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                className="h-9 w-9"
-                                                                                                onClick={() => handleEditUser(user)}
-                                                                                            >
-                                                                                                <Edit className="w-4 h-4" />
-                                                                                            </Button>
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                className="h-9 w-9 text-red-500 hover:bg-red-50"
-                                                                                                onClick={() => setUserToDelete(user)}
-                                                                                            >
-                                                                                                <Trash2 className="w-4 h-4" />
-                                                                                            </Button>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </CardContent>
-                                                                            </Card>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </Tabs>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Диалоговые окна */}
-                                {officeToDelete && (
-                                    <AlertDialog open={!!officeToDelete} onOpenChange={() => setOfficeToDelete(null)}>
-                                        <AlertDialogContent className="mx-4 max-w-md">
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Подтвердите удаление</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Вы действительно хотите удалить офис "{officeToDelete.name}"?
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                                                <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
-                                                <AlertDialogAction
-                                                    onClick={() => {
-                                                        handleRemoveOffice(officeToDelete.id)
-                                                        setOfficeToDelete(null)
-                                                    }}
-                                                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
-                                                >
-                                                    Удалить
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                )}
-
-                                {userToDelete && (
-                                    <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
-                                        <AlertDialogContent className="mx-4 max-w-md">
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Подтвердите удаление</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Вы действительно хотите удалить пользователя {userToDelete.full_name} ({userToDelete.email})?
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                                                <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
-                                                <AlertDialogAction
-                                                    onClick={() => {
-                                                        handleDeleteUser(userToDelete.id)
-                                                        setUserToDelete(null)
-                                                    }}
-                                                    className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
-                                                >
-                                                    Удалить
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                )}
+                <div className="mt-3 space-y-2">
+                    {offices.map((o) => (
+                        <div key={o.id} className="rounded-lg border p-2">
+                            <div className="text-sm font-medium">{o.name}</div>
+                            <div className="text-xs text-neutral-600">{o.city}</div>
+                            <div className="text-xs text-neutral-600">{o.address}</div>
+                            <div className="mt-2">
+                                <a
+                                    href={`https://www.google.com/maps?q=${o.lat},${o.lon}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs font-medium text-purple-700 underline"
+                                >
+                                    Открыть в картах
+                                </a>
                             </div>
                         </div>
-                    )}
+                    ))}
                 </div>
-            </div>
-        </div>
-        </PullToRefresh>
-        <BottomNav activeTab="home"/>
+            </CardModal>
         </>
     )
 }
