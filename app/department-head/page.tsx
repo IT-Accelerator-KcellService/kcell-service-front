@@ -639,7 +639,8 @@ export default function DepartmentHeadDashboard() {
         !newRequestLocationDetails ||
         !newRequestLocation ||
         !newRequestCategory ||
-        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity)
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity) ||
+        photos.length === 0
     ) {
       setFormErrors("Заполните все обязательные поля.");
       return;

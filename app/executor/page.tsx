@@ -355,7 +355,8 @@ export default function ExecutorDashboard() {
         !newRequestType ||
         !requestLocation ||
         !newRequestLocation ||
-        !selectedCategoryId
+        !selectedCategoryId ||
+        photos.length === 0
     ) {
       setFormErrors("Заполните все обязательные поля.");
       return;

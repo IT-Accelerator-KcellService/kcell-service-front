@@ -629,7 +629,8 @@ export default function ClientDashboard() {
         !requestLocation.trim() ||
         !requestDescription.trim() ||
         !selectedCategoryId ||
-        !requestLocationDetails.trim()
+        !requestLocationDetails.trim() ||
+        photos.length === 0
     ) {
       setFormErrors("Заполните все обязательные поля.");
       return;

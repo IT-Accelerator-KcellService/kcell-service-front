@@ -641,7 +641,8 @@ export default function AdminWorkerDashboard() {
         !newRequestDescription.trim() ||
         !newRequestCategory ||
         !newRequestLocationDetails.trim() ||
-        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity)
+        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity) ||
+        photos.length === 0
     ) {
       setFormErrors("Заполните все обязательные поля.");
       return;
