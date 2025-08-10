@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/BottomNav";
 import axios, { AxiosError } from "axios";
 import api from "@/lib/api";
 import ReactMarkdown from 'react-markdown';
+import {useAuthStore} from "@/stores/useAuthStore";
 
 type Message = {
     from: "user" | "bot";
@@ -16,6 +17,7 @@ type ApiError = {
 }
 
 export default function ChatPage() {
+    const {token} = useAuthStore()
     const [messages, setMessages] = useState<Message[]>([
         { from: "bot", text: "Привет! Чем могу помочь по проекту?" },
     ]);
@@ -26,14 +28,10 @@ export default function ChatPage() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
-    const [userToken, setUserToken] = useState<string | null>(null)
     const getChatStorageKey = useCallback(() => {
-        return userToken ? `chat-messages-${userToken}` : 'chat-messages';
-    }, [userToken]);
+        return token ? `chat-messages-${token}` : 'chat-messages';
+    }, [token]);
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        setUserToken(token);
-
         const saved = localStorage.getItem(getChatStorageKey());
         if (saved) {
             try {

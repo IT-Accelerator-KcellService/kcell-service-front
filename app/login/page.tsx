@@ -7,6 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Building2, Users } from "lucide-react"
 import {useRouter} from "next/navigation";
+import {useStatsStore} from "@/stores/statsStore";
+import {useAuthStore} from "@/stores/useAuthStore";
+import api from "@/lib/api";
+import {useCategoryStore} from "@/stores/useCategoryStore";
 
 export default function LoginPage() {
   const router = useRouter()
@@ -67,11 +71,22 @@ export default function LoginPage() {
         return;
       }
 
-
       const data = await response.json()
+
+      const userResponse = await fetch("https://kcell-service.onrender.com/api/users/me", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${data.token}`
+        },
+      })
+
+      const userData = await userResponse.json()
+
       const role = data.role || "client"
-      localStorage.setItem("token", data.token)
-      localStorage.setItem("role", data.role)
+      useAuthStore.getState().setAuth(data.token, role, userData)
+      useStatsStore.getState().fetchStats(data.role)
+      useCategoryStore.getState().fetchCategories()
       router.push(`/${role.toLowerCase().replace(" ", "-")}`)
     } catch (err) {
       setLoading(false)

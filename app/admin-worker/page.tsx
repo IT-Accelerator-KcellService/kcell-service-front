@@ -45,6 +45,9 @@ import {sortRequests, useRequestStore} from "@/stores/useRequestStore";
 import {Request} from '@/stores/useRequestStore'
 import PullToRefresh from "@/components/pull-to-refresh";
 import Link from "next/link";
+import {useStatsStore} from "@/stores/statsStore";
+import {useAuthStore} from "@/stores/useAuthStore";
+import {useCategoryStore} from "@/stores/useCategoryStore";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -92,8 +95,9 @@ const parseLocalDate = (dateString: string) => {
 };
 
 export default function AdminWorkerDashboard() {
+  const {role, token, clearAuth, user} = useAuthStore()
+  const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
-
   const successModal = useSuccessModal()
   const rejectModal = useRejectRequestModal()
   const approveModal = useAcceptRequestModal()
@@ -113,7 +117,6 @@ export default function AdminWorkerDashboard() {
   const [ratingValue, setRatingValue] = useState(0);
   const [requestToRate, setRequestToRate] = useState<Request | null>(null);
   const { incomingRequests, setIncomingRequests, myRequests, setMyRequests, clearRequests } = useRequestStore();
-  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([]);
   const [clientInfo, setClientInfo] = useState<Record<number, User>>({});
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
@@ -131,7 +134,7 @@ export default function AdminWorkerDashboard() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const date = newRequestPlannedDate
       ? parseLocalDate(newRequestPlannedDate)
       : undefined;
@@ -192,9 +195,6 @@ export default function AdminWorkerDashboard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await api.get("/users/me"); // обязательный параметр для cookie
-        const user = response.data;
-
         if (!user || user.role !== "admin-worker") {
           router.push('/login')
         } else {
@@ -209,6 +209,7 @@ export default function AdminWorkerDashboard() {
 
     checkAuth();
   }, []);
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       if (modalStack.length > 0) {
@@ -342,7 +343,6 @@ export default function AdminWorkerDashboard() {
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
-    const role = localStorage.getItem('role')
 
     if (create === "true") {
       closeAllModalsExcept("createRequest");
@@ -458,15 +458,6 @@ export default function AdminWorkerDashboard() {
     }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('/service-categories');
-      setServiceCategories(response.data);
-    } catch (error) {
-      console.error("Failed to fetch categories:", error);
-    }
-  };
-
   const fetchComments = async () => {
     if (!selectedRequest?.id) return;
     try {
@@ -527,7 +518,6 @@ export default function AdminWorkerDashboard() {
       setPage(1);
       setHasMore(true);
       fetchRequests();
-      fetchCategories()
     }
   }, [filterMyStatus, filterMyType, filterIncomingStatus, filterIncomingType]);
 
@@ -639,7 +629,7 @@ export default function AdminWorkerDashboard() {
       formData.append('request_type', newRequestType);
       formData.append('location', newRequestLocation);
       formData.append('location_detail', newRequestLocationDetails);
-      formData.append('category_id', String(serviceCategories.find(c => c.name === newRequestCategory)?.id));
+      formData.append('category_id', String(categories.find(c => c.name === newRequestCategory)?.id));
       formData.append('status', 'awaiting_assignment');
       if (newRequestComplexity) formData.append('complexity', newRequestComplexity);
       if (newRequestSLA) formData.append('sla', newRequestSLA);
@@ -718,8 +708,10 @@ export default function AdminWorkerDashboard() {
     try {
       setIsLoggedIn(false)
       clearNotifications()
-      localStorage.removeItem('token');
+      clearAuth()
       clearRequests()
+      clearCategories()
+      useStatsStore.getState().resetStats();
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error);
@@ -889,7 +881,6 @@ export default function AdminWorkerDashboard() {
       setFormErrors("")
       setPhotos([])
       setEditCommentId(null)
-      setCurrentUserId(null)
       setStats(null)
       setHasMore(true)
       setPage(1)
@@ -1536,7 +1527,7 @@ export default function AdminWorkerDashboard() {
                         <SelectValue placeholder="Выберите категорию" />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceCategories.map(category => (
+                        {categories.map(category => (
                             <SelectItem key={category.id} value={category.id.toString()}>
                               {category.name}
                             </SelectItem>
@@ -1938,7 +1929,7 @@ export default function AdminWorkerDashboard() {
                         <SelectValue placeholder="Выберите категорию" />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceCategories.map(category => (
+                        {categories.map(category => (
                             <SelectItem key={category.id} value={category.name}>
                               {category.name}
                             </SelectItem>

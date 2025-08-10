@@ -2,6 +2,7 @@ import { User, MessageCircle, House, History, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {useAuthStore} from "@/stores/useAuthStore";
 
 interface BottomNavProps {
     activeTab?: 'home' | 'history' | 'chat' | 'profile';
@@ -10,12 +11,7 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest, hidden = false }) => {
-    const [role, setRole] = useState<string | null>(null);
-
-    useEffect(() => {
-        const storedRole = localStorage.getItem('role');
-        setRole(storedRole);
-    }, []);
+    const {role} = useAuthStore()
 
     // Скрываем навигацию если hidden = true
     if (hidden) {

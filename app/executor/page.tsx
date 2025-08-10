@@ -36,6 +36,9 @@ import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore, Request} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
 import Link from "next/link";
+import {useStatsStore} from "@/stores/statsStore";
+import {useAuthStore} from "@/stores/useAuthStore";
+import {useCategoryStore} from "@/stores/useCategoryStore";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
@@ -62,6 +65,8 @@ interface Stats {
 }
 
 export default function ExecutorDashboard() {
+  const {role, token, clearAuth, user} = useAuthStore()
+  const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const router = useRouter()
@@ -78,7 +83,6 @@ export default function ExecutorDashboard() {
   const [newRequestType, setNewRequestType] = useState("")
   const [newRequestTitle, setNewRequestTitle] = useState("")
   const [newRequestLocation, setNewRequestLocation] = useState("")
-  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
@@ -97,7 +101,7 @@ export default function ExecutorDashboard() {
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [completeFormErrors, setCompleteFormErrors] = useState<string | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [myRating, setMyRating] = useState<number | null>(null)
@@ -119,8 +123,6 @@ export default function ExecutorDashboard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await api.get("/users/me");
-        const user = response.data;
         if (!user || user.role !== "executor") {
           router.push("/login")
         } else {
@@ -310,23 +312,10 @@ export default function ExecutorDashboard() {
 
   useEffect(() => {
     if (assignedRequests.length === 0 || myRequests.length === 0 || completedRequests.length === 0) {
-      fetchCategories()
       fetchNotifications()
       fetchRequests()
     }
   }, [])
-
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('/service-categories')
-      setServiceCategories(response.data)
-      if (response.data.length > 0) {
-        setSelectedCategoryId(response.data[0].id)
-      }
-    } catch (error) {
-      console.error("Failed to fetch categories:", error)
-    }
-  }
 
   const handleCreateRequest = async () => {
     if (
@@ -411,7 +400,6 @@ export default function ExecutorDashboard() {
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
-    const role = localStorage.getItem('role')
     if (create === "true") {
       closeAllModalsExcept('createRequest');
       setShowCreateRequestModal(true)
@@ -592,7 +580,7 @@ export default function ExecutorDashboard() {
           await axios.post(`${API_BASE_URL}/request-photos/${response.data.id}/photos`, formData, {
             withCredentials: true,
             headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
+              Authorization: `Bearer ${token}`
             }
           });
         } catch (photoUploadError) {
@@ -633,8 +621,10 @@ export default function ExecutorDashboard() {
     try {
       setIsLoggedIn(false)
       clearNotifications()
-      localStorage.removeItem('token')
+      useStatsStore.getState().resetStats();
+      clearAuth()
       clearRequests()
+      clearCategories()
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
@@ -740,14 +730,12 @@ export default function ExecutorDashboard() {
       setDescription("")
       setSelectedCategoryId(null)
       setMyRating(null)
-      setNewRequestLocation("")
       setPhotoPreviews([])
       setComment("")
       setComments([])
       setFormErrors("")
       setPhotos([])
       setEditCommentId(null)
-      setCurrentUserId(null)
       setStats(null)
 
       clearRequests();
@@ -1615,7 +1603,7 @@ export default function ExecutorDashboard() {
                         <SelectValue placeholder="Выберите категорию" />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceCategories.map((category) => (
+                        {categories.map((category) => (
                             <SelectItem key={category.id} value={category.id.toString()}>
                               {category.name}
                             </SelectItem>

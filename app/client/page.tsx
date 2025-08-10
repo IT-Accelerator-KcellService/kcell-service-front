@@ -42,6 +42,9 @@ import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore} from "@/stores/useRequestStore";
 import {Request} from '@/stores/useRequestStore'
 import PullToRefresh from "@/components/pull-to-refresh";
+import {useStatsStore} from "@/stores/statsStore";
+import {useAuthStore} from "@/stores/useAuthStore";
+import {useCategoryStore} from "@/stores/useCategoryStore";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -78,6 +81,8 @@ interface Stats {
 }
 
 export default function ClientDashboard() {
+  const {role, token, clearAuth, user} = useAuthStore()
+  const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const router = useRouter()
@@ -99,7 +104,6 @@ export default function ClientDashboard() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [requestTitle, setRequestTitle] = useState("")
-  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
   const { requests, addRequests, clearRequests } = useRequestStore();
@@ -116,7 +120,7 @@ export default function ClientDashboard() {
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [stats, setStats] = useState<Stats | null>(null);
@@ -185,9 +189,6 @@ export default function ClientDashboard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await api.get("/users/me"); // обязательный параметр для cookie
-        const user = response.data;
-
         if (!user || user.role !== "client") {
           router.push("/login")
         } else {
@@ -203,6 +204,7 @@ export default function ClientDashboard() {
 
     checkAuth();
   }, []);
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       if (modalStack.length > 0) {
@@ -306,7 +308,7 @@ export default function ClientDashboard() {
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
-    const role = localStorage.getItem('role')
+
     if (create === "true") {
       closeAllModalsExcept('createRequest')
       setShowCreateRequest(true);
@@ -478,21 +480,8 @@ export default function ClientDashboard() {
     }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('/service-categories')
-      setServiceCategories(response.data)
-      if (response.data.length > 0) {
-        setSelectedCategoryId(response.data[0].id)
-      }
-    } catch (error) {
-      console.error("Failed to fetch categories:", error)
-    }
-  }
-
   useEffect(() => {
     if (requests.length === 0) {
-      fetchCategories()
       fetchRequests(1)
     }
   }, [])
@@ -701,7 +690,9 @@ export default function ClientDashboard() {
       setIsLoggedIn(false)
       clearNotifications()
       clearRequests()
-      localStorage.removeItem('token')
+      clearCategories()
+      useStatsStore.getState().resetStats();
+      clearAuth()
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
@@ -1609,7 +1600,7 @@ export default function ClientDashboard() {
                         <SelectValue placeholder="Выберите категорию" />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceCategories.map((category) => (
+                        {categories.map((category) => (
                             <SelectItem key={category.id} value={category.id.toString()}>
                               {category.name}
                             </SelectItem>

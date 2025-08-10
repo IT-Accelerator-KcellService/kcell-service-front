@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from "react"
+import React, { useState, useCallback } from "react"
 import {
     Card,
     CardContent,
@@ -16,19 +16,10 @@ import { Badge } from "@/components/ui/badge"
 import { Lock, Save, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
-
-interface ProfileModal {
-    id: number
-    email: string
-    full_name: string
-    office_id: number
-    office: { name: string }
-    role: string
-    email_notifications: boolean
-    security_notifications: boolean
-    marketing_notifications: boolean
-    push_notifications: boolean
-}
+import {useNotificationStore} from "@/stores/notificationStore";
+import {useRequestStore} from "@/stores/useRequestStore";
+import {useStatsStore} from "@/stores/statsStore";
+import {useAuthStore} from "@/stores/useAuthStore";
 
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
@@ -44,12 +35,11 @@ interface ProfileModalProps {
 }
 
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
-    const [user, setUser] = useState<ProfileModal | null>(null)
+    const {clearAuth, user, updateUser} = useAuthStore()
     const [oldPassword, setOldPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [isChanging, setIsChanging] = useState(false)
-    const [isLoading, setIsLoading] = useState(true)
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [profileError, setProfileError] = useState("")
     const [profileSuccess, setProfileSuccess] = useState("")
@@ -62,24 +52,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     const handleClose = useCallback(() => {
         if (onClose) onClose()
     }, [onClose])
-
-    // Загрузка данных
-    useEffect(() => {
-        const fetchUserData = async () => {
-            if (!isOpen) return
-            try {
-                setIsLoading(true)
-                const response = await api.get("/users/me")
-                setUser(response.data)
-                setIsLoading(false)
-            } catch (err) {
-                console.error("Ошибка при получении профиля:", err)
-                setProfileError("Не удалось загрузить профиль.")
-                setIsLoading(false)
-            }
-        }
-        fetchUserData()
-    }, [isOpen])
 
     // Обработчики событий
     const handleSaveProfile = async () => {
@@ -248,7 +220,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                                         <Input
                                             value={user?.full_name || ""}
                                             onChange={(e) =>
-                                                setUser((prev) => prev ? { ...prev, full_name: e.target.value } : null)
+                                                updateUser((prev) => prev ? { ...prev, full_name: e.target.value } : null)
                                             }
                                             className="text-sm"
                                         />
@@ -259,7 +231,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                                             type="email"
                                             value={user?.email || ""}
                                             onChange={(e) =>
-                                                setUser((prev) => prev ? { ...prev, email: e.target.value } : null)
+                                                updateUser((prev) => prev ? { ...prev, email: e.target.value } : null)
                                             }
                                             className="text-sm"
                                         />
@@ -356,7 +328,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                                         <Switch
                                             checked={user?.email_notifications ?? false}
                                             onCheckedChange={(checked) =>
-                                                setUser((prev) => prev ? { ...prev, email_notifications: checked } : null)
+                                                updateUser((prev) => prev ? { ...prev, email_notifications: checked } : null)
                                             }
                                         />
                                     </div>
@@ -365,7 +337,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                                         <Switch
                                             checked={user?.security_notifications ?? false}
                                             onCheckedChange={(checked) =>
-                                                setUser((prev) => prev ? { ...prev, security_notifications: checked } : null)
+                                                updateUser((prev) => prev ? { ...prev, security_notifications: checked } : null)
                                             }
                                         />
                                     </div>
@@ -374,7 +346,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                                         <Switch
                                             checked={user?.marketing_notifications ?? false}
                                             onCheckedChange={(checked) =>
-                                                setUser((prev) => prev ? { ...prev, marketing_notifications: checked } : null)
+                                                updateUser((prev) => prev ? { ...prev, marketing_notifications: checked } : null)
                                             }
                                         />
                                     </div>
@@ -409,9 +381,11 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                         variant="outline"
                         className="w-full text-red-600 border-red-500 hover:bg-red-50"
                         onClick={() => {
-                            localStorage.removeItem("token")
-                            localStorage.removeItem("role")
+                            clearAuth()
                             handleClose()
+                            useNotificationStore.getState().clearNotifications()
+                            useRequestStore.getState().clearRequests()
+                            useStatsStore.getState().resetStats()
                             window.location.href = "/login"
                         }}
                     >

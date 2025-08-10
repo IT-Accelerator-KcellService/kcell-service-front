@@ -65,6 +65,9 @@ import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore, Request} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
 import Link from "next/link";
+import {useStatsStore} from "@/stores/statsStore";
+import {useAuthStore} from "@/stores/useAuthStore";
+import {useCategoryStore} from "@/stores/useCategoryStore";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -125,8 +128,9 @@ const parseLocalDate = (dateString: string) => {
 };
 
 export default function ManagerDashboard() {
+  const {role, token, clearAuth, user} = useAuthStore()
+  const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
-
   const successModal = useSuccessModal()
   const approveModal = useAcceptRequestModal()
   const router = useRouter()
@@ -153,7 +157,6 @@ export default function ManagerDashboard() {
   const [requestLocation, setRequestLocation] = useState("")
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedTaskDetails, setSelectedTaskDetails] = useState<any>(null)
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
@@ -167,7 +170,7 @@ export default function ManagerDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
@@ -293,7 +296,6 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
-    const role = localStorage.getItem('role')
 
     if (create === "true") {
       closeAllModalsExcept('createRequest');
@@ -602,7 +604,7 @@ export default function ManagerDashboard() {
       const res = await axios.get(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
         responseType: "blob",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -650,9 +652,6 @@ export default function ManagerDashboard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await api.get("/users/me");
-        const user = response.data;
-
         if (!user || user.role !== "manager") {
           router.push("/login")
         } else {
@@ -699,7 +698,6 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     if (requests.length === 0) {
-      fetchCategories()
       fetchRequests(1)
       fetchNotifications()
       fetchOffices()
@@ -729,8 +727,10 @@ export default function ManagerDashboard() {
     try {
       setIsLoggedIn(false)
       clearNotifications()
-      localStorage.removeItem('token')
+      clearAuth()
+      useStatsStore.getState().resetStats();
       clearRequests()
+      clearCategories()
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
@@ -946,18 +946,6 @@ export default function ManagerDashboard() {
     setShowCreateRequestModal(true);
     openModal('createRequest');
   };
-
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('/service-categories')
-      setServiceCategories(response.data)
-      if (response.data.length > 0) {
-        setSelectedCategoryId(response.data[0].id)
-      }
-    } catch (error) {
-      console.error("Failed to fetch categories:", error)
-    }
-  }
 
   useEffect(() => {
     if (notifications.length > 0) {
@@ -1265,7 +1253,6 @@ export default function ManagerDashboard() {
     try {
       setNewRequestType("")
       setNewRequestTitle("")
-      setNewRequestLocation("")
       setDescription("")
       setSelectedCategoryId(null)
       setNewRequestLocation("")
@@ -1275,7 +1262,6 @@ export default function ManagerDashboard() {
       setFormErrors("")
       setPhotos([])
       setEditCommentId(null)
-      setCurrentUserId(null)
       setStats([])
       setChartData([])
       setPeriod("month")
@@ -2127,7 +2113,7 @@ export default function ManagerDashboard() {
                       <SelectValue placeholder="Выберите категорию" />
                     </SelectTrigger>
                     <SelectContent>
-                      {serviceCategories.map((category) => (
+                      {categories.map((category) => (
                           <SelectItem key={category.id} value={category.id.toString()}>
                             {category.name}
                           </SelectItem>

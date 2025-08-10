@@ -54,6 +54,9 @@ import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore, Request} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
 import Link from "next/link";
+import {useStatsStore} from "@/stores/statsStore";
+import {useAuthStore} from "@/stores/useAuthStore";
+import {useCategoryStore} from "@/stores/useCategoryStore";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -109,8 +112,9 @@ const parseLocalDate = (dateString: string) => {
 };
 
 export default function DepartmentHeadDashboard() {
+  const {role, token, clearAuth, user} = useAuthStore()
+  const {categories, fetchCategories, clearCategories, updateCategories} = useCategoryStore()
   const searchParams = useSearchParams()
-
   const successModal = useSuccessModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming")
@@ -128,7 +132,6 @@ export default function DepartmentHeadDashboard() {
   const [ratingValue, setRatingValue] = useState(0)
   const [requestToRate, setRequestToRate] = useState<Request | null>(null)
   const {incomingRequests, setIncomingRequests, myRequests, setMyRequests, clearRequests} = useRequestStore()
-  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
   const [clientInfo, setClientInfo] = useState<Record<number, User>>({})
   const [showMapModal, setShowMapModal] = useState(false)
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 })
@@ -157,7 +160,7 @@ export default function DepartmentHeadDashboard() {
   const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [executorToDelete, setExecutorToDelete] = useState<Executor | null>(null)
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
@@ -180,11 +183,7 @@ export default function DepartmentHeadDashboard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await api.get("/users/me"); // обязательный параметр для cookie
-        const user = response.data;
-
         if (!user || user.role !== "department-head") {
-          console.log(response)
           router.push("/login")
         } else {
           setIsLoggedIn(true);
@@ -199,6 +198,7 @@ export default function DepartmentHeadDashboard() {
 
     checkAuth();
   }, []);
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       if (modalStack.length > 0) {
@@ -320,7 +320,6 @@ export default function DepartmentHeadDashboard() {
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
-    const role = localStorage.getItem('role')
 
     if (create === "true") {
       closeAllModalsExcept('createRequest')
@@ -490,15 +489,6 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('/service-categories')
-      setServiceCategories(response.data)
-    } catch (error) {
-      console.error("Failed to fetch categories:", error)
-    }
-  }
-
   const fetchComments = async () => {
     if (!selectedRequest?.id) return
     try {
@@ -556,7 +546,6 @@ export default function DepartmentHeadDashboard() {
 
   useEffect(() => {
     if (myRequests.length === 0 || incomingRequests.length === 0) {
-      fetchCategories()
       fetchRequests()
       fetchExecutors()
     }
@@ -638,7 +627,7 @@ export default function DepartmentHeadDashboard() {
       formData.append('request_type', newRequestType);
       formData.append('location', newRequestLocation);
       formData.append('location_detail', newRequestLocationDetails);
-      formData.append('category_id', String(serviceCategories.find(c => c.name === newRequestCategory)?.id));
+      formData.append('category_id', String(categories.find(c => c.name === newRequestCategory)?.id));
       formData.append('office_id', newRequestOfficeId);
       formData.append('status', 'awaiting_assignment');
       if (newRequestComplexity) formData.append('complexity', newRequestComplexity);
@@ -718,8 +707,10 @@ export default function DepartmentHeadDashboard() {
     try {
       setIsLoggedIn(false)
       clearNotifications()
-      localStorage.removeItem('token')
+      clearAuth()
       clearRequests()
+      clearCategories()
+      useStatsStore.getState().resetStats();
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
@@ -737,12 +728,12 @@ export default function DepartmentHeadDashboard() {
 
 
   const handleAddCategory = async () => {
-    if (newRequestCategory.trim() && !serviceCategories.some(c => c.name === newRequestCategory.trim())) {
+    if (newRequestCategory.trim() && !categories.some(c => c.name === newRequestCategory.trim())) {
       try {
         const response = await api.post('/service-categories', {
           name: newRequestCategory.trim()
         })
-        setServiceCategories(prev => [...prev, response.data])
+        updateCategories(prev => [...prev, response.data])
         setNewRequestCategory("")
       } catch (error) {
         console.error("Failed to add category:", error)
@@ -753,7 +744,7 @@ export default function DepartmentHeadDashboard() {
   const handleRemoveCategory = async (categoryId: number) => {
     try {
       await api.delete(`/service-categories/${categoryId}`)
-      setServiceCategories(prev => prev.filter(category => category.id !== categoryId))
+      updateCategories(prev => prev.filter(category => category.id !== categoryId))
     } catch (error) {
       console.error("Failed to remove category:", error)
     }
@@ -1527,11 +1518,11 @@ export default function DepartmentHeadDashboard() {
                         </div>
                         <div className="space-y-2">
                           <Label>Существующие категории:</Label>
-                          {serviceCategories.length === 0 ? (
+                          {categories.length === 0 ? (
                               <p className="text-sm text-gray-500">Нет добавленных категорий.</p>
                           ) : (
                               <ul className="list-disc pl-5">
-                                {serviceCategories.map((category) => (
+                                {categories.map((category) => (
                                     <li key={category.id} className="text-sm text-gray-700 flex justify-between items-center">
                                       {category.name}
                                       <AlertDialog>
@@ -1730,7 +1721,7 @@ export default function DepartmentHeadDashboard() {
                         <SelectValue placeholder="Выберите категорию" />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceCategories.map(category => (
+                        {categories.map(category => (
                             <SelectItem key={category.id} value={category.id.toString()}>
                               {category.name}
                             </SelectItem>
@@ -2090,7 +2081,7 @@ export default function DepartmentHeadDashboard() {
                         <SelectValue placeholder="Выберите категорию" />
                       </SelectTrigger>
                       <SelectContent>
-                        {serviceCategories.map(category => (
+                        {categories.map(category => (
                             <SelectItem key={category.id} value={category.name}>
                               {category.name}
                             </SelectItem>

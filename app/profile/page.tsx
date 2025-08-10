@@ -15,19 +15,8 @@ import {BottomNav} from "@/components/BottomNav"
 import {useRouter} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useRequestStore} from "@/stores/useRequestStore";
-
-interface UserProfile {
-    id: number
-    email: string
-    full_name: string
-    office_id: number
-    office: { name: string }
-    role: string
-    email_notifications: boolean
-    security_notifications: boolean
-    marketing_notifications: boolean
-    push_notifications: boolean
-}
+import {useStatsStore} from "@/stores/statsStore";
+import {useAuthStore} from "@/stores/useAuthStore";
 
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
@@ -38,15 +27,14 @@ const roleTranslations: Record<string, string> = {
 }
 
 export default function ProfilePage() {
+    const {clearAuth, user, updateUser, role} = useAuthStore()
     const router = useRouter();
-    const [user, setUser] = useState<UserProfile | null>(null)
     const [oldPassword, setOldPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [error, setError] = useState("")
     const [success, setSuccess] = useState("")
     const [isChanging, setIsChanging] = useState(false)
-    const [isLoading, setIsLoading] = useState(true)
     const [isSavingProfile, setIsSavingProfile] = useState(false)
     const [profileError, setProfileError] = useState("")
     const [profileSuccess, setProfileSuccess] = useState("")
@@ -57,26 +45,11 @@ export default function ProfilePage() {
     const {clearNotifications} = useNotificationStore()
     const {clearRequests} = useRequestStore()
 
-    useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                setIsLoading(true)
-                const response = await api.get("/users/me")
-                setUser(response.data)
-                setIsLoading(false)
-            } catch (err) {
-                console.error("Ошибка при получении профиля:", err)
-                setIsLoading(false)
-            }
-        }
-        fetchUserData()
-    }, [])
-
     const handleLogout = () => {
         setIsLoggingOut(true)
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
+        clearAuth()
         clearRequests()
+        useStatsStore.getState().resetStats();
         clearNotifications()
         router.push("/login");
     };
@@ -170,14 +143,6 @@ export default function ProfilePage() {
         }
     }
 
-    if (isLoading || !user) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <Loader2 className="animate-spin h-12 w-12 text-purple-500" />
-            </div>
-        )
-    }
-
     return (
         <div className="pb-16">
             <div className="container px-4 py-6">
@@ -212,8 +177,8 @@ export default function ProfilePage() {
                                 <div className="space-y-1">
                                     <Label className="text-sm">ФИО</Label>
                                     <Input
-                                        value={user.full_name}
-                                        onChange={(e) => setUser({ ...user, full_name: e.target.value })}
+                                        value={user?.full_name}
+                                        onChange={(e) => updateUser({ ...user, full_name: e.target.value })}
                                         className="text-sm"
                                     />
                                 </div>
@@ -222,21 +187,23 @@ export default function ProfilePage() {
                                     <Label className="text-sm">Email</Label>
                                     <Input
                                         type="email"
-                                        value={user.email}
-                                        onChange={(e) => setUser({ ...user, email: e.target.value })}
+                                        value={user?.email}
+                                        onChange={(e) => updateUser({ ...user, email: e.target.value })}
                                         className="text-sm"
                                     />
                                 </div>
 
                                 <div className="space-y-1">
                                     <Label className="text-sm">Роль</Label>
-                                    <Badge className="text-sm">{roleTranslations[user.role] || user.role}</Badge>
+                                    <Badge className="text-sm">
+                                        {role && (roleTranslations[role]) || (role)}
+                                    </Badge>
                                 </div>
 
                                 <div className="space-y-1">
                                     <Label className="text-sm">Офис</Label>
                                     <Input
-                                        value={user.office.name}
+                                        value={user?.office.name}
                                         readOnly
                                         className="bg-muted cursor-not-allowed text-sm"
                                     />
@@ -244,7 +211,7 @@ export default function ProfilePage() {
 
                                 <div className="space-y-1">
                                     <Label className="text-sm">ID</Label>
-                                    <p className="text-muted-foreground font-mono text-sm">#{user.id}</p>
+                                    <p className="text-muted-foreground font-mono text-sm">#{user?.id}</p>
                                 </div>
 
                                 <Button
@@ -339,22 +306,22 @@ export default function ProfilePage() {
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Email уведомления</Label>
                                     <Switch
-                                        checked={user.email_notifications}
-                                        onCheckedChange={(checked) => setUser({...user, email_notifications: checked})}
+                                        checked={user?.email_notifications}
+                                        onCheckedChange={(checked) => updateUser({...user, email_notifications: checked})}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Безопасность</Label>
                                     <Switch
-                                        checked={user.security_notifications}
-                                        onCheckedChange={(checked) => setUser({...user, security_notifications: checked})}
+                                        checked={user?.security_notifications}
+                                        onCheckedChange={(checked) => updateUser({...user, security_notifications: checked})}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Маркетинг</Label>
                                     <Switch
-                                        checked={user.marketing_notifications}
-                                        onCheckedChange={(checked) => setUser({...user, marketing_notifications: checked})}
+                                        checked={user?.marketing_notifications}
+                                        onCheckedChange={(checked) => updateUser({...user, marketing_notifications: checked})}
                                     />
                                 </div>
 

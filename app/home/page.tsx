@@ -37,43 +37,10 @@ import {
 import {isAfter, subDays, subMonths, subYears} from "date-fns";
 import axios from "axios";
 import PullToRefresh from "@/components/pull-to-refresh";
-
-interface ClientStats {
-    totalRequests: number,
-    activeRequests: number,
-    doneRequests: number,
-    averageRating: string
-}
-
-interface AdminWorkerStats {
-    totalRequests: number,
-    statusCounts: {
-        new: number,
-        inWork: number,
-        completed: number,
-        overdue: number
-    },
-    requestTypeSummary: {
-        urgent: number,
-        planned: number,
-        normal: number
-    }
-}
-
-interface DepHeadStats {
-    totalRequests: number,
-    statusCounts: {
-        new: number,
-        inWork: number,
-        completed: number,
-        overdue: number
-    },
-    requestTypeSummary: {
-        urgent: number,
-        planned: number,
-        normal: number
-    }
-}
+import {useStatsStore, ManagerStats, DepHeadStats, ExecutorStats} from "@/stores/statsStore";
+import {useNotificationStore} from "@/stores/notificationStore";
+import {useRequestStore} from "@/stores/useRequestStore";
+import {useAuthStore} from "@/stores/useAuthStore";
 
 type User = {
     id: number;
@@ -82,31 +49,6 @@ type User = {
     office_id: string;
     role: string;
     office: any
-}
-
-interface ExecutorStats {
-    totalRequests: number,
-    urgent: number,
-    inWork: number,
-    completed: number,
-    onTime: number,
-    late: number,
-    averageExecutionHours: string,
-    averageRating: string
-}
-
-interface ManagerStats {
-    officeId: number;
-    data: {
-        [date: string]: {
-            totalRequests: number;
-            completedRequests: number;
-            overdueUrgentRequests: number;
-            normalRequests: number,
-            urgentRequests: number,
-            plannedRequests: number
-        };
-    };
 }
 
 type OfficeType = {
@@ -123,15 +65,20 @@ interface ChartData {
 
 export default function HomePage() {
     const router = useRouter()
+    const {role, token} = useAuthStore()
     const isDesktop = useMediaQuery("(min-width: 768px)")
-    const [userRole, setUserRole] = useState<string | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [showProfile, setShowProfile] = useState(false)
-    const [clientStats, setClientStats] = useState<ClientStats | null>(null);
-    const [adminWorkerStats, setAdminWorkerStats] = useState<AdminWorkerStats | null>(null);
-    const [executorStats, setExecutorStats] = useState<ExecutorStats | null>(null);
-    const [managerStats, setManagerStats] = useState<ManagerStats[] | null>(null);
-    const [depHedStats, setDepHeadStats] = useState<DepHeadStats | null>(null);
+    const {
+        clientStats,
+        adminWorkerStats,
+        depHeadStats,
+        executorStats,
+        managerStats,
+        myRating,
+        lastUpdated,
+        loading: statsLoading,
+        fetchStats,
+        resetStats,
+    } = useStatsStore();
     const [tab, setTab] = useState("requests")
     const [users, setUsers] = useState<User[]>([]);
     const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
@@ -139,10 +86,7 @@ export default function HomePage() {
     const [newOfficeAddress, setNewOfficeAddress] = useState("")
     const [newOfficeCity, setNewOfficeCity] = useState("")
     const [chartData, setChartData] = useState<ChartData[]>([]);
-    const [myRating, setMyRating] = useState<number | null>(null)
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
-    const [isLoggedIn, setIsLoggedIn] = useState(true)
-
     const [newUser, setNewUser] = useState({
         id: 0,
         email: "",
@@ -174,33 +118,33 @@ export default function HomePage() {
     const [editingOfficeId, setEditingOfficeId] = useState(null)
     const [editingUserId, setEditingUserId] = useState<number | null>(null);
 
-    const fetchUsers = async () => {
-        try {
-            setLoading(true);
-            const response = await api.get("/users");
-            setUsers(response.data);
-        } catch (err) {
-            console.error("Ошибка при получении пользователей:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchOffices = async () => {
-        try {
-            const response = await api.get('/offices')
-            setOffices(response.data)
-        } catch (error) {
-            console.error("Failed to fetch categories:", error)
-        }
-    }
-
     useEffect(() => {
-        if (isLoggedIn && localStorage.getItem("role") === 'manager') {
+        const fetchOffices = async () => {
+            if (offices.length !== 0) return false;
+            try {
+                const response = await api.get('/offices')
+                setOffices(response.data)
+            } catch (error) {
+                console.error("Failed to fetch categories:", error)
+            }
+        }
+
+        const fetchUsers = async () => {
+            if (users.length !== 0) return
+            try {
+                const response = await api.get("/users");
+                setUsers(response.data);
+            } catch (err) {
+                console.error("Ошибка при получении пользователей:", err);
+            } finally {
+            }
+        };
+
+        if (role === 'manager') {
             fetchOffices()
             fetchUsers()
         }
-    }, [isLoggedIn])
+    }, [])
 
     const handleAddOffice = async () => {
         const city = newOfficeName.trim()
@@ -224,62 +168,10 @@ export default function HomePage() {
     }
 
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const response = await api.get("/users/me")
-                const user = response.data
-                setUserRole(user.role)
-                setIsLoggedIn(true);
-
-                if (isDesktop) {
-                    router.push(`/${user.role}`)
-                }
-            } catch (error) {
-                console.error("Ошибка при проверке авторизации", error)
-                router.push("/login")
-            } finally {
-                setLoading(false)
-            }
+        if (isDesktop) {
+            router.push(`/${role}`)
         }
-
-        checkAuth()
-        fetchStats()
-    }, [])
-
-    const fetchStats = async () => {
-        try {
-            let role = localStorage.getItem("role")
-            const res = await api.get(`/analytics/stats/${role}`)
-            if (role === "client") {
-                setClientStats(res.data)
-            } else if (role === "manager") {
-                setManagerStats(res.data)
-            } else if (role === "executor") {
-                setExecutorStats(res.data)
-                const responseMyRating = await api.get('executors/average-rating')
-                setMyRating(responseMyRating.data.average_rating)
-            } else if (role === "admin-worker") {
-                setAdminWorkerStats(res.data)
-            } else if (role === "department-head") {
-                setDepHeadStats(res.data)
-            } else {
-                console.error("not found stats", userRole)
-            }
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    const handleLogout = async () => {
-        try {
-            await api.post('/auth/logout')
-            localStorage.removeItem('token')
-            setIsLoggedIn(false)
-            router.push("/login")
-        } catch (error) {
-            console.error("Logout failed:", error)
-        }
-    }
+    }, []);
 
     const handleEditUser = (user: User) => {
         setNewUser({
@@ -316,27 +208,13 @@ export default function HomePage() {
         }
     }
 
-
     useEffect(() => {
-        if (
-            (userRole === "client" && !clientStats) ||
-            (userRole === "admin-worker" && !adminWorkerStats) ||
-            (userRole === "department-head" && !depHedStats) ||
-            (userRole === "executor" && !executorStats) ||
-            (userRole === "manager" && !managerStats) ||
-            (userRole === "client" && !clientStats)
-        ) {
-            fetchStats();
-        }
-    }, []);
-
-    useEffect(() => {
-        if (userRole === "manager" && managerStats) {
+        if (role === "manager" && managerStats) {
             setKpi(calculateKPI(managerStats, office, period));
             setChartData(prepareChartData(managerStats, office, period));
             setDistribution(getRequestsDistribution(managerStats, office, period));
         }
-    }, [clientStats, adminWorkerStats, depHedStats, executorStats, managerStats, office, period]);
+    }, [clientStats, adminWorkerStats, depHeadStats, executorStats, managerStats, office, period]);
 
     const getRequestsDistribution = (stats: ManagerStats[], selectedOffice: string, selectedPeriod: string) => {
         let filteredStats = stats;
@@ -502,23 +380,6 @@ export default function HomePage() {
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     };
 
-    useEffect(() => {
-        if (userRole !== "manager") return
-        const fetchUsers = async () => {
-            try {
-                setLoading(true);
-                const response = await api.get("/users");
-                setUsers(response.data);
-            } catch (err) {
-                console.error("Ошибка при получении пользователей:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchUsers();
-    }, []);
-
     const getRatingInfo = (doneRequests: number) => {
         if (doneRequests >= 20) {
             return {
@@ -570,7 +431,7 @@ export default function HomePage() {
             const res = await axios.get(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
                 responseType: "blob",
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    Authorization: `Bearer ${token}`,
                 },
             });
 
@@ -590,8 +451,6 @@ export default function HomePage() {
 
     const handleAddOrUpdateUser = async () => {
         try {
-            setLoading(true);
-
             if (editingUserId) {
                 // Обновить пользователя
                 const response = await api.put(`/users/${editingUserId}`, newUser);
@@ -616,8 +475,6 @@ export default function HomePage() {
             setEditingUserId(null);
         } catch (err) {
             console.error("Ошибка при сохранении пользователя:", err);
-        } finally {
-            setLoading(false);
         }
     };
     const rating = getRatingInfo((clientStats && clientStats.doneRequests ? (
@@ -626,81 +483,31 @@ export default function HomePage() {
 
     const handleDeleteUser = async (userId: number) => {
         try {
-            setLoading(true);
             await api.delete(`/users/${userId}`);
             setUsers((prev) => prev.filter((user) => user.id !== userId));
         } catch (err) {
             console.error("Ошибка при удалении пользователя:", err);
-        } finally {
-            setLoading(false);
         }
     };
-
-    // Removed full-screen page loader to rely solely on global route loader (app/loading.tsx)
-
-    const StatCard = ({
-                          title,
-                          value,
-                          icon,
-                          delta,
-                          positive = true,
-                          bg,
-                      }: {
-        title: string
-        value: string | number
-        icon: React.ReactNode
-        delta?: string
-        positive?: boolean
-        bg: string
-        compact?: boolean;
-    }) => (
-        <Card className="min-w-0">
-            <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                    <div className={`p-2 rounded-lg ${bg} flex-shrink-0`}>{icon}</div>
-                    <div className="ml-3 min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm text-gray-600 truncate">{title}</p>
-                        <p className="text-lg sm:text-2xl font-bold truncate">{value}</p>
-                        {delta && (
-                            <div className="flex items-center text-xs mt-1">
-                                {positive ? (
-                                    <TrendingUp className="w-3 h-3 mr-1 text-green-500 flex-shrink-0" />
-                                ) : (
-                                    <TrendingDown className="w-3 h-3 mr-1 text-red-500 flex-shrink-0" />
-                                )}
-                                <span className={positive ? "text-green-600" : "text-red-600"}>{delta}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    )
 
     const handleRefresh = async () => {
         try {
-            await resetStates()
-
-            await Promise.all([
-                fetchStats()
-            ]);
-
+            resetAllStates()
+            if (role) {
+                await fetchStats(role);
+            }
         } catch (error) {
             console.error("Ошибка при обновлении:", error);
+            router.push("/login")
         }
     };
 
-    const resetStates = async () => {
-        setClientStats(null)
-        setAdminWorkerStats(null)
-        setExecutorStats(null)
-        setManagerStats(null)
-        setDepHeadStats(null)
+    const resetAllStates = async () => {
+        resetStats()
         setNewOfficeName("")
         setNewOfficeAddress("")
         setNewOfficeCity("")
         setChartData([])
-        setMyRating(null)
         setUsers([])
         setDistribution({
             total: 0,
@@ -716,9 +523,9 @@ export default function HomePage() {
     return (
         <>
             <Header
-                setShowProfile={setShowProfile}
-                handleLogout={handleLogout}
-                role={userRole === 'client' ? 'Клиент' : userRole || ''}
+                setShowProfile={() => {}}
+                handleLogout={() => {}}
+                role={role === 'client' ? 'Клиент' : role || ''}
             />
 
         <PullToRefresh onRefresh={handleRefresh}>
@@ -742,7 +549,7 @@ export default function HomePage() {
             {/* Статистические карточки из вашего кода */}
             <div className="min-h-screen bg-gray-50 p-3 sm:p-4">
                 <div className="max-w-7xl mx-auto space-y-4">
-                    {userRole === "client" ? (
+                    {role === "client" ? (
                         <>
                             <Card>
                                 <CardContent className="p-4"> {/* Уменьшил padding */}
@@ -807,7 +614,7 @@ export default function HomePage() {
                                 </CardContent>
                             </Card>
                         </>
-                    ): userRole === "admin-worker" ? (
+                    ): role === "admin-worker" ? (
                         <>
                             <Card>
                                 <CardContent className="p-6">
@@ -870,7 +677,7 @@ export default function HomePage() {
                                 </CardContent>
                             </Card>
                         </>
-                    ): userRole === "department-head" ? (
+                    ): role === "department-head" ? (
                         <>
                             <Card>
                                 <CardContent className="p-6">
@@ -881,7 +688,7 @@ export default function HomePage() {
                                         <div className="ml-4">
                                             <p className="text-sm font-medium text-gray-600">Новые заявки</p>
                                             <p className="text-2xl font-bold text-gray-900">
-                                                {depHedStats && depHedStats.statusCounts && depHedStats.statusCounts.new ? (depHedStats.statusCounts.new) : 0}
+                                                {depHeadStats && depHeadStats.statusCounts && depHeadStats.statusCounts.new ? (depHeadStats.statusCounts.new) : 0}
                                             </p>
                                         </div>
                                     </div>
@@ -896,7 +703,7 @@ export default function HomePage() {
                                         <div className="ml-4">
                                             <p className="text-sm font-medium text-gray-600">В работе</p>
                                             <p className="text-2xl font-bold text-gray-900">
-                                                {depHedStats && depHedStats.statusCounts && depHedStats.statusCounts.inWork ? (depHedStats.statusCounts.inWork) : 0}
+                                                {depHeadStats && depHeadStats.statusCounts && depHeadStats.statusCounts.inWork ? (depHeadStats.statusCounts.inWork) : 0}
                                             </p>
                                         </div>
                                     </div>
@@ -911,7 +718,7 @@ export default function HomePage() {
                                         <div className="ml-4">
                                             <p className="text-sm font-medium text-gray-600">Завершено</p>
                                             <p className="text-2xl font-bold text-gray-900">
-                                                {depHedStats && depHedStats.statusCounts && depHedStats.statusCounts.completed ? (depHedStats.statusCounts.completed) : 0}
+                                                {depHeadStats && depHeadStats.statusCounts && depHeadStats.statusCounts.completed ? (depHeadStats.statusCounts.completed) : 0}
                                             </p>
                                         </div>
                                     </div>
@@ -926,14 +733,14 @@ export default function HomePage() {
                                         <div className="ml-4">
                                             <p className="text-sm font-medium text-gray-600">Просрочено</p>
                                             <p className="text-2xl font-bold text-gray-900">
-                                                {depHedStats && depHedStats.statusCounts && depHedStats.statusCounts.overdue ? (depHedStats.statusCounts.overdue) : 0}
+                                                {depHeadStats && depHeadStats.statusCounts && depHeadStats.statusCounts.overdue ? (depHeadStats.statusCounts.overdue) : 0}
                                             </p>
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
                         </>
-                    ): userRole === "executor" ? (
+                    ): role === "executor" ? (
                         <>
                             <Card>
                                 <CardContent className="p-6">
@@ -994,7 +801,7 @@ export default function HomePage() {
                                 </CardContent>
                             </Card>
                         </>
-                    ): userRole === "manager" && (
+                    ): role === "manager" && (
                         <div className="min-h-screen bg-gray-50 p-3 sm:p-4">
                             <div className="max-w-7xl mx-auto space-y-4">
                                 {/* Заголовок */}
