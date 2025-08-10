@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import HapticPullToRefresh from "@/components/vibration/HapticPullToRefresh";
 
 type PullToRefreshProps = {
     children?: React.ReactNode
@@ -136,10 +135,6 @@ export default function PullToRefresh(props: PullToRefreshProps) {
     const contentTranslateY = refreshing ? threshold : pull
 
     return (
-        <HapticPullToRefresh
-        onRefresh={onRefresh}
-        refreshing={refreshing}
-        >
         <div
             ref={containerRef}
             className="relative h-[calc(100vh_-_theme(spacing.14))] sm:h-[calc(100vh_-_theme(spacing.16))] overflow-y-auto overscroll-contain"
@@ -176,7 +171,6 @@ export default function PullToRefresh(props: PullToRefreshProps) {
                 {children}
             </div>
         </div>
-        </HapticPullToRefresh>
     )
 }
 
