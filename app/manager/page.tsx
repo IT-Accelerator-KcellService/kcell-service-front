@@ -46,7 +46,6 @@ import {
 import axios from "axios";
 import Header from "@/app/header/Header";
 import dynamic from "next/dynamic";
-import {Request} from "@/app/client/page";
 import api from "@/lib/api";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import {format, isAfter, subDays, subMonths, subYears} from "date-fns";
@@ -63,6 +62,7 @@ import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
 import { ProfileModal } from "@/components/ProfileModal"
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {CommentList} from "@/components/comment/Comment";
+import {useRequestStore, Request} from "@/stores/useRequestStore";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -142,7 +142,7 @@ export default function ManagerDashboard() {
   const [newRequestLocation, setNewRequestLocation] = useState("")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [showProfile, setShowProfile] = useState(false)
-  const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
+  const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -159,7 +159,7 @@ export default function ManagerDashboard() {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState([]);
-  const [requests, setRequests] = useState<Request[]>([]);
+  const {requests, setRequests, clearRequests} = useRequestStore()
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -662,13 +662,13 @@ export default function ManagerDashboard() {
   };
 
   useEffect(() => {
-    if (isLoggedIn) {
+    if (requests.length === 0) {
       fetchCategories()
       fetchRequests(1)
       fetchNotifications()
       fetchOffices()
     }
-  }, [isLoggedIn])
+  }, [])
 
   const fetchRequests = async (pageToLoad = 1) => {
     try {
@@ -694,6 +694,7 @@ export default function ManagerDashboard() {
       setIsLoggedIn(false)
       clearNotifications()
       localStorage.removeItem('token')
+      clearRequests()
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)

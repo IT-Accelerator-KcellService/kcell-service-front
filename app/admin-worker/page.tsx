@@ -27,16 +27,6 @@ import api from "@/lib/api";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {ru} from "date-fns/locale";
 import {format} from "date-fns";
-import {Calendar} from "@/components/ui/calendar";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from "@/components/ui/alert-dialog";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -50,6 +40,9 @@ import {AcceptRequestModal} from "@/components/AcceptRequestModal";
 import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {CommentList} from "@/components/comment/Comment";
+import {Calendar} from "@/components/ui/calendar";
+import {sortRequests, useRequestStore} from "@/stores/useRequestStore";
+import {Request} from '@/stores/useRequestStore'
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -68,34 +61,6 @@ interface Rating {
   request_id: number;
   created_at: string;
 }
-interface Request {
-  category: any;
-  executor_id: any;
-  id: number;
-  title: string;
-  description: string;
-  status: string;
-  request_type: string;
-  location: string;
-  location_detail: string;
-  created_date: string;
-  executor: { user: {full_name: any} };
-  rating?: number;
-  category_id?: number;
-  photos?: { photo_url: string }[];
-  progress?: number;
-  planned_date?: string;
-  client_id?: number;
-  complexity: string;
-  sla?: string;
-}
-const roleTranslations: Record<string, string> = {
-  client: "Клиент",
-  "admin-worker": "Администратор офиса",
-  "department-head": "Руководитель направления",
-  executor: "Испольнитель",
-  manager: "Руководитель"
-};
 
 interface Comment {
   id: number,
@@ -145,8 +110,7 @@ export default function AdminWorkerDashboard() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
   const [requestToRate, setRequestToRate] = useState<Request | null>(null);
-  const [incomingRequests, setIncomingRequests] = useState<Request[]>([]);
-  const [myRequests, setMyRequests] = useState<Request[]>([]);
+  const { incomingRequests, setIncomingRequests, myRequests, setMyRequests, clearRequests } = useRequestStore();
   const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([]);
   const [clientInfo, setClientInfo] = useState<Record<number, User>>({});
   const [showMapModal, setShowMapModal] = useState(false);
@@ -334,23 +298,7 @@ export default function AdminWorkerDashboard() {
       fetchStats()
     }
   }, []);
-  const sortRequests = (requests: Request[]): Request[] => {
-    return [...requests].sort((a, b) => {
-      // Сначала заявки в работе
-      const aInProgress = a.status === "in_progress";
-      const bInProgress = b.status === "in_progress";
-      if (aInProgress !== bInProgress) return aInProgress ? -1 : 1;
 
-      // Затем срочные заявки
-      if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
-      if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
-
-      // Затем по дате (новые выше)
-      const dateA = a.created_date ? new Date(a.created_date).getTime() : 0;
-      const dateB = b.created_date ? new Date(b.created_date).getTime() : 0;
-      return dateB - dateA;
-    });
-  };
   const filteredMyRequests = sortRequests(
       myRequests.filter((request) => {
         const statusMatch = filterMyStatus === "all" || request.status === filterMyStatus;
@@ -459,19 +407,18 @@ export default function AdminWorkerDashboard() {
         myRequests: Request[];
       }>(`/requests/admin-worker/me?page=${currentPage}&pageSize=${pageSize}`);
 
-
+      const sortedNewIncomingRequests = sortRequests(response.data.otherRequests);
+      const sortedNewMyRequests = sortRequests(response.data.myRequests);
 
       setIncomingRequests((prev) => {
-        const newItems = response.data.otherRequests || [];
-        const sortedNewItems = sortRequests(newItems);
+        const sortedNewItems = sortRequests(sortedNewIncomingRequests);
         return currentPage === 1
             ? sortedNewItems
             : [...prev, ...sortedNewItems.filter(item => !prev.some(p => p.id === item.id))];
       });
 
       setMyRequests((prev) => {
-        const newItems = response.data.myRequests || [];
-        const sortedNewItems = sortRequests(newItems);
+        const sortedNewItems = sortRequests(sortedNewMyRequests);
         return currentPage === 1
             ? sortedNewItems
             : [...prev, ...sortedNewItems.filter(item => !prev.some(p => p.id === item.id))];
@@ -566,10 +513,12 @@ export default function AdminWorkerDashboard() {
   };
 
   useEffect(() => {
-    setPage(1);
-    setHasMore(true);
-    fetchRequests();
-    fetchCategories()
+    if (myRequests.length === 0 || incomingRequests.length === 0) {
+      setPage(1);
+      setHasMore(true);
+      fetchRequests();
+      fetchCategories()
+    }
   }, [filterMyStatus, filterMyType, filterIncomingStatus, filterIncomingType]);
 
   useEffect(() => {
@@ -760,6 +709,7 @@ export default function AdminWorkerDashboard() {
       setIsLoggedIn(false)
       clearNotifications()
       localStorage.removeItem('token');
+      clearRequests()
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error);
@@ -994,7 +944,7 @@ export default function AdminWorkerDashboard() {
                   {isDesktop ? (
                       <Button
                           onClick={() => {setShowCreateRequestModal(true); openModal('createRequest'); }}
-                          className="bg-violet-600 hover:bg-violet-700 w-full"
+                          className="bg-violet-600 hover:bg-violet-700 w-auto"
                       >
                         <Plus className="w-4 h-4 mr-2" />
                         Создать заявку

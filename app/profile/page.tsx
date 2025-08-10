@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
 import {BottomNav} from "@/components/BottomNav"
 import {useRouter} from "next/navigation";
+import {useNotificationStore} from "@/stores/notificationStore";
+import {useRequestStore} from "@/stores/useRequestStore";
 
 interface UserProfile {
     id: number
@@ -52,6 +54,8 @@ export default function ProfilePage() {
     const [notificationError, setNotificationError] = useState("")
     const [notificationSuccess, setNotificationSuccess] = useState("")
     const [isLoggingOut, setIsLoggingOut] = useState(false)
+    const {clearNotifications} = useNotificationStore()
+    const {clearRequests} = useRequestStore()
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -72,6 +76,8 @@ export default function ProfilePage() {
         setIsLoggingOut(true)
         localStorage.removeItem("token");
         localStorage.removeItem("role");
+        clearRequests()
+        clearNotifications()
         router.push("/login");
     };
 

@@ -51,6 +51,7 @@ import {useMediaQuery} from "@/hooks/use-media-query";
 import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {CommentList} from "@/components/comment/Comment";
+import {useRequestStore, Request} from "@/stores/useRequestStore";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -77,35 +78,6 @@ interface Rating {
 interface Executor{
   id: number,user: User, specialty: string, rating: number, workload: number
 }
-interface Request {
-  executor_id: any;
-  category: any;
-  id: number
-  title: string
-  description: string
-  status: string
-  request_type: string
-  location: string
-  location_detail: string
-  created_date: string
-  executor: Executor
-  rating?: number
-  category_id?: number
-  photos?: { photo_url: string }[]
-  progress?: number
-  planned_date?: string
-  client_id?: number
-  complexity: string
-  sla?: string
-}
-
-const roleTranslations: Record<string, string> = {
-  client: "Клиент",
-  "admin-worker": "Администратор офиса",
-  "department-head": "Руководитель направления",
-  executor: "Испольнитель",
-  manager: "Руководитель"
-};
 
 interface Comment {
   id: number,
@@ -153,8 +125,7 @@ export default function DepartmentHeadDashboard() {
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [ratingValue, setRatingValue] = useState(0)
   const [requestToRate, setRequestToRate] = useState<Request | null>(null)
-  const [incomingRequests, setIncomingRequests] = useState<Request[]>([])
-  const [myRequests, setMyRequests] = useState<Request[]>([])
+  const {incomingRequests, setIncomingRequests, myRequests, setMyRequests, clearRequests} = useRequestStore()
   const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
   const [clientInfo, setClientInfo] = useState<Record<number, User>>({})
   const [showMapModal, setShowMapModal] = useState(false)
@@ -181,7 +152,7 @@ export default function DepartmentHeadDashboard() {
   const date = newRequestPlannedDate
       ? parseLocalDate(newRequestPlannedDate)
       : undefined;
-  const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
+  const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -582,9 +553,11 @@ export default function DepartmentHeadDashboard() {
   };
 
   useEffect(() => {
-    fetchCategories()
-    fetchRequests()
-    fetchExecutors()
+    if (myRequests.length === 0 || incomingRequests.length === 0) {
+      fetchCategories()
+      fetchRequests()
+      fetchExecutors()
+    }
   }, [])
 
   useEffect(() => {
@@ -744,6 +717,7 @@ export default function DepartmentHeadDashboard() {
       setIsLoggedIn(false)
       clearNotifications()
       localStorage.removeItem('token')
+      clearRequests()
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)

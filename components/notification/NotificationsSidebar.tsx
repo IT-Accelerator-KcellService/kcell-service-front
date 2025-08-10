@@ -2,7 +2,6 @@
 
 import {useNotificationStore} from '@/stores/notificationStore'
 import React, {useEffect, useState} from 'react'
-import {AlertTriangle, CheckCircle, Clock, Star} from 'lucide-react'
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 
 interface Notification {
@@ -18,7 +17,7 @@ interface Props {
 }
 
 export function NotificationsSidebar({ onNotificationClick }: Props) {
-    const { notifications, notificationLoading, setNotificationLoading } = useNotificationStore()
+    const { notifications, notificationLoading } = useNotificationStore()
     const [displayedNotifications, setDisplayedNotifications] = useState<Notification[]>([])
 
     useEffect(() => {

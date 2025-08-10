@@ -23,13 +23,6 @@ import Header from "@/app/header/Header";
 import axios from "axios";
 import dynamic from "next/dynamic";
 import api from "@/lib/api";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from "@/components/ui/alert-dialog";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -40,6 +33,7 @@ import PerformerCard from "@/components/rating";
 import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {CommentList} from "@/components/comment/Comment";
+import {useRequestStore, Request} from "@/stores/useRequestStore";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
@@ -47,46 +41,6 @@ const MapView = dynamic(() => import('@/app/map/MapView'), {
   loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
 })
 
-const roleTranslations: Record<string, string> = {
-  client: "Клиент",
-  "admin-worker": "Администратор офиса",
-  "department-head": "Руководитель направления",
-  executor: "Испольнитель",
-  manager: "Руководитель"
-};
-
-interface Category {
-  id: number;
-  name: string;
-}
-interface Photo {
-  id: number;
-  request_id: number;
-  photo_url: string;
-  type: string;
-}
-export interface Request {
-  executor_id: any;
-  actual_completion_date: any;
-  sla: React.JSX.Element;
-  date_submitted: string;
-  category: Category;
-  office: any;
-  complexity: string;
-  id: number;
-  title: string;
-  description: string;
-  status: string;
-  request_type: string;
-  location: string;
-  location_detail: string;
-  created_date: string;
-  executor: {user: { full_name: any } };
-  rating?: number;
-  category_id?: number;
-  photos?: Photo[];
-  office_id: number;
-}
 interface Comment {
   id: number,
   request_id: number,
@@ -109,9 +63,7 @@ export default function ExecutorDashboard() {
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const router = useRouter()
-  const [assignedRequests, setAssignedRequests] = useState<any>([])
-  const [myRequests, setMyRequests] = useState<Request[]>([])
-  const [completedRequests, setCompletedRequests] = useState<any>([])
+  const {assignedRequests, setAssignedRequests, myRequests, setMyRequests, completedRequests, setCompletedRequests, clearRequests} = useRequestStore()
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [showMapModal, setShowMapModal] = useState(false);
   const [activeTab, setActiveTab] = useState("tasks")
@@ -128,7 +80,7 @@ export default function ExecutorDashboard() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
-  const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
+  const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [requestLocation, setRequestLocation] = useState("")
@@ -355,12 +307,12 @@ export default function ExecutorDashboard() {
   }, [selectedTaskDetails]);
 
   useEffect(() => {
-    if (isLoggedIn) {
+    if (assignedRequests.length === 0 || myRequests.length === 0 || completedRequests.length === 0) {
       fetchCategories()
       fetchNotifications()
       fetchRequests()
     }
-  }, [isLoggedIn])
+  }, [])
 
   const fetchCategories = async () => {
     try {
@@ -680,6 +632,7 @@ export default function ExecutorDashboard() {
       setIsLoggedIn(false)
       clearNotifications()
       localStorage.removeItem('token')
+      clearRequests()
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
@@ -776,28 +729,6 @@ export default function ExecutorDashboard() {
         <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
     ))
   }
-
-  const completedInTime = completedRequests.filter((req: { actual_completion_date: string | number | Date; sla: { props: { deadline: string | number | Date } } }) => {
-    const completedAt = new Date(req.actual_completion_date);
-    const slaDeadline = new Date(req.sla?.props?.deadline);
-    return completedAt <= slaDeadline;
-  });
-
-  const overdue = completedRequests.length - completedInTime.length;
-  const ratings = completedRequests.map((req: { rating: any }) => req.rating).filter(Boolean) as number[];
-  const averageRating = ratings.length
-      ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1)
-      : '—';
-
-  const durations = completedRequests.map((req: { date_submitted: string | number | Date; actual_completion_date: string | number | Date }) => {
-    const submitted = new Date(req.date_submitted).getTime();
-    const completed = new Date(req.actual_completion_date).getTime();
-    return (completed - submitted) / (1000 * 60 * 60); // в часах
-  });
-
-  const averageDuration = durations.length
-      ? (durations.reduce((sum: any, d: any) => sum + d, 0) / durations.length).toFixed(1)
-      : '—';
 
   return (
       <div className="min-h-screen bg-gray-50">

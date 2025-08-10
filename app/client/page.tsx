@@ -39,6 +39,8 @@ import Link from "next/link";
 import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {CommentList} from "@/components/comment/Comment";
+import {useRequestStore} from "@/stores/useRequestStore";
+import {Request} from '@/stores/useRequestStore'
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -51,50 +53,6 @@ interface Rating {
   request_id: number;
   created_at: string;
 }
-
-interface Category {
-  id: number;
-  name: string;
-}
-
-interface Photo {
-  id: number;
-  request_id: number;
-  photo_url: string;
-  type: string;
-}
-
-export interface Request {
-  executor_id: any;
-  actual_completion_date: any;
-  sla: React.JSX.Element;
-  date_submitted: string;
-  category: Category;
-  office: any;
-  complexity: string;
-  id: number;
-  title: string;
-  description: string;
-  status: string;
-  request_type: string;
-  location: string;
-  location_detail: string;
-  created_date: string;
-  executor: {user: { full_name: any } };
-  rating?: number;
-  category_id?: number;
-  photos?: Photo[];
-  office_id: number;
-  planned_date: string
-}
-
-const roleTranslations: Record<string, string> = {
-  client: "Клиент",
-  "admin-worker": "Администратор офиса",
-  "department-head": "Руководитель направления",
-  executor: "Испольнитель",
-  manager: "Руководитель"
-};
 
 interface Comment {
   id: number,
@@ -143,7 +101,7 @@ export default function ClientDashboard() {
   const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
-  const [requests, setRequests] = useState<Request[]>([]);
+  const { requests, addRequests, clearRequests } = useRequestStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<Comment[] | []>([]);
@@ -152,7 +110,7 @@ export default function ClientDashboard() {
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [requestDescription,setrequestDescription]=useState("");
-  const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
+  const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -452,11 +410,7 @@ export default function ClientDashboard() {
 
       const newRequests = response.data.requests ?? [];
 
-      setRequests((prev: Request[]) => {
-        const existingIds = new Set(prev.map((r: Request) => r.id));
-        const filteredNew = newRequests.filter((r: Request) => !existingIds.has(r.id));
-        return [...prev, ...filteredNew];
-      });
+      addRequests(newRequests);
 
       if (newRequests.length < pageSize) {
         setHasMore(false);
@@ -505,11 +459,11 @@ export default function ClientDashboard() {
   }
 
   useEffect(() => {
-    if (isLoggedIn) {
+    if (requests.length === 0) {
       fetchCategories()
       fetchRequests(1)
     }
-  }, [isLoggedIn])
+  }, [])
 
   useEffect(() => {
     if (selectedRequest?.category_id) {
@@ -660,7 +614,7 @@ export default function ClientDashboard() {
       const newRequest = response.data;
 
       // Обновляем состояние
-      setRequests(prev => [newRequest, ...prev]);
+      addRequests([newRequest]);
       successModal.showSuccess();
 
       // Сброс формы
@@ -730,6 +684,7 @@ export default function ClientDashboard() {
     try {
       setIsLoggedIn(false)
       clearNotifications()
+      clearRequests()
       localStorage.removeItem('token')
       router.push("/login")
     } catch (error) {
