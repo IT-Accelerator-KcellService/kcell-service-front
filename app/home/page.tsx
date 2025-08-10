@@ -715,13 +715,14 @@ export default function HomePage() {
 
     return (
         <>
-        <PullToRefresh onRefresh={handleRefresh}>
-        <div className="min-h-screen bg-gray-50 pb-20">
             <Header
                 setShowProfile={setShowProfile}
                 handleLogout={handleLogout}
                 role={userRole === 'client' ? 'Клиент' : userRole || ''}
             />
+
+        <PullToRefresh onRefresh={handleRefresh}>
+        <div className="min-h-screen bg-gray-50 pb-20">
 
             {/* Фото Kcell на всю ширину */}
             <div className="px-3 pt-3">

@@ -52,8 +52,6 @@ export function CommentList({
         comment: Comment | null;
     }>({ visible: false, comment: null });
     const [activeCommentId, setActiveCommentId] = useState<number | null>(null); // Для подсветки
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null);
 
     const [visibleCount, setVisibleCount] = useState(6);
 
@@ -67,25 +65,6 @@ export function CommentList({
     const closeActions = () => {
         setShowActions({ visible: false, comment: null });
         setActiveCommentId(null);
-    };
-
-    const handleDeleteClick = (comment: Comment) => {
-        setCommentToDelete(comment);
-        setShowDeleteDialog(true);
-        closeActions();
-    };
-
-    const handleConfirmDelete = () => {
-        if (commentToDelete) {
-            onDelete(commentToDelete.id);
-        }
-        setShowDeleteDialog(false);
-        setCommentToDelete(null);
-    };
-
-    const handleCancelDelete = () => {
-        setShowDeleteDialog(false);
-        setCommentToDelete(null);
     };
 
     const showAllComments = () => setVisibleCount(comments.length);
@@ -203,7 +182,7 @@ export function CommentList({
                         className="absolute inset-0 bg-black bg-opacity-20"
                         onClick={closeActions}
                     />
-                    <div 
+                    <div
                         className="absolute bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[120px]"
                         style={{
                             top: '50%',
@@ -223,7 +202,8 @@ export function CommentList({
                         </button>
                         <button
                             onClick={() => {
-                                handleDeleteClick(showActions.comment!);
+                                onDelete(showActions.comment!.id);
+                                closeActions();
                             }}
                             className="w-full text-left text-sm text-red-600 py-2 px-4 hover:bg-red-50 transition-colors rounded-b-lg"
                         >
@@ -256,7 +236,8 @@ export function CommentList({
                             </button>
                             <button
                                 onClick={() => {
-                                    handleDeleteClick(showActions.comment!);
+                                    onDelete(showActions.comment!.id);
+                                    closeActions();
                                 }}
                                 className="text-left text-sm font-medium text-red-600 py-3 px-4 rounded-lg hover:bg-red-50 transition-colors"
                             >
@@ -272,27 +253,6 @@ export function CommentList({
                     </div>
                 </div>
             )}
-
-            {/* Диалог подтверждения удаления */}
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Вы действительно хотите удалить этот комментарий? Это действие нельзя отменить.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={handleCancelDelete}>Отменить</AlertDialogCancel>
-                        <AlertDialogAction 
-                            onClick={handleConfirmDelete}
-                            className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
-                        >
-                            Удалить
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
 
             {/* CSS для анимаций (можно вынести в CSS файл) */}
             <style jsx>{`
