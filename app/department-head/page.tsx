@@ -52,6 +52,7 @@ import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore, Request} from "@/stores/useRequestStore";
+import PullToRefresh from "@/components/pull-to-refresh";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -899,7 +900,51 @@ export default function DepartmentHeadDashboard() {
     return `${year}-${month}-${day}`;
   };
 
+  const handleRefresh = async () => {
+    try {
+      setRejectionReason("")
+      setNewRequestType("")
+      setNewRequestTitle("")
+      setNewRequestLocation("")
+      setNewRequestCategory("")
+      setNewRequestDescription("")
+      setNewRequestPlannedDate("")
+      setRatingValue(0)
+      setClientInfo({})
+      setNewRequestSLA("1h")
+      setNewRequestLocationDetails("")
+      setPhotoPreviews([])
+      setComment("")
+      setComments([])
+      setUserRatings({})
+      setFormErrors("")
+      setPhotos([])
+      setEditCommentId(null)
+      setCurrentUserId(null)
+      setStats(null)
+      setExecutors([])
+      setNewExecutorName("")
+      setNewExecutorSpecialty("")
+
+      clearRequests();
+      clearNotifications()
+
+      await Promise.all([
+        fetchRequests(),
+        fetchStats(),
+        fetchCategories(),
+        fetchNotifications(),
+        fetchExecutors(),
+      ]);
+
+    } catch (error) {
+      console.error("Ошибка при обновлении:", error);
+    }
+  };
+
   return (
+      <>
+        <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">
         <Header
             setShowProfile={setShowProfile}
@@ -2282,10 +2327,12 @@ export default function DepartmentHeadDashboard() {
             message={successModal.message}
             duration={successModal.duration}
         />
+      </div>
+      </PullToRefresh>
         <BottomNav
             onCreateRequest={() => setShowCreateRequestModal(true)}
             activeTab="history"
         />
-      </div>
+      </>
   )
 }

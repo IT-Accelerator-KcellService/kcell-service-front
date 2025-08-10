@@ -125,7 +125,7 @@ export const useRequestStore = create<RequestState>((set, get) => ({
         set({ requests: [...currentRequests, ...filteredNew] });
     },
 
-    clearRequests: () => set({ incomingRequests: [], requests: [], myRequests: [], completedRequests: [] }),
+    clearRequests: () => set({ incomingRequests: [], requests: [], myRequests: [], completedRequests: [], assignedRequests: [] }),
 
     removeRequest: (id) =>
         set({

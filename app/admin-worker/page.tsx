@@ -43,6 +43,7 @@ import {CommentList} from "@/components/comment/Comment";
 import {Calendar} from "@/components/ui/calendar";
 import {sortRequests, useRequestStore} from "@/stores/useRequestStore";
 import {Request} from '@/stores/useRequestStore'
+import PullToRefresh from "@/components/pull-to-refresh";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -867,7 +868,49 @@ export default function AdminWorkerDashboard() {
     return `${year}-${month}-${day}`;
   };
 
+  const handleRefresh = async () => {
+    try {
+      setRejectionReason("")
+      setNewRequestType("")
+      setNewRequestTitle("")
+      setNewRequestLocation("")
+      setNewRequestCategory("")
+      setNewRequestDescription("")
+      setNewRequestPlannedDate("")
+      setRatingValue(0)
+      setClientInfo({})
+      setNewRequestSLA("1h")
+      setNewRequestLocationDetails("")
+      setPhotoPreviews([])
+      setComment("")
+      setComments([])
+      setUserRatings({})
+      setFormErrors("")
+      setPhotos([])
+      setEditCommentId(null)
+      setCurrentUserId(null)
+      setStats(null)
+      setHasMore(true)
+      setPage(1)
+
+      clearRequests();
+      clearNotifications()
+
+      await Promise.all([
+        fetchRequests(),
+        fetchStats(),
+        fetchCategories(),
+        fetchNotifications(),
+      ]);
+
+    } catch (error) {
+      console.error("Ошибка при обновлении:", error);
+    }
+  };
+
   return (
+      <>
+        <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">
         <Header
             setShowProfile={setShowProfile}
@@ -2144,10 +2187,12 @@ export default function AdminWorkerDashboard() {
             message={rejectModal.message}
             duration={rejectModal.duration}
         />
+      </div>
+        </PullToRefresh>
         <BottomNav
             onCreateRequest={() => {setShowCreateRequestModal(true); openModal('createRequest'); }}
             activeTab="history"
         />
-      </div>
+      </>
   );
 }

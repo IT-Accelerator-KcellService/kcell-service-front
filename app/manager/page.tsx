@@ -63,6 +63,7 @@ import { ProfileModal } from "@/components/ProfileModal"
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore, Request} from "@/stores/useRequestStore";
+import PullToRefresh from "@/components/pull-to-refresh";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -1259,7 +1260,65 @@ export default function ManagerDashboard() {
     return `${year}-${month}-${day}`;
   };
 
+  const handleRefresh = async () => {
+    try {
+      setNewRequestType("")
+      setNewRequestTitle("")
+      setNewRequestLocation("")
+      setDescription("")
+      setSelectedCategoryId(null)
+      setNewRequestLocation("")
+      setPhotoPreviews([])
+      setComment("")
+      setComments([])
+      setFormErrors("")
+      setPhotos([])
+      setEditCommentId(null)
+      setCurrentUserId(null)
+      setStats([])
+      setChartData([])
+      setPeriod("month")
+      setOffice("all")
+      setOffices([])
+      setNewOfficeName("")
+      setNewOfficeCity("")
+      setNewOfficeAddress("")
+      setFilterStatus("all")
+      setFilterType("all")
+      setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "" });
+      setSearchInput("")
+      setEditedOffice({name: "", city: "", address: ""})
+      setDistribution({
+        total: 0,
+        normal: 0,
+        urgent: 0,
+        planned: 0,
+        normalPercent: 0,
+        urgentPercent: 0,
+        plannedPercent: 0,
+      })
+      setUsers([])
+
+      clearRequests();
+      clearNotifications()
+
+      await Promise.all([
+        fetchRequests(),
+        fetchStats(),
+        fetchCategories(),
+        fetchNotifications(),
+        fetchOffices(),
+        fetchUsers()
+      ]);
+
+    } catch (error) {
+      console.error("Ошибка при обновлении:", error);
+    }
+  };
+
   return (
+    <>
+    <PullToRefresh onRefresh={handleRefresh}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <Header
@@ -2618,10 +2677,12 @@ export default function ManagerDashboard() {
           message='Заявка была успешно удалена.'
           duration={approveModal.duration}
       />
+    </div>
+    </PullToRefresh>
       <BottomNav
           onCreateRequest={handleOpenCreateRequest}
           activeTab="history"
       />
-    </div>
+     </>
   )
 }

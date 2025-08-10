@@ -41,6 +41,7 @@ import {NotificationsSidebar} from "@/components/notification/NotificationsSideb
 import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore} from "@/stores/useRequestStore";
 import {Request} from '@/stores/useRequestStore'
+import PullToRefresh from "@/components/pull-to-refresh";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -798,8 +799,34 @@ export default function ClientDashboard() {
     ))
   }
 
+  const handleRefresh = async () => {
+    try {
+      setPage(1);
+      setHasMore(true);
+      setFilterStatus("all");
+      setFilterType("all");
+
+      clearRequests();
+      clearNotifications()
+      setStats(null);
+      setUserRatings({});
+
+      // 4. Параллельная загрузка всех данных
+      await Promise.all([
+        fetchRequests(1),
+        fetchStats(),
+        fetchCategories(),
+        fetchNotifications(),
+      ]);
+
+    } catch (error) {
+      console.error("Ошибка при обновлении:", error);
+    }
+  };
 
   return (
+      <>
+      <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <Header
@@ -1666,10 +1693,12 @@ export default function ClientDashboard() {
           message={successModal.message}
           duration={successModal.duration}
       />
-        <BottomNav
-            onCreateRequest={handleOpenCreateRequest}
-            activeTab ="history"
-        />
     </div>
+        </PullToRefresh>
+  <BottomNav
+      onCreateRequest={handleOpenCreateRequest}
+      activeTab ="history"
+  />
+  </>
   )
 }

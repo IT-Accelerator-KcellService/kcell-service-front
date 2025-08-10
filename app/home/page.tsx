@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {isAfter, subDays, subMonths, subYears} from "date-fns";
 import axios from "axios";
+import PullToRefresh from "@/components/pull-to-refresh";
 
 interface ClientStats {
     totalRequests: number,
@@ -676,7 +677,45 @@ export default function HomePage() {
         </Card>
     )
 
+    const handleRefresh = async () => {
+        try {
+            await resetStates()
+
+            await Promise.all([
+                fetchStats()
+            ]);
+
+        } catch (error) {
+            console.error("Ошибка при обновлении:", error);
+        }
+    };
+
+    const resetStates = async () => {
+        setClientStats(null)
+        setAdminWorkerStats(null)
+        setExecutorStats(null)
+        setManagerStats(null)
+        setDepHeadStats(null)
+        setNewOfficeName("")
+        setNewOfficeAddress("")
+        setNewOfficeCity("")
+        setChartData([])
+        setMyRating(null)
+        setUsers([])
+        setDistribution({
+            total: 0,
+            normal: 0,
+            urgent: 0,
+            planned: 0,
+            normalPercent: 0,
+            urgentPercent: 0,
+            plannedPercent: 0,
+        })
+    }
+
     return (
+        <>
+        <PullToRefresh onRefresh={handleRefresh}>
         <div className="min-h-screen bg-gray-50 pb-20">
             <Header
                 setShowProfile={setShowProfile}
@@ -1493,8 +1532,9 @@ export default function HomePage() {
                     )}
                 </div>
             </div>
-
-            <BottomNav activeTab="home"/>
         </div>
+        </PullToRefresh>
+        <BottomNav activeTab="home"/>
+        </>
     )
 }

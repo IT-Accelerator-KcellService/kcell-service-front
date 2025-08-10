@@ -34,6 +34,7 @@ import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore, Request} from "@/stores/useRequestStore";
+import PullToRefresh from "@/components/pull-to-refresh";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
@@ -730,7 +731,42 @@ export default function ExecutorDashboard() {
     ))
   }
 
+  const handleRefresh = async () => {
+    try {
+      setNewRequestType("")
+      setNewRequestTitle("")
+      setNewRequestLocation("")
+      setDescription("")
+      setSelectedCategoryId(null)
+      setMyRating(null)
+      setNewRequestLocation("")
+      setPhotoPreviews([])
+      setComment("")
+      setComments([])
+      setFormErrors("")
+      setPhotos([])
+      setEditCommentId(null)
+      setCurrentUserId(null)
+      setStats(null)
+
+      clearRequests();
+      clearNotifications()
+
+      await Promise.all([
+        fetchRequests(),
+        fetchStats(),
+        fetchCategories(),
+        fetchNotifications(),
+      ]);
+
+    } catch (error) {
+      console.error("Ошибка при обновлении:", error);
+    }
+  };
+
   return (
+      <>
+      <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">
         <Header
             setShowProfile={setShowProfile}
@@ -1892,10 +1928,12 @@ export default function ExecutorDashboard() {
             duration={successModal.duration}
         />
 
+      </div>
+      </PullToRefresh>
         <BottomNav
             onCreateRequest={handleOpenCreateRequest}
             activeTab="history"
         />
-      </div>
+      </>
   )
 }
