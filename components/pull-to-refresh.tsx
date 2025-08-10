@@ -29,7 +29,6 @@ export default function PullToRefresh(props: PullToRefreshProps) {
     const [refreshing, setRefreshing] = React.useState(false)
     const [animatingBack, setAnimatingBack] = React.useState(false)
 
-    // Rubber-band resistance curve to feel natural
     const rubber = React.useCallback((x: number, max: number) => {
         const resistance = 0.6
         const result = (x * resistance * max) / (x * resistance + max)
@@ -41,16 +40,13 @@ export default function PullToRefresh(props: PullToRefreshProps) {
     const reset = React.useCallback(() => {
         setAnimatingBack(true)
         setPull(0)
-        const t = setTimeout(() => {
-            setAnimatingBack(false)
-        }, 220)
+        const t = setTimeout(() => setAnimatingBack(false), 220)
         return () => clearTimeout(t)
     }, [])
 
     const doRefresh = React.useCallback(async () => {
         try {
             setRefreshing(true)
-            // Keep content offset at threshold while loading
             setPull(threshold)
             await onRefresh()
         } finally {
@@ -59,88 +55,80 @@ export default function PullToRefresh(props: PullToRefreshProps) {
         }
     }, [onRefresh, reset, threshold])
 
-    const onPointerDown = React.useCallback(
-        (e: PointerEvent) => {
-            if (refreshing) return
-            // Only primary pointer and only when scrolled to top
-            const target = containerRef.current
-            if (!target) return
-            const isPrimary = (e as PointerEvent).isPrimary !== false && e.button === 0
-            if (!isPrimary) return
-            const scroller = target
-            const atTop = scroller.scrollTop <= 0
-            if (!atTop) return
+    const onPointerDown = React.useCallback((e: PointerEvent) => {
+        if (refreshing) return
+        const target = containerRef.current
+        if (!target) return
+
+        const isPrimary = e.isPrimary !== false && e.button === 0
+        if (!isPrimary) return
+
+        if (target.scrollTop <= 0) {
             pullingRef.current = true
             startYRef.current = e.clientY
-        },
-        [refreshing],
-    )
+        }
+    }, [refreshing])
 
-    const onPointerMove = React.useCallback(
-        (e: PointerEvent) => {
-            if (!pullingRef.current || refreshing) return
-            const dy = e.clientY - startYRef.current
-            if (dy > 0) {
-                // Prevent native scroll/bounce while pulling
-                e.preventDefault?.()
-                const v = rubber(dy, maxPull)
-                setPull(v)
-            } else {
-                // If user moves up, cancel
-                setPull(0)
-            }
-        },
-        [maxPull, refreshing, rubber],
-    )
+    const onPointerMove = React.useCallback((e: PointerEvent) => {
+        if (!pullingRef.current || refreshing) return
 
-    const onPointerUp = React.useCallback(
-        (_e: PointerEvent) => {
-            if (!pullingRef.current || refreshing) return
+        const dy = e.clientY - startYRef.current
+        const atTop = containerRef.current?.scrollTop === 0
+
+        if (dy > 0 && atTop) {
+            // только если тянем вниз в самом верху
+            e.preventDefault()
+            setPull(rubber(dy, maxPull))
+        } else {
+            // если двигаемся вверх или уже не на верху — отпускаем
             pullingRef.current = false
-            if (pull >= threshold) {
-                void doRefresh()
-            } else {
-                reset()
-            }
-        },
-        [doRefresh, pull, refreshing, reset, threshold],
-    )
+            setPull(0)
+        }
+    }, [maxPull, refreshing, rubber])
+
+    const onPointerUp = React.useCallback(() => {
+        if (!pullingRef.current || refreshing) return
+        pullingRef.current = false
+
+        if (pull >= threshold) {
+            void doRefresh()
+        } else {
+            reset()
+        }
+    }, [doRefresh, pull, refreshing, reset, threshold])
 
     React.useEffect(() => {
         const el = containerRef.current
         if (!el) return
 
-        // We attach pointer events to the scrollable container
         const down = (e: Event) => onPointerDown(e as PointerEvent)
         const move = (e: Event) => onPointerMove(e as PointerEvent)
-        const up = (e: Event) => onPointerUp(e as PointerEvent)
+        const up = () => onPointerUp()
 
-        // Use non-passive to allow preventDefault on move
         el.addEventListener("pointerdown", down, { passive: true })
         el.addEventListener("pointermove", move as any, { passive: false })
         el.addEventListener("pointerup", up, { passive: true })
         el.addEventListener("pointercancel", up, { passive: true })
         el.addEventListener("pointerleave", up, { passive: true })
 
-        // Also prevent touch scrolling while pulling
         const touchmove = (e: TouchEvent) => {
-            if (pullingRef.current && !refreshing) {
+            const atTop = containerRef.current?.scrollTop === 0
+            if (pullingRef.current && !refreshing && atTop) {
                 e.preventDefault()
             }
         }
         el.addEventListener("touchmove", touchmove, { passive: false })
 
         return () => {
-            el.removeEventListener("pointerdown", down as any)
+            el.removeEventListener("pointerdown", down)
             el.removeEventListener("pointermove", move as any)
-            el.removeEventListener("pointerup", up as any)
-            el.removeEventListener("pointercancel", up as any)
-            el.removeEventListener("pointerleave", up as any)
+            el.removeEventListener("pointerup", up)
+            el.removeEventListener("pointercancel", up)
+            el.removeEventListener("pointerleave", up)
             el.removeEventListener("touchmove", touchmove as any)
         }
     }, [onPointerDown, onPointerMove, onPointerUp, refreshing])
 
-    // Visuals
     const angle = Math.round(progress * 360)
     const ringSize = 48
     const ringThickness = 5
@@ -150,13 +138,10 @@ export default function PullToRefresh(props: PullToRefreshProps) {
         <div
             ref={containerRef}
             className="relative h-[calc(100vh_-_theme(spacing.14))] sm:h-[calc(100vh_-_theme(spacing.16))] overflow-y-auto overscroll-contain"
-            // Role is just a scrollable region for content
             role="region"
             aria-label="Лента"
-            // Prevent default iOS rubber band on the container
             style={{ WebkitOverflowScrolling: "auto" as any }}
         >
-            {/* Pull overlay */}
             <div
                 className={cn("pointer-events-none sticky top-0 z-10 flex items-end justify-center bg-transparent")}
                 style={{
@@ -177,7 +162,6 @@ export default function PullToRefresh(props: PullToRefreshProps) {
                 </div>
             </div>
 
-            {/* Content moved by pull distance */}
             <div
                 style={{
                     transform: `translateY(${contentTranslateY}px)`,
@@ -197,24 +181,13 @@ function ProgressRing({
                           angle = 0,
                           spinning = false,
                           progress = 0,
-                      }: {
-    size?: number
-    thickness?: number
-    color?: string
-    angle?: number
-    spinning?: boolean
-    progress?: number
-}) {
-    // A conic-gradient ring that fills with progress;
-    // While refreshing, we spin it continuously and show a full ring.
+                      }) {
     const bg = spinning
         ? `conic-gradient(${color} 0deg, ${color} 270deg, #e5e7eb 270deg 360deg)`
         : `conic-gradient(${color} ${angle}deg, #e5e7eb 0deg)`
     const rotate = spinning ? "animate-spin" : ""
-
-    // Kcell mark inside: white circle with a bold "K" tinted with brand color
     const scale = 0.9 + progress * 0.15
-    const rotateDeg = spinning ? 0 : Math.round(progress * 20) // subtle tilt on pull
+    const rotateDeg = spinning ? 0 : Math.round(progress * 20)
 
     return (
         <div
@@ -222,7 +195,6 @@ function ProgressRing({
             style={{
                 width: size,
                 height: size,
-                // Rotate wrapper to animate conic gradient when spinning
             }}
             aria-label={spinning ? "Обновление" : "Прогресс обновления"}
             role={spinning ? "status" : "progressbar"}
@@ -259,8 +231,7 @@ function ProgressRing({
     )
 }
 
-function KcellMark({ size = 40, color = "#7B28CC" }: { size?: number; color?: string }) {
-    // A simple, brand-colored circle with a bold K inside (no inline SVGs).
+function KcellMark({ size = 40, color = "#7B28CC" }) {
     return (
         <div
             className="rounded-full grid place-items-center"
