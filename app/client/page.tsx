@@ -1191,6 +1191,7 @@ export default function ClientDashboard() {
   <BottomNav
       onCreateRequest={handleOpenCreateRequest}
       activeTab ="history"
+      hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto}
   />
         {/* Request Details Modal */}
         {selectedRequest && (

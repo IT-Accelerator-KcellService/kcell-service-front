@@ -2191,6 +2191,7 @@ export default function AdminWorkerDashboard() {
         <BottomNav
             onCreateRequest={() => {setShowCreateRequestModal(true); openModal('createRequest'); }}
             activeTab="history"
+            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto}
         />
         {isDesktop && <Link
             href="/chat-bot"

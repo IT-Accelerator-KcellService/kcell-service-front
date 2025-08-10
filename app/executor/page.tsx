@@ -1935,6 +1935,7 @@ export default function ExecutorDashboard() {
         <BottomNav
             onCreateRequest={handleOpenCreateRequest}
             activeTab="history"
+            hidden={showCreateRequestModal || !!selectedTaskDetails || showMapModal || !!selectedPhoto || showProfile || isModalOpen}
         />
 
         {isDesktop && <Link

@@ -2684,6 +2684,7 @@ export default function ManagerDashboard() {
       <BottomNav
           onCreateRequest={handleOpenCreateRequest}
           activeTab="history"
+          hidden={showCreateRequestModal || showMapModal || showDeleteRequestModal || showProfile || isModalOpen || !!selectedPhoto || !!selectedTaskDetails}
       />
 
       {isDesktop && <Link
