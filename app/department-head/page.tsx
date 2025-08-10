@@ -2333,7 +2333,6 @@ export default function DepartmentHeadDashboard() {
         <BottomNav
             onCreateRequest={() => setShowCreateRequestModal(true)}
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto}
         />
         {isDesktop && <Link
             href="/chat-bot"

@@ -6,21 +6,15 @@ import { useEffect, useState } from "react";
 interface BottomNavProps {
     activeTab?: 'home' | 'history' | 'chat' | 'profile';
     onCreateRequest?: () => void;
-    hidden?: boolean; // Новый пропс для скрытия навигации
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest, hidden = false }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest }) => {
     const [role, setRole] = useState<string | null>(null);
 
     useEffect(() => {
         const storedRole = localStorage.getItem('role');
         setRole(storedRole);
     }, []);
-
-    // Скрываем навигацию если hidden = true
-    if (hidden) {
-        return null;
-    }
 
     return (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-sm flex justify-around items-center py-4 z-50">

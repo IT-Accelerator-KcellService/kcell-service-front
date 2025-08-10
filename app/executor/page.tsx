@@ -1901,7 +1901,7 @@ export default function ExecutorDashboard() {
 
         {/* Map Modal */}
         {showMapModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]" onClick={() => { setShowMapModal(false); closeModal(); }}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => { setShowMapModal(false); closeModal(); }}>
               <Card className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Локация заявки</CardTitle>
@@ -1919,7 +1919,7 @@ export default function ExecutorDashboard() {
 
         {/* Photo Preview Modal */}
         {selectedPhoto && (
-            <div className="fixed inset-0 z-[9999] bg-black bg-opacity-70 flex justify-center items-center" onClick={() => { setSelectedPhoto(null); closeModal(); }}>
+            <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex justify-center items-center" onClick={() => { setSelectedPhoto(null); closeModal(); }}>
               <img src={selectedPhoto} alt="Увеличенное фото" className="max-w-full max-h-full rounded-lg" onClick={e => e.stopPropagation()} />
             </div>
         )}
@@ -1935,7 +1935,6 @@ export default function ExecutorDashboard() {
         <BottomNav
             onCreateRequest={handleOpenCreateRequest}
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedTaskDetails || showMapModal || !!selectedPhoto || showProfile || isModalOpen}
         />
 
         {isDesktop && <Link

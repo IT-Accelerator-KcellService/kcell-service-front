@@ -1191,11 +1191,10 @@ export default function ClientDashboard() {
   <BottomNav
       onCreateRequest={handleOpenCreateRequest}
       activeTab ="history"
-      hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto}
   />
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]" onClick={() => {
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
               setSelectedRequest(false)
               setComments([])
             }}>
@@ -1451,7 +1450,7 @@ export default function ClientDashboard() {
         {/* Map Modal */}
         {showMapModal && (
             <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]"
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
                 onClick={() => {setShowMapModal(false); closeModal(); }}
             >
               <Card
@@ -1479,7 +1478,7 @@ export default function ClientDashboard() {
         )}
         {/* Rating Modal */}
         {showRatingModal && requestToRate && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]" onClick={() => {setShowRatingModal(false)
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {setShowRatingModal(false)
               closeModal()}} >
               <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
@@ -1560,7 +1559,7 @@ export default function ClientDashboard() {
 
         {/* Create Request Modal */}
         {showCreateRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]" onClick={() => {setShowCreateRequest(false); closeModal(); }}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {setShowCreateRequest(false); closeModal(); }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать заявку</CardTitle>

@@ -1850,7 +1850,7 @@ export default function AdminWorkerDashboard() {
 
         {/* Create Request Modal */}
         {showCreateRequestModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]" onClick={()=> {setShowCreateRequestModal(false); closeModal(); }}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {setShowCreateRequestModal(false); closeModal(); }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать {translateType(newRequestType).toLowerCase()} заявку</CardTitle>
@@ -2140,7 +2140,7 @@ export default function AdminWorkerDashboard() {
         {/* Map Modal */}
         {showMapModal && (
             <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]"
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
                 onClick={() => {setShowMapModal(false); closeModal(); }}
             >
               <Card
@@ -2191,7 +2191,6 @@ export default function AdminWorkerDashboard() {
         <BottomNav
             onCreateRequest={() => {setShowCreateRequestModal(true); openModal('createRequest'); }}
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto}
         />
         {isDesktop && <Link
             href="/chat-bot"
