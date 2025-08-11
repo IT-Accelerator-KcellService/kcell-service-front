@@ -73,9 +73,7 @@ export default function HomePage() {
             }
         }
 
-        if (role === 'manager') {
-            fetchOffices()
-        }
+        fetchOffices()
     }, [offices.length, role])
 
     const chartData: ChartData[] = useMemo(() => {
