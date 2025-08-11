@@ -68,7 +68,14 @@ import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
-
+declare global {
+  interface Window {
+    androidApp?: {
+      saveFileBase64: (fileName: string, base64: string, mimeType: string) => void;
+      reloadPage: () => void;
+    };
+  }
+}
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
 })
@@ -602,7 +609,7 @@ export default function ManagerDashboard() {
       params.append("format", format);
 
       // Для Android WebView используем специальный обработчик
-      if (window.AndroidApp) {
+      if (window.androidApp) {
         const response = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -618,7 +625,7 @@ export default function ManagerDashboard() {
               (format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
                   'application/octet-stream');
 
-          window.AndroidApp.saveFileBase64(
+          window.androidApp?.saveFileBase64(
               `analytics.${format}`,
               base64data,
               mimeType
