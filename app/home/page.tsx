@@ -22,8 +22,8 @@ type OfficeType = {
     name: string
     city: string
     address: string
-    lat: number
-    lon: number
+    lat: number | null
+    lon: number | null
 }
 
 interface ChartData {
@@ -34,12 +34,7 @@ interface ChartData {
 export default function HomePage() {
 
     // Offices across Kazakhstan
-    const [offices] = useState<OfficeType[]>([
-        { id: 1, name: "Kcell HQ", city: "Almaty", address: "Auezov 50", lat: 43.238949, lon: 76.889709 },
-        { id: 2, name: "Kcell North", city: "Astana", address: "Baitursynov 12", lat: 51.169392, lon: 71.449074 },
-        { id: 3, name: "Kcell East", city: "Shymkent", address: "Zhibek Zholy 7", lat: 42.3417, lon: 69.5901 },
-    ])
-    const [realOffices, setRealOffices] = useState([])
+    const [offices, setOffices] = useState<OfficeType[]>([])
 
     const router = useRouter()
     const {role, token} = useAuthStore()
@@ -69,10 +64,10 @@ export default function HomePage() {
 
     useEffect(() => {
         const fetchOffices = async () => {
-            if (realOffices.length !== 0) return;
+            if (offices.length !== 0) return;
             try {
                 const response = await api.get('/offices')
-                setRealOffices(response.data)
+                setOffices(response.data)
             } catch (error) {
                 console.error("Failed to fetch categories:", error)
             }
@@ -81,7 +76,7 @@ export default function HomePage() {
         if (role === 'manager') {
             fetchOffices()
         }
-    }, [realOffices.length])
+    }, [offices.length, role])
 
     const chartData: ChartData[] = useMemo(() => {
         if (role !== 'manager') return [];
@@ -231,7 +226,7 @@ export default function HomePage() {
 
     const resetAllStates = async () => {
         resetStats()
-        setRealOffices([])
+        setOffices([])
     }
 
     const Stat = ({ label, value }: { label: string; value: number | string }) => (
@@ -299,7 +294,7 @@ export default function HomePage() {
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="all">Все</SelectItem>
-                                                        {realOffices.map((o:any, index) => (
+                                                        {offices.map((o:any, index) => (
                                                             <SelectItem key={index} value={String(o.id)}>
                                                                 {o.name}
                                                             </SelectItem>
@@ -562,7 +557,7 @@ export default function HomePage() {
                     <OfficeMap offices={officePoints} className="relative h-full w-full" />
                 </div>
 
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-2 h-[400px] overflow-y-auto">
                     {offices.map((o) => (
                         <div key={o.id} className="rounded-lg border p-2">
                             <div className="text-sm font-medium">{o.name}</div>

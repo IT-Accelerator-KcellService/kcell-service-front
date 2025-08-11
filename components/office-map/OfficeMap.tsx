@@ -7,8 +7,8 @@ export type OfficePoint = {
     name: string
     city: string
     address: string
-    lat: number
-    lon: number
+    lat: number | null
+    lon: number | null
 }
 
 type Props = {
