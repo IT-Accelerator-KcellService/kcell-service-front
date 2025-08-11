@@ -555,7 +555,7 @@ export default function HomePage() {
                     <OfficeMap offices={officePoints} className="relative h-full w-full" />
                 </div>
 
-                <div className="mt-3 space-y-2 h-[300px] overflow-y-auto">
+                <div className="mt-3 space-y-2 h-[240px] overflow-y-auto">
                     {offices.map((o) => (
                         <div key={o.id} className="rounded-lg border p-2">
                             <div className="text-sm font-medium">{o.name}</div>
