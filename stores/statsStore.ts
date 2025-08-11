@@ -67,12 +67,52 @@ export interface ManagerStats {
 
 // === Типы для Zustand хранилища ===
 export type StatsState = {
-    clientStats: ClientStats | null;
-    adminWorkerStats: AdminWorkerStats | null;
-    depHeadStats: DepHeadStats | null;
-    executorStats: ExecutorStats | null;
-    managerStats: ManagerStats[] | null;
-    myRating: number | null;
+    clientStats: ClientStats | {
+        totalRequests: 0;
+        activeRequests: 0;
+        doneRequests: 0;
+        averageRating: '0';
+    };
+    adminWorkerStats: AdminWorkerStats | {
+        totalRequests: 0;
+        statusCounts: {
+            new: 0;
+            inWork: 0;
+            completed: 0;
+            overdue: 0;
+        };
+        requestTypeSummary: {
+            urgent: 0;
+            planned: 0;
+            normal: 0;
+        };
+    };
+    depHeadStats: DepHeadStats | {
+        totalRequests: 0;
+        statusCounts: {
+            new: 0;
+            inWork: 0;
+            completed: 0;
+            overdue: 0;
+        };
+        requestTypeSummary: {
+            urgent: 0;
+            planned: 0;
+            normal: 0;
+        };
+    };
+    executorStats: ExecutorStats | {
+        totalRequests: 0;
+        urgent: 0;
+        inWork: 0;
+        completed: 0;
+        onTime: 0;
+        late: 0;
+        averageExecutionHours: '0';
+        averageRating: '0';
+    };
+    managerStats: ManagerStats[];
+    myRating: number | 0;
 
     // Временные метки последнего обновления (для кэширования)
     lastUpdated: number | null;
@@ -93,12 +133,52 @@ export const useStatsStore = create<StatsState & StatsActions>()(
     persist(
         (set, get) => ({
             // Начальное состояние
-            clientStats: null,
-            adminWorkerStats: null,
-            depHeadStats: null,
-            executorStats: null,
-            managerStats: null,
-            myRating: null,
+            clientStats: {
+                totalRequests: 0,
+                activeRequests: 0,
+                doneRequests: 0,
+                averageRating: '0',
+            },
+            adminWorkerStats: {
+                totalRequests: 0,
+                statusCounts: {
+                    new: 0,
+                    inWork: 0,
+                    completed: 0,
+                    overdue: 0,
+                },
+                requestTypeSummary: {
+                    urgent: 0,
+                    planned: 0,
+                    normal: 0,
+                }
+            },
+            depHeadStats: {
+                totalRequests: 0,
+                statusCounts: {
+                    new: 0,
+                    inWork: 0,
+                    completed: 0,
+                    overdue: 0,
+                },
+                requestTypeSummary: {
+                    urgent: 0,
+                    planned: 0,
+                    normal: 0,
+                }
+            },
+            executorStats: {
+                totalRequests: 0,
+                urgent: 0,
+                inWork: 0,
+                completed: 0,
+                onTime: 0,
+                late: 0,
+                averageExecutionHours: '0',
+                averageRating: '0',
+            },
+            managerStats: [],
+            myRating: 0,
             lastUpdated: null,
             loading: false,
             error: null,
@@ -155,12 +235,52 @@ export const useStatsStore = create<StatsState & StatsActions>()(
             // Полный сброс (например, при logout)
             resetStats: () => {
                 set({
-                    clientStats: null,
-                    adminWorkerStats: null,
-                    depHeadStats: null,
-                    executorStats: null,
-                    managerStats: null,
-                    myRating: null,
+                    clientStats: {
+                        totalRequests: 0,
+                        activeRequests: 0,
+                        doneRequests: 0,
+                        averageRating: '0',
+                    },
+                    adminWorkerStats: {
+                        totalRequests: 0,
+                        statusCounts: {
+                            new: 0,
+                            inWork: 0,
+                            completed: 0,
+                            overdue: 0,
+                        },
+                        requestTypeSummary: {
+                            urgent: 0,
+                            planned: 0,
+                            normal: 0,
+                        }
+                    },
+                    depHeadStats: {
+                        totalRequests: 0,
+                        statusCounts: {
+                            new: 0,
+                            inWork: 0,
+                            completed: 0,
+                            overdue: 0,
+                        },
+                        requestTypeSummary: {
+                            urgent: 0,
+                            planned: 0,
+                            normal: 0,
+                        }
+                    },
+                    executorStats: {
+                        totalRequests: 0,
+                        urgent: 0,
+                        inWork: 0,
+                        completed: 0,
+                        onTime: 0,
+                        late: 0,
+                        averageExecutionHours: '0',
+                        averageRating: '0',
+                    },
+                    managerStats: [],
+                    myRating: 0,
                     lastUpdated: null,
                     loading: false,
                     error: null,

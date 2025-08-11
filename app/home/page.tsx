@@ -15,6 +15,7 @@ import PullToRefresh from "@/components/pull-to-refresh";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {CardModal} from "@/components/home-modal/CardModal";
+import api from "@/lib/api";
 
 type OfficeType = {
     id: number
@@ -38,6 +39,7 @@ export default function HomePage() {
         { id: 2, name: "Kcell North", city: "Astana", address: "Baitursynov 12", lat: 51.169392, lon: 71.449074 },
         { id: 3, name: "Kcell East", city: "Shymkent", address: "Zhibek Zholy 7", lat: 42.3417, lon: 69.5901 },
     ])
+    const [realOffices, setRealOffices] = useState([])
 
     const router = useRouter()
     const {role, token} = useAuthStore()
@@ -65,9 +67,25 @@ export default function HomePage() {
         }
     }, [isDesktop]);
 
+    useEffect(() => {
+        const fetchOffices = async () => {
+            if (realOffices.length !== 0) return;
+            try {
+                const response = await api.get('/offices')
+                setRealOffices(response.data)
+            } catch (error) {
+                console.error("Failed to fetch categories:", error)
+            }
+        }
+
+        if (role === 'manager') {
+            fetchOffices()
+        }
+    }, [realOffices.length])
+
     const chartData: ChartData[] = useMemo(() => {
         if (role !== 'manager') return [];
-        const subset = office === "all" ? managerStats : managerStats!.filter((s) => s.officeId === Number(office))
+        const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
         const now = new Date()
         const start = new Date(
             period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
@@ -75,7 +93,7 @@ export default function HomePage() {
             period === "week" ? now.getDate() - 7 : now.getDate(),
         )
         const map: Record<string, number> = {}
-        subset!.forEach((s) => {
+        subset.forEach((s) => {
             Object.entries(s.data).forEach(([date, d]) => {
                 const dd = new Date(date)
                 if (dd >= start) map[date] = (map[date] || 0) + d.totalRequests
@@ -84,11 +102,11 @@ export default function HomePage() {
         return Object.entries(map)
             .map(([date, count]) => ({ date, count }))
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    }, [managerStats, office, period])
+    }, [office, period])
 
     const distribution = useMemo(() => {
         if (role !== 'manager') return;
-        const subset = office === "all" ? managerStats : managerStats!.filter((s) => s.officeId === Number(office))
+        const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
         const now = new Date()
         const start = new Date(
             period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
@@ -99,7 +117,7 @@ export default function HomePage() {
         let normal = 0
         let urgent = 0
         let planned = 0
-        subset!.forEach((stat) => {
+        subset.forEach((stat) => {
             Object.entries(stat.data).forEach(([date, data]) => {
                 const d = new Date(date)
                 if (d >= start) {
@@ -120,7 +138,7 @@ export default function HomePage() {
             urgentPercent: pct(urgent),
             plannedPercent: pct(planned),
         }
-    }, [managerStats, office, period])
+    }, [office, period])
 
     const roleTranslations: Record<string, string> = {
         client: "Клиент",
@@ -156,8 +174,17 @@ export default function HomePage() {
     }
 
     const summary = useMemo(() => {
-        if (role !== "manager") return;
-        const subset = office === "all" ? managerStats : managerStats!.filter((s) => s.officeId === Number(office))
+        if (role !== "manager") {
+            return {
+                total: 0,
+                completed: 0,
+                overdue: 0,
+                completionRate: 0,
+                overdueRate: 0,
+                avgPerDay: 0,
+            }
+        }
+        const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
         const now = new Date()
         const start = new Date(
             period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
@@ -168,7 +195,7 @@ export default function HomePage() {
         let completed = 0
         let overdue = 0
         const dayCounts = new Set<string>()
-        subset!.forEach((stat) => {
+        subset.forEach((stat) => {
             Object.entries(stat.data).forEach(([date, data]) => {
                 const d = new Date(date)
                 if (d >= start) {
@@ -204,6 +231,7 @@ export default function HomePage() {
 
     const resetAllStates = async () => {
         resetStats()
+        setRealOffices([])
     }
 
     const Stat = ({ label, value }: { label: string; value: number | string }) => (
@@ -218,7 +246,7 @@ export default function HomePage() {
     return (
         <>
             <Header
-                role={roleTranslations[role!]}
+                role={roleTranslations[role !== null ? role : '']}
                 handleLogout={() => {}}
                 setShowProfile={() => {}}
             />
@@ -258,43 +286,45 @@ export default function HomePage() {
                     </section>
 
                     {/* Controls container with max-width wrapper */}
-                    <section className="pt-3">
-                        <div className="mx-auto max-w-screen-sm px-3">
-                            <Card className="border bg-white">
-                                <CardContent className="flex flex-col gap-3 p-3">
-                                    <div className="flex gap-3">
-                                        <div className="flex-1">
-                                            <Select value={office} onValueChange={setOffice}>
-                                                <SelectTrigger className="h-10 w-full">
-                                                    <SelectValue placeholder="Офис" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Все</SelectItem>
-                                                    {offices.map((o) => (
-                                                        <SelectItem key={o.id} value={String(o.id)}>
-                                                            {o.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                    {role === "manager" && (
+                        <section className="pt-3">
+                            <div className="mx-auto max-w-screen-sm px-3">
+                                <Card className="border bg-white">
+                                    <CardContent className="flex flex-col gap-3 p-3">
+                                        <div className="flex gap-3">
+                                            <div className="flex-1">
+                                                <Select value={office} onValueChange={setOffice}>
+                                                    <SelectTrigger className="h-10 w-full">
+                                                        <SelectValue placeholder="Офис" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Все</SelectItem>
+                                                        {realOffices.map((o:any, index) => (
+                                                            <SelectItem key={index} value={String(o.id)}>
+                                                                {o.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="flex-1">
+                                                <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+                                                    <SelectTrigger className="h-10 w-full">
+                                                        <SelectValue placeholder="Период" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="week">Неделя</SelectItem>
+                                                        <SelectItem value="month">Месяц</SelectItem>
+                                                        <SelectItem value="year">Год</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                         </div>
-                                        <div className="flex-1">
-                                            <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
-                                                <SelectTrigger className="h-10 w-full">
-                                                    <SelectValue placeholder="Период" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="week">Неделя</SelectItem>
-                                                    <SelectItem value="month">Месяц</SelectItem>
-                                                    <SelectItem value="year">Год</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </section>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </section>
+                    )}
 
                     {/* Summary for roles */}
                     <section className="pt-3">
@@ -337,16 +367,16 @@ export default function HomePage() {
                                         <Stat label="Экстренные" value={executorStats?.urgent ?? 0} />
                                         <Stat label="В работе" value={executorStats?.inWork ?? 0} />
                                         <Stat label="Завершено" value={executorStats?.completed ?? 0} />
-                                        <Stat label="Мой рейтинг" value={myRating!} />
+                                        <Stat label="Мой рейтинг" value={myRating} />
                                     </>
                                 )}
 
                                 {role === "manager" && (
                                     <>
-                                        <Stat label="Всего" value={summary!.total} />
-                                        <Stat label="Завершено" value={`${summary!.completed} (${summary!.completionRate}%)`} />
-                                        <Stat label="Просрочено" value={`${summary!.overdue} (${summary!.overdueRate}%)`} />
-                                        <Stat label="В день (ср.)" value={summary!.avgPerDay} />
+                                        <Stat label="Всего" value={summary.total} />
+                                        <Stat label="Завершено" value={`${summary.completed} (${summary.completionRate}%)`} />
+                                        <Stat label="Просрочено" value={`${summary.overdue} (${summary.overdueRate}%)`} />
+                                        <Stat label="В день (ср.)" value={summary.avgPerDay} />
                                     </>
                                 )}
                             </div>
@@ -450,55 +480,56 @@ export default function HomePage() {
                                             <div className="mb-2">
                                                 <div className="text-sm font-medium">Краткий обзор</div>
                                                 <div className="text-xs text-neutral-500">
-                                                    Выполнено {summary!.completed} из {summary!.total} ({summary!.completionRate}
-                                                    %), просрочено {summary!.overdue} ({summary!.overdueRate}%).
+                                                    Выполнено {summary.completed} из {summary.total} ({summary.completionRate}
+                                                    %), просрочено {summary.overdue} ({summary.overdueRate}%).
                                                 </div>
                                             </div>
-
-                                            <div className="space-y-3">
-                                                {[
-                                                    {
-                                                        key: "normal",
-                                                        label: "Обычные",
-                                                        pctKey: "normalPercent",
-                                                        icon: <BarChart3 className="h-4 w-4 text-purple-700" />,
-                                                    },
-                                                    {
-                                                        key: "urgent",
-                                                        label: "Экстренные",
-                                                        pctKey: "urgentPercent",
-                                                        icon: <AlertTriangle className="h-4 w-4 text-purple-700" />,
-                                                    },
-                                                    {
-                                                        key: "planned",
-                                                        label: "Плановые",
-                                                        pctKey: "plannedPercent",
-                                                        icon: <CalendarLucid className="h-4 w-4 text-purple-700" />,
-                                                    },
-                                                ].map((row) => {
-                                                    const totalKey = row.key as "normal" | "urgent" | "planned"
-                                                    const pctKey = row.pctKey as "normalPercent" | "urgentPercent" | "plannedPercent"
-                                                    return (
-                                                        <div key={row.key} className="space-y-2">
-                                                            <div className="flex items-center justify-between text-sm">
-                                                                <div className="flex items-center gap-2">
-                                                                    {row.icon}
-                                                                    <span>{row.label}</span>
-                                                                </div>
-                                                                <span className="font-medium">
-                                                                  {distribution![totalKey]} ({distribution![pctKey]}%)
+                                            {distribution && (
+                                                <div className="space-y-3">
+                                                    {[
+                                                        {
+                                                            key: "normal",
+                                                            label: "Обычные",
+                                                            pctKey: "normalPercent",
+                                                            icon: <BarChart3 className="h-4 w-4 text-purple-700" />,
+                                                        },
+                                                        {
+                                                            key: "urgent",
+                                                            label: "Экстренные",
+                                                            pctKey: "urgentPercent",
+                                                            icon: <AlertTriangle className="h-4 w-4 text-purple-700" />,
+                                                        },
+                                                        {
+                                                            key: "planned",
+                                                            label: "Плановые",
+                                                            pctKey: "plannedPercent",
+                                                            icon: <CalendarLucid className="h-4 w-4 text-purple-700" />,
+                                                        },
+                                                    ].map((row) => {
+                                                        const totalKey = row.key as "normal" | "urgent" | "planned"
+                                                        const pctKey = row.pctKey as "normalPercent" | "urgentPercent" | "plannedPercent"
+                                                        return (
+                                                            <div key={row.key} className="space-y-2">
+                                                                <div className="flex items-center justify-between text-sm">
+                                                                    <div className="flex items-center gap-2">
+                                                                        {row.icon}
+                                                                        <span>{row.label}</span>
+                                                                    </div>
+                                                                    <span className="font-medium">
+                                                                  {distribution[totalKey]} ({distribution[pctKey]}%)
                                                                 </span>
+                                                                </div>
+                                                                <div className="h-2 w-full overflow-hidden rounded bg-neutral-200">
+                                                                    <div
+                                                                        className="h-full bg-purple-700 transition-all"
+                                                                        style={{ width: `${distribution[pctKey]}%` }}
+                                                                    />
+                                                                </div>
                                                             </div>
-                                                            <div className="h-2 w-full overflow-hidden rounded bg-neutral-200">
-                                                                <div
-                                                                    className="h-full bg-purple-700 transition-all"
-                                                                    style={{ width: `${distribution![pctKey]}%` }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            )}
                                         </CardContent>
                                     </Card>
                                 </div>
