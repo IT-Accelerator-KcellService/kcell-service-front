@@ -595,26 +595,55 @@ export default function ManagerDashboard() {
         default:
           periodStartDate = null;
       }
+
       const params = new URLSearchParams();
       if (office && office !== 'all') params.append("office_id", String(office));
       if (periodStartDate) params.append("from", periodStartDate.toISOString());
       params.append("format", format);
 
-      const res = await axios.get(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
-        responseType: "blob",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Для Android WebView используем специальный обработчик
+      if (window.AndroidApp) {
+        const response = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
-      const url = window.URL.createObjectURL(res.data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `analytics.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+        const blob = await response.blob();
+        const reader = new FileReader();
+
+        reader.onloadend = function() {
+          const base64data = reader.result?.toString().split(',')[1] || '';
+          const mimeType = blob.type ||
+              (format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
+                  'application/octet-stream');
+
+          window.AndroidApp.saveFileBase64(
+              `analytics.${format}`,
+              base64data,
+              mimeType
+          );
+        };
+
+        reader.readAsDataURL(blob);
+      } else {
+        // Оригинальный код для веб-браузеров
+        const res = await axios.get(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const url = window.URL.createObjectURL(res.data);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `analytics.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
     } catch (error) {
       console.error("Ошибка при экспорте файла:", error);
       alert("Не удалось экспортировать файл");
