@@ -43,7 +43,6 @@ import {useCategoryStore} from "@/stores/useCategoryStore";
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
-  loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
 })
 
 interface Comment {
@@ -1933,7 +1932,13 @@ export default function ExecutorDashboard() {
                   <CardDescription>Точное местоположение проблемы</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-hidden">
-                  <MapView lat={mapLocation.lat} lon={mapLocation.lon} accuracy={mapLocation.accuracy} />
+                  <React.Suspense fallback={
+                    <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
+                      Загрузка карты...
+                    </div>
+                  }>
+                    <MapView lat={mapLocation.lat} lon={mapLocation.lon} accuracy={mapLocation.accuracy} />
+                  </React.Suspense>
                 </CardContent>
                 <div className="p-4 flex justify-end border-t">
                   <Button onClick={() => { setShowMapModal(false); closeModal(); }}>Закрыть</Button>
