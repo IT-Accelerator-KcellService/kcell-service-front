@@ -68,10 +68,6 @@ interface User {
   email: string
   role: string
 }
-interface Category {
-  id: number
-  name: string
-}
 
 interface Rating {
   id: number
@@ -81,14 +77,6 @@ interface Rating {
 }
 interface Executor{
   id: number,user: User, specialty: string, rating: number, workload: number
-}
-
-interface Comment {
-  id: number,
-  request_id: number,
-  sender_id: number,
-  comment: string,
-  timestamp: Date
 }
 
 interface Stats {
@@ -112,7 +100,7 @@ const parseLocalDate = (dateString: string) => {
 
 export default function DepartmentHeadDashboard() {
   const {role, token, clearAuth, user} = useAuthStore()
-  const {categories, fetchCategories, clearCategories, updateCategories} = useCategoryStore()
+  const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const router = useRouter()
@@ -146,7 +134,6 @@ export default function DepartmentHeadDashboard() {
   const [newExecutorEmail,setNewExecutorEmail]=useState("")
   const [executors, setExecutors] = useState<Executor[]>([])
   const [newExecutorName, setNewExecutorName] = useState("")
-  const [newExecutorSpecialty, setNewExecutorSpecialty] = useState("")
   const [selectedExecutorId, setSelectedExecutorId] = useState<number | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [photos, setPhotos] = useState<File[]>([]);
@@ -162,9 +149,7 @@ export default function DepartmentHeadDashboard() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [executorToDelete, setExecutorToDelete] = useState<Executor | null>(null)
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [stats, setStats] = useState<Stats | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
@@ -179,24 +164,30 @@ export default function DepartmentHeadDashboard() {
     setModalStack(prev => prev.slice(0, -1));
   };
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        if (!user || user.role !== "department-head") {
-          router.push("/login")
-        } else {
-          setIsLoggedIn(true);
-          setCurrentUserId(user.id)
-          setNewRequestOfficeId(String(user.office_id));
-        }
-      } catch (error) {
-        console.error("Ошибка при проверке авторизации", error);
-        router.push("/login")
-      }
-    };
+  const [hydrated, setHydrated] = useState(false);
 
-    checkAuth();
+  useEffect(() => {
+    setHydrated(true); // сработает только на клиенте
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return; // ждём восстановления данных
+
+    if (!user || user.role !== "department-head") {
+      Promise.all([
+        clearNotifications,
+        clearAuth,
+        useStatsStore.getState().resetStats,
+        clearRequests,
+        clearCategories,
+      ])
+      router.push("/login");
+    } else {
+      // пользователь валидный
+      setIsLoggedIn(true);
+      setCurrentUserId(user.id);
+    }
+  }, [hydrated, user, router]);
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
@@ -228,12 +219,6 @@ export default function DepartmentHeadDashboard() {
             break;
           case 'executorDelete':
             setExecutorToDelete(null);
-            break;
-          case 'categoryDelete':
-            setCategoryToDelete(null);
-            break;
-          case 'commentDelete':
-            setCommentToDelete(null);
             break;
           default:
             break;
@@ -275,12 +260,6 @@ export default function DepartmentHeadDashboard() {
       setShowRatingModal(false);
       setRatingValue(0);
       setRequestToRate(null);
-    }
-    if (modalName !== 'commentDelete') {
-      setCommentToDelete(null);
-    }
-    if (modalName !== 'categoryDelete') {
-      setCategoryToDelete(null);
     }
     if (modalName !== 'executorDelete') {
       setExecutorToDelete(null);
@@ -370,7 +349,6 @@ export default function DepartmentHeadDashboard() {
   };
   const [errors, setErrors] = useState({
     name: "",
-    specialty: "",
     email: "",
   })
   const validateEmail = (email: string) => {
@@ -388,7 +366,6 @@ export default function DepartmentHeadDashboard() {
 
   const handleAddExecutor = async () => {
     const name = newExecutorName.trim()
-    const specialty = newExecutorSpecialty.trim()
     const email = newExecutorEmail.trim()
 
     const newErrors = {
@@ -397,14 +374,12 @@ export default function DepartmentHeadDashboard() {
               ? ""
               : "Введите корректное полное имя (например: Иван Иванов)"
           : "Введите имя",
-      specialty: specialty ? "" : "Введите специализацию",
       email: email
           ? validateEmail(email)
               ? ""
               : "Некорректный email"
           : "Введите email",
     }
-
 
     setErrors(newErrors)
 
@@ -413,15 +388,13 @@ export default function DepartmentHeadDashboard() {
     try {
       const response = await api.post('/users', {
         full_name: name,
-        specialty,
         email,
         role: "executor"
       })
       fetchExecutors()
       setNewExecutorName("")
-      setNewExecutorSpecialty("")
       setNewExecutorEmail("")
-      setErrors({ name: "", specialty: "", email: "" })
+      setErrors({ name: "", email: "" })
     } catch (error) {
       console.error("Failed to add executor:", error)
     }
@@ -574,6 +547,8 @@ export default function DepartmentHeadDashboard() {
   useEffect(() => {
     if (myRequests.length === 0 || incomingRequests.length === 0) {
       fetchRequests()
+    }
+    if (executors.length === 0) {
       fetchExecutors()
     }
   }, [])
@@ -757,30 +732,6 @@ export default function DepartmentHeadDashboard() {
     }
   };
 
-
-  const handleAddCategory = async () => {
-    if (newRequestCategory.trim() && !categories.some(c => c.name === newRequestCategory.trim())) {
-      try {
-        const response = await api.post('/service-categories', {
-          name: newRequestCategory.trim()
-        })
-        updateCategories(prev => [...prev, response.data])
-        setNewRequestCategory("")
-      } catch (error) {
-        console.error("Failed to add category:", error)
-      }
-    }
-  }
-
-  const handleRemoveCategory = async (categoryId: number) => {
-    try {
-      await api.delete(`/service-categories/${categoryId}`)
-      updateCategories(prev => prev.filter(category => category.id !== categoryId))
-    } catch (error) {
-      console.error("Failed to remove category:", error)
-    }
-  }
-
   const getTypeColor = (type: string) => {
     switch (type) {
       case "urgent":
@@ -947,7 +898,6 @@ export default function DepartmentHeadDashboard() {
       setStats(null)
       setExecutors([])
       setNewExecutorName("")
-      setNewExecutorSpecialty("")
 
       clearRequests();
       clearNotifications()
@@ -1413,13 +1363,6 @@ export default function DepartmentHeadDashboard() {
                           {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
 
                           <Input
-                              placeholder="Специализация (напр. Электрик)"
-                              value={newExecutorSpecialty}
-                              onChange={(e) => setNewExecutorSpecialty(e.target.value)}
-                          />
-                          {errors.specialty && <p className="text-sm text-red-500">{errors.specialty}</p>}
-
-                          <Input
                               placeholder="Email"
                               value={newExecutorEmail}
                               onChange={(e) => setNewExecutorEmail(e.target.value)}
@@ -1428,7 +1371,7 @@ export default function DepartmentHeadDashboard() {
                         </div>
                         <Button
                             onClick={handleAddExecutor}
-                            disabled={!newExecutorName.trim() || !newExecutorSpecialty.trim() || !newExecutorEmail.trim()}
+                            disabled={!newExecutorName.trim() || !newExecutorEmail.trim()}
                         >
                           Добавить исполнителя
                         </Button>
@@ -1526,74 +1469,6 @@ export default function DepartmentHeadDashboard() {
                                     </div>
                                   </div>
                               ))
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Управление услугами</CardTitle>
-                        <CardDescription>Добавление и просмотр категорий услуг</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex space-x-2">
-                          <Input
-                              placeholder="Название новой категории"
-                              value={newRequestCategory}
-                              onChange={(e) => setNewRequestCategory(e.target.value)}
-                          />
-                          <Button onClick={handleAddCategory} disabled={!newRequestCategory.trim()}>
-                            Добавить
-                          </Button>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Существующие категории:</Label>
-                          {categories.length === 0 ? (
-                              <p className="text-sm text-gray-500">Нет добавленных категорий.</p>
-                          ) : (
-                              <ul className="list-disc pl-5">
-                                {categories.map((category) => (
-                                    <li key={category.id} className="text-sm text-gray-700 flex justify-between items-center">
-                                      {category.name}
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => {
-                                                setCategoryToDelete(category);
-                                                openModal("categoryDelete");
-                                              }}
-                                          >
-                                            <Trash2 className="w-4 h-4 text-red-500" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Удалить категорию?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Это действие нельзя отменить. Вы действительно хотите удалить категорию <strong>{categoryToDelete?.name}</strong>?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                            <AlertDialogAction
-                                                onClick={() => {if(categoryToDelete){
-                                                  handleRemoveCategory(categoryToDelete.id)
-                                                  setCategoryToDelete(null);
-                                                  closeModal();
-                                                }}}
-                                            >
-                                              Удалить
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-
-                                    </li>
-                                ))}
-                              </ul>
                           )}
                         </div>
                       </CardContent>

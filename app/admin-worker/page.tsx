@@ -191,23 +191,30 @@ export default function AdminWorkerDashboard() {
     setModalStack(prev => prev.slice(0, -1));
   };
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        if (!user || user.role !== "admin-worker") {
-          router.push('/login')
-        } else {
-          setIsLoggedIn(true);
-          setCurrentUserId(user.id);
-        }
-      } catch (error) {
-        console.error("Ошибка при проверке авторизации", error);
-        router.push('/login')
-      }
-    };
+  const [hydrated, setHydrated] = useState(false);
 
-    checkAuth();
+  useEffect(() => {
+    setHydrated(true); // сработает только на клиенте
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return; // ждём восстановления данных
+
+    if (!user || user.role !== "admin-worker") {
+      Promise.all([
+        clearNotifications,
+        clearAuth,
+        useStatsStore.getState().resetStats,
+        clearRequests,
+        clearCategories,
+      ])
+      router.push("/login");
+    } else {
+      // пользователь валидный
+      setIsLoggedIn(true);
+      setCurrentUserId(user.id);
+    }
+  }, [hydrated, user, router]);
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {

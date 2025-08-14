@@ -100,6 +100,7 @@ type User = {
   email: string;
   office_id: string;
   role: string;
+  category_id: string
 }
 
 interface Comment {
@@ -129,13 +130,20 @@ interface ChartData {
   count: number;
 }
 
+interface Category {
+  id: number
+  name: string
+}
+
 const parseLocalDate = (dateString: string) => {
   return new Date(dateString + "T00:00:00");
 };
 
 export default function ManagerDashboard() {
   const {role, token, clearAuth, user} = useAuthStore()
-  const {categories, fetchCategories, clearCategories} = useCategoryStore()
+  const {categories, fetchCategories, clearCategories, updateCategories} = useCategoryStore()
+  const [newRequestCategory, setNewRequestCategory] = useState("")
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const approveModal = useAcceptRequestModal()
@@ -144,7 +152,7 @@ export default function ManagerDashboard() {
   const [office, setOffice] = useState("all")
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [tab, setTab] = useState("requests")
-  const [offices, setOffices] = useState([{}])
+  const [offices, setOffices] = useState<any[]>([])
   const [newOfficeName, setNewOfficeName] = useState("")
   const [newOfficeCity, setNewOfficeCity] = useState("")
   const [newOfficeAddress, setNewOfficeAddress] = useState("")
@@ -201,6 +209,7 @@ export default function ManagerDashboard() {
     full_name: "",
     office_id: "",
     role: "",
+    category_id: "",
   });
   const [searchInput, setSearchInput] = useState(''); // Отдельное состояние для input
   const [isSearching, setIsSearching] = useState(false);
@@ -527,6 +536,9 @@ export default function ManagerDashboard() {
             setRequestToDelete(null);
             setDeleteReason("");
             break;
+          case 'categoryDelete':
+            setCategoryToDelete(null);
+            break;
           default:
             break;
         }
@@ -562,7 +574,9 @@ export default function ManagerDashboard() {
     if (modalName !== 'notification') {
       setIsModalOpen(false);
     }
-
+    if (modalName !== 'categoryDelete') {
+      setCategoryToDelete(null);
+    }
     if (modalName !== 'commentDelete') {
       setCommentToDelete(null);
     }
@@ -662,19 +676,33 @@ export default function ManagerDashboard() {
       setFormErrors(null);
       setLoading(true);
 
+      // Если роль department-head, проверяем наличие категории
+      if (newUser.role === "department-head" && !newUser.category_id) {
+        setFormErrors("Выберите категорию для руководителя отдела");
+        setLoading(false);
+        return;
+      }
+
       if (editingUserId) {
-        // Обновить пользователя
+        // Обновление
         const response = await api.put(`/users/${editingUserId}`, newUser);
         setUsers((prev) =>
             prev.map((user) => (user.id === editingUserId ? response.data : user))
         );
       } else {
-        // Добавить нового пользователя
+        // Добавление
         const response = await api.post("/users", newUser);
-        setUsers(prev => [...prev, newUser]);
+        setUsers((prev) => [...prev, response.data]);
       }
 
-      setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "" });
+      setNewUser({
+        id: 0,
+        email: "",
+        full_name: "",
+        office_id: "",
+        role: "",
+        category_id: "",
+      });
       setEditingUserId(null);
     } catch (err) {
       setFormErrors("Ошибка при сохранении пользователя");
@@ -684,23 +712,30 @@ export default function ManagerDashboard() {
     }
   };
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        if (!user || user.role !== "manager") {
-          router.push("/login")
-        } else {
-          setIsLoggedIn(true);
-          setCurrentUserId(user.id);
-        }
-      } catch (error) {
-        console.error("Ошибка при проверке авторизации", error);
-        router.push("/login")
-      }
-    };
+  const [hydrated, setHydrated] = useState(false);
 
-    checkAuth();
+  useEffect(() => {
+    setHydrated(true); // сработает только на клиенте
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return; // ждём восстановления данных
+
+    if (!user || user.role !== "manager") {
+      Promise.all([
+        clearNotifications,
+        clearAuth,
+        useStatsStore.getState().resetStats,
+        clearRequests,
+        clearCategories,
+      ])
+      router.push("/login");
+    } else {
+      // пользователь валидный
+      setIsLoggedIn(true);
+      setCurrentUserId(user.id);
+    }
+  }, [hydrated, user, router]);
 
   const handleDeleteUser = async (userId: number) => {
     try {
@@ -727,6 +762,7 @@ export default function ManagerDashboard() {
       full_name: user.full_name,
       office_id: user.office_id,
       role: user.role,
+      category_id: user.role === "department-head" ? user.category_id : '',
     });
     setEditingUserId(user.id);
   };
@@ -734,10 +770,14 @@ export default function ManagerDashboard() {
   useEffect(() => {
     if (requests.length === 0) {
       fetchRequests(1)
+    }
+    if (notifications.length === 0) {
       fetchNotifications()
+    }
+    if (offices.length === 0) {
       fetchOffices()
     }
-  }, [])
+  }, [offices, notifications, requests]);
 
   const fetchRequests = async (pageToLoad = 1) => {
     try {
@@ -760,7 +800,7 @@ export default function ManagerDashboard() {
 
   const handleLogout = async () => {
     try {
-      setIsLoggedIn(false),
+      setIsLoggedIn(false)
       router.push("/login")
       Promise.all([
         clearNotifications,
@@ -1338,7 +1378,7 @@ export default function ManagerDashboard() {
       setNewOfficeAddress("")
       setFilterStatus("all")
       setFilterType("all")
-      setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "" });
+      setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "", category_id: "" });
       setSearchInput("")
       setEditedOffice({name: "", city: "", address: ""})
       setDistribution({
@@ -1368,6 +1408,29 @@ export default function ManagerDashboard() {
       console.error("Ошибка при обновлении:", error);
     }
   };
+
+  const handleAddCategory = async () => {
+    if (newRequestCategory.trim() && !categories.some(c => c.name === newRequestCategory.trim())) {
+      try {
+        const response = await api.post('/service-categories', {
+          name: newRequestCategory.trim()
+        })
+        updateCategories(prev => [...prev, response.data])
+        setNewRequestCategory("")
+      } catch (error) {
+        console.error("Failed to add category:", error)
+      }
+    }
+  }
+
+  const handleRemoveCategory = async (categoryId: number) => {
+    try {
+      await api.delete(`/service-categories/${categoryId}`)
+      updateCategories(prev => prev.filter(category => category.id !== categoryId))
+    } catch (error) {
+      console.error("Failed to remove category:", error)
+    }
+  }
 
   return (
     <>
@@ -1793,9 +1856,9 @@ export default function ManagerDashboard() {
                         <p className="text-sm text-gray-500 italic">Нет добавленных офисов.</p>
                     ) : (
                         <div className="grid grid-cols-1 gap-2">
-                          {offices.map((officeItem: any) => (
+                          {offices.map((officeItem: any, index: number) => (
                               <div
-                                  key={officeItem.id}
+                                  key={index}
                                   className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded-lg border space-y-2 sm:space-y-0"
                               >
                                 {editingOfficeId === officeItem.id ? (
@@ -1969,35 +2032,66 @@ export default function ManagerDashboard() {
                         onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
                     />
                     <Select
-                        value={newUser.office_id}
+                        value={String(newUser.office_id)}
                         onValueChange={(val) => setNewUser({ ...newUser, office_id: val })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Офис" />
                       </SelectTrigger>
                       <SelectContent>
-                        {offices.map((office: any) => (
-                            <SelectItem key={office.id} value={office.id}>
+                        {offices.map((office: any, index: number) => (
+                            <SelectItem key={index} value={String(office.id)}>
                               {office.name}
                             </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+
                     <Select
                         value={newUser.role}
-                        onValueChange={(val) => setNewUser({ ...newUser, role: val })}
+                        onValueChange={(val) => {
+                          // Меняем роль только если не executor
+                          if (!(editingUserId && newUser.role === "executor")) {
+                            setNewUser({ ...newUser, role: val, category_id: "" });
+                          }
+                        }}
+                        disabled={!!editingUserId && newUser.role === "executor"}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Роль" />
                       </SelectTrigger>
                       <SelectContent>
-                        {["client", "admin-worker", "department-head", "manager", "executor"].map((role) => (
-                            <SelectItem key={role} value={role}>
-                              {roleTranslations[role] || role}
-                            </SelectItem>
-                        ))}
+                        {["client", "admin-worker", "department-head", "manager", "executor"]
+                            .filter((role) => {
+                              if (!editingUserId && role === "executor") return false; // при добавлении убираем executor
+                              return true;
+                            })
+                            .map((role) => (
+                                <SelectItem key={role} value={role}>
+                                  {roleTranslations[role] || role}
+                                </SelectItem>
+                            ))}
                       </SelectContent>
                     </Select>
+
+                    {/* Появляется только если выбрана роль department-head */}
+                    {newUser.role === "department-head" && (
+                        <Select
+                            value={newUser.category_id || ""}
+                            onValueChange={(val) => setNewUser({ ...newUser, category_id: val })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Специализация" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((cat: any) => (
+                                <SelectItem key={cat.id} value={String(cat.id)}>
+                                  {cat.name}
+                                </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                    )}
                   </div>
                   {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
 
@@ -2028,7 +2122,7 @@ export default function ManagerDashboard() {
                                   <div className="font-semibold text-gray-800 truncate">{user.full_name}</div>
                                   <div className="text-sm text-gray-500 truncate">{user.email}</div>
                                   <div className="text-xs text-gray-400 truncate">
-                                    {roleTranslations[user.role] || user.role} • {user.office?.name || 'Офис не указан'}
+                                    {roleTranslations[user.role] || user.role} • {user.office?.id || 'Офис не указан'}
                                   </div>
                                 </div>
 
@@ -2100,6 +2194,75 @@ export default function ManagerDashboard() {
                         </Button>
                       </div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              { /* Управление услугами */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Управление услугами</CardTitle>
+                  <CardDescription>Добавление и просмотр категорий услуг</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex space-x-2">
+                    <Input
+                        placeholder="Название новой категории"
+                        value={newRequestCategory}
+                        onChange={(e) => setNewRequestCategory(e.target.value)}
+                    />
+                    <Button onClick={handleAddCategory} disabled={!newRequestCategory.trim()}>
+                      Добавить
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Существующие категории:</Label>
+                    {categories.length === 0 ? (
+                        <p className="text-sm text-gray-500">Нет добавленных категорий.</p>
+                    ) : (
+                        <ul className="list-disc pl-5">
+                          {categories.map((category) => (
+                              <li key={category.id} className="text-sm text-gray-700 flex justify-between items-center">
+                                {category.name}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setCategoryToDelete(category);
+                                          openModal("categoryDelete");
+                                        }}
+                                    >
+                                      <Trash2 className="w-4 h-4 text-red-500" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Удалить категорию?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Это действие нельзя отменить. Вы действительно хотите удалить категорию <strong>{categoryToDelete?.name}</strong>?
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Отмена</AlertDialogCancel>
+                                      <AlertDialogAction
+                                          onClick={() => {if(categoryToDelete){
+                                            handleRemoveCategory(categoryToDelete.id)
+                                            setCategoryToDelete(null);
+                                            closeModal();
+                                          }}}
+                                      >
+                                        Удалить
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+
+                              </li>
+                          ))}
+                        </ul>
+                    )}
                   </div>
                 </CardContent>
               </Card>
