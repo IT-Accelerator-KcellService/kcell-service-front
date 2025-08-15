@@ -593,7 +593,7 @@ export default function AdminWorkerDashboard() {
     return false;
   }
 
-  const handleApproveRequest = async (requestId: number, categoryId: number,sla: any ,complexity :any  ) => {
+  const handleApproveRequest = async (requestId: number, categoryId: number,sla: any ,complexity :any,requestType: string  ) => {
     if (await validateForApprove()) {
       setFormErrors("Пожалуйста, заполните все обязательные поля.");
       return;
@@ -605,7 +605,8 @@ export default function AdminWorkerDashboard() {
         status: "awaiting_assignment",
         category_id: categoryId,
         sla: sla,
-        complexity: complexity
+        complexity: complexity,
+        request_type: requestType
       });
       fetchRequests();
       setSelectedRequest(null);
@@ -1479,11 +1480,32 @@ export default function AdminWorkerDashboard() {
                 <CardContent className="space-y-6 pb-16">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Тип заявки</Label>
-                      <Badge className={getTypeColor(selectedRequest.request_type)}>
-                        {translateType(selectedRequest.request_type)}
-                      </Badge>
+                      <Label>Приоритет заявки</Label>
+                      {selectedRequest.status === 'in_progress' ? (
+                          <Select
+                              value={selectedRequest.request_type}
+                              onValueChange={(value) =>
+                                  setSelectedRequest({
+                                    ...selectedRequest,
+                                    request_type: value
+                                  })
+                              }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Выберите приоритет" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="urgent">Экстренная</SelectItem>
+                              <SelectItem value="normal">Обычная</SelectItem>
+                            </SelectContent>
+                          </Select>
+                      ) : (
+                          <Badge className={getRequestTypeColor(selectedRequest.request_type)}>
+                            {translateType(selectedRequest.request_type)}
+                          </Badge>
+                      )}
                     </div>
+
                     <div>
                       <Label>Статус</Label>
                       <Badge className={getStatusColor(selectedRequest.status)}>
@@ -1551,27 +1573,32 @@ export default function AdminWorkerDashboard() {
                     <Label>Описание</Label>
                     <p className="text-sm">{selectedRequest.description}</p>
                   </div>
-
                   <div>
                     <Label htmlFor="category">Категория услуги</Label>
-                    <Select
-                        value={selectedRequest.category_id?.toString() || ""}
-                        onValueChange={(val) => setSelectedRequest({
-                          ...selectedRequest,
-                          category_id: parseInt(val)
-                        })}
-                    >
-                      <SelectTrigger id="category">
-                        <SelectValue placeholder="Выберите категорию" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(category => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.name}
-                            </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {selectedRequest.status === 'in_progress' ? (
+                        <Select
+                            value={selectedRequest.category_id?.toString() || ""}
+                            onValueChange={(val) => setSelectedRequest({
+                              ...selectedRequest,
+                              category_id: parseInt(val)
+                            })}
+                        >
+                          <SelectTrigger id="category">
+                            <SelectValue placeholder="Выберите категорию" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map(category => (
+                                <SelectItem key={category.id} value={category.id.toString()}>
+                                  {category.name}
+                                </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                    ) : (
+                        <p className="text-sm font-medium">
+                          {categories.find(c => c.id === selectedRequest.category_id)?.name || "Не указана"}
+                        </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1734,7 +1761,8 @@ export default function AdminWorkerDashboard() {
                                     selectedRequest.id,
                                     selectedRequest.category_id,
                                     selectedRequest.sla,
-                                    selectedRequest.complexity
+                                    selectedRequest.complexity,
+                                    selectedRequest.request_type,
                                 );
                               }
                             }}
