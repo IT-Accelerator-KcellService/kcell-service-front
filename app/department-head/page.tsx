@@ -386,10 +386,9 @@ export default function DepartmentHeadDashboard() {
     if (Object.values(newErrors).some((err) => err !== "")) return
 
     try {
-      const response = await api.post('/users', {
+      const response = await api.post('/executors', {
         full_name: name,
         email,
-        role: "executor"
       })
       fetchExecutors()
       setNewExecutorName("")

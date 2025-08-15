@@ -98,9 +98,9 @@ type User = {
   id: number;
   full_name: string;
   email: string;
-  office_id: string;
+  office_id: number;
   role: string;
-  category_id: string
+  service_category_id: number
 }
 
 interface Comment {
@@ -207,9 +207,9 @@ export default function ManagerDashboard() {
     id: 0,
     email: "",
     full_name: "",
-    office_id: "",
+    office_id: 0,
     role: "",
-    category_id: "",
+    category_id: 0,
   });
   const [searchInput, setSearchInput] = useState(''); // Отдельное состояние для input
   const [isSearching, setIsSearching] = useState(false);
@@ -683,15 +683,26 @@ export default function ManagerDashboard() {
         return;
       }
 
+      const payload = {
+        id: newUser.id,
+        email: newUser.email,
+        full_name: newUser.full_name,
+        office_id: newUser.office_id,
+        role: newUser.role,
+        category_id: newUser.role === 'department-head' ? newUser.category_id : undefined,
+      }
+
       if (editingUserId) {
         // Обновление
-        const response = await api.put(`/users/${editingUserId}`, newUser);
+        const response = await api.put(`/users/${editingUserId}`, payload);
         setUsers((prev) =>
             prev.map((user) => (user.id === editingUserId ? response.data : user))
         );
       } else {
         // Добавление
         const response = await api.post("/users", newUser);
+        response.data.office_id = newUser.office_id;
+        response.data.category_id = newUser.category_id;
         setUsers((prev) => [...prev, response.data]);
       }
 
@@ -699,9 +710,9 @@ export default function ManagerDashboard() {
         id: 0,
         email: "",
         full_name: "",
-        office_id: "",
+        office_id: 0,
         role: "",
-        category_id: "",
+        category_id: 0,
       });
       setEditingUserId(null);
     } catch (err) {
@@ -752,7 +763,7 @@ export default function ManagerDashboard() {
   const isValidUser =
       newUser.email.trim() &&
       newUser.full_name.trim() &&
-      newUser.office_id &&
+      newUser.office_id !== 0 &&
       newUser.role;
 
   const handleEditUser = (user: User) => {
@@ -762,7 +773,7 @@ export default function ManagerDashboard() {
       full_name: user.full_name,
       office_id: user.office_id,
       role: user.role,
-      category_id: user.role === "department-head" ? user.category_id : '',
+      category_id: user.role === "department-head" ? Number(user.service_category_id) : 0,
     });
     setEditingUserId(user.id);
   };
@@ -1378,7 +1389,7 @@ export default function ManagerDashboard() {
       setNewOfficeAddress("")
       setFilterStatus("all")
       setFilterType("all")
-      setNewUser({ id: 0, email: "", full_name: "", office_id: "", role: "", category_id: "" });
+      setNewUser({ id: 0, email: "", full_name: "", office_id: 0, role: "", category_id: 0 });
       setSearchInput("")
       setEditedOffice({name: "", city: "", address: ""})
       setDistribution({
@@ -1812,7 +1823,7 @@ export default function ManagerDashboard() {
 
           {/* Management Tab Content for Manager */}
           <TabsContent value="management">
-            <div className="space-y-6">
+            <div className="space-y-6 mb-20">
               {/* Office Management Card (Moved here) */}
               <Card>
                 <CardHeader>
@@ -2032,8 +2043,8 @@ export default function ManagerDashboard() {
                         onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
                     />
                     <Select
-                        value={String(newUser.office_id)}
-                        onValueChange={(val) => setNewUser({ ...newUser, office_id: val })}
+                        value={String(newUser.office_id === 0 ? "" : newUser.office_id)}
+                        onValueChange={(val) => setNewUser({ ...newUser, office_id: Number(val) })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Офис" />
@@ -2052,7 +2063,7 @@ export default function ManagerDashboard() {
                         onValueChange={(val) => {
                           // Меняем роль только если не executor
                           if (!(editingUserId && newUser.role === "executor")) {
-                            setNewUser({ ...newUser, role: val, category_id: "" });
+                            setNewUser({ ...newUser, role: val, category_id: 0 });
                           }
                         }}
                         disabled={!!editingUserId && newUser.role === "executor"}
@@ -2077,15 +2088,15 @@ export default function ManagerDashboard() {
                     {/* Появляется только если выбрана роль department-head */}
                     {newUser.role === "department-head" && (
                         <Select
-                            value={newUser.category_id || ""}
-                            onValueChange={(val) => setNewUser({ ...newUser, category_id: val })}
+                            value={String(newUser.category_id) === "0" ? undefined : String(newUser.category_id)}
+                            onValueChange={(val) => setNewUser({ ...newUser, category_id: Number(val) })}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Специализация" />
                           </SelectTrigger>
                           <SelectContent>
-                            {categories.map((cat: any) => (
-                                <SelectItem key={cat.id} value={String(cat.id)}>
+                            {categories.map((cat: any, index: number) => (
+                                <SelectItem key={index} value={String(cat.id)}>
                                   {cat.name}
                                 </SelectItem>
                             ))}
@@ -2112,9 +2123,9 @@ export default function ManagerDashboard() {
                         <p className="text-sm text-gray-500 italic">Нет пользователей.</p>
                     ) : (
                         <div className="grid grid-cols-1 gap-3">
-                          {users.map((user: any) => (
+                          {users.map((user: any, index: number) => (
                               <div
-                                  key={user.id}
+                                  key={index}
                                   className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 bg-gray-50 rounded-lg border"
                               >
                                 {/* Информация о пользователе */}
@@ -2122,7 +2133,7 @@ export default function ManagerDashboard() {
                                   <div className="font-semibold text-gray-800 truncate">{user.full_name}</div>
                                   <div className="text-sm text-gray-500 truncate">{user.email}</div>
                                   <div className="text-xs text-gray-400 truncate">
-                                    {roleTranslations[user.role] || user.role} • {user.office?.id || 'Офис не указан'}
+                                    {roleTranslations[user.role] || user.role} • {user.office?.name || 'Офис не указан'}
                                   </div>
                                 </div>
 
