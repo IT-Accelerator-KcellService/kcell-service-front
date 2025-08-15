@@ -99,7 +99,6 @@ export default function ExecutorDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [completeFormErrors, setCompleteFormErrors] = useState<string | null>(null);
-  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
@@ -378,7 +377,6 @@ export default function ExecutorDashboard() {
       formData.append('location_detail', newRequestLocation);
       formData.append('category_id', String(selectedCategoryId));
       formData.append('status', 'in_progress');
-      formData.append('office_id', String(newRequestOfficeId));
       photos.forEach(photo => formData.append('photos', photo));
       formData.append('type', 'before');
       const response = await api.post('/requests/with-photos', formData, {

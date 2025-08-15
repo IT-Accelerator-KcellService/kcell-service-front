@@ -650,7 +650,6 @@ export default function ClientDashboard() {
       // Поля заявки
       formData.append('title', requestTitle);
       formData.append('description', requestDescription);
-      formData.append('office_id', newRequestOfficeId);
       formData.append('request_type', requestType);
       formData.append('location', requestLocation);
       formData.append('location_detail', requestLocationDetails);

@@ -139,7 +139,6 @@ export default function DepartmentHeadDashboard() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
-  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const date = newRequestPlannedDate
       ? parseLocalDate(newRequestPlannedDate)
       : undefined;
@@ -630,7 +629,6 @@ export default function DepartmentHeadDashboard() {
       formData.append('location', newRequestLocation);
       formData.append('location_detail', newRequestLocationDetails);
       formData.append('category_id', String(categories.find(c => c.name === newRequestCategory)?.id));
-      formData.append('office_id', newRequestOfficeId);
       formData.append('status', 'awaiting_assignment');
       if (newRequestComplexity) formData.append('complexity', newRequestComplexity);
       if (newRequestSLA) formData.append('sla', newRequestSLA);
