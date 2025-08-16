@@ -135,6 +135,7 @@ export default function DepartmentHeadDashboard() {
   const [executors, setExecutors] = useState<Executor[]>([])
   const [newExecutorName, setNewExecutorName] = useState("")
   const [selectedExecutorId, setSelectedExecutorId] = useState<number | null>(null)
+  const [isLoadingExecutors, setIsLoadingExecutors] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [photos, setPhotos] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -410,6 +411,8 @@ export default function DepartmentHeadDashboard() {
 
     setPhotos((prev) => [...prev, ...selectedFiles]);
     setPhotoPreviews((prev) => [...prev, ...previewUrls]);
+    
+    if (formErrors) setFormErrors(null);
 
     event.target.value = '';
   };
@@ -452,10 +455,13 @@ export default function DepartmentHeadDashboard() {
   };
   const fetchExecutors = async () => {
     try {
+      setIsLoadingExecutors(true)
       const response = await api.get('/executors')
       setExecutors(response.data)
     } catch (error) {
       console.error("Failed to fetch executors:", error)
+    } finally {
+      setIsLoadingExecutors(false)
     }
   }
 
@@ -604,17 +610,44 @@ export default function DepartmentHeadDashboard() {
   }
 
   const handleCreateNewRequest = async () => {
-    if (
-        !newRequestTitle ||
-        !newRequestDescription ||
-        !newRequestType ||
-        !newRequestLocationDetails ||
-        !newRequestLocation ||
-        !newRequestCategory ||
-        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity) ||
-        photos.length === 0
-    ) {
-      setFormErrors("Заполните все обязательные поля.");
+    if (!newRequestTitle) {
+      setFormErrors("Введите название заявки.");
+      return;
+    }
+    if (!newRequestDescription) {
+      setFormErrors("Введите описание проблемы.");
+      return;
+    }
+    if (!newRequestType) {
+      setFormErrors("Выберите тип заявки.");
+      return;
+    }
+    if (!newRequestLocationDetails) {
+      setFormErrors("Введите расположение в офисе.");
+      return;
+    }
+    if (!newRequestLocation) {
+      setFormErrors("Введите локацию.");
+      return;
+    }
+    if (!newRequestCategory) {
+      setFormErrors("Выберите категорию услуги.");
+      return;
+    }
+    if (!newRequestComplexity) {
+      setFormErrors("Выберите сложность заявки.");
+      return;
+    }
+    if (!newRequestSLA) {
+      setFormErrors("Выберите срок выполнения (SLA).");
+      return;
+    }
+    if (newRequestType === "planned" && !newRequestPlannedDate) {
+      setFormErrors("Для плановой заявки выберите дату выполнения.");
+      return;
+    }
+    if (photos.length === 0) {
+      setFormErrors("Добавьте хотя бы одну фотографию.");
       return;
     }
 
@@ -629,9 +662,17 @@ export default function DepartmentHeadDashboard() {
       formData.append('location', newRequestLocation);
       formData.append('location_detail', newRequestLocationDetails);
       formData.append('category_id', String(categories.find(c => c.name === newRequestCategory)?.id));
-      formData.append('status', 'awaiting_assignment');
-      if (newRequestComplexity) formData.append('complexity', newRequestComplexity);
-      if (newRequestSLA) formData.append('sla', newRequestSLA);
+      
+      // Department-head может сразу назначать исполнителя и устанавливать статус
+      if (selectedExecutorId) {
+        formData.append('status', 'assigned');
+        formData.append('executor_id', String(selectedExecutorId));
+      } else {
+        formData.append('status', 'awaiting_assignment');
+      }
+      
+      formData.append('complexity', newRequestComplexity);
+      formData.append('sla', newRequestSLA);
       if (newRequestPlannedDate) formData.append('planned_date', newRequestPlannedDate);
       photos.forEach(photo => formData.append('photos', photo));
       formData.append('type', 'before');
@@ -642,7 +683,20 @@ export default function DepartmentHeadDashboard() {
 
       const newRequest = response.data;
       setMyRequests(prev => [newRequest, ...prev]);
-      successModal.showSuccess();
+      
+      // Показываем соответствующее сообщение об успехе
+      if (selectedExecutorId) {
+        successModal.showSuccess({
+          title: "Заявка создана и исполнитель назначен!",
+          message: "Заявка успешно создана и передана исполнителю."
+        });
+      } else {
+        successModal.showSuccess({
+          title: "Заявка создана!",
+          message: "Заявка отправлена на рассмотрение администратора."
+        });
+      }
+      
       resetForm();
     } catch (error: any) {
       console.error("Ошибка при создании заявки:", error);
@@ -663,8 +717,10 @@ export default function DepartmentHeadDashboard() {
     setNewRequestPlannedDate("");
     setNewRequestComplexity("simple");
     setNewRequestSLA("1h");
+    setSelectedExecutorId(null);
     setPhotos([]);
     setPhotoPreviews([]);
+    setFormErrors(null);
   };
 
   const checkUserRating = async (requestId: number) => {
@@ -874,7 +930,7 @@ export default function DepartmentHeadDashboard() {
   const handleRefresh = async () => {
     try {
       setRejectionReason("")
-      setNewRequestType("")
+      setNewRequestType("normal")
       setNewRequestTitle("")
       setNewRequestLocation("")
       setNewRequestCategory("")
@@ -883,18 +939,21 @@ export default function DepartmentHeadDashboard() {
       setRatingValue(0)
       setClientInfo({})
       setNewRequestSLA("1h")
+      setNewRequestComplexity("simple")
       setNewRequestLocationDetails("")
       setPhotoPreviews([])
       setComment("")
       setComments([])
       setUserRatings({})
-      setFormErrors("")
+      setFormErrors(null)
       setPhotos([])
       setEditCommentId(null)
       setCurrentUserId(null)
       setStats(null)
       setExecutors([])
       setNewExecutorName("")
+      setSelectedExecutorId(null)
+      setIsLoadingExecutors(false)
 
       clearRequests();
       clearNotifications()
@@ -1614,7 +1673,7 @@ export default function DepartmentHeadDashboard() {
                   <div>
                     <Label htmlFor="category">Категория услуги</Label>
                     <Select
-                        value={selectedRequest.category_id?.toString() || ""}
+                        value={selectedRequest.category_id ? selectedRequest.category_id.toString() : ""}
                         onValueChange={(val) => setSelectedRequest({
                           ...selectedRequest,
                           category_id: parseInt(val)
@@ -1637,7 +1696,7 @@ export default function DepartmentHeadDashboard() {
                       <Label>Сложность</Label>
                       {selectedRequest.status === 'in_progress' ? (
                           <Select
-                              value={selectedRequest.complexity}
+                              value={selectedRequest.complexity || ""}
                               onValueChange={(value: 'simple' | 'medium' | 'complex') => {
                                 setSelectedRequest({
                                   ...selectedRequest,
@@ -1667,7 +1726,7 @@ export default function DepartmentHeadDashboard() {
                       <Label>SLA</Label>
                       {selectedRequest.status === 'in_progress' ? (
                           <Select
-                              value={selectedRequest.sla}
+                              value={selectedRequest.sla || ""}
                               onValueChange={(value: string) => {
                                 setSelectedRequest({
                                   ...selectedRequest,
@@ -1704,8 +1763,9 @@ export default function DepartmentHeadDashboard() {
                         <Label>Назначить исполнителя</Label>
                         <div className="flex items-center space-x-4 mt-2">
                           <Select
+                              value={selectedExecutorId ? selectedExecutorId.toString() : ""}
                               onValueChange={(value) => {
-                                setSelectedExecutorId(parseInt(value))
+                                setSelectedExecutorId(value ? parseInt(value) : null)
                               }}
                           >
                             <SelectTrigger className="w-48">
@@ -1900,12 +1960,12 @@ export default function DepartmentHeadDashboard() {
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать {translateType(newRequestType).toLowerCase()} заявку</CardTitle>
-                  <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
+                  <CardDescription>Заполните форму для подачи новой заявки. Вы можете сразу назначить исполнителя и установить SLA.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 pb-16">
                   <div>
                     <Label>Тип заявки</Label>
-                    <Select value={newRequestType} onValueChange={setNewRequestType}>
+                    <Select value={newRequestType || ""} onValueChange={setNewRequestType}>
                       <SelectTrigger>
                         <SelectValue placeholder="Выберите тип заявки" />
                       </SelectTrigger>
@@ -1923,7 +1983,10 @@ export default function DepartmentHeadDashboard() {
                         id="newRequestTitle"
                         placeholder="Краткое название проблемы"
                         value={newRequestTitle}
-                        onChange={(e) => setNewRequestTitle(e.target.value)}
+                        onChange={(e) => {
+                          setNewRequestTitle(e.target.value);
+                          if (formErrors) setFormErrors(null);
+                        }}
                     />
                   </div>
 
@@ -1977,8 +2040,11 @@ export default function DepartmentHeadDashboard() {
                   <div>
                     <Label htmlFor="newRequestCategory">Категория услуги</Label>
                     <Select
-                        value={newRequestCategory}
-                        onValueChange={setNewRequestCategory}
+                        value={newRequestCategory || ""}
+                        onValueChange={(value) => {
+                          setNewRequestCategory(value);
+                          if (formErrors) setFormErrors(null);
+                        }}
                     >
                       <SelectTrigger id="newRequestCategory">
                         <SelectValue placeholder="Выберите категорию" />
@@ -1995,10 +2061,13 @@ export default function DepartmentHeadDashboard() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Сложность</Label>
+                      <Label>Сложность *</Label>
                       <Select
-                          value={newRequestComplexity}
-                          onValueChange={(value: 'simple' | 'medium' | 'complex') => setNewRequestComplexity(value)}
+                          value={newRequestComplexity || ""}
+                          onValueChange={(value: 'simple' | 'medium' | 'complex') => {
+                            setNewRequestComplexity(value);
+                            if (formErrors) setFormErrors(null);
+                          }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Выберите сложность" />
@@ -2012,10 +2081,13 @@ export default function DepartmentHeadDashboard() {
                     </div>
 
                     <div>
-                      <Label>SLA (Срок выполнения)</Label>
+                      <Label>SLA (Срок выполнения) *</Label>
                       <Select
-                          value={newRequestSLA}
-                          onValueChange={setNewRequestSLA}
+                          value={newRequestSLA || ""}
+                          onValueChange={(value) => {
+                            setNewRequestSLA(value);
+                            if (formErrors) setFormErrors(null);
+                          }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Выберите срок" />
@@ -2030,6 +2102,41 @@ export default function DepartmentHeadDashboard() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  <div>
+                    <Label>Назначить исполнителя (необязательно)</Label>
+                    <Select
+                        value={selectedExecutorId ? selectedExecutorId.toString() : "none"}
+                        onValueChange={(value) => setSelectedExecutorId(value === "none" ? null : parseInt(value))}
+                        disabled={isLoadingExecutors}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={isLoadingExecutors ? "Загрузка исполнителей..." : "Выберите исполнителя"} />
+                        {isLoadingExecutors && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Не назначать</SelectItem>
+                        {executors.map((executor) => (
+                            <SelectItem key={executor.user.id} value={executor.user.id.toString()}>
+                              {executor.user.full_name} - {executor.specialty} (Загрузка: {executor.workload})
+                            </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedExecutorId 
+                        ? "Заявка будет создана и сразу передана выбранному исполнителю" 
+                        : "Если исполнитель не выбран, заявка будет отправлена на рассмотрение администратора"
+                      }
+                    </p>
+                    {selectedExecutorId && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-xs text-green-700 font-medium">
+                          ✓ Заявка будет создана со статусом "Назначена" и передана исполнителю
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {newRequestType === "planned" && (
@@ -2070,7 +2177,10 @@ export default function DepartmentHeadDashboard() {
                         placeholder="Опишите проблему подробно..."
                         className="min-h-[100px]"
                         value={newRequestDescription}
-                        onChange={(e) => setNewRequestDescription(e.target.value)}
+                        onChange={(e) => {
+                          setNewRequestDescription(e.target.value);
+                          if (formErrors) setFormErrors(null);
+                        }}
                     />
                   </div>
 
@@ -2126,7 +2236,7 @@ export default function DepartmentHeadDashboard() {
                             Отправка...
                           </>
                       ) : (
-                          "Отправить заявку"
+                          selectedExecutorId ? "Создать и назначить исполнителя" : "Отправить заявку"
                       )}
                     </Button>
                     <Button
