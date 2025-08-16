@@ -1810,7 +1810,7 @@ export default function DepartmentHeadDashboard() {
                             </SelectTrigger>
                             <SelectContent>
                               {executors.map((executor) => (
-                                  <SelectItem key={executor.id} value={executor.id.toString()}>
+                                  <SelectItem key={executor.user.id} value={executor.user.id.toString()}>
                                     {executor.user.full_name} - {executor.specialty} (Загрузка: {executor.workload})
                                     {executor.user.phone && ` - ${executor.user.phone}`}
                                   </SelectItem>

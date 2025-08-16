@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 import {
   Clock,
   AlertTriangle,
@@ -39,6 +40,7 @@ import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
+import { RejectModal } from "@/components/reject-modal";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
@@ -111,8 +113,12 @@ export default function ExecutorDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
-  // ✅ НОВОЕ: Стек модалок
   const [modalStack, setModalStack] = useState<string[]>([]);
+
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [selectedRequestForReject, setSelectedRequestForReject] = useState<any>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState<string | null>(null);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
@@ -121,6 +127,71 @@ export default function ExecutorDashboard() {
 
   const closeModal = () => {
     setModalStack(prev => prev.slice(0, -1));
+  };
+
+  const handleOpenRejectModal = (request: any) => {
+    setSelectedRequestForReject(request);
+    setRejectError(null);
+    setShowRejectModal(true);
+    openModal('rejectModal');
+  };
+
+  const handleCloseRejectModal = () => {
+    setShowRejectModal(false);
+    setSelectedRequestForReject(null);
+    setRejectError(null);
+    closeModal();
+  };
+
+  const handleRejectRequest = async (reason: string) => {
+    if (!selectedRequestForReject) return;
+
+    setIsRejecting(true);
+    setRejectError(null);
+
+    try {
+      // Отправляем запрос на отклонение заявки
+      await api.put(`/requests/${selectedRequestForReject.id}`, {
+        status: "awaiting_assignment",
+        executor_id: null
+      });
+
+      // Обновляем состояние в UI
+      setAssignedRequests(prev => 
+        prev.filter(req => req.id !== selectedRequestForReject.id)
+      );
+
+      setMyRequests(prev => 
+        prev.map(req => 
+          req.id === selectedRequestForReject.id 
+            ? { ...req, status: "awaiting_assignment", executor_id: null }
+            : req
+        )
+      );
+
+      // Асинхронно отправляем уведомление об отклонении (не ждем ответа)
+      api.post('/notifications/reject-assigned', {
+        request_id: selectedRequestForReject.id,
+        reason: reason
+      }).catch(error => {
+        console.error("Ошибка при отправке уведомления об отклонении:", error);
+      });
+
+      // Закрываем модальное окно
+      handleCloseRejectModal();
+
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: "Заявка отклонена",
+        message: "Заявка успешно отклонена и возвращена в очередь назначения"
+      });
+
+    } catch (error: any) {
+      console.error("Ошибка при отклонении заявки:", error);
+      setRejectError(error.response?.data?.error || "Не удалось отклонить заявку");
+    } finally {
+      setIsRejecting(false);
+    }
   };
 
   const [hydrated, setHydrated] = useState(false);
@@ -186,6 +257,9 @@ export default function ExecutorDashboard() {
             break;
           case 'commentDelete':
             setCommentToDelete(null);
+            break;
+          case 'rejectModal':
+            handleCloseRejectModal();
             break;
           default:
             break;
@@ -284,6 +358,9 @@ export default function ExecutorDashboard() {
     }
     if (modalName !== 'commentDelete') {
       setCommentToDelete(null);
+    }
+    if (modalName !== 'rejectModal') {
+      handleCloseRejectModal();
     }
 
     // Очищаем стек и добавляем только текущую модалку
@@ -1228,18 +1305,31 @@ export default function ExecutorDashboard() {
                                       )}
                                     </div>
 
-                                    <div>
+                                    <div className="flex gap-2">
                                       {request.status === "assigned" && (
-                                          <Button
-                                              size="sm"
-                                              className="bg-blue-600 hover:bg-blue-700"
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                handleStartTask(request.id)
-                                              }}
-                                          >
-                                            Начать
-                                          </Button>
+                                          <>
+                                            <Button
+                                                size="sm"
+                                                className="bg-blue-600 hover:bg-blue-700"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  handleStartTask(request.id)
+                                                }}
+                                            >
+                                              Начать
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="border-red-500 text-red-600 hover:bg-red-50"
+                                                onClick={(e) => {
+                                                  e.stopPropagation()
+                                                  handleOpenRejectModal(request)
+                                                }}
+                                            >
+                                              Отклонить
+                                            </Button>
+                                          </>
                                       )}
                                       {request.status === "execution" && (
                                           <Button
@@ -2148,57 +2238,55 @@ export default function ExecutorDashboard() {
                               />
                             </div>
                         )}
-
-                        {/* Секция для комментариев */}
-                        <Card className="mt-2 border-t border-gray-100">
-                          <CardContent className="p-4">
-                            <CommentList
-                                comments={comments}
-                                currentUserId={currentUserId}
-                                onEdit={handleEdit}
-                                onDelete={handleDelete}
-                            />
-
-                            {/* Поле ввода */}
-                            <div className="mt-4 flex flex-col space-y-2">
-                              {editCommentId && (
-                                  <div className="text-xs text-gray-500">
-                                    Редактируется комментарий
-                                    <button
-                                        className="ml-2 text-red-500 hover:underline"
-                                        onClick={() => {
-                                          setEditCommentId(null);
-                                          setComment("");
-                                        }}
-                                    >
-                                      Отменить
-                                    </button>
-                                  </div>
-                              )}
-                              <div className="flex items-center gap-2 w-full">
-                                <input
-                                    type="text"
-                                    value={comment}
-                                    onChange={(e) => setComment(e.target.value)}
-                                    placeholder="Написать комментарий..."
-                                    className="flex-1 min-w-0 p-2.5 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                                />
-                                <Button
-                                    size="sm"
-                                    onClick={handleSend}
-                                    className="bg-violet-600 hover:bg-violet-700 p-2.5 flex-shrink-0"
-                                    aria-label="Отправить комментарий"
-                                >
-                                  <Send className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-
-
                       </div>
                   )}
+
+                  {/* Секция для комментариев */}
+                  <Card className="mt-2 border-t border-gray-100">
+                    <CardContent className="p-4">
+                      <CommentList
+                          comments={comments}
+                          currentUserId={currentUserId}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                      />
+
+                      {/* Поле ввода */}
+                      <div className="mt-4 flex flex-col space-y-2">
+                        {editCommentId && (
+                            <div className="text-xs text-gray-500">
+                              Редактируется комментарий
+                              <button
+                                  className="ml-2 text-red-500 hover:underline"
+                                  onClick={() => {
+                                    setEditCommentId(null);
+                                    setComment("");
+                                  }}
+                              >
+                                Отменить
+                              </button>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 w-full">
+                          <input
+                              type="text"
+                              value={comment}
+                              onChange={(e) => setComment(e.target.value)}
+                              placeholder="Написать комментарий..."
+                              className="flex-1 min-w-0 p-2.5 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                          />
+                          <Button
+                              size="sm"
+                              onClick={handleSend}
+                              className="bg-violet-600 hover:bg-violet-700 p-2.5 flex-shrink-0"
+                              aria-label="Отправить комментарий"
+                          >
+                            <Send className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
                   <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
                     {/* Закрыть */}
@@ -2243,6 +2331,15 @@ export default function ExecutorDashboard() {
             </div>
         )}
 
+        <RejectModal
+          isOpen={showRejectModal}
+          onClose={handleCloseRejectModal}
+          onReject={handleRejectRequest}
+          requestId={selectedRequestForReject?.id}
+          isLoading={isRejecting}
+          error={rejectError}
+        />
+
         <SuccessModal
             isOpen={successModal.isOpen}
             onClose={successModal.hideSuccess}
@@ -2254,7 +2351,7 @@ export default function ExecutorDashboard() {
         <BottomNav
             onCreateRequest={handleOpenCreateRequest}
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedTaskDetails || showMapModal || !!selectedPhoto || showProfile || isModalOpen}
+            hidden={showCreateRequestModal || !!selectedTaskDetails || showMapModal || !!selectedPhoto || showProfile || isModalOpen || showRejectModal}
         />
 
         {isDesktop && <Link
