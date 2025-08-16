@@ -75,6 +75,8 @@ export default function ExecutorDashboard() {
   const [activeTab, setActiveTab] = useState("tasks")
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [afterPhotos, setAfterPhotos] = useState<File[]>([]);
+  const [afterPhotoPreviews, setAfterPhotoPreviews] = useState<string[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null)
   const [selectedTaskDetails, setSelectedTaskDetails] = useState<any>(null)
@@ -90,6 +92,7 @@ export default function ExecutorDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [requestLocation, setRequestLocation] = useState("")
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const afterFileInputRef = useRef<HTMLInputElement | null>(null);
   const [description, setDescription] = useState("");
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<any[]>([]);
@@ -99,6 +102,7 @@ export default function ExecutorDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [completeFormErrors, setCompleteFormErrors] = useState<string | null>(null);
+  const [createMode, setCreateMode] = useState<'create' | 'createAndComplete'>('create');
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
@@ -155,6 +159,10 @@ export default function ExecutorDashboard() {
             setShowCreateRequestModal(false);
             setPhotos([]);
             setPhotoPreviews([]);
+            setAfterPhotos([]);
+            setAfterPhotoPreviews([]);
+            setCreateMode('create');
+            setCompletedRequestComment("");
             break;
           case 'taskComplete':
             setSelectedTask(null);
@@ -238,6 +246,10 @@ export default function ExecutorDashboard() {
       setShowCreateRequestModal(false);
       setPhotos([]);
       setPhotoPreviews([]);
+      setAfterPhotos([]);
+      setAfterPhotoPreviews([]);
+      setCreateMode('create');
+      setCompletedRequestComment("");
     }
     if (modalName !== 'taskComplete') {
       setSelectedTask(null);
@@ -384,11 +396,101 @@ export default function ExecutorDashboard() {
       });
       const newRequest = response.data;
       setMyRequests(prev => [newRequest, ...prev]);
-      successModal.showSuccess();
+      
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: "Заявка создана!",
+        message: "Заявка успешно создана и взята в работу."
+      });
+      
       resetForm();
     } catch (error: any) {
       console.error("Ошибка при создании заявки:", error);
       setFormErrors(error.response?.data?.error || "Не удалось создать заявку.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateAndCompleteRequest = async () => {
+    if (
+        !newRequestTitle ||
+        !description ||
+        !newRequestType ||
+        !requestLocation ||
+        !newRequestLocation ||
+        !selectedCategoryId ||
+        photos.length === 0 ||
+        !completedRequestComment.trim()
+    ) {
+      setFormErrors("Заполните все обязательные поля и добавьте отчёт о выполненной работе.");
+      return;
+    }
+    setIsSubmitting(true);
+    setFormErrors(null);
+    try {
+      // Создаём заявку
+      const formData = new FormData();
+      formData.append('title', newRequestTitle);
+      formData.append('description', description);
+      formData.append('request_type', newRequestType === "urgent" ? "urgent" : "normal");
+      formData.append('location', requestLocation);
+      formData.append('location_detail', newRequestLocation);
+      formData.append('category_id', String(selectedCategoryId));
+      formData.append('status', 'in_progress');
+      photos.forEach(photo => formData.append('photos', photo));
+      formData.append('type', 'before');
+      
+      const response = await api.post('/requests/with-photos', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const newRequest = response.data;
+      
+      // Сразу завершаем заявку
+      const completeResponse = await api.patch(`/requests/${newRequest.id}/complete`, {
+        comment: completedRequestComment
+      });
+
+      // Добавляем фотографии результата, если они есть
+      if (afterPhotos.length > 0) {
+        const afterFormData = new FormData();
+        afterPhotos.forEach((photo) => {
+          afterFormData.append('photos', photo);
+        });
+        afterFormData.append('type', 'after');
+        
+        try {
+          await axios.post(`${API_BASE_URL}/request-photos/${completeResponse.data.id}/photos`, afterFormData, {
+            withCredentials: true,
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+        } catch (photoUploadError) {
+          console.error("Ошибка при загрузке фотографий результата:", photoUploadError);
+        }
+      }
+
+      // Перемещаем заявку в завершённые
+      setCompletedRequests(prev => [{
+        ...newRequest,
+        status: "completed",
+        completedDate: new Date().toISOString(),
+        rating: 0
+      }, ...prev]);
+      
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: "Заявка создана и завершена!",
+        message: "Заявка успешно создана, выполнена и закрыта с отчётом."
+      });
+      
+      resetForm();
+      setCompletedRequestComment("");
+    } catch (error: any) {
+      console.error("Ошибка при создании и завершении заявки:", error);
+      setFormErrors(error.response?.data?.error || "Не удалось создать и завершить заявку.");
     } finally {
       setIsSubmitting(false);
     }
@@ -403,10 +505,18 @@ export default function ExecutorDashboard() {
     setDescription("");
     setPhotos([]);
     setPhotoPreviews([]);
+    setAfterPhotos([]);
+    setAfterPhotoPreviews([]);
+    setCreateMode('create');
+    setCompletedRequestComment("");
   };
 
   const handleButtonClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleAfterButtonClick = () => {
+    afterFileInputRef.current?.click();
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -418,6 +528,18 @@ export default function ExecutorDashboard() {
     const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
     setPhotos((prev) => [...prev, ...selectedFiles]);
     setPhotoPreviews((prev) => [...prev, ...previewUrls]);
+    event.target.value = '';
+  };
+
+  const handleAfterFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+    const fileArray = Array.from(files);
+    const remainingSlots = 3 - afterPhotoPreviews.length;
+    const selectedFiles = fileArray.slice(0, remainingSlots);
+    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
+    setAfterPhotos((prev) => [...prev, ...selectedFiles]);
+    setAfterPhotoPreviews((prev) => [...prev, ...previewUrls]);
     event.target.value = '';
   };
 
@@ -770,12 +892,16 @@ export default function ExecutorDashboard() {
       setSelectedCategoryId(null)
       setMyRating(null)
       setPhotoPreviews([])
+      setAfterPhotoPreviews([])
       setComment("")
       setComments([])
-      setFormErrors("")
+      setFormErrors(null)
       setPhotos([])
+      setAfterPhotos([])
       setEditCommentId(null)
       setStats(null)
+      setCreateMode('create')
+      setCompletedRequestComment("")
 
       clearRequests();
       clearNotifications()
@@ -1572,7 +1698,7 @@ export default function ExecutorDashboard() {
                         disabled={isSubmitting}
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      Завершить задачу
+                      Завершить
                     </Button>
                     <Button
                         variant="outline"
@@ -1593,13 +1719,39 @@ export default function ExecutorDashboard() {
               setShowCreateRequestModal(false)
               setCompletedRequestComment("")
               setComments([])
+              setAfterPhotos([])
+              setAfterPhotoPreviews([])
             }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать заявку</CardTitle>
-                  <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
+                  <CardDescription>
+                    {createMode === 'create' 
+                      ? "Заполните форму для подачи новой заявки" 
+                      : "Создайте заявку и сразу закройте её с отчётом о выполненной работе"
+                    }
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 pb-16">
+                  <div>
+                    <Label>Режим создания</Label>
+                    <Select value={createMode} onValueChange={(value: 'create' | 'createAndComplete') => setCreateMode(value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите режим" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="create">Создать заявку</SelectItem>
+                        <SelectItem value="createAndComplete">Создать и закрыть с отчётом</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {createMode === 'create' 
+                        ? "Заявка будет создана и взята в работу" 
+                        : "Заявка будет создана, выполнена и сразу закрыта с отчётом"
+                      }
+                    </p>
+                  </div>
+
                   <div>
                     <Label>Тип заявки</Label>
                     <Select value={newRequestType} onValueChange={setNewRequestType}>
@@ -1661,8 +1813,23 @@ export default function ExecutorDashboard() {
                     />
                   </div>
 
+                  {createMode === 'createAndComplete' && (
+                    <div>
+                      <Label>Отчёт о выполненной работе *</Label>
+                      <Textarea
+                          placeholder="Опишите выполненную работу, что было сделано, какие материалы использованы..."
+                          className="min-h-[100px]"
+                          value={completedRequestComment}
+                          onChange={(e) => setCompletedRequestComment(e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Обязательное поле для режима "Создать и закрыть с отчётом"
+                      </p>
+                    </div>
+                  )}
+
                   <div>
-                    <Label>Фотографии (до 3 шт.)</Label>
+                    <Label>Фотографии проблемы (до 3 шт.)</Label>
                     <div className="flex flex-wrap gap-4 mt-2">
                       {photoPreviews.map((photo, index) => (
                           <div key={index} className="relative">
@@ -1698,9 +1865,56 @@ export default function ExecutorDashboard() {
                       )}
                     </div>
                   </div>
+
+                  {createMode === 'createAndComplete' && (
+                    <div>
+                      <Label>Фотографии результата (до 3 шт.)</Label>
+                      <div className="flex flex-wrap gap-4 mt-2">
+                        {afterPhotoPreviews.map((photo, index) => (
+                            <div key={index} className="relative">
+                              <img
+                                  src={photo || "/placeholder.svg"}
+                                  alt={`Result Photo ${index + 1}`}
+                                  className="w-20 h-20 object-cover rounded-lg"
+                              />
+                              <button
+                                  onClick={() => setAfterPhotoPreviews(afterPhotoPreviews.filter((_, i) => i !== index))}
+                                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                        ))}
+                        {afterPhotoPreviews.length < 3 && (
+                            <button
+                                type="button"
+                                onClick={handleAfterButtonClick}
+                                className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-green-500 transition-colors"
+                            >
+                              <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  ref={afterFileInputRef}
+                                  onChange={handleAfterFileChange}
+                                  className="hidden"
+                              />
+                              <Camera className="w-6 h-6 text-gray-400" />
+                            </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Фотографии выполненной работы (необязательно)
+                      </p>
+                    </div>
+                  )}
                   {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
                   <div className="flex space-x-4">
-                    <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700" disabled={isSubmitting}>
+                    <Button 
+                      onClick={createMode === 'create' ? handleCreateRequest : handleCreateAndCompleteRequest} 
+                      className="flex-1 bg-violet-600 hover:bg-violet-700" 
+                      disabled={isSubmitting}
+                    >
                       {isSubmitting ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1744,7 +1958,7 @@ export default function ExecutorDashboard() {
                       </Badge>
                     </div>
                     {selectedTaskDetails.client && (
-                        <div>
+                        <div>с
                           <p className="text-sm font-medium text-gray-600">Клиент:</p>
                           <p className="text-base text-gray-800">{selectedTaskDetails.client.full_name}</p>
                         </div>
