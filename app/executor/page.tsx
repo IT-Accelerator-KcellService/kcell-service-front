@@ -104,6 +104,7 @@ export default function ExecutorDashboard() {
   const [completeFormErrors, setCompleteFormErrors] = useState<string | null>(null);
   const [createMode, setCreateMode] = useState<'create' | 'createAndComplete'>('create');
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [executorId, setExecutorId] = useState<number | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [myRating, setMyRating] = useState<number | null>(null)
@@ -213,6 +214,17 @@ export default function ExecutorDashboard() {
       setStats(res.data);
     } catch (error) {
       console.error(error);
+    }
+  }
+
+  const fetchExecutorId = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const executorResponse = await api.get(`/executors/${user.id}/user`);
+      setExecutorId(executorResponse.data.id);
+    } catch (executorError) {
+      console.error("Ошибка при получении executor_id:", executorError);
     }
   }
 
@@ -363,6 +375,9 @@ export default function ExecutorDashboard() {
       fetchNotifications()
       fetchRequests()
     }
+    if (!executorId && user?.id) {
+      fetchExecutorId()
+    }
   }, [])
 
   const handleCreateRequest = async () => {
@@ -381,6 +396,18 @@ export default function ExecutorDashboard() {
     setIsSubmitting(true);
     setFormErrors(null);
     try {
+      // Используем кэшированный executor_id или получаем его
+      let currentExecutorId = executorId;
+      if (!currentExecutorId && user?.id) {
+        try {
+          const executorResponse = await api.get(`/executors/${user.id}/user`);
+          currentExecutorId = executorResponse.data.id;
+          setExecutorId(executorResponse.data.id); // Кэшируем для будущего использования
+        } catch (executorError) {
+          console.error("Ошибка при получении executor_id:", executorError);
+        }
+      }
+
       const formData = new FormData();
       formData.append('title', newRequestTitle);
       formData.append('description', description);
@@ -389,6 +416,9 @@ export default function ExecutorDashboard() {
       formData.append('location_detail', newRequestLocation);
       formData.append('category_id', String(selectedCategoryId));
       formData.append('status', 'in_progress');
+      if (currentExecutorId) {
+        formData.append('executor_id', String(currentExecutorId)); // Добавляем ID исполнителя
+      }
       photos.forEach(photo => formData.append('photos', photo));
       formData.append('type', 'before');
       const response = await api.post('/requests/with-photos', formData, {
@@ -429,6 +459,18 @@ export default function ExecutorDashboard() {
     setIsSubmitting(true);
     setFormErrors(null);
     try {
+      // Используем кэшированный executor_id или получаем его
+      let currentExecutorId = executorId;
+      if (!currentExecutorId && user?.id) {
+        try {
+          const executorResponse = await api.get(`/executors/${user.id}/user`);
+          currentExecutorId = executorResponse.data.id;
+          setExecutorId(executorResponse.data.id); // Кэшируем для будущего использования
+        } catch (executorError) {
+          console.error("Ошибка при получении executor_id:", executorError);
+        }
+      }
+
       // Создаём заявку
       const formData = new FormData();
       formData.append('title', newRequestTitle);
@@ -438,7 +480,10 @@ export default function ExecutorDashboard() {
       formData.append('location_detail', newRequestLocation);
       formData.append('category_id', String(selectedCategoryId));
       formData.append('status', 'completed'); // Создаём сразу завершённую заявку
-      formData.append('completion_comment', completedRequestComment); // Добавляем комментарий завершения
+      formData.append('comment', completedRequestComment); // Добавляем комментарий завершения
+      if (currentExecutorId) {
+        formData.append('executor_id', String(currentExecutorId)); // Добавляем ID исполнителя
+      }
       photos.forEach(photo => formData.append('photos', photo));
       formData.append('type', 'before');
       
@@ -911,6 +956,7 @@ export default function ExecutorDashboard() {
       setStats(null)
       setCreateMode('create')
       setCompletedRequestComment("")
+      setExecutorId(null)
 
       clearRequests();
       clearNotifications()
