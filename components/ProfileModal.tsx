@@ -66,12 +66,17 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             setProfileError("Некорректный email адрес.")
             return
         }
+        if (user.phone && user.phone.length < 10) {
+            setProfileError("Номер телефона должен содержать минимум 10 символов.")
+            return
+        }
 
         setIsSavingProfile(true)
         try {
             await api.put(`/users/${user.id}`, {
                 full_name: user.full_name,
                 email: user.email,
+                phone: user.phone,
             })
             setProfileSuccess("Профиль обновлён.")
         } catch (err: any) {
@@ -234,6 +239,18 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                                                 updateUser((prev) => prev ? { ...prev, email: e.target.value } : null)
                                             }
                                             className="text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">Номер телефона</Label>
+                                        <Input
+                                            type="tel"
+                                            value={user?.phone || ""}
+                                            onChange={(e) =>
+                                                updateUser((prev) => prev ? { ...prev, phone: e.target.value } : null)
+                                            }
+                                            className="text-sm"
+                                            placeholder="+7 (999) 123-45-67"
                                         />
                                     </div>
                                     <div className="space-y-1">

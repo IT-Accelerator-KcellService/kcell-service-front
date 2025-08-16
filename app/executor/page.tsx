@@ -1154,7 +1154,12 @@ export default function ExecutorDashboard() {
                                     {request.executor && request.executor.user.full_name ? (
                                         <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                           <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                          <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                          <div className="flex flex-col">
+                                            <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                            {request.executor.user.phone && (
+                                              <span className="text-xs text-gray-500">{request.executor.user.phone}</span>
+                                            )}
+                                          </div>
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1327,7 +1332,12 @@ export default function ExecutorDashboard() {
                                     { request.executor && request.executor.user.full_name ? (
                                         <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                           <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                          <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                          <div className="flex flex-col">
+                                            <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                            {request.executor.user.phone && (
+                                              <span className="text-xs text-gray-500">{request.executor.user.phone}</span>
+                                            )}
+                                          </div>
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1480,12 +1490,17 @@ export default function ExecutorDashboard() {
                                   <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                                 </div>
 
-                                {request.executor && request.executor.user.full_name ? (
-                                    <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                      <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                      <span className="truncate font-medium">{request.executor.user.full_name}</span>
-                                    </div>
-                                ) : (
+                                                                    {request.executor && request.executor.user.full_name ? (
+                                        <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                          <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                          <div className="flex flex-col">
+                                            <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                            {request.executor.user.phone && (
+                                              <span className="text-xs text-gray-500">{request.executor.user.phone}</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                    ) : (
                                     <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
                                       <User className="w-4 h-4 flex-shrink-0" />
                                       <span className="truncate font-medium">Не назначен</span>
@@ -1958,9 +1973,6 @@ export default function ExecutorDashboard() {
                             </button>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Фотографии выполненной работы (необязательно)
-                      </p>
                     </div>
                   )}
                   {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
@@ -2013,9 +2025,12 @@ export default function ExecutorDashboard() {
                       </Badge>
                     </div>
                     {selectedTaskDetails.client && (
-                        <div>с
+                        <div>
                           <p className="text-sm font-medium text-gray-600">Клиент:</p>
                           <p className="text-base text-gray-800">{selectedTaskDetails.client.full_name}</p>
+                          {selectedTaskDetails.client.phone && (
+                            <p className="text-sm text-gray-600">Телефон: {selectedTaskDetails.client.phone}</p>
+                          )}
                         </div>
                     )}
                     <div>

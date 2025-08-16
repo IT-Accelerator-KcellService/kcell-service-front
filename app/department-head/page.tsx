@@ -66,6 +66,7 @@ interface User {
   id: number
   full_name: string
   email: string
+  phone?: string
   role: string
 }
 
@@ -132,6 +133,7 @@ export default function DepartmentHeadDashboard() {
   const [comments, setComments] = useState<any[]>([])
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({})
   const [newExecutorEmail,setNewExecutorEmail]=useState("")
+  const [newExecutorPhone, setNewExecutorPhone] = useState("")
   const [executors, setExecutors] = useState<Executor[]>([])
   const [newExecutorName, setNewExecutorName] = useState("")
   const [selectedExecutorId, setSelectedExecutorId] = useState<number | null>(null)
@@ -350,6 +352,7 @@ export default function DepartmentHeadDashboard() {
   const [errors, setErrors] = useState({
     name: "",
     email: "",
+    phone: "",
   })
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -367,6 +370,7 @@ export default function DepartmentHeadDashboard() {
   const handleAddExecutor = async () => {
     const name = newExecutorName.trim()
     const email = newExecutorEmail.trim()
+    const phone = newExecutorPhone.trim()
 
     const newErrors = {
       name: name
@@ -379,6 +383,11 @@ export default function DepartmentHeadDashboard() {
               ? ""
               : "Некорректный email"
           : "Введите email",
+      phone: phone
+          ? phone.length >= 10
+              ? ""
+              : "Некорректный номер телефона"
+          : "Введите номер телефона",
     }
 
     setErrors(newErrors)
@@ -389,11 +398,13 @@ export default function DepartmentHeadDashboard() {
       const response = await api.post('/executors', {
         full_name: name,
         email,
+        phone,
       })
       fetchExecutors()
       setNewExecutorName("")
       setNewExecutorEmail("")
-      setErrors({ name: "", email: "" })
+      setNewExecutorPhone("")
+      setErrors({ name: "", email: "", phone: "" })
     } catch (error) {
       console.error("Failed to add executor:", error)
     }
@@ -1127,12 +1138,17 @@ export default function DepartmentHeadDashboard() {
                               <span className="truncate font-medium">{formatDate(request.created_date)}</span>
                             </div>
 
-                            {request.executor && request.executor.user.full_name ? (
-                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                  <span className="truncate font-medium">{request.executor.user.full_name}</span>
-                                </div>
-                            ) : (
+                                                          {request.executor && request.executor.user.full_name ? (
+                                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                    <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
+                                    <div className="flex flex-col">
+                                      <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                      {request.executor.user.phone && (
+                                        <span className="text-xs text-gray-500">{request.executor.user.phone}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                              ) : (
                                 <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
                                   <User className="w-4 h-4 flex-shrink-0" />
                                   <span className="truncate font-medium">Не назначен</span>
@@ -1260,7 +1276,12 @@ export default function DepartmentHeadDashboard() {
                               {request.executor && request.executor.user.full_name ? (
                                   <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                     <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor_id}</span>
+                                    <div className="flex flex-col">
+                                      <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                      {request.executor.user.phone && (
+                                        <span className="text-xs text-gray-500">{request.executor.user.phone}</span>
+                                      )}
+                                    </div>
                                   </div>
                               ) : (
                                   <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -1425,16 +1446,24 @@ export default function DepartmentHeadDashboard() {
                           />
                           {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
                         </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Input
+                              placeholder="Номер телефона"
+                              value={newExecutorPhone}
+                              onChange={(e) => setNewExecutorPhone(e.target.value)}
+                          />
+                          {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
+                        </div>
                         <Button
                             onClick={handleAddExecutor}
-                            disabled={!newExecutorName.trim() || !newExecutorEmail.trim()}
+                            disabled={!newExecutorName.trim() || !newExecutorEmail.trim() || !newExecutorPhone.trim()}
                         >
                           Добавить исполнителя
                         </Button>
                         {/* Поиск исполнителей */}
                         <div className="mt-4">
                           <Input
-                              placeholder="Поиск по имени или специализации..."
+                              placeholder="Поиск по имени"
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
                           />
@@ -1453,6 +1482,9 @@ export default function DepartmentHeadDashboard() {
                                     <div>
                                       <p className="font-medium">{executor.user.full_name}</p>
                                       <p className="text-sm text-gray-600">{executor.specialty}</p>
+                                      {executor.user.phone && (
+                                        <p className="text-sm text-gray-500">{executor.user.phone}</p>
+                                      )}
                                       <div className="flex items-center mt-1">
                                         {[...Array(5)].map((_, i) => (
                                             <div
@@ -1620,6 +1652,11 @@ export default function DepartmentHeadDashboard() {
                         <p className="text-sm font-medium">
                           {clientInfo[selectedRequest.client_id].full_name} ({clientInfo[selectedRequest.client_id].email})
                         </p>
+                        {clientInfo[selectedRequest.client_id].phone && (
+                          <p className="text-sm text-gray-600">
+                            Телефон: {clientInfo[selectedRequest.client_id].phone}
+                          </p>
+                        )}
                       </div>
                   )}
 
@@ -1775,6 +1812,7 @@ export default function DepartmentHeadDashboard() {
                               {executors.map((executor) => (
                                   <SelectItem key={executor.id} value={executor.id.toString()}>
                                     {executor.user.full_name} - {executor.specialty} (Загрузка: {executor.workload})
+                                    {executor.user.phone && ` - ${executor.user.phone}`}
                                   </SelectItem>
                               ))}
                             </SelectContent>
@@ -2120,6 +2158,7 @@ export default function DepartmentHeadDashboard() {
                         {executors.map((executor) => (
                             <SelectItem key={executor.id} value={executor.id.toString()}>
                               {executor.user.full_name} - {executor.specialty} (Загрузка: {executor.workload})
+                              {executor.user.phone && ` - ${executor.user.phone}`}
                             </SelectItem>
                         ))}
                       </SelectContent>

@@ -98,6 +98,7 @@ type User = {
   id: number;
   full_name: string;
   email: string;
+  phone?: string;
   office_id: number;
   role: string;
   service_category_id: number
@@ -207,6 +208,7 @@ export default function ManagerDashboard() {
     id: 0,
     email: "",
     full_name: "",
+    phone: "",
     office_id: 0,
     role: "",
     category_id: 0,
@@ -683,10 +685,18 @@ export default function ManagerDashboard() {
         return;
       }
 
+      // Валидация телефона
+      if (newUser.phone && newUser.phone.length < 10) {
+        setFormErrors("Номер телефона должен содержать минимум 10 символов");
+        setLoading(false);
+        return;
+      }
+
       const payload = {
         id: newUser.id,
         email: newUser.email,
         full_name: newUser.full_name,
+        phone: newUser.phone,
         office_id: newUser.office_id,
         role: newUser.role,
         category_id: newUser.role === 'department-head' ? newUser.category_id : undefined,
@@ -710,6 +720,7 @@ export default function ManagerDashboard() {
         id: 0,
         email: "",
         full_name: "",
+        phone: "",
         office_id: 0,
         role: "",
         category_id: 0,
@@ -771,6 +782,7 @@ export default function ManagerDashboard() {
       id: user.id,
       email: user.email,
       full_name: user.full_name,
+      phone: user.phone || "",
       office_id: user.office_id,
       role: user.role,
       category_id: user.role === "department-head" ? Number(user.service_category_id) : 0,
@@ -1389,7 +1401,7 @@ export default function ManagerDashboard() {
       setNewOfficeAddress("")
       setFilterStatus("all")
       setFilterType("all")
-      setNewUser({ id: 0, email: "", full_name: "", office_id: 0, role: "", category_id: 0 });
+      setNewUser({ id: 0, email: "", full_name: "", phone: "", office_id: 0, role: "", category_id: 0 });
       setSearchInput("")
       setEditedOffice({name: "", city: "", address: ""})
       setDistribution({
@@ -1695,7 +1707,12 @@ export default function ManagerDashboard() {
                             {request.executor && request.executor.user.full_name ? (
                                 <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                   <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                  <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                  <div className="flex flex-col">
+                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
+                                    {request.executor.user.phone && (
+                                      <span className="text-xs text-gray-500">{request.executor.user.phone}</span>
+                                    )}
+                                  </div>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
@@ -2042,6 +2059,11 @@ export default function ManagerDashboard() {
                         value={newUser.full_name}
                         onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
                     />
+                    <Input
+                        placeholder="Номер телефона"
+                        value={newUser.phone}
+                        onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                    />
                     <Select
                         value={String(newUser.office_id === 0 ? "" : newUser.office_id)}
                         onValueChange={(val) => setNewUser({ ...newUser, office_id: Number(val) })}
@@ -2132,6 +2154,9 @@ export default function ManagerDashboard() {
                                 <div className="flex-1 min-w-0 max-w-full sm:max-w-[75%]">
                                   <div className="font-semibold text-gray-800 truncate">{user.full_name}</div>
                                   <div className="text-sm text-gray-500 truncate">{user.email}</div>
+                                  {user.phone && (
+                                    <div className="text-sm text-gray-500 truncate">{user.phone}</div>
+                                  )}
                                   <div className="text-xs text-gray-400 truncate">
                                     {roleTranslations[user.role] || user.role} • {user.office?.name || 'Офис не указан'}
                                   </div>

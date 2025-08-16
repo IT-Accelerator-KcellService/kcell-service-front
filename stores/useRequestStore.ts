@@ -37,7 +37,8 @@ export interface Request {
     location: string;
     location_detail: string;
     created_date: string;
-    executor: {user: { full_name: any } };
+    executor: {user: { full_name: any; phone?: string } };
+    client?: { full_name: string; email: string; phone?: string };
     rating?: number;
     category_id?: number;
     photos?: Photo[];

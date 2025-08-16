@@ -69,11 +69,17 @@ export default function ProfilePage() {
             return
         }
 
+        if (user.phone && user.phone.length < 10) {
+            setProfileError("Номер телефона должен содержать минимум 10 символов.")
+            return
+        }
+
         setIsSavingProfile(true)
         try {
             await api.put(`/users/${user.id}`, {
                 full_name: user.full_name,
                 email: user.email,
+                phone: user.phone,
             })
             setProfileSuccess("Профиль обновлён.")
         } catch (err: any) {
@@ -190,6 +196,17 @@ export default function ProfilePage() {
                                         value={user?.email}
                                         onChange={(e) => updateUser({ ...user, email: e.target.value })}
                                         className="text-sm"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <Label className="text-sm">Номер телефона</Label>
+                                    <Input
+                                        type="tel"
+                                        value={user?.phone || ""}
+                                        onChange={(e) => updateUser({ ...user, phone: e.target.value })}
+                                        className="text-sm"
+                                        placeholder="+7 (999) 123-45-67"
                                     />
                                 </div>
 
