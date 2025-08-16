@@ -1773,7 +1773,7 @@ export default function DepartmentHeadDashboard() {
                             </SelectTrigger>
                             <SelectContent>
                               {executors.map((executor) => (
-                                  <SelectItem key={executor.user.id} value={executor.user.id.toString()}>
+                                  <SelectItem key={executor.id} value={executor.id.toString()}>
                                     {executor.user.full_name} - {executor.specialty} (Загрузка: {executor.workload})
                                   </SelectItem>
                               ))}
@@ -2118,7 +2118,7 @@ export default function DepartmentHeadDashboard() {
                       <SelectContent>
                         <SelectItem value="none">Не назначать</SelectItem>
                         {executors.map((executor) => (
-                            <SelectItem key={executor.user.id} value={executor.user.id.toString()}>
+                            <SelectItem key={executor.id} value={executor.id.toString()}>
                               {executor.user.full_name} - {executor.specialty} (Загрузка: {executor.workload})
                             </SelectItem>
                         ))}
@@ -2236,7 +2236,7 @@ export default function DepartmentHeadDashboard() {
                             Отправка...
                           </>
                       ) : (
-                          selectedExecutorId ? "Создать и назначить исполнителя" : "Отправить заявку"
+                          "Отправить заявку"
                       )}
                     </Button>
                     <Button
