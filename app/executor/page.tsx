@@ -437,7 +437,8 @@ export default function ExecutorDashboard() {
       formData.append('location', requestLocation);
       formData.append('location_detail', newRequestLocation);
       formData.append('category_id', String(selectedCategoryId));
-      formData.append('status', 'in_progress');
+      formData.append('status', 'completed'); // Создаём сразу завершённую заявку
+      formData.append('completion_comment', completedRequestComment); // Добавляем комментарий завершения
       photos.forEach(photo => formData.append('photos', photo));
       formData.append('type', 'before');
       
@@ -447,10 +448,10 @@ export default function ExecutorDashboard() {
       
       const newRequest = response.data;
       
-      // Сразу завершаем заявку
-      const completeResponse = await api.patch(`/requests/${newRequest.id}/complete`, {
-        comment: completedRequestComment
-      });
+      // Проверяем, что заявка создана успешно
+      if (!newRequest || !newRequest.id) {
+        throw new Error("Не удалось создать заявку");
+      }
 
       // Добавляем фотографии результата, если они есть
       if (afterPhotos.length > 0) {
@@ -461,7 +462,7 @@ export default function ExecutorDashboard() {
         afterFormData.append('type', 'after');
         
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${completeResponse.data.id}/photos`, afterFormData, {
+          await axios.post(`${API_BASE_URL}/request-photos/${newRequest.id}/photos`, afterFormData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${token}`
@@ -490,7 +491,15 @@ export default function ExecutorDashboard() {
       setCompletedRequestComment("");
     } catch (error: any) {
       console.error("Ошибка при создании и завершении заявки:", error);
-      setFormErrors(error.response?.data?.error || "Не удалось создать и завершить заявку.");
+      let errorMessage = "Не удалось создать и завершить заявку.";
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setFormErrors(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
