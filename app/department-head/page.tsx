@@ -152,6 +152,8 @@ export default function DepartmentHeadDashboard() {
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [executorToDelete, setExecutorToDelete] = useState<Executor | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
+  const [filterIncomingType, setFilterIncomingType] = useState("all")
   const [stats, setStats] = useState<Stats | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
@@ -620,6 +622,14 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
+  // Фильтрация входящих заявок
+  const filteredIncomingRequests = incomingRequests.filter((request) => {
+    const statusMatch = filterIncomingStatus === "all" || 
+      (filterIncomingStatus === "long_term" ? request.is_long_term : request.status === filterIncomingStatus);
+    const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
+    return statusMatch && typeMatch;
+  });
+
   const handleCreateNewRequest = async () => {
     if (!newRequestTitle) {
       setFormErrors("Введите название заявки.");
@@ -931,6 +941,111 @@ export default function DepartmentHeadDashboard() {
     ))
   }
 
+  const handleToggleLongTerm = async (requestId: number, currentStatus: boolean) => {
+    try {
+      const response = await api.patch(`/requests/${requestId}/long-term`, {
+        is_long_term: !currentStatus
+      });
+
+      // Обновляем состояние в UI
+      const updateRequest = (prev: any[]) => 
+        prev.map(req => 
+          req.id === requestId 
+            ? { ...req, is_long_term: !currentStatus }
+            : req
+        );
+
+      // Обновляем все списки заявок
+      setIncomingRequests(updateRequest);
+      setMyRequests(updateRequest);
+
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: currentStatus ? "Задача снята с долгосрочных" : "Задача помечена как долгосрочная",
+        message: currentStatus 
+          ? "Задача больше не отображается как долгосрочная" 
+          : "Задача помечена как долгосрочная и будет выделена синим цветом"
+      });
+
+    } catch (error: any) {
+      console.error("Ошибка при изменении статуса долгосрочной задачи:", error);
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: error.response?.data?.error || "Не удалось изменить статус задачи"
+      });
+    }
+  };
+
+  const renderLongTermButton = (request: any) => {
+    if (request.status !== "in_progress" && request.status !== "execution") {
+      return null;
+    }
+
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          handleToggleLongTerm(request.id, request.is_long_term || false)
+        }}
+        title={request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную"}
+        className={`group relative p-2 rounded-xl transition-all duration-500 ease-out transform hover:scale-105 active:scale-95 ${
+          request.is_long_term 
+            ? 'bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/40 hover:shadow-blue-500/60 hover:from-blue-600 hover:to-indigo-700' 
+            : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-500 hover:text-blue-600 border border-gray-200 hover:border-blue-300 hover:from-blue-50 hover:to-blue-100 shadow-sm hover:shadow-md'
+        }`}
+      >
+        <span className={`text-base font-medium transition-all duration-500 ${
+          request.is_long_term 
+            ? 'animate-pulse group-hover:animate-none drop-shadow-sm' 
+            : 'group-hover:scale-110 group-hover:rotate-12'
+        }`}>
+          ⏳
+        </span>
+        {request.is_long_term && (
+          <>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping shadow-lg"></span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-pulse"></span>
+          </>
+        )}
+        <div className={`absolute inset-0 rounded-xl transition-all duration-500 ${
+          request.is_long_term 
+            ? 'bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100' 
+            : 'bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100'
+        }`}></div>
+      </button>
+    );
+  };
+
+  const renderCardHeader = (request: any) => {
+    return (
+      <CardHeader className="pb-3 px-5 pt-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                #{request.id}
+              </span>
+              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                {request?.category?.name}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-1 items-center">
+            <Badge
+              variant="outline"
+              className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
+            >
+              {getStatusIcon(request.status)}
+              {translateStatus(request.status)}
+            </Badge>
+            {renderLongTermButton(request)}
+          </div>
+        </div>
+      </CardHeader>
+    );
+  };
+
   const formatDateToString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -1096,31 +1211,7 @@ export default function DepartmentHeadDashboard() {
                               setSelectedRequest(request);
                               openModal("requestDetails")
                             }}>
-                        {/* Заголовок с ID и статусами */}
-                        <CardHeader className="pb-3 px-5 pt-5">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                                  #{request.id}
-                                </span>
-                                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request?.category?.name}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex gap-1">
-                              <Badge
-                                  variant="outline"
-                                  className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
-                              >
-                                {getStatusIcon(request.status)}
-                                {translateStatus(request.status)}
-                              </Badge>
-                            </div>
-                          </div>
-                        </CardHeader>
+                        {renderCardHeader(request)}
 
                         <CardContent className="px-5 pb-5 pt-0 space-y-3">
                           {/* Описание */}
@@ -1224,38 +1315,42 @@ export default function DepartmentHeadDashboard() {
                 </TabsContent>
 
                 <TabsContent value="incoming" className="pt-6 sm:pt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {incomingRequests.map((request, index: number) => (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <Select value={filterIncomingStatus} onValueChange={setFilterIncomingStatus}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Статус" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="execution">Исполнение</SelectItem>
+                          <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="assigned">Назначено</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначения</SelectItem>
+                          <SelectItem value="long_term">⏳ Долгосрочные</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterIncomingType} onValueChange={setFilterIncomingType}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Тип заявки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="normal">Обычная</SelectItem>
+                          <SelectItem value="urgent">Экстренная</SelectItem>
+                          <SelectItem value="planned">Плановая</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredIncomingRequests.map((request, index: number) => (
                         <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
                               onClick={() => {
                                 setSelectedRequest(request);
                                 openModal("requestDetails");
                               }}>
-                          {/* Заголовок с ID и статусами */}
-                          <CardHeader className="pb-3 px-5 pt-5">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                                  #{request.id}
-                                </span>
-                                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request?.category?.name}
-                                </span>
-                                </div>
-                              </div>
-                              <div className="flex gap-1">
-                                <Badge
-                                    variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
-                                >
-                                  {getStatusIcon(request.status)}
-                                  {translateStatus(request.status)}
-                                </Badge>
-                              </div>
-                            </div>
-                          </CardHeader>
+                          {renderCardHeader(request)}
 
                           <CardContent className="px-5 pb-5 pt-0 space-y-3">
                             {/* Описание */}
@@ -1355,6 +1450,7 @@ export default function DepartmentHeadDashboard() {
                           </CardContent>
                         </Card>
                     ))}
+                  </div>
                   </div>
                 </TabsContent>
 

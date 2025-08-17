@@ -194,6 +194,41 @@ export default function ExecutorDashboard() {
     }
   };
 
+  const handleToggleLongTerm = async (requestId: number, currentStatus: boolean) => {
+    try {
+      const response = await api.patch(`/requests/${requestId}/long-term`, {
+        is_long_term: !currentStatus
+      });
+
+      // Обновляем состояние в UI
+      const updateRequest = (prev: any[]) => 
+        prev.map(req => 
+          req.id === requestId 
+            ? { ...req, is_long_term: !currentStatus }
+            : req
+        );
+
+      setAssignedRequests(updateRequest);
+      setMyRequests(updateRequest);
+      setCompletedRequests(updateRequest);
+
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: currentStatus ? "Задача снята с долгосрочных" : "Задача помечена как долгосрочная",
+        message: currentStatus 
+          ? "Задача больше не отображается как долгосрочная" 
+          : "Задача помечена как долгосрочная и будет выделена синим цветом"
+      });
+
+    } catch (error: any) {
+      console.error("Ошибка при изменении статуса долгосрочной задачи:", error);
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: error.response?.data?.error || "Не удалось изменить статус задачи"
+      });
+    }
+  };
+
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -942,6 +977,13 @@ export default function ExecutorDashboard() {
     }
   }
 
+  const getCardBorderColor = (request: any) => {
+    if (request.is_long_term) {
+      return "border-blue-400 shadow-blue-100"
+    }
+    return "border-0"
+  }
+
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":
@@ -1013,6 +1055,76 @@ export default function ExecutorDashboard() {
         <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
     ))
   }
+
+  const renderLongTermButton = (request: any) => {
+    if (request.status !== "in_progress" && request.status !== "execution") {
+      return null;
+    }
+
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation()
+          handleToggleLongTerm(request.id, request.is_long_term || false)
+        }}
+        title={request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную"}
+        className={`group relative p-2 rounded-xl transition-all duration-500 ease-out transform hover:scale-105 active:scale-95 ${
+          request.is_long_term 
+            ? 'bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/40 hover:shadow-blue-500/60 hover:from-blue-600 hover:to-indigo-700' 
+            : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-500 hover:text-blue-600 border border-gray-200 hover:border-blue-300 hover:from-blue-50 hover:to-blue-100 shadow-sm hover:shadow-md'
+        }`}
+      >
+        <span className={`text-base font-medium transition-all duration-500 ${
+          request.is_long_term 
+            ? 'animate-pulse group-hover:animate-none drop-shadow-sm' 
+            : 'group-hover:scale-110 group-hover:rotate-12'
+        }`}>
+          ⏳
+        </span>
+        {request.is_long_term && (
+          <>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping shadow-lg"></span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-pulse"></span>
+          </>
+        )}
+        <div className={`absolute inset-0 rounded-xl transition-all duration-500 ${
+          request.is_long_term 
+            ? 'bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100' 
+            : 'bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100'
+        }`}></div>
+      </button>
+    );
+  };
+
+  const renderCardHeader = (request: any) => {
+    return (
+      <CardHeader className="pb-3 px-5 pt-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                #{request.id}
+              </span>
+              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                {request?.category?.name}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-1 items-center">
+            <Badge
+              variant="outline"
+              className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
+            >
+              {getStatusIcon(request.status)}
+              {translateStatus(request.status)}
+            </Badge>
+            {renderLongTermButton(request)}
+          </div>
+        </div>
+      </CardHeader>
+    );
+  };
 
   const handleRefresh = async () => {
     try {
@@ -1153,8 +1265,9 @@ export default function ExecutorDashboard() {
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
-                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначения</SelectItem>
                           <SelectItem value="assigned">Назначен</SelectItem>
+                          <SelectItem value="long_term">⏳ Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={filterType} onValueChange={setFilterType}>
@@ -1168,12 +1281,14 @@ export default function ExecutorDashboard() {
                           <SelectItem value="planed">Плановая</SelectItem>
                         </SelectContent>
                       </Select>
+
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {assignedRequests
                           ?.filter((task: any) => {
-                            const statusOk = filterStatus === "all" || task.status === filterStatus;
+                            const statusOk = filterStatus === "all" || 
+                              (filterStatus === "long_term" ? task.is_long_term : task.status === filterStatus);
                             const typeOk = filterType === "all" || task.request_type === filterType;
                             return statusOk && typeOk;
                           })
@@ -1186,31 +1301,7 @@ export default function ExecutorDashboard() {
                               <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
                                     onClick={() => {setSelectedTaskDetails(request)
                                       openModal('taskDetails')}}>
-                                {/* Заголовок с ID и статусами */}
-                                <CardHeader className="pb-3 px-5 pt-5">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="flex-1 min-w-0">
-                                      <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
-                                      <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                                  #{request.id}
-                                </span>
-                                        <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request?.category?.name}
-                                </span>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-1">
-                                      <Badge
-                                          variant="outline"
-                                          className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
-                                      >
-                                        {getStatusIcon(request.status)}
-                                        {translateStatus(request.status)}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                </CardHeader>
+                                {renderCardHeader(request)}
 
                                 <CardContent className="px-5 pb-5 pt-0 space-y-3">
                                   {/* Описание */}
@@ -1538,31 +1629,7 @@ export default function ExecutorDashboard() {
                                 onClick={() => {setSelectedTaskDetails(request)
                                   openModal('taskDetails')}
                           }>
-                            {/* Заголовок с ID и статусами */}
-                            <CardHeader className="pb-3 px-5 pt-5">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
-                                  <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                                  #{request.id}
-                                </span>
-                                    <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request?.category?.name}
-                                </span>
-                                  </div>
-                                </div>
-                                <div className="flex gap-1">
-                                  <Badge
-                                      variant="outline"
-                                      className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
-                                  >
-                                    {getStatusIcon(request.status)}
-                                    {translateStatus(request.status)}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </CardHeader>
+                            {renderCardHeader(request)}
 
                             <CardContent className="px-5 pb-5 pt-0 space-y-3">
                               {/* Описание */}

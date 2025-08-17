@@ -39,6 +39,7 @@ export interface Request {
     created_date: string;
     executor: {user: { full_name: any; phone?: string } };
     client?: { full_name: string; email: string; phone?: string };
+    is_long_term?: boolean;
     rating?: number;
     category_id?: number;
     photos?: Photo[];
