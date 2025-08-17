@@ -10,6 +10,17 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
   CheckCircle,
   XCircle,
   Clock,
@@ -19,7 +30,7 @@ import {
   Star,
   Plus,
   Camera,
-  MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle, Send, MessageCircle,
+  MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle, Send, MessageCircle, Trash2,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import dynamic from "next/dynamic";
@@ -548,6 +559,23 @@ export default function AdminWorkerDashboard() {
     setEditCommentId(id);
   };
 
+  const handleDeleteRequest = async (request: Request) => {
+    try {
+      await api.delete(`/requests/${request.id}`)
+      fetchRequests()
+      successModal.showSuccess({
+        title: "Заявка удалена",
+        message: "Заявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Failed to delete request:", error)
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Не удалось удалить заявку."
+      })
+    }
+  }
+
   useEffect(() => {
     if (myRequests.length === 0 || incomingRequests.length === 0) {
       setPage(1);
@@ -930,7 +958,7 @@ export default function AdminWorkerDashboard() {
   };
 
   const renderLongTermButton = (request: any) => {
-    if (request.status !== "in_progress" && request.status !== "execution") {
+    if (request.status !== "assigned" && request.status !== "execution" && request.status !== "awaiting_assignment") {
       return null;
     }
 
@@ -1558,6 +1586,7 @@ export default function AdminWorkerDashboard() {
                             <SelectContent>
                               <SelectItem value="urgent">Экстренная</SelectItem>
                               <SelectItem value="normal">Обычная</SelectItem>
+                              <SelectItem value="planned">Плановая</SelectItem>
                             </SelectContent>
                           </Select>
                       ) : (
@@ -1918,6 +1947,45 @@ export default function AdminWorkerDashboard() {
 
                   {/* Кнопки внизу */}
                   <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
+                    {/* Кнопка удаления - только для заявок в статусе "draft", "in_progress" или "awaiting_assignment" */}
+                    {(selectedRequest.status === "draft" || selectedRequest.status === "in_progress" || selectedRequest.status === "awaiting_assignment") && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                              variant="destructive"
+                              className="w-full sm:w-auto flex justify-center items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Удалить
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Это действие необратимо. Вы точно хотите удалить заявку{" "}
+                              <strong>{selectedRequest?.title}</strong>?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+                            <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
+                            <AlertDialogAction
+                                className="w-full sm:w-auto"
+                                onClick={() => {
+                                  if (selectedRequest) {
+                                    handleDeleteRequest(selectedRequest);
+                                    setSelectedRequest(null);
+                                    closeModal()
+                                  }
+                                }}
+                            >
+                              Удалить
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    
                     <Button
                         variant="outline"
                         onClick={() => {

@@ -10,6 +10,17 @@ import {Textarea} from "@/components/ui/textarea"
 import {Badge} from "@/components/ui/badge"
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
   AlertCircle,
   AlertTriangle,
   Calendar,
@@ -22,6 +33,7 @@ import {
   MessageCircle,
   Plus, Send,
   Star,
+  Trash2,
   User,
   XCircle,
   Zap,
@@ -122,6 +134,8 @@ export default function ClientDashboard() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
+  const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -137,7 +151,8 @@ export default function ClientDashboard() {
 
   const filteredRequests = requests
       .filter((request) => {
-        const statusMatch = filterStatus === "all" || request.status === filterStatus
+        const statusMatch = filterStatus === "all" || 
+          (filterStatus === "long_term" ? request.is_long_term : request.status === filterStatus)
         const requestType = request.request_type
         const typeMatch = filterType === "all" || requestType === filterType
         return statusMatch && typeMatch
@@ -441,6 +456,35 @@ export default function ClientDashboard() {
     setComment(oldComment);
     setEditCommentId(id);
   };
+
+  const handleDeleteRequest = (request: Request) => {
+    setRequestToDelete(request)
+    closeModal()
+    setShowDeleteRequestModal(true);
+    openModal('deleteRequest');
+  }
+
+  const confirmDeleteRequest = async () => {
+    if (requestToDelete) {
+      try {
+        await api.delete(`/requests/${requestToDelete.id}`)
+        fetchRequests(1)
+        setShowDeleteRequestModal(false);
+        closeModal()
+        setRequestToDelete(null)
+        successModal.showSuccess({
+          title: "Заявка удалена",
+          message: "Заявка была успешно удалена."
+        })
+      } catch (error) {
+        console.error("Failed to delete request:", error)
+        successModal.showSuccess({
+          title: "Ошибка",
+          message: "Не удалось удалить заявку."
+        })
+      }
+    }
+  }
 
   useEffect(() => {
     if (selectedRequest?.id) {
@@ -825,6 +869,25 @@ export default function ClientDashboard() {
     ))
   }
 
+  const renderLongTermIndicator = (request: any) => {
+    if (!request.is_long_term) {
+      return null;
+    }
+
+    return (
+      <div
+        title="Долгосрочная задача"
+        className="group relative p-2 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/40"
+      >
+        <span className="text-base font-medium animate-pulse drop-shadow-sm">
+          ⏳
+        </span>
+        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping shadow-lg"></span>
+        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-pulse"></span>
+      </div>
+    );
+  };
+
   const handleRefresh = async () => {
     try {
       setPage(1);
@@ -989,6 +1052,7 @@ export default function ClientDashboard() {
                         <SelectItem value="completed">Завершено</SelectItem>
                         <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                         <SelectItem value="assigned">Назначен</SelectItem>
+                        <SelectItem value="long_term">⏳ Долгосрочные</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={filterType} onValueChange={setFilterType}>
@@ -1030,7 +1094,7 @@ export default function ClientDashboard() {
                                 </span>
                                 </div>
                               </div>
-                              <div className="flex gap-1">
+                              <div className="flex gap-1 items-center">
                                 <Badge
                                     variant="outline"
                                     className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
@@ -1038,6 +1102,7 @@ export default function ClientDashboard() {
                                   {getStatusIcon(request.status)}
                                   {translateStatus(request.status)}
                                 </Badge>
+                                {renderLongTermIndicator(request)}
                               </div>
                             </div>
                           </CardHeader>
@@ -1217,7 +1282,7 @@ export default function ClientDashboard() {
   <BottomNav
       onCreateRequest={handleOpenCreateRequest}
       activeTab ="history"
-      hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto}
+      hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showDeleteRequestModal}
   />
         {/* Request Details Modal */}
         {selectedRequest && (
@@ -1447,6 +1512,45 @@ export default function ClientDashboard() {
                   </Card>
 
                   <div className="flex justify-end space-x-2">
+                    {/* Кнопка удаления - только для заявок в статусе "draft" или "in_progress" */}
+                    {( selectedRequest.status === "in_progress") && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                              variant="destructive"
+                              className="flex justify-center items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Удалить
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Это действие необратимо. Вы точно хотите удалить заявку{" "}
+                              <strong>{selectedRequest?.title}</strong>?
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
+                            <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
+                            <AlertDialogAction
+                                className="w-full sm:w-auto"
+                                onClick={() => {
+                                  if (selectedRequest) {
+                                    handleDeleteRequest(selectedRequest);
+                                    setSelectedRequest(null);
+                                    closeModal()
+                                  }
+                                }}
+                            >
+                              Удалить
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    
                     <Button variant="outline" onClick={() => {
                       setSelectedRequest(null);
                       closeModal();
@@ -1706,6 +1810,37 @@ export default function ClientDashboard() {
                     </Button>
                     <Button variant="outline" onClick={() => {setShowCreateRequest(false); closeModal(); }} className="flex-1">
                       Отмена
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+        )}
+
+        {/* Delete Request Confirmation Modal */}
+        {showDeleteRequestModal && requestToDelete && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <Card className="w-full max-w-md">
+                <CardHeader>
+                  <CardTitle>Удалить заявку #{requestToDelete.id}?</CardTitle>
+                  <CardDescription>
+                    Вы уверены, что хотите удалить заявку "{requestToDelete.title}"? Это действие необратимо.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowDeleteRequestModal(false);
+                          closeModal();
+                          setRequestToDelete(null)
+                        }}
+                    >
+                      Отмена
+                    </Button>
+                    <Button variant="destructive" onClick={confirmDeleteRequest}>
+                      Удалить
                     </Button>
                   </div>
                 </CardContent>

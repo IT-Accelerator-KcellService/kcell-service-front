@@ -258,7 +258,8 @@ export default function ManagerDashboard() {
       default:
         periodStartDate = null;
     }
-    const statusMatch = filterStatus === "all" || request.status === filterStatus;
+    const statusMatch = filterStatus === "all" || 
+      (filterStatus === "long_term" ? request.is_long_term : request.status === filterStatus);
     const requestType = request.request_type;
     const typeMatch = filterType === "all" || requestType === filterType;
     const officeMatch = office === "all" || office == String(request.office_id);
@@ -1371,6 +1372,25 @@ export default function ManagerDashboard() {
     ))
   }
 
+  const renderLongTermIndicator = (request: any) => {
+    if (!request.is_long_term) {
+      return null;
+    }
+
+    return (
+      <div
+        title="Долгосрочная задача"
+        className="group relative p-2 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/40"
+      >
+        <span className="text-base font-medium animate-pulse drop-shadow-sm">
+          ⏳
+        </span>
+        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping shadow-lg"></span>
+        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-pulse"></span>
+      </div>
+    );
+  };
+
   const formatDateToString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -1635,6 +1655,7 @@ export default function ManagerDashboard() {
                     <SelectItem value="completed">Завершено</SelectItem>
                     <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                     <SelectItem value="assigned">Назначен</SelectItem>
+                    <SelectItem value="long_term">⏳ Долгосрочные</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={filterType} onValueChange={setFilterType}>
@@ -1673,7 +1694,7 @@ export default function ManagerDashboard() {
               </span>
                               </div>
                             </div>
-                            <div className="flex gap-1">
+                            <div className="flex gap-1 items-center">
                               <Badge
                                   variant="outline"
                                   className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
@@ -1681,6 +1702,7 @@ export default function ManagerDashboard() {
                                 {getStatusIcon(request.status)}
                                 {translateStatus(request.status)}
                               </Badge>
+                              {renderLongTermIndicator(request)}
                             </div>
                           </div>
                         </CardHeader>

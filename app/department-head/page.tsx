@@ -977,7 +977,7 @@ export default function DepartmentHeadDashboard() {
   };
 
   const renderLongTermButton = (request: any) => {
-    if (request.status !== "in_progress" && request.status !== "execution") {
+    if (request.status !== "assigned" && request.status !== "execution" && request.status !== "awaiting_assignment") {
       return null;
     }
 
