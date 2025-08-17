@@ -1521,9 +1521,6 @@ export default function ManagerDashboard() {
             {isDesktop ? (
                 <Button
                     onClick={() => {
-                      setNewRequestType("Обычная")
-                      setShowCreateRequestModal(true)
-                      openModal('createRequest');
                       handleOpenCreateRequest()
                     }}
                     className="flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white min-w-[150px] h-10 px-4"
@@ -2314,7 +2311,6 @@ export default function ManagerDashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
             setShowCreateRequestModal(false)
             closeModal()
-            setComments([])
           }}>
             <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>

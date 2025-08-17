@@ -264,18 +264,9 @@ export default function ExecutorDashboard() {
         switch (lastModal) {
           case 'createRequest':
             setShowCreateRequestModal(false);
-            setPhotos([]);
-            setPhotoPreviews([]);
-            setAfterPhotos([]);
-            setAfterPhotoPreviews([]);
-            setCreateMode('create');
-            setCompletedRequestComment("");
             break;
           case 'taskComplete':
             setSelectedTask(null);
-            setPhotos([]);
-            setPhotoPreviews([]);
-            setCompletedRequestComment("");
             break;
           case 'taskDetails':
             setSelectedTaskDetails(null);
@@ -362,21 +353,11 @@ export default function ExecutorDashboard() {
 
   const closeAllModalsExcept = async (modalName: string) => {
 
-    // Закрываем все модалки, кроме указанной
     if (modalName !== 'createRequest') {
       setShowCreateRequestModal(false);
-      setPhotos([]);
-      setPhotoPreviews([]);
-      setAfterPhotos([]);
-      setAfterPhotoPreviews([]);
-      setCreateMode('create');
-      setCompletedRequestComment("");
     }
     if (modalName !== 'taskComplete') {
       setSelectedTask(null);
-      setPhotos([]);
-      setPhotoPreviews([]);
-      setCompletedRequestComment("");
     }
     if (modalName !== 'taskDetails') {
       setSelectedTaskDetails(null);
@@ -645,7 +626,6 @@ export default function ExecutorDashboard() {
       });
       
       resetForm();
-      setCompletedRequestComment("");
     } catch (error: any) {
       console.error("Ошибка при создании и завершении заявки:", error);
       let errorMessage = "Не удалось создать и завершить заявку.";
@@ -1265,9 +1245,8 @@ export default function ExecutorDashboard() {
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
-                          <SelectItem value="awaiting_assignment">Ожидает назначения</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                           <SelectItem value="assigned">Назначен</SelectItem>
-                          <SelectItem value="long_term">⏳ Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={filterType} onValueChange={setFilterType}>
@@ -1929,7 +1908,7 @@ export default function ExecutorDashboard() {
                     </Button>
                     <Button
                         variant="outline"
-                        onClick={() => { setSelectedTask(null); setPhotos([]); setPhotoPreviews([]); setCompletedRequestComment(""); }}
+                        onClick={() => { setSelectedTask(null); }}
                         className="flex-1"
                     >
                       Отмена
@@ -1944,10 +1923,7 @@ export default function ExecutorDashboard() {
         {showCreateRequestModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
               setShowCreateRequestModal(false)
-              setCompletedRequestComment("")
-              setComments([])
-              setAfterPhotos([])
-              setAfterPhotoPreviews([])
+              closeModal()
             }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
@@ -2148,7 +2124,9 @@ export default function ExecutorDashboard() {
                           "Отправить заявку"
                       )}
                     </Button>
-                    <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
+                    <Button variant="outline" onClick={() => {setShowCreateRequestModal(false)
+                      closeModal()
+                    }} className="flex-1">
                       Отмена
                     </Button>
                   </div>

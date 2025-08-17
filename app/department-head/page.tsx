@@ -1183,7 +1183,8 @@ export default function DepartmentHeadDashboard() {
                   {isDesktop ? (
                       <div className="order-1 sm:order-2 w-full sm:w-auto">
                         <Button
-                            onClick={() => setShowCreateRequestModal(true)}
+                            onClick={() => {setShowCreateRequestModal(true)
+                              openModal('createRequest')}}
                             className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
                         >
                           <Plus className="w-4 h-4 mr-2" />
@@ -2090,7 +2091,8 @@ export default function DepartmentHeadDashboard() {
 
         {/* Create Request Modal */}
         {showCreateRequestModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>setShowCreateRequestModal(false)}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=>{setShowCreateRequestModal(false)
+              closeModal()}}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать {translateType(newRequestType).toLowerCase()} заявку</CardTitle>
@@ -2376,7 +2378,8 @@ export default function DepartmentHeadDashboard() {
                     </Button>
                     <Button
                         variant="outline"
-                        onClick={() => setShowCreateRequestModal(false)}
+                        onClick={() => {setShowCreateRequestModal(false)
+                          closeModal()}}
                         className="flex-1"
                     >
                       Отмена
