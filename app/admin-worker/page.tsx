@@ -60,6 +60,7 @@ import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RoleBasedActionMenu } from "@/components/action-menu";
+import { LogsViewer } from "@/components/logs-viewer";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -1200,6 +1201,7 @@ export default function AdminWorkerDashboard() {
                     <TabsTrigger value="incoming">Входящие заявки</TabsTrigger>
                     <TabsTrigger value="my-requests">Мои заявки</TabsTrigger>
                     <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                    <TabsTrigger value="logs">Логи</TabsTrigger>
                   </TabsList>
                 </div>
                 <TabsContent value="my-requests">
@@ -1542,6 +1544,10 @@ export default function AdminWorkerDashboard() {
                       </CardContent>
                     </Card>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="logs">
+                  <LogsViewer userRole="admin-worker" isDesktop={isDesktop} />
                 </TabsContent>
               </Tabs>
             </div>

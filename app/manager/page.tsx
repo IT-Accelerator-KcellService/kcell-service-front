@@ -69,6 +69,7 @@ import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RoleBasedActionMenu } from "@/components/action-menu";
+import { LogsViewer } from "@/components/logs-viewer";
 declare global {
   interface Window {
     androidApp?: {
@@ -1593,7 +1594,7 @@ export default function ManagerDashboard() {
 
         {/* Mobile-optimized Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="requests" className="text-xs sm:text-sm">
               Заявки
             </TabsTrigger>
@@ -1602,6 +1603,9 @@ export default function ManagerDashboard() {
             </TabsTrigger>
             <TabsTrigger value="management" className="text-xs sm:text-sm">
               Управление
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="text-xs sm:text-sm">
+              Логи
             </TabsTrigger>
           </TabsList>
 
@@ -2348,6 +2352,10 @@ export default function ManagerDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="logs">
+            <LogsViewer userRole="manager" isDesktop={isDesktop} />
           </TabsContent>
         </Tabs>
       </main>
