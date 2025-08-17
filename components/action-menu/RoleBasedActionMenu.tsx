@@ -13,7 +13,8 @@ import {
   Star,
   Trash2,
   UserPlus,
-  XCircle
+  XCircle,
+  ArrowRight
 } from "lucide-react"
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu"
 
@@ -48,6 +49,7 @@ interface RoleBasedActionMenuProps {
   onRefreshRequest?: (request: any) => void
   onViewAnalytics?: (request: any) => void
   onManageSettings?: (request: any) => void
+  onRedirectToOtherDepartment?: (request: any) => void
 }
 
 export function RoleBasedActionMenu({
@@ -63,6 +65,7 @@ export function RoleBasedActionMenu({
   onAssignExecutor,
   onRateRequest,
   onAddComment,
+  onRedirectToOtherDepartment,
 }: RoleBasedActionMenuProps) {
   const [open, setOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -164,6 +167,16 @@ export function RoleBasedActionMenu({
           },
           variant: "default" as const,
           showForRoles: ["executor"],
+        },
+        {
+          icon: ArrowRight,
+          label: "Перенаправить другому руководителю",
+          onClick: () => {
+            onRedirectToOtherDepartment?.(request)
+            setOpen(false)
+          },
+          variant: "default" as const,
+          showForRoles: ["executor"],
         }
       )
     }
@@ -226,6 +239,31 @@ export function RoleBasedActionMenu({
                 showForRoles: ["department-head"],
               },
             ]
+          : []),
+        {
+          icon: ArrowRight,
+          label: "Перенаправить другому руководителю",
+          onClick: () => {
+            onRedirectToOtherDepartment?.(request)
+            setOpen(false)
+          },
+          variant: "default" as const,
+          showForRoles: ["department-head"],
+        },
+        ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment")
+          ? [
+              {
+                icon: Clock,
+                label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
+                onClick: () => {
+                  onToggleLongTerm(request.id, request.is_long_term || false)
+                  setOpen(false)
+                },
+                variant: "default" as const,
+                longTerm: true,
+                showForRoles: ["department-head"],
+              },
+            ]
           : [])
       )
     }
@@ -258,6 +296,21 @@ export function RoleBasedActionMenu({
                   setOpen(false)
                 },
                 variant: "destructive" as const,
+                showForRoles: ["admin-worker"],
+              },
+            ]
+          : []),
+        ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment")
+          ? [
+              {
+                icon: Clock,
+                label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
+                onClick: () => {
+                  onToggleLongTerm(request.id, request.is_long_term || false)
+                  setOpen(false)
+                },
+                variant: "default" as const,
+                longTerm: true,
                 showForRoles: ["admin-worker"],
               },
             ]

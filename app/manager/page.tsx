@@ -1678,19 +1678,33 @@ export default function ManagerDashboard() {
                       <Card
                           key={request.id}
                           ref={isLast ? lastRequestRef : null}
-                          className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                          className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
+                            request.is_long_term 
+                              ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
+                              : 'bg-white hover:shadow-purple-400/20'
+                          }`}
                           onClick={() => {setSelectedTaskDetails(request); openModal('taskDetails'); }}
                       >
                         {/* Заголовок с ID и статусами */}
-                        <CardHeader className="pb-3 px-5 pt-5">
+                        <CardHeader className={`pb-3 px-5 pt-5 ${request.is_long_term ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-l-4 border-blue-500' : ''}`}>
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className={`font-bold text-base leading-tight line-clamp-2 ${request.is_long_term ? 'text-blue-900' : 'text-gray-900'}`}>
+                                  {request.title}
+                                </h3>
+                                {request.is_long_term && (
+                                  <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-semibold rounded-full shadow-lg">
+                                    <span className="animate-pulse">⏳</span>
+                                    <span>Долгосрочная</span>
+                                  </div>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-blue-700 bg-blue-100' : 'text-purple-600 bg-purple-50'}`}>
                 #{request.id}
               </span>
-                                <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {request?.category?.name}
               </span>
                               </div>
@@ -1703,7 +1717,6 @@ export default function ManagerDashboard() {
                                 {getStatusIcon(request.status)}
                                 {translateStatus(request.status)}
                               </Badge>
-                              {renderLongTermIndicator(request)}
                               <RoleBasedActionMenu
                                 request={request}
                                 isDesktop={isDesktop}

@@ -156,6 +156,12 @@ export default function DepartmentHeadDashboard() {
   const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
   const [filterIncomingType, setFilterIncomingType] = useState("all")
   const [stats, setStats] = useState<Stats | null>(null);
+  const [showRedirectModal, setShowRedirectModal] = useState(false);
+  const [selectedRequestForRedirect, setSelectedRequestForRedirect] = useState<any>(null);
+  const [availableDepartments, setAvailableDepartments] = useState<any[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [redirectError, setRedirectError] = useState<string | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
@@ -225,6 +231,9 @@ export default function DepartmentHeadDashboard() {
           case 'executorDelete':
             setExecutorToDelete(null);
             break;
+          case 'redirectModal':
+            handleCloseRedirectModal();
+            break;
           default:
             break;
         }
@@ -268,6 +277,9 @@ export default function DepartmentHeadDashboard() {
     }
     if (modalName !== 'executorDelete') {
       setExecutorToDelete(null);
+    }
+    if (modalName !== 'redirectModal') {
+      handleCloseRedirectModal();
     }
     setModalStack([modalName]);
     window.history.replaceState({ modal: modalName }, '', window.location.pathname);
@@ -1019,15 +1031,25 @@ export default function DepartmentHeadDashboard() {
 
   const renderCardHeader = (request: any) => {
     return (
-      <CardHeader className="pb-3 px-5 pt-5">
+      <CardHeader className={`pb-3 px-5 pt-5 ${request.is_long_term ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-l-4 border-blue-500' : ''}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className={`font-bold text-base leading-tight line-clamp-2 ${request.is_long_term ? 'text-blue-900' : 'text-gray-900'}`}>
+                {request.title}
+              </h3>
+              {request.is_long_term && (
+                <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-semibold rounded-full shadow-lg">
+                  <span className="animate-pulse">⏳</span>
+                  <span>Долгосрочная</span>
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-blue-700 bg-blue-100' : 'text-purple-600 bg-purple-50'}`}>
                 #{request.id}
               </span>
-              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {request?.category?.name}
               </span>
             </div>
@@ -1040,7 +1062,6 @@ export default function DepartmentHeadDashboard() {
               {getStatusIcon(request.status)}
               {translateStatus(request.status)}
             </Badge>
-            {renderLongTermButton(request)}
             <RoleBasedActionMenu
               request={request}
               isDesktop={isDesktop}
@@ -1053,6 +1074,8 @@ export default function DepartmentHeadDashboard() {
                 setSelectedRequest(request);
                 openModal("assignExecutorModal");
               }}
+              onRedirectToOtherDepartment={handleOpenRedirectModal}
+              onToggleLongTerm={handleToggleLongTerm}
             />
           </div>
         </div>
@@ -1108,6 +1131,74 @@ export default function DepartmentHeadDashboard() {
 
     } catch (error) {
       console.error("Ошибка при обновлении:", error);
+    }
+  };
+
+  const handleOpenRedirectModal = async (request: any) => {
+    setSelectedRequestForRedirect(request);
+    setSelectedDepartmentId(null);
+    setRedirectError(null);
+    setShowRedirectModal(true);
+    openModal('redirectModal');
+
+    try {
+      // Получаем доступных руководителей
+      const response = await api.get('/departments/me');
+      setAvailableDepartments(response.data.data || []);
+    } catch (error: any) {
+      console.error("Ошибка при получении списка руководителей:", error);
+      setRedirectError("Не удалось загрузить список руководителей");
+    }
+  };
+
+  const handleCloseRedirectModal = () => {
+    setShowRedirectModal(false);
+    setSelectedRequestForRedirect(null);
+    setSelectedDepartmentId(null);
+    setRedirectError(null);
+    closeModal();
+  };
+
+  const handleRedirectRequest = async () => {
+    if (!selectedRequestForRedirect || !selectedDepartmentId) return;
+
+    setIsRedirecting(true);
+    setRedirectError(null);
+
+    try {
+      const selectedDepartment = availableDepartments.find(dept => dept.id === selectedDepartmentId);
+      
+      await api.patch(`/requests/${selectedRequestForRedirect.id}`, {
+        status: "awaiting_assignment",
+        executor_id: null,
+        actual_completion_date: null,
+        category_id: selectedDepartment.service_category_id,
+        patch_code: 1
+      });
+
+      // Обновляем состояние в UI
+      setMyRequests(prev => 
+        prev.filter(req => req.id !== selectedRequestForRedirect.id)
+      );
+
+      setIncomingRequests(prev =>
+          prev.filter(req => req.id !== selectedRequestForRedirect.id)
+      );
+
+      // Закрываем модальное окно
+      handleCloseRedirectModal();
+
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: "Заявка перенаправлена",
+        message: `Заявка успешно перенаправлена руководителю ${selectedDepartment.full_name}`
+      });
+
+    } catch (error: any) {
+      console.error("Ошибка при перенаправлении заявки:", error);
+      setRedirectError(error.response?.data?.error || "Не удалось перенаправить заявку");
+    } finally {
+      setIsRedirecting(false);
     }
   };
 
@@ -1221,7 +1312,11 @@ export default function DepartmentHeadDashboard() {
                 <TabsContent value="my-requests" className="pt-6 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {myRequests.map((request, index: number) => (
-                      <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                      <Card key={index} className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
+                        request.is_long_term 
+                          ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
+                          : 'bg-white hover:shadow-purple-400/20'
+                      }`}
                             onClick={() => {
                               setSelectedRequest(request);
                               openModal("requestDetails")
@@ -1360,7 +1455,11 @@ export default function DepartmentHeadDashboard() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {filteredIncomingRequests.map((request, index: number) => (
-                        <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
+                        <Card key={index} className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
+                          request.is_long_term 
+                            ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
+                            : 'bg-white hover:shadow-purple-400/20'
+                        }`}
                               onClick={() => {
                                 setSelectedRequest(request);
                                 openModal("requestDetails");
@@ -2480,6 +2579,57 @@ export default function DepartmentHeadDashboard() {
               </Card>
             </div>
         )}
+        {/* Redirect Modal */}
+        {showRedirectModal && selectedRequestForRedirect && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader>
+                <CardTitle>Перенаправить заявку #{selectedRequestForRedirect.id}</CardTitle>
+                <CardDescription>
+                  Выберите руководителя, которому хотите перенаправить заявку
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="department">Руководитель</Label>
+                  <Select
+                    value={selectedDepartmentId?.toString() || ""}
+                    onValueChange={(value) => setSelectedDepartmentId(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите руководителя" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableDepartments.map((department) => (
+                        <SelectItem key={department.id} value={department.id.toString()}>
+                          {department.full_name} - {department.service_category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {redirectError && (
+                  <p className="text-sm text-red-500">{redirectError}</p>
+                )}
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseRedirectModal}
+                  >
+                    Отмена
+                  </Button>
+                  <Button 
+                    onClick={handleRedirectRequest} 
+                    disabled={!selectedDepartmentId || isRedirecting}
+                  >
+                    {isRedirecting ? "Перенаправление..." : "Перенаправить"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <SuccessModal
             isOpen={successModal.isOpen}
             onClose={successModal.hideSuccess}
@@ -2491,7 +2641,7 @@ export default function DepartmentHeadDashboard() {
         <BottomNav
             onCreateRequest={() => setShowCreateRequestModal(true)}
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto}
+            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showRedirectModal}
         />
         {isDesktop && <Link
             href="/chat-bot"
