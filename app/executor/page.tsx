@@ -41,6 +41,7 @@ import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RejectModal } from "@/components/reject-modal";
+import { ActionMenu } from "@/components/action-menu";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
@@ -1099,7 +1100,18 @@ export default function ExecutorDashboard() {
               {getStatusIcon(request.status)}
               {translateStatus(request.status)}
             </Badge>
-            {renderLongTermButton(request)}
+            <ActionMenu
+              request={request}
+              isDesktop={isDesktop}
+              onStartTask={handleStartTask}
+              onCompleteTask={(request) => setSelectedTask(request)}
+              onViewDetails={(request) => {
+                setSelectedTaskDetails(request)
+                openModal('taskDetails')
+              }}
+              onReject={handleOpenRejectModal}
+              onToggleLongTerm={handleToggleLongTerm}
+            />
           </div>
         </div>
       </CardHeader>
@@ -1372,46 +1384,6 @@ export default function ExecutorDashboard() {
                                           >
                                             {translateComplexity(request.complexity)}
                                           </Badge>
-                                      )}
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                      {request.status === "assigned" && (
-                                          <>
-                                            <Button
-                                                size="sm"
-                                                className="bg-blue-600 hover:bg-blue-700"
-                                                onClick={(e) => {
-                                                  e.stopPropagation()
-                                                  handleStartTask(request.id)
-                                                }}
-                                            >
-                                              Начать
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="border-red-500 text-red-600 hover:bg-red-50"
-                                                onClick={(e) => {
-                                                  e.stopPropagation()
-                                                  handleOpenRejectModal(request)
-                                                }}
-                                            >
-                                              Отклонить
-                                            </Button>
-                                          </>
-                                      )}
-                                      {request.status === "execution" && (
-                                          <Button
-                                              size="sm"
-                                              className="bg-green-600 hover:bg-green-700"
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                setSelectedTask(request)
-                                              }}
-                                          >
-                                            Завершить
-                                          </Button>
                                       )}
                                     </div>
                                   </div>
@@ -1702,33 +1674,6 @@ export default function ExecutorDashboard() {
                                       </Badge>
                                   )}
                                 </div>
-
-                                <div>
-                                  {request.status === "assigned" && (
-                                      <Button
-                                          size="sm"
-                                          className="bg-blue-600 hover:bg-blue-700"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleStartTask(request.id)
-                                          }}
-                                      >
-                                        Начать
-                                      </Button>
-                                  )}
-                                  {request.status === "execution" && (
-                                      <Button
-                                          size="sm"
-                                          className="bg-green-600 hover:bg-green-700"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            setSelectedTask(request)
-                                          }}
-                                      >
-                                        Завершить
-                                      </Button>
-                                  )}
-                                </div>
                               </div>
                             </CardContent>
                           </Card>
@@ -1798,7 +1743,7 @@ export default function ExecutorDashboard() {
               </Tabs>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 mb-20">
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
                   <NotificationsSidebar onNotificationClick={handleNotificationClick} />
