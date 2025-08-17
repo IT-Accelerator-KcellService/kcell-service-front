@@ -168,16 +168,20 @@ export function RoleBasedActionMenu({
           variant: "default" as const,
           showForRoles: ["executor"],
         },
-        {
-          icon: ArrowRight,
-          label: "Перенаправить другому руководителю",
-          onClick: () => {
-            onRedirectToOtherDepartment?.(request)
-            setOpen(false)
-          },
-          variant: "default" as const,
-          showForRoles: ["executor"],
-        }
+        ...(onRedirectToOtherDepartment && (request.status !== "completed")
+                ? [
+          {
+            icon: ArrowRight,
+            label: "Перенаправить другому руководителю",
+            onClick: () => {
+              onRedirectToOtherDepartment?.(request)
+              setOpen(false)
+            },
+            variant: "default" as const,
+            showForRoles: ["executor"],
+          }
+        ]
+        : []),
       )
     }
 
@@ -240,16 +244,20 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-        {
-          icon: ArrowRight,
-          label: "Перенаправить другому руководителю",
-          onClick: () => {
-            onRedirectToOtherDepartment?.(request)
-            setOpen(false)
-          },
-          variant: "default" as const,
-          showForRoles: ["department-head"],
-        },
+        ...(onRedirectToOtherDepartment && (request.status !== "completed")
+                ? [
+            {
+              icon: ArrowRight,
+              label: "Перенаправить другому руководителю",
+              onClick: () => {
+                onRedirectToOtherDepartment?.(request)
+                setOpen(false)
+              },
+              variant: "default" as const,
+              showForRoles: ["department-head"],
+            },
+          ]
+          : []),
         ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment")
           ? [
               {
