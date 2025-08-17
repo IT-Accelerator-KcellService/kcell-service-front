@@ -57,6 +57,7 @@ import PullToRefresh from "@/components/pull-to-refresh";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
+import { RoleBasedActionMenu } from "@/components/action-menu";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -1103,6 +1104,22 @@ export default function ClientDashboard() {
                                   {translateStatus(request.status)}
                                 </Badge>
                                 {renderLongTermIndicator(request)}
+                                <RoleBasedActionMenu
+                                  request={request}
+                                  isDesktop={isDesktop}
+                                  userRole="client"
+                                  onViewDetails={(request) => {
+                                    setSelectedRequest(request);
+                                    openModal("requestDetails");
+                                  }}
+                                  onRateRequest={(request) => {
+                                    setRequestToRate(request)
+                                    setShowRatingModal(true)
+                                    openModal('ratingModal')
+                                    setSelectedRequest(null);
+                                    closeModal()
+                                  }}
+                                />
                               </div>
                             </div>
                           </CardHeader>

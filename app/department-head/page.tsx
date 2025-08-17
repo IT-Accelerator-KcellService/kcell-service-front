@@ -57,6 +57,7 @@ import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
+import { RoleBasedActionMenu } from "@/components/action-menu";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -1040,6 +1041,19 @@ export default function DepartmentHeadDashboard() {
               {translateStatus(request.status)}
             </Badge>
             {renderLongTermButton(request)}
+            <RoleBasedActionMenu
+              request={request}
+              isDesktop={isDesktop}
+              userRole="department-head"
+              onViewDetails={(request) => {
+                setSelectedRequest(request);
+                openModal("requestDetails");
+              }}
+              onAssignExecutor={(request) => {
+                setSelectedRequest(request);
+                openModal("assignExecutorModal");
+              }}
+            />
           </div>
         </div>
       </CardHeader>

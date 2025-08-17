@@ -68,6 +68,7 @@ import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
+import { RoleBasedActionMenu } from "@/components/action-menu";
 declare global {
   interface Window {
     androidApp?: {
@@ -1703,6 +1704,18 @@ export default function ManagerDashboard() {
                                 {translateStatus(request.status)}
                               </Badge>
                               {renderLongTermIndicator(request)}
+                              <RoleBasedActionMenu
+                                request={request}
+                                isDesktop={isDesktop}
+                                userRole="manager"
+                                onViewDetails={(request) => {
+                                  setSelectedTaskDetails(request);
+                                  openModal('taskDetails');
+                                }}
+                                onDelete={(request) => {
+                                  handleDeleteRequest(request);
+                                }}
+                              />
                             </div>
                           </div>
                         </CardHeader>

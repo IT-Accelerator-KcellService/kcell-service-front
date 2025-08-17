@@ -41,7 +41,7 @@ import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RejectModal } from "@/components/reject-modal";
-import { ActionMenu } from "@/components/action-menu";
+import { RoleBasedActionMenu } from "@/components/action-menu";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
@@ -1100,9 +1100,10 @@ export default function ExecutorDashboard() {
               {getStatusIcon(request.status)}
               {translateStatus(request.status)}
             </Badge>
-            <ActionMenu
+            <RoleBasedActionMenu
               request={request}
               isDesktop={isDesktop}
+              userRole="executor"
               onStartTask={handleStartTask}
               onCompleteTask={(request) => setSelectedTask(request)}
               onViewDetails={(request) => {
@@ -1111,6 +1112,10 @@ export default function ExecutorDashboard() {
               }}
               onReject={handleOpenRejectModal}
               onToggleLongTerm={handleToggleLongTerm}
+              onAddComment={(request) => {
+                setSelectedTaskDetails(request)
+                openModal('taskDetails')
+              }}
             />
           </div>
         </div>

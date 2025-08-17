@@ -59,6 +59,7 @@ import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
+import { RoleBasedActionMenu } from "@/components/action-menu";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -1021,6 +1022,24 @@ export default function AdminWorkerDashboard() {
               {translateStatus(request.status)}
             </Badge>
             {renderLongTermButton(request)}
+            <RoleBasedActionMenu
+              request={request}
+              isDesktop={isDesktop}
+              userRole="admin-worker"
+              onViewDetails={(request) => {
+                setSelectedRequest(request);
+                openModal('requestDetails');
+              }}
+              onRateRequest={(request) => {
+                setRequestToRate(request);
+                setShowRatingModal(true);
+                openModal('ratingModal');
+              }}
+              onDelete={(request) => {
+                setSelectedRequest(request);
+                openModal('deleteRequestModal');
+              }}
+            />
           </div>
         </div>
       </CardHeader>
