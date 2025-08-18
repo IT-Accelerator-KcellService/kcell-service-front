@@ -202,6 +202,20 @@ export function RoleBasedActionMenu({
                 showForRoles: ["client"],
               },
             ]
+          : []),
+        ...(request.status === "in_progress" && onDelete
+          ? [
+              {
+                icon: Trash2,
+                label: "Удалить заявку",
+                onClick: () => {
+                  onDelete(request)
+                  setOpen(false)
+                },
+                variant: "destructive" as const,
+                showForRoles: ["client"],
+              },
+            ]
           : [])
       )
     }
