@@ -1776,7 +1776,7 @@ export default function DepartmentHeadDashboard() {
               </Tabs>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 mb-20">
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
                   <NotificationsSidebar onNotificationClick={handleNotificationClick} />

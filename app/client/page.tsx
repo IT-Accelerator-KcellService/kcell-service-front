@@ -1268,7 +1268,7 @@ export default function ClientDashboard() {
 
 
             {/* Sidebar */}
-            <div className="space-y-6">
+            <div className="space-y-6 mb-20">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Быстрые действия</CardTitle>

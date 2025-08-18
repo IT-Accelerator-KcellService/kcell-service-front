@@ -1840,7 +1840,7 @@ export default function ManagerDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+          <TabsContent value="overview" className="space-y-4 sm:space-y-6 mb-20">
 
             {/* Distribution */}
             <Card>
