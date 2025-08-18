@@ -145,7 +145,7 @@ export default function AdminWorkerDashboard() {
   const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [filterMyStatus, setFilterMyStatus] = useState("all")
   const [filterMyType, setFilterMyType] = useState("all")
@@ -190,6 +190,15 @@ export default function AdminWorkerDashboard() {
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
     window.history.pushState({ modal: name }, '', window.location.pathname);
+    
+    // Устанавливаем соответствующие состояния для модалов
+    switch (name) {
+      case 'deleteRequestModal':
+        setShowDeleteRequestModal(true);
+        break;
+      default:
+        break;
+    }
   };
 
   const closeModal = () => {
@@ -251,8 +260,9 @@ export default function AdminWorkerDashboard() {
           case 'notification':
             setIsModalOpen(false);
             break;
-          case 'commentDelete':
-            setCommentToDelete(null);
+
+          case 'deleteRequestModal':
+            setShowDeleteRequestModal(false);
             break;
           default:
             break;
@@ -286,6 +296,9 @@ export default function AdminWorkerDashboard() {
     if (modalName !== 'photoPreview') {
       setSelectedPhoto(null);
     }
+    if (modalName !== 'deleteRequestModal') {
+      setShowDeleteRequestModal(false);
+    }
     if (modalName !== 'notification') {
       setIsModalOpen(false);
     }
@@ -294,9 +307,7 @@ export default function AdminWorkerDashboard() {
       setRatingValue(0);
       setRequestToRate(null);
     }
-    if (modalName !== 'commentDelete') {
-      setCommentToDelete(null);
-    }
+
 
     setModalStack([modalName]);
     window.history.replaceState({ modal: modalName }, '', window.location.pathname);
@@ -481,8 +492,9 @@ export default function AdminWorkerDashboard() {
   };
 
   const handleDelete = (id: number) => {
-    // Убираем из UI сразу
     const oldComments = comments;
+    
+    // Убираем из UI сразу
     setComments(prev => prev.filter(c => c.id !== id));
 
     api.delete(`/comments/${id}`).catch(err => {
@@ -605,6 +617,8 @@ export default function AdminWorkerDashboard() {
       fetchClientInfo(selectedRequest.client_id);
     }
   }, [selectedRequest]);
+
+
 
   const validateForApprove = async () => {
     if (
@@ -1041,7 +1055,7 @@ export default function AdminWorkerDashboard() {
               }}
               onDelete={(request) => {
                 setSelectedRequest(request);
-                openModal('deleteRequestModal');
+                setShowDeleteRequestModal(true);
               }}
               onToggleLongTerm={handleToggleLongTerm}
             />
@@ -2391,8 +2405,9 @@ export default function AdminWorkerDashboard() {
             duration={rejectModal.duration}
         />
 
-        {/* Unified Delete Confirmation Modal */}
+        {/* Request Delete Confirmation Modal */}
         <DeleteConfirmationModal
+          key="request-delete-modal"
           isOpen={showDeleteRequestModal && !!selectedRequest}
           onClose={() => {
             setShowDeleteRequestModal(false);
@@ -2408,6 +2423,8 @@ export default function AdminWorkerDashboard() {
           title="Удалить заявку?"
           description={`Это действие необратимо. Вы точно хотите удалить заявку ${selectedRequest?.title}?`}
         />
+
+
         <BottomNav
             onCreateRequest={() => {setShowCreateRequestModal(true); openModal('createRequest'); }}
             activeTab="history"

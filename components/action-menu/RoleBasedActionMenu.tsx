@@ -143,7 +143,7 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-        ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution")
+        ...(onToggleLongTerm && (request.status === "execution")
           ? [
               {
                 icon: Clock,
@@ -272,7 +272,7 @@ export function RoleBasedActionMenu({
             },
           ]
           : []),
-        ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment")
+        ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned")
           ? [
               {
                 icon: Clock,
@@ -308,7 +308,7 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-        ...(onDelete && request.status === "in_progress"
+        ...(onDelete && (request.status === "in_progress" || request.status === "assigned" || request.status === "awaiting_assignment")
           ? [
               {
                 icon: Trash2,
@@ -322,7 +322,7 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-        ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment")
+        ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned")
           ? [
               {
                 icon: Clock,
