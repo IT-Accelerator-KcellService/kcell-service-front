@@ -9,17 +9,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {Textarea} from "@/components/ui/textarea"
 import {Badge} from "@/components/ui/badge"
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+
 import {
   AlertCircle,
   AlertTriangle,
@@ -118,7 +108,7 @@ export default function ClientDashboard() {
   const [requestTitle, setRequestTitle] = useState("")
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
-  const { requests, addRequests, clearRequests } = useRequestStore();
+  const { requests, addRequests, clearRequests, removeRequest } = useRequestStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<Comment[] | []>([]);
@@ -460,7 +450,6 @@ export default function ClientDashboard() {
 
   const handleDeleteRequest = (request: Request) => {
     setRequestToDelete(request)
-    closeModal()
     setShowDeleteRequestModal(true);
     openModal('deleteRequest');
   }
@@ -469,10 +458,16 @@ export default function ClientDashboard() {
     if (requestToDelete) {
       try {
         await api.delete(`/requests/${requestToDelete.id}`)
-        fetchRequests(1)
+        
+        // Удаляем заявку из локального состояния сразу
+        removeRequest(requestToDelete.id);
+        
+        // Закрываем все модальные окна
         setShowDeleteRequestModal(false);
-        closeModal()
-        setRequestToDelete(null)
+        setSelectedRequest(null);
+        closeModal();
+        setRequestToDelete(null);
+        
         successModal.showSuccess({
           title: "Заявка удалена",
           message: "Заявка была успешно удалена."
@@ -1132,6 +1127,7 @@ export default function ClientDashboard() {
                                     setSelectedRequest(null);
                                     closeModal()
                                   }}
+                                  onDelete={handleDeleteRequest}
                                 />
                               </div>
                             </div>
@@ -1542,45 +1538,6 @@ export default function ClientDashboard() {
                   </Card>
 
                   <div className="flex justify-end space-x-2">
-                    {/* Кнопка удаления - только для заявок в статусе "draft" или "in_progress" */}
-                    {( selectedRequest.status === "in_progress") && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                              variant="destructive"
-                              className="flex justify-center items-center gap-2"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Удалить
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Это действие необратимо. Вы точно хотите удалить заявку{" "}
-                              <strong>{selectedRequest?.title}</strong>?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
-                            <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
-                            <AlertDialogAction
-                                className="w-full sm:w-auto"
-                                onClick={() => {
-                                  if (selectedRequest) {
-                                    handleDeleteRequest(selectedRequest);
-                                    setSelectedRequest(null);
-                                    closeModal()
-                                  }
-                                }}
-                            >
-                              Удалить
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                    
                     <Button variant="outline" onClick={() => {
                       setSelectedRequest(null);
                       closeModal();
