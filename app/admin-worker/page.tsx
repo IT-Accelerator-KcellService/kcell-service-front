@@ -9,17 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+
 import {
   CheckCircle,
   XCircle,
@@ -61,6 +51,7 @@ import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RoleBasedActionMenu } from "@/components/action-menu";
 import { LogsViewer } from "@/components/logs-viewer";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -155,6 +146,7 @@ export default function AdminWorkerDashboard() {
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [filterMyStatus, setFilterMyStatus] = useState("all")
   const [filterMyType, setFilterMyType] = useState("all")
   const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
@@ -1544,20 +1536,22 @@ export default function AdminWorkerDashboard() {
                       </CardContent>
                     </Card>
                   </div>
+                  
+                  <div className="space-y-6 mb-20">
+                    <Card className="overflow-hidden">
+                      <CardContent className="p-0">
+                        <NotificationsSidebar onNotificationClick={handleNotificationClick} />
+                      </CardContent>
+                    </Card>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="logs">
-                  <LogsViewer userRole="admin-worker" isDesktop={isDesktop} />
+                  <div className="w-full pb-20">
+                    <LogsViewer userRole="admin-worker" isDesktop={isDesktop} />
+                  </div>
                 </TabsContent>
               </Tabs>
-            </div>
-
-            <div className="space-y-6 mb-20">
-              <Card className="overflow-hidden">
-                <CardContent className="p-0">
-                  <NotificationsSidebar onNotificationClick={handleNotificationClick} />
-                </CardContent>
-              </Card>
             </div>
           </div>
         </div>
@@ -1994,41 +1988,16 @@ export default function AdminWorkerDashboard() {
                   <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
                     {/* Кнопка удаления - только для заявок в статусе "draft", "in_progress" или "awaiting_assignment" */}
                     {(selectedRequest.status === "draft" || selectedRequest.status === "in_progress" || selectedRequest.status === "awaiting_assignment") && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                              variant="destructive"
-                              className="w-full sm:w-auto flex justify-center items-center gap-2"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Удалить
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Это действие необратимо. Вы точно хотите удалить заявку{" "}
-                              <strong>{selectedRequest?.title}</strong>?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
-                            <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
-                            <AlertDialogAction
-                                className="w-full sm:w-auto"
-                                onClick={() => {
-                                  if (selectedRequest) {
-                                    handleDeleteRequest(selectedRequest);
-                                    setSelectedRequest(null);
-                                    closeModal()
-                                  }
-                                }}
-                            >
-                              Удалить
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                          variant="destructive"
+                          className="w-full sm:w-auto flex justify-center items-center gap-2"
+                          onClick={() => {
+                            setShowDeleteRequestModal(true);
+                          }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Удалить
+                      </Button>
                     )}
                     
                     <Button
@@ -2420,6 +2389,24 @@ export default function AdminWorkerDashboard() {
             title={rejectModal.title}
             message={rejectModal.message}
             duration={rejectModal.duration}
+        />
+
+        {/* Unified Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+          isOpen={showDeleteRequestModal && !!selectedRequest}
+          onClose={() => {
+            setShowDeleteRequestModal(false);
+          }}
+          onConfirm={() => {
+            if (selectedRequest) {
+              handleDeleteRequest(selectedRequest);
+              setSelectedRequest(null);
+              setShowDeleteRequestModal(false);
+              closeModal();
+            }
+          }}
+          title="Удалить заявку?"
+          description={`Это действие необратимо. Вы точно хотите удалить заявку ${selectedRequest?.title}?`}
         />
         <BottomNav
             onCreateRequest={() => {setShowCreateRequestModal(true); openModal('createRequest'); }}

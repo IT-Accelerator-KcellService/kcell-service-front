@@ -48,6 +48,7 @@ import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RoleBasedActionMenu } from "@/components/action-menu";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -1805,35 +1806,17 @@ export default function ClientDashboard() {
         )}
 
         {/* Delete Request Confirmation Modal */}
-        {showDeleteRequestModal && requestToDelete && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-md">
-                <CardHeader>
-                  <CardTitle>Удалить заявку #{requestToDelete.id}?</CardTitle>
-                  <CardDescription>
-                    Вы уверены, что хотите удалить заявку "{requestToDelete.title}"? Это действие необратимо.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowDeleteRequestModal(false);
-                          closeModal();
-                          setRequestToDelete(null)
-                        }}
-                    >
-                      Отмена
-                    </Button>
-                    <Button variant="destructive" onClick={confirmDeleteRequest}>
-                      Удалить
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-        )}
+        <DeleteConfirmationModal
+          isOpen={showDeleteRequestModal && !!requestToDelete}
+          onClose={() => {
+            setShowDeleteRequestModal(false);
+            closeModal();
+            setRequestToDelete(null);
+          }}
+          onConfirm={confirmDeleteRequest}
+          title={`Удалить заявку #${requestToDelete?.id}?`}
+          description={`Вы уверены, что хотите удалить заявку "${requestToDelete?.title}"? Это действие необратимо.`}
+        />
 
         <SuccessModal
             isOpen={successModal.isOpen}

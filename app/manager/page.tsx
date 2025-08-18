@@ -10,17 +10,7 @@ import {Input} from "@/components/ui/input"
 import {Label} from "@/components/ui/label"
 import {Textarea} from "@/components/ui/textarea"
 import {useRouter, useSearchParams} from "next/navigation"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+
 
 import {
   AlertCircle,
@@ -70,6 +60,7 @@ import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RoleBasedActionMenu } from "@/components/action-menu";
 import { LogsViewer } from "@/components/logs-viewer";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 declare global {
   interface Window {
     androidApp?: {
@@ -192,6 +183,10 @@ export default function ManagerDashboard() {
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
+  const [showDeleteOfficeModal, setShowDeleteOfficeModal] = useState(false)
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false)
+  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<User | null>(null)
   const [deleteReason, setDeleteReason] = useState("")
   const [newRequestPlannedDate, setNewRequestPlannedDate] = useState("")
   const [pagination, setPagination] = useState({
@@ -2005,40 +2000,17 @@ export default function ManagerDashboard() {
                                         >
                                           ✎
                                         </Button>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setOfficeToDelete(officeItem)}
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full sm:w-auto"
-                                            >
-                                              <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>Удалить офис?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                Это действие нельзя отменить. Удалить офис{" "}
-                                                <strong>{officeToDelete?.name}</strong>?
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                              <AlertDialogAction
-                                                  onClick={() => {
-                                                    if (officeToDelete) {
-                                                      handleRemoveOffice(officeToDelete.id);
-                                                      setOfficeToDelete(null);
-                                                    }
-                                                  }}
-                                              >
-                                                Удалить
-                                              </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setOfficeToDelete(officeItem);
+                                              setShowDeleteOfficeModal(true);
+                                            }}
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full sm:w-auto"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
                                       </div>
                                     </>
                                 )}
@@ -2221,35 +2193,17 @@ export default function ManagerDashboard() {
                                     ✎
                                   </Button>
 
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="text-red-500 hover:text-red-700"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Удалить пользователя?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Вы уверены, что хотите удалить пользователя {user.full_name} ({user.email})?
-                                          Это действие нельзя отменить.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={() => handleDeleteUser(user.id)}
-                                            className="bg-red-600 hover:bg-red-700"
-                                        >
-                                          Удалить
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                  <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setUserToDelete(user);
+                                        setShowDeleteUserModal(true);
+                                      }}
+                                      className="text-red-500 hover:text-red-700"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
                                 </div>
                               </div>
                           ))}
@@ -2309,40 +2263,16 @@ export default function ManagerDashboard() {
                           {categories.map((category) => (
                               <li key={category.id} className="text-sm text-gray-700 flex justify-between items-center">
                                 {category.name}
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setCategoryToDelete(category);
-                                          openModal("categoryDelete");
-                                        }}
-                                    >
-                                      <Trash2 className="w-4 h-4 text-red-500" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Удалить категорию?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Это действие нельзя отменить. Вы действительно хотите удалить категорию <strong>{categoryToDelete?.name}</strong>?
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                      <AlertDialogAction
-                                          onClick={() => {if(categoryToDelete){
-                                            handleRemoveCategory(categoryToDelete.id)
-                                            setCategoryToDelete(null);
-                                            closeModal();
-                                          }}}
-                                      >
-                                        Удалить
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setCategoryToDelete(category);
+                                      setShowDeleteCategoryModal(true);
+                                    }}
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </Button>
 
                               </li>
                           ))}
@@ -2355,7 +2285,9 @@ export default function ManagerDashboard() {
           </TabsContent>
 
           <TabsContent value="logs">
-            <LogsViewer userRole="manager" isDesktop={isDesktop} />
+            <div className="w-full pb-20">
+              <LogsViewer userRole="manager" isDesktop={isDesktop} />
+            </div>
           </TabsContent>
         </Tabs>
       </main>
@@ -2849,41 +2781,17 @@ export default function ManagerDashboard() {
                 </Card>
 
                 <div className="flex justify-end sm:justify-start mt-6">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                          variant="destructive"
-                          className="w-full sm:w-auto flex justify-center items-center gap-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Удалить
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Удалить заявку?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Это действие необратимо. Вы точно хотите удалить заявку{" "}
-                          <strong>{selectedTaskDetails?.title}</strong>?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
-                        <AlertDialogCancel className="w-full sm:w-auto">Отмена</AlertDialogCancel>
-                        <AlertDialogAction
-                            className="w-full sm:w-auto"
-                            onClick={() => {
-                              if (selectedTaskDetails) {
-                                handleDeleteRequest(selectedTaskDetails);
-                                setSelectedTaskDetails(null);
-                                closeModal()
-                              }
-                            }}
-                        >
-                          Удалить
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <Button
+                      variant="destructive"
+                      className="w-full sm:w-auto flex justify-center items-center gap-2"
+                      onClick={() => {
+                        setRequestToDelete(selectedTaskDetails);
+                        setShowDeleteRequestModal(true);
+                      }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Удалить
+                  </Button>
 
                   <Button className="w-full sm:w-auto flex justify-center items-center gap-2 ml-2" variant="outline" onClick={() => {
                     setSelectedTaskDetails(null)
@@ -2931,46 +2839,18 @@ export default function ManagerDashboard() {
       )}
 
       {/* Delete Request Confirmation Modal */}
-      {showDeleteRequestModal && requestToDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Удалить заявку #{requestToDelete.id}?</CardTitle>
-                <CardDescription>
-                  Вы уверены, что хотите удалить заявку "{requestToDelete.title}"? Это действие необратимо.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="deleteReason">Причина удаления</Label>
-                  <Textarea
-                      id="deleteReason"
-                      placeholder="Укажите причину удаления заявки..."
-                      value={deleteReason}
-                      onChange={(e) => setDeleteReason(e.target.value)}
-                      className="min-h-[80px]"
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowDeleteRequestModal(false);
-                        closeModal();
-                        setRequestToDelete(null)
-                        setDeleteReason("")
-                      }}
-                  >
-                    Отмена
-                  </Button>
-                  <Button variant="destructive" onClick={confirmDeleteRequest} disabled={!deleteReason.trim()}>
-                    Удалить
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-      )}
+      <DeleteConfirmationModal
+        isOpen={showDeleteRequestModal && !!requestToDelete}
+        onClose={() => {
+          setShowDeleteRequestModal(false);
+          closeModal();
+          setRequestToDelete(null);
+          setDeleteReason("");
+        }}
+        onConfirm={confirmDeleteRequest}
+        title={`Удалить заявку #${requestToDelete?.id}?`}
+        description={`Вы уверены, что хотите удалить заявку "${requestToDelete?.title}"? Это действие необратимо.`}
+      />
       <SuccessModal
           isOpen={successModal.isOpen}
           onClose={successModal.hideSuccess}
@@ -2984,6 +2864,58 @@ export default function ManagerDashboard() {
           title='Заявка удалена'
           message='Заявка была успешно удалена.'
           duration={approveModal.duration}
+      />
+
+      {/* Unified Delete Confirmation Modals */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteOfficeModal && !!officeToDelete}
+        onClose={() => {
+          setShowDeleteOfficeModal(false);
+          setOfficeToDelete(null);
+        }}
+        onConfirm={() => {
+          if (officeToDelete) {
+            handleRemoveOffice(officeToDelete.id);
+            setOfficeToDelete(null);
+            setShowDeleteOfficeModal(false);
+          }
+        }}
+        title="Удалить офис?"
+        description={`Это действие нельзя отменить. Удалить офис ${officeToDelete?.name}?`}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteUserModal && !!userToDelete}
+        onClose={() => {
+          setShowDeleteUserModal(false);
+          setUserToDelete(null);
+        }}
+        onConfirm={() => {
+          if (userToDelete) {
+            handleDeleteUser(userToDelete.id);
+            setUserToDelete(null);
+            setShowDeleteUserModal(false);
+          }
+        }}
+        title="Удалить пользователя?"
+        description={`Вы уверены, что хотите удалить пользователя ${userToDelete?.full_name} (${userToDelete?.email})? Это действие нельзя отменить.`}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteCategoryModal && !!categoryToDelete}
+        onClose={() => {
+          setShowDeleteCategoryModal(false);
+          setCategoryToDelete(null);
+        }}
+        onConfirm={() => {
+          if (categoryToDelete) {
+            handleRemoveCategory(categoryToDelete.id);
+            setCategoryToDelete(null);
+            setShowDeleteCategoryModal(false);
+          }
+        }}
+        title="Удалить категорию?"
+        description={`Это действие нельзя отменить. Вы действительно хотите удалить категорию ${categoryToDelete?.name}?`}
       />
 
       <BottomNav

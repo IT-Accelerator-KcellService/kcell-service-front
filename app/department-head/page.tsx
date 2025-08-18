@@ -23,17 +23,7 @@ import {
   MapPin,
   Trash2, Loader2, Zap, AlertCircle, ImageIcon, Send, MessageCircle,
 } from "lucide-react"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+
 
 import Header from "@/app/header/Header"
 import dynamic from "next/dynamic"
@@ -58,6 +48,7 @@ import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RoleBasedActionMenu } from "@/components/action-menu";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -152,6 +143,7 @@ export default function DepartmentHeadDashboard() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [executorToDelete, setExecutorToDelete] = useState<Executor | null>(null)
+  const [showDeleteExecutorModal, setShowDeleteExecutorModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
   const [filterIncomingType, setFilterIncomingType] = useState("all")
@@ -1725,45 +1717,17 @@ export default function DepartmentHeadDashboard() {
                                         {executor.workload} задач
                                       </div>
 
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => {
-                                                setExecutorToDelete(executor);
-                                                openModal('executorDelete');
-                                              }}
-                                              className="text-red-500 hover:text-red-700"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Удалить исполнителя?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Это действие нельзя отменить. Вы действительно хотите
-                                              удалить исполнителя{" "}
-                                              <strong>{executorToDelete?.user.full_name}</strong>?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                            <AlertDialogAction
-                                                onClick={() => {
-                                                  if (executorToDelete) {
-                                                    handleRemoveExecutor(executorToDelete.user.id);
-                                                    setExecutorToDelete(null);
-                                                    closeModal()
-                                                  }
-                                                }}
-                                            >
-                                              Удалить
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
+                                      <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            setExecutorToDelete(executor);
+                                            setShowDeleteExecutorModal(true);
+                                          }}
+                                          className="text-red-500 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
                                     </div>
                                   </div>
                               ))
@@ -2636,6 +2600,24 @@ export default function DepartmentHeadDashboard() {
             title={successModal.title}
             message={successModal.message}
             duration={successModal.duration}
+        />
+
+        {/* Unified Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+          isOpen={showDeleteExecutorModal && !!executorToDelete}
+          onClose={() => {
+            setShowDeleteExecutorModal(false);
+            setExecutorToDelete(null);
+          }}
+          onConfirm={() => {
+            if (executorToDelete) {
+              handleRemoveExecutor(executorToDelete.user.id);
+              setExecutorToDelete(null);
+              setShowDeleteExecutorModal(false);
+            }
+          }}
+          title="Удалить исполнителя?"
+          description={`Это действие нельзя отменить. Вы действительно хотите удалить исполнителя ${executorToDelete?.user.full_name}?`}
         />
 
         <BottomNav

@@ -130,10 +130,12 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
       params.append("page", page.toString())
       params.append("pageSize", pageSize.toString())
 
-      if (userRole === "admin-worker") {
-        url = `/request-logs/my?${params.toString()}`
-      } else {
+      // Для manager и admin-worker показываем все логи
+      if (userRole === "manager" || userRole === "admin-worker") {
         url = `/request-logs/filtered?${params.toString()}`
+      } else {
+        // Для других ролей показываем только свои логи
+        url = `/request-logs/my?${params.toString()}`
       }
 
       const response = await api.get<LogsResponse>(url)
@@ -153,7 +155,12 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
 
   const fetchStatistics = async () => {
     try {
-      const response = await api.get<Statistics>("/request-logs/statistics")
+      // Для manager и admin-worker показываем общую статистику, для других - только свою
+      const url = (userRole === "manager" || userRole === "admin-worker") 
+        ? "/request-logs/statistics" 
+        : "/request-logs/statistics/my"
+      
+      const response = await api.get<Statistics>(url)
       setStatistics(response.data)
     } catch (error) {
       console.error("Ошибка при загрузке статистики:", error)
@@ -208,12 +215,12 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-hidden pb-20">
       {/* Статистика */}
       {loading && !statistics ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
+            <Card key={i} className="w-full">
               <CardContent className="p-3 md:p-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
@@ -227,8 +234,8 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
           ))}
         </div>
       ) : statistics ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          <Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full">
+          <Card className="w-full">
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -240,7 +247,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="w-full">
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -252,7 +259,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="w-full">
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -264,7 +271,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="w-full">
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -279,7 +286,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
       ) : null}
 
       {/* Фильтры */}
-      <Card>
+      <Card className="w-full">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base md:text-lg">
             <Filter className="w-4 h-4 md:w-5 md:h-5" />
@@ -287,7 +294,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-4 w-full">
             <div>
               <Label htmlFor="actionType">Тип действия</Label>
               <Select value={actionType || "all"} onValueChange={setActionType}>
@@ -361,7 +368,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 mt-4">
+          <div className="flex flex-col sm:flex-row gap-2 mt-4 w-full">
             <Button onClick={handleRefresh} disabled={loading} className="flex-1 sm:flex-none">
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Обновить
@@ -374,7 +381,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
       </Card>
 
       {/* Логи */}
-      <Card>
+      <Card className="w-full">
         <CardHeader className="pb-3">
           <CardTitle className="text-base md:text-lg">Логи заявок</CardTitle>
           <CardDescription className="text-sm">
@@ -392,11 +399,11 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
               Логи не найдены
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 w-full">
               {logs.map((log) => (
-                <div key={log.id} className="border rounded-lg p-3 md:p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
+                <div key={log.id} className="border rounded-lg p-3 md:p-4 hover:bg-gray-50 transition-colors w-full break-words">
+                  <div className="flex items-start justify-between w-full">
+                    <div className="flex-1 min-w-0 max-w-full">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         {getActionIcon(log.action_type)}
                         <Badge 
@@ -410,25 +417,25 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                         </span>
                       </div>
                       
-                      <p className="text-sm font-medium mb-1 break-words">{log.action_description}</p>
+                      <p className="text-sm font-medium mb-1 break-words max-w-full overflow-hidden">{log.action_description}</p>
                       
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <User className="w-3 h-3 md:w-4 md:h-4" />
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-600 w-full">
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
+                          <User className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                           <span className="truncate">{log.user.full_name} ({log.user.role})</span>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
                           <span className="truncate">Заявка #{log.request.id}: {log.request.title}</span>
                         </div>
                       </div>
 
                       {(log.old_values || log.new_values) && (
-                        <div className="mt-2 text-xs text-gray-500">
+                        <div className="mt-2 text-xs text-gray-500 w-full">
                           {log.old_values && (
-                            <div>Было: {JSON.stringify(log.old_values)}</div>
+                            <div className="break-all">Было: {JSON.stringify(log.old_values)}</div>
                           )}
                           {log.new_values && (
-                            <div>Стало: {JSON.stringify(log.new_values)}</div>
+                            <div className="break-all">Стало: {JSON.stringify(log.new_values)}</div>
                           )}
                         </div>
                       )}
@@ -441,7 +448,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
 
           {/* Пагинация */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 w-full">
               <div className="text-sm text-gray-500 text-center sm:text-left">
                 Страница {page} из {totalPages}
               </div>
