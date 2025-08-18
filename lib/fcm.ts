@@ -1,0 +1,253 @@
+// FCM Token Management for Kcell Service Frontend
+
+interface FCMTokenData {
+    token: string;
+    platform: 'android' | 'ios' | 'web';
+    deviceId?: string;
+    userId?: string;
+}
+
+class FCMService {
+    private static instance: FCMService;
+    private currentToken: string | null = null;
+    private isInitialized = false;
+
+    private constructor() {}
+
+    static getInstance(): FCMService {
+        if (!FCMService.instance) {
+            FCMService.instance = new FCMService();
+        }
+        return FCMService.instance;
+    }
+
+    /**
+     * Initialize FCM service
+     */
+    async initialize(): Promise<void> {
+        if (this.isInitialized) return;
+
+        // Check if we're in Android WebView
+        if (this.isAndroidWebView()) {
+            this.setupAndroidInterface();
+        } else {
+            // For web browsers, we might implement web push notifications later
+            console.log('FCM: Running in web browser - push notifications not available');
+        }
+
+        this.isInitialized = true;
+    }
+
+    /**
+     * Check if running in Android WebView
+     */
+    private isAndroidWebView(): boolean {
+        return typeof window !== 'undefined' &&
+            'FCM' in window &&
+            typeof (window as any).FCM === 'object';
+    }
+
+    /**
+     * Setup Android WebView interface
+     */
+    private setupAndroidInterface(): void {
+        if (typeof window === 'undefined') return;
+
+        const androidFCM = (window as any).FCM;
+
+        // Override sendTokenToServer to include user authentication
+        const originalSendTokenToServer = androidFCM.sendTokenToServer;
+        androidFCM.sendTokenToServer = async (token: string) => {
+            this.currentToken = token;
+            await this.sendTokenToBackend(token);
+
+            // Call original method if it exists
+            if (originalSendTokenToServer) {
+                originalSendTokenToServer.call(androidFCM, token);
+            }
+        };
+
+        // Setup global receiveFCMToken function
+        (window as any).receiveFCMToken = async (token: string) => {
+            console.log('FCM: Received token from Android:', token.substring(0, 20) + '...');
+            this.currentToken = token;
+            await this.sendTokenToBackend(token);
+        };
+
+        // Setup global receiveFCMData function
+        (window as any).receiveFCMData = (data: any) => {
+            console.log('FCM: Received data from Android:', data);
+            this.handleFCMData(data);
+        };
+
+        console.log('FCM: Android interface setup complete');
+    }
+
+    /**
+     * Send FCM token to backend
+     */
+    private async sendTokenToBackend(token: string): Promise<void> {
+        try {
+            const tokenData: FCMTokenData = {
+                token,
+                platform: 'android',
+                deviceId: this.getDeviceId(),
+            };
+
+            // Get user ID if available
+            const userId = this.getCurrentUserId();
+            if (userId) {
+                tokenData.userId = userId;
+            }
+
+            const response = await fetch('/api/fcm/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.getAuthToken()}`,
+                },
+                body: JSON.stringify(tokenData),
+            });
+
+            if (response.ok) {
+                console.log('FCM: Token successfully sent to backend');
+            } else {
+                console.error('FCM: Failed to send token to backend:', response.status);
+            }
+        } catch (error) {
+            console.error('FCM: Error sending token to backend:', error);
+        }
+    }
+
+    /**
+     * Get current user ID from storage
+     */
+    private getCurrentUserId(): string | null {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            return localStorage.getItem('userId') ||
+                sessionStorage.getItem('userId') ||
+                null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Get authentication token from storage
+     */
+    private getAuthToken(): string | null {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            return localStorage.getItem('authToken') ||
+                sessionStorage.getItem('authToken') ||
+                null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Get device ID
+     */
+    private getDeviceId(): string {
+        // Generate a simple device ID for web
+        if (typeof window === 'undefined') return 'web-unknown';
+
+        let deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+            deviceId = 'web-' + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('deviceId', deviceId);
+        }
+        return deviceId;
+    }
+
+    /**
+     * Handle FCM data received from Android
+     */
+    private handleFCMData(data: any): void {
+        // Handle different types of notifications
+        switch (data.type) {
+            case 'chat':
+                this.handleChatNotification(data);
+                break;
+            case 'order':
+                this.handleOrderNotification(data);
+                break;
+            case 'payment':
+                this.handlePaymentNotification(data);
+                break;
+            case 'system':
+                this.handleSystemNotification(data);
+                break;
+            default:
+                this.handleGenericNotification(data);
+        }
+    }
+
+    private handleChatNotification(data: any): void {
+        console.log('FCM: Chat notification received:', data);
+        // Implement chat notification handling
+    }
+
+    private handleOrderNotification(data: any): void {
+        console.log('FCM: Order notification received:', data);
+        // Implement order notification handling
+    }
+
+    private handlePaymentNotification(data: any): void {
+        console.log('FCM: Payment notification received:', data);
+        // Implement payment notification handling
+    }
+
+    private handleSystemNotification(data: any): void {
+        console.log('FCM: System notification received:', data);
+        // Implement system notification handling
+    }
+
+    private handleGenericNotification(data: any): void {
+        console.log('FCM: Generic notification received:', data);
+        // Implement generic notification handling
+    }
+
+    /**
+     * Get current FCM token
+     */
+    getCurrentToken(): string | null {
+        return this.currentToken;
+    }
+
+    /**
+     * Subscribe to topic
+     */
+    async subscribeToTopic(topic: string): Promise<void> {
+        if (this.isAndroidWebView()) {
+            const androidFCM = (window as any).FCM;
+            if (androidFCM && androidFCM.subscribeToNotifications) {
+                androidFCM.subscribeToNotifications(topic);
+            }
+        }
+    }
+
+    /**
+     * Unsubscribe from topic
+     */
+    async unsubscribeFromTopic(topic: string): Promise<void> {
+        if (this.isAndroidWebView()) {
+            const androidFCM = (window as any).FCM;
+            if (androidFCM && androidFCM.unsubscribeFromNotifications) {
+                androidFCM.unsubscribeFromNotifications(topic);
+            }
+        }
+    }
+}
+
+// Export singleton instance
+export const fcmService = FCMService.getInstance();
+
+// Auto-initialize when module is loaded
+if (typeof window !== 'undefined') {
+    fcmService.initialize().catch(console.error);
+}
