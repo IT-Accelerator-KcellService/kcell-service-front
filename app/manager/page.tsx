@@ -66,6 +66,7 @@ declare global {
     androidApp?: {
       saveFileBase64: (fileName: string, base64: string, mimeType: string) => void;
       reloadPage: () => void;
+      notifyReady: () => void;
     };
   }
 }
