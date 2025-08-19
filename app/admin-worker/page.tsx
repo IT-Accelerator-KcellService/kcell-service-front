@@ -1550,14 +1550,6 @@ export default function AdminWorkerDashboard() {
                       </CardContent>
                     </Card>
                   </div>
-                  
-                  <div className="space-y-6 mb-20">
-                    <Card className="overflow-hidden">
-                      <CardContent className="p-0">
-                        <NotificationsSidebar onNotificationClick={handleNotificationClick} />
-                      </CardContent>
-                    </Card>
-                  </div>
                 </TabsContent>
 
                 <TabsContent value="logs">
@@ -1566,6 +1558,13 @@ export default function AdminWorkerDashboard() {
                   </div>
                 </TabsContent>
               </Tabs>
+            </div>
+            <div className="space-y-6 mb-20">
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <NotificationsSidebar onNotificationClick={handleNotificationClick} />
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
