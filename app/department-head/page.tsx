@@ -787,16 +787,16 @@ export default function DepartmentHeadDashboard() {
 
   const handleLogout = async () => {
     try {
-      setIsLoggedIn(false)
-      router.push("/login")
-
       Promise.all([
         clearNotifications,
         clearAuth,
         useStatsStore.getState().resetStats,
         clearRequests,
         clearCategories,
-      ])
+      ]);
+
+      setIsLoggedIn(false)
+      router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }

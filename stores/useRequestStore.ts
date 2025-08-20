@@ -1,19 +1,19 @@
 import { create } from 'zustand';
 
 interface RequestState {
-    requests: Request[];
-    incomingRequests: Request[];
-    myRequests: Request[];
-    assignedRequests: Request[];
-    completedRequests: Request[];
+    requests: RequestGroup[];
+    incomingRequests: RequestGroup[];
+    myRequests: RequestGroup[];
+    assignedRequests: RequestGroup[];
+    completedRequests: RequestGroup[];
 
     // Actions
-    setRequests: (requests: Request[] | ((prev: Request[]) => Request[])) => void;
-    setIncomingRequests: (requests: Request[] | ((prev: Request[]) => Request[])) => void;
-    setMyRequests: (requests: Request[] | ((prev: Request[]) => Request[])) => void;
-    setAssignedRequests: (requests: Request[] | ((prev: Request[]) => Request[])) => void;
-    setCompletedRequests: (requests: Request[] | ((prev: Request[]) => Request[])) => void;
-    addRequests: (newRequests: Request[]) => void;
+    setRequests: (requests: RequestGroup[] | ((prev: RequestGroup[]) => RequestGroup[])) => void;
+    setIncomingRequests: (requests: RequestGroup[] | ((prev: RequestGroup[]) => RequestGroup[])) => void;
+    setMyRequests: (requests: RequestGroup[] | ((prev: RequestGroup[]) => RequestGroup[])) => void;
+    setAssignedRequests: (requests: RequestGroup[] | ((prev: RequestGroup[]) => RequestGroup[])) => void;
+    setCompletedRequests: (requests: RequestGroup[] | ((prev: RequestGroup[]) => RequestGroup[])) => void;
+    addRequests: (newRequests: RequestGroup[]) => void;
     clearRequests: () => void;
     removeRequest: (id: number) => void;
     removeMyRequest: (id: number) => void;
@@ -21,32 +21,44 @@ interface RequestState {
     removeAssignedRequests: (id: number) => void;
 }
 
-export interface Request {
-    executor_id: any;
-    actual_completion_date: any;
-    sla: string;
-    date_submitted: string;
-    category: Category;
-    office: any;
-    complexity: string;
+export interface SubRequest {
     id: number;
     title: string;
     description: string;
     status: string;
-    request_type: string;
-    location: string;
-    location_detail: string;
+    category_id?: number;
+    category?: Category;
+    complexity?: string;
+    sla?: string;
     created_date: string;
-    executor: {user: { full_name: any; phone?: string } };
-    client?: { full_name: string; email: string; phone?: string };
+    executor?: {user: { full_name: any; phone?: string } };
     is_long_term?: boolean;
     rating?: number;
-    category_id?: number;
-    photos?: Photo[];
-    office_id: number;
-    planned_date: string;
-    client_id: number;
+    executors?: any[];
+    comment?: string;
 }
+
+export interface RequestGroup {
+    id: number;
+    client_id: number;
+    office_id: number;
+    location: string;
+    location_detail: string;
+    date_submitted?: string;
+    status: string;
+    request_type: string;
+    rejection_reason?: string;
+    planned_date?: string;
+    created_date: string;
+    client?: { full_name: string; email: string; phone?: string };
+    office?: { id: number; name: string; city: string; address?: string };
+    photos?: Photo[];
+    requests: SubRequest[];
+    is_long_term?: boolean;
+}
+
+// Для обратной совместимости
+export interface Request extends RequestGroup {}
 
 interface Category {
     id: number;
@@ -60,7 +72,7 @@ interface Photo {
     type: string;
 }
 
-export const sortRequests = (requests: Request[]): Request[] => {
+export const sortRequests = (requests: RequestGroup[]): RequestGroup[] => {
     return [...requests].sort((a, b) => {
         // Сначала заявки в работе
         const aInProgress = a.status === "in_progress";

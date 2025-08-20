@@ -25,6 +25,7 @@ import {
   Star,
   Trash2,
   User,
+  X,
   XCircle,
   Zap,
 } from "lucide-react"
@@ -42,7 +43,7 @@ import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {CommentList} from "@/components/comment/Comment";
 import {useRequestStore} from "@/stores/useRequestStore";
-import {Request} from '@/stores/useRequestStore'
+import {RequestGroup, SubRequest} from '@/stores/useRequestStore'
 import PullToRefresh from "@/components/pull-to-refresh";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
@@ -94,10 +95,10 @@ export default function ClientDashboard() {
   const [requestType, setRequestType] = useState("")
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<any | null>(null)
+  const [selectedRequest, setSelectedRequest] = useState<RequestGroup | null>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [ratingValue, setRatingValue] = useState(0)
-  const [requestToRate, setRequestToRate] = useState<Request | null>(null)
+  const [requestToRate, setRequestToRate] = useState<SubRequest | null>(null)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
@@ -108,6 +109,15 @@ export default function ClientDashboard() {
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [requestTitle, setRequestTitle] = useState("")
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
+  const [subRequests, setSubRequests] = useState<Array<{
+    title: string;
+    description: string;
+    category_id: number;
+  }>>([{
+    title: '',
+    description: '',
+    category_id: 0
+  }])
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
   const { requests, addRequests, clearRequests, removeRequest } = useRequestStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -126,9 +136,11 @@ export default function ClientDashboard() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
-  const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
+  const [requestToDelete, setRequestToDelete] = useState<RequestGroup | null>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null);
+  const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
+  const [showComments, setShowComments] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -366,10 +378,10 @@ export default function ClientDashboard() {
     }
   }
 
-  const fetchComments = async () => {
-    if (!selectedRequest?.id) return;
+  const fetchComments = async (subRequestId?: number) => {
+    if (!subRequestId) return;
     try {
-      const res = await api.get(`/comments/request/${selectedRequest.id}`);
+      const res = await api.get(`/comments/request/${subRequestId}`);
       setComments(res.data);
     } catch (err) {
       console.error("Ошибка при загрузке комментариев", err);
@@ -387,7 +399,7 @@ export default function ClientDashboard() {
     });
   };
 
-  const handleSend = () => {
+  const handleSend = (subRequestId: number) => {
     if (comment.trim() === "") return;
 
     if (editCommentId) {
@@ -404,10 +416,10 @@ export default function ClientDashboard() {
 
       api.put(`/comments/${currentEditId}`, {
         comment: currentComment,
-        request_id: selectedRequest.id,
+        request_id: subRequestId,
       }).catch(err => {
         console.error("Ошибка при обновлении", err);
-        fetchComments(); // Откатываем, если ошибка
+        fetchComments(subRequestId); // Откатываем, если ошибка
       });
 
     } else {
@@ -416,7 +428,7 @@ export default function ClientDashboard() {
       const newComment = {
         id: tempId,
         comment: comment.trim(),
-        request_id: selectedRequest.id,
+        request_id: subRequestId,
         isTemp: true,
         timestamp: new Date(),
         sender_id: user?.id!,
@@ -434,12 +446,12 @@ export default function ClientDashboard() {
 
       api.post(`/comments`, {
         comment: currentComment,
-        request_id: selectedRequest.id,
+        request_id: subRequestId,
       })
-          .then(() => fetchComments()) // Обновляем ID с сервера
+          .then(() => fetchComments(subRequestId)) // Обновляем ID с сервера
           .catch(err => {
             console.error("Ошибка при добавлении", err);
-            fetchComments(); // Откат
+            fetchComments(subRequestId); // Откат
           });
     }
   };
@@ -449,16 +461,50 @@ export default function ClientDashboard() {
     setEditCommentId(id);
   };
 
-  const handleDeleteRequest = (request: Request) => {
+  const handleDeleteRequest = (request: RequestGroup) => {
     setRequestToDelete(request)
     setShowDeleteRequestModal(true);
     openModal('deleteRequest');
   }
 
+  const handleDeleteSubRequest = async (subRequest: SubRequest) => {
+    try {
+      await api.delete(`/requests/${subRequest.id}`)
+      
+      // Обновляем состояние - удаляем подзаявку из группы
+      if (selectedRequest) {
+        const updatedRequests = selectedRequest.requests.filter(req => req.id !== subRequest.id)
+        const updatedRequestGroup = {
+          ...selectedRequest,
+          requests: updatedRequests
+        }
+        setSelectedRequest(updatedRequestGroup)
+        
+        // Обновляем в store
+        const currentRequests = useRequestStore.getState().requests
+        const updatedStoreRequests = currentRequests.map(req => 
+          req.id === selectedRequest.id ? updatedRequestGroup : req
+        )
+        useRequestStore.getState().setRequests(updatedStoreRequests)
+      }
+      
+      successModal.showSuccess({
+        title: "Подзаявка удалена",
+        message: "Подзаявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Error deleting sub-request:", error)
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Не удалось удалить подзаявку."
+      })
+    }
+  }
+
   const confirmDeleteRequest = async () => {
     if (requestToDelete) {
       try {
-        await api.delete(`/requests/${requestToDelete.id}`)
+        await api.delete(`/request-groups/${requestToDelete.id}`)
         
         // Удаляем заявку из локального состояния сразу
         removeRequest(requestToDelete.id);
@@ -474,7 +520,7 @@ export default function ClientDashboard() {
           message: "Заявка была успешно удалена."
         })
       } catch (error) {
-        console.error("Failed to delete request:", error)
+        console.error("Failed to delete request group:", error)
         successModal.showSuccess({
           title: "Ошибка",
           message: "Не удалось удалить заявку."
@@ -484,9 +530,8 @@ export default function ClientDashboard() {
   }
 
   useEffect(() => {
-    if (selectedRequest?.id) {
-      fetchComments();
-    }
+    // Комментарии теперь загружаются для конкретной подзаявки
+    // при нажатии на кнопку "Обновить" в модальном окне
   }, [selectedRequest]);
 
   const handleButtonClick = () => {
@@ -513,27 +558,29 @@ export default function ClientDashboard() {
   const fetchRequests = async (pageToFetch = page) => {
     try {
       setLoading(true);
-      const response = await api.get(`/requests/user?page=${pageToFetch}&pageSize=${pageSize}`);
+      const response = await api.get(`/request-groups?page=${pageToFetch}&pageSize=${pageSize}`);
 
-      const newRequests = response.data.requests ?? [];
+      const newRequestGroups = response.data.requests ?? [];
 
-      addRequests(newRequests);
+      addRequests(newRequestGroups);
 
-      if (newRequests.length < pageSize) {
+      if (newRequestGroups.length < pageSize) {
         setHasMore(false);
       }
 
       setPage(pageToFetch);
 
-      // Проверка оценки
-      newRequests.forEach((request: Request) => {
-        if (request.status === "completed") {
-          checkUserRating(request.id);
-        }
+      // Проверка оценки для каждой подзаявки
+      newRequestGroups.forEach((requestGroup: RequestGroup) => {
+        requestGroup.requests.forEach((subRequest: SubRequest) => {
+          if (subRequest.status === "completed") {
+            checkUserRating(subRequest.id);
+          }
+        });
       });
 
     } catch (error) {
-      console.error("Failed to fetch requests:", error);
+      console.error("Failed to fetch request groups:", error);
     } finally {
       setLoading(false);
     }
@@ -560,18 +607,21 @@ export default function ClientDashboard() {
   }, [])
 
   useEffect(() => {
-    if (selectedRequest?.category_id) {
-      api
-          .get(`service-categories/${Number(selectedRequest.category_id)}`)
-          .then((response) => {
-            setCategoryName(response.data.name)
-          })
-          .catch((error) => {
-            console.error("Ошибка при получении категории:", error)
-            setCategoryName("Неизвестно")
-          })
+    if (selectedRequest?.requests && selectedRequest.requests.length > 0) {
+      const firstSubRequest = selectedRequest.requests[0];
+      if (firstSubRequest?.category_id) {
+        api
+            .get(`service-categories/${Number(firstSubRequest.category_id)}`)
+            .then((response) => {
+              setCategoryName(response.data.name)
+            })
+            .catch((error) => {
+              console.error("Ошибка при получении категории:", error)
+              setCategoryName("Неизвестно")
+            })
+      }
     }
-  }, [selectedRequest?.category_id])
+  }, [selectedRequest?.requests])
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -669,14 +719,17 @@ export default function ClientDashboard() {
   }
 
   const handleCreateRequest = async () => {
+    // Проверяем, что все подзаявки заполнены
+    const validSubRequests = subRequests.filter(sub => 
+      sub.title.trim() && sub.description.trim() && sub.category_id > 0
+    );
+
     if (
         !requestType ||
-        !requestTitle.trim() ||
         !requestLocation.trim() ||
-        !requestDescription.trim() ||
-        !selectedCategoryId ||
         !requestLocationDetails.trim() ||
-        photos.length === 0
+        photos.length === 0 ||
+        validSubRequests.length === 0
     ) {
       setFormErrors("Заполните все обязательные поля.");
       return;
@@ -688,33 +741,35 @@ export default function ClientDashboard() {
     try {
       const formData = new FormData();
 
-      // Поля заявки
-      formData.append('title', requestTitle);
-      formData.append('description', requestDescription);
+      // Поля группы заявок
       formData.append('request_type', requestType);
       formData.append('location', requestLocation);
       formData.append('location_detail', requestLocationDetails);
       formData.append('status', 'in_progress');
-      formData.append('category_id', selectedCategoryId.toString());
+
+      // Подзаявки
+      formData.append('sub_requests', JSON.stringify(validSubRequests.map(sub => ({
+        ...sub,
+        status: 'in_progress'
+      }))));
 
       // Фото
       photos.forEach(photo => formData.append('photos', photo));
 
-      // Один запрос вместо двух
-      const response = await api.post('/requests/with-photos', formData, {
+      const response = await api.post('/request-groups', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const newRequest = response.data;
+      const newRequestGroup = response.data;
 
       // Обновляем состояние
-      addRequests([newRequest]);
+      addRequests([newRequestGroup]);
       successModal.showSuccess();
 
       // Сброс формы
       resetForm();
     } catch (error: any) {
-      console.error("Ошибка при создании заявки:", error);
+      console.error("Ошибка при создании группы заявок:", error);
       setFormErrors(
           error.response?.data?.error || "Не удалось создать заявку. Повторите попытку."
       );
@@ -727,13 +782,16 @@ export default function ClientDashboard() {
     setShowCreateRequest(false);
     closeModal()
     setRequestType("");
-    setRequestTitle("");
     setRequestLocation("");
     setRequestLocationDetails("");
-    setrequestDescription("");
     setPhotos([]);
     setPhotoPreviews([]);
     setFormErrors(null);
+    setSubRequests([{
+      title: '',
+      description: '',
+      category_id: 0
+    }]);
   };
 
   const handleRateExecutor = async () => {
@@ -1065,31 +1123,34 @@ export default function ClientDashboard() {
                     </Select>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredRequests.map((request, index) => {
+                    {filteredRequests.map((requestGroup, index) => {
                       const isLast = index === filteredRequests.length - 1;
+                      const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
+                      const totalSubRequests = requestGroup.requests.length;
+                      
                       return (
                           <Card
-                              key={request.id}
+                              key={requestGroup.id}
                               ref={isLast ? lastRequestRef : null}
                               className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
-                                request.is_long_term 
+                                isLongTerm 
                                   ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
                                   : 'bg-white hover:shadow-purple-400/20'
                               }`}
                               onClick={() => {
-                                setSelectedRequest(request);
+                                setSelectedRequest(requestGroup);
                                 openModal("requestDetails");
                               }}
                           >
                           {/* Заголовок с ID и статусами */}
-                          <CardHeader className={`pb-3 px-5 pt-5 ${request.is_long_term ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-l-4 border-blue-500' : ''}`}>
+                          <CardHeader className={`pb-3 px-5 pt-5 ${isLongTerm ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-l-4 border-blue-500' : ''}`}>
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <h3 className={`font-bold text-base leading-tight line-clamp-2 ${request.is_long_term ? 'text-blue-900' : 'text-gray-900'}`}>
-                                    {request.title}
+                                  <h3 className={`font-bold text-base leading-tight line-clamp-2 ${isLongTerm ? 'text-blue-900' : 'text-gray-900'}`}>
+                                    Заявка #{requestGroup.id}
                                   </h3>
-                                  {request.is_long_term && (
+                                  {isLongTerm && (
                                     <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-semibold rounded-full shadow-lg">
                                       <span className="animate-pulse">⏳</span>
                                       <span>Долгосрочная</span>
@@ -1097,36 +1158,30 @@ export default function ClientDashboard() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-blue-700 bg-blue-100' : 'text-purple-600 bg-purple-50'}`}>
-                                  #{request.id}
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-blue-700 bg-blue-100' : 'text-purple-600 bg-purple-50'}`}>
+                                  {totalSubRequests} подзаявок
                                 </span>
-                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
-                                  {request.category?.name || 'Не указано'}
+                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
+                                  {requestGroup.request_type === 'urgent' ? 'Срочная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
                                 </span>
                                 </div>
                               </div>
                               <div className="flex gap-1 items-center">
                                 <Badge
                                     variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
+                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(requestGroup.status)}`}
                                 >
-                                  {getStatusIcon(request.status)}
-                                  {translateStatus(request.status)}
+                                  {getStatusIcon(requestGroup.status)}
+                                  {translateStatus(requestGroup.status)}
                                 </Badge>
                                 <RoleBasedActionMenu
-                                  request={request}
+                                  request={requestGroup}
                                   isDesktop={isDesktop}
                                   userRole="client"
+                                  isSubRequest={false}
                                   onViewDetails={(request) => {
                                     setSelectedRequest(request);
                                     openModal("requestDetails");
-                                  }}
-                                  onRateRequest={(request) => {
-                                    setRequestToRate(request)
-                                    setShowRatingModal(true)
-                                    openModal('ratingModal')
-                                    setSelectedRequest(null);
-                                    closeModal()
                                   }}
                                   onDelete={handleDeleteRequest}
                                 />
@@ -1135,54 +1190,28 @@ export default function ClientDashboard() {
                           </CardHeader>
 
                           <CardContent className="px-5 pb-5 pt-0 space-y-3">
-                            {/* Описание */}
-                            <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
-
                             {/* Основная информация в сетке */}
                             <div className="grid grid-cols-2 gap-2 text-sm">
                               <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                 <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{request.location_detail}</span>
+                                <span className="truncate font-medium">{requestGroup.location_detail}</span>
                               </div>
 
                               <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
                                 <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{formatDate(request.created_date)}</span>
+                                <span className="truncate font-medium">{formatDate(requestGroup.created_date)}</span>
                               </div>
-
-                              {request.executor && request.executor.user ? (
-                                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                    <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
-                                  </div>
-                              ) : (
-                                  <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                    <User className="w-4 h-4 flex-shrink-0" />
-                                    <span className="truncate font-medium">Не назначен</span>
-                                  </div>
-                              )}
-
-
-                              {userRatings[request.id]?.rating ? (
-                                  <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                    {renderStars(userRatings[request.id].rating)}
-                                  </div>
-                              ) : (
-                                  <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                    <span className="text-sm font-medium">Без оценки</span>
-                                  </div>
-                              )}
                             </div>
 
                             {/* Фотографии */}
-                            {request.photos && request.photos.length > 0 && (
+                            {requestGroup.photos && requestGroup.photos.length > 0 && (
                                 <div className="space-y-2">
                                   <div className="flex items-center gap-2">
                                     <ImageIcon className="w-4 h-4 text-purple-500" />
-                                    <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
+                                    <span className="text-sm font-medium text-gray-700">{requestGroup.photos.length} фото</span>
                                   </div>
                                   <div className="flex gap-2 overflow-x-auto">
-                                    {request.photos.slice(0, 4).map((photo, index) => (
+                                    {requestGroup.photos.slice(0, 4).map((photo: any, index) => (
                                         <div key={index} className="flex-shrink-0">
                                           <img
                                               src={photo.photo_url || "/placeholder.svg"}
@@ -1194,9 +1223,9 @@ export default function ClientDashboard() {
                                           />
                                         </div>
                                     ))}
-                                    {request.photos.length > 4 && (
+                                    {requestGroup.photos.length > 4 && (
                                         <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                                          <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+                                          <span className="text-xs font-bold text-white">+{requestGroup.photos.length - 4}</span>
                                         </div>
                                     )}
                                   </div>
@@ -1208,22 +1237,14 @@ export default function ClientDashboard() {
                               <div className="flex gap-2">
                                 <Badge
                                     variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
+                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(requestGroup.request_type)}`}
                                 >
-                                  {getRequestTypeIcon(request.request_type)}
-                                  {translateType(request.request_type)}
+                                  {getRequestTypeIcon(requestGroup.request_type)}
+                                  {translateType(requestGroup.request_type)}
                                 </Badge>
-                                {request.complexity && request.complexity !== "" && (
-                                    <Badge
-                                        variant="outline"
-                                        className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
-                                    >
-                                      {translateComplexity(request.complexity)}
-                                    </Badge>
-                                )}
                               </div>
 
-                              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
+                              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {requestGroup.id}</div>
                             </div>
                           </CardContent>
                         </Card>
@@ -1314,13 +1335,14 @@ export default function ClientDashboard() {
         {/* Request Details Modal */}
         {selectedRequest && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
-              setSelectedRequest(false)
+              setSelectedRequest(null)
               setComments([])
+              setShowComments(null)
             }}>
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <CardHeader>
-                  <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
-                  <CardDescription>Подробная информация о вашей заявке</CardDescription>
+              <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+                <CardHeader className={isDesktop ? '' : 'sticky top-0 bg-white z-10 border-b'}>
+                  <CardTitle className={isDesktop ? '' : 'text-lg'}>Детали заявки #{selectedRequest.id}</CardTitle>
+                  <CardDescription className={isDesktop ? '' : 'text-sm'}>Подробная информация о вашей заявке</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 pb-16">
                   <div className="grid grid-cols-2 gap-4">
@@ -1334,9 +1356,123 @@ export default function ClientDashboard() {
                     </div>
                   </div>
 
+                  {/* Подзаявки */}
                   <div>
-                    <Label>Название</Label>
-                    <p className="text-sm font-medium">{selectedRequest.title}</p>
+                    <Label className={isDesktop ? '' : 'text-base font-semibold'}>Подзаявки</Label>
+                    <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
+                      {selectedRequest.requests.map((subRequest: SubRequest, index: number) => {
+                        const isExpanded = expandedSubRequests.has(subRequest.id);
+                        const hasComments = showComments === subRequest.id;
+                        
+                        return (
+                          <div key={subRequest.id} className={`border rounded-lg bg-white shadow-sm ${isDesktop ? '' : 'border-gray-200'}`}>
+                            {/* Заголовок подзаявки */}
+                            <div className={`p-4 ${isDesktop ? '' : 'p-5'}`}>
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className={`font-semibold text-gray-900 mb-1 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
+                                  <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
+                                    <span className={isDesktop ? 'truncate' : ''}>{subRequest.category?.name || 'Без категории'}</span>
+                                    {isDesktop && <span className="flex-shrink-0">•</span>}
+                                    <span className={isDesktop ? 'truncate' : ''}>{subRequest.executor?.user.full_name || 'Не назначен'}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <Badge className={`${getStatusColor(subRequest.status)} ${isDesktop ? 'text-xs' : 'text-sm'}`}>
+                                    {translateStatus(subRequest.status)}
+                                  </Badge>
+                                  
+                                  {/* Кнопка комментариев */}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0`}
+                                    onClick={() => {
+                                      if (hasComments) {
+                                        setShowComments(null);
+                                        setComments([]);
+                                      } else {
+                                        setShowComments(subRequest.id);
+                                        setComments([]);
+                                        fetchComments(subRequest.id);
+                                      }
+                                    }}
+                                  >
+                                    <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
+                                  </Button>
+                                  
+                                  <RoleBasedActionMenu
+                                    request={subRequest}
+                                    isDesktop={isDesktop}
+                                    userRole="client"
+                                    isSubRequest={true}
+                                    onRateRequest={(subReq) => {
+                                      setRequestToRate(subReq)
+                                      setShowRatingModal(true)
+                                      openModal('ratingModal')
+                                      setSelectedRequest(null);
+                                      closeModal()
+                                    }}
+                                    onDelete={(subReq) => {
+                                      handleDeleteSubRequest(subReq);
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              
+                              {/* Краткое описание */}
+                              <div className={`text-gray-600 mt-2 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
+                                {isDesktop ? (
+                                  <p className="line-clamp-2">{subRequest.description}</p>
+                                ) : (
+                                  <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
+                                )}
+                              </div>
+                              
+                              {/* Кнопка раскрытия */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`mt-3 text-purple-600 hover:text-purple-700 ${isDesktop ? '' : 'text-base py-2'}`}
+                                onClick={() => {
+                                  const newExpanded = new Set(expandedSubRequests);
+                                  if (isExpanded) {
+                                    newExpanded.delete(subRequest.id);
+                                  } else {
+                                    newExpanded.add(subRequest.id);
+                                  }
+                                  setExpandedSubRequests(newExpanded);
+                                }}
+                              >
+                                {isExpanded ? 'Свернуть' : 'Подробнее'}
+                              </Button>
+                            </div>
+                            
+                            {/* Раскрытая информация */}
+                            {isExpanded && (
+                              <div className={`border-t bg-gray-50 ${isDesktop ? 'p-4' : 'p-5'}`}>
+                                <div className={`grid gap-3 text-sm mb-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                  {subRequest.complexity && (
+                                    <div className="flex items-center gap-2 text-gray-600">
+                                      <span className="font-medium">Сложность:</span>
+                                      <Badge className={getComplexityColor(subRequest.complexity)}>
+                                        {translateComplexity(subRequest.complexity)}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                  {userRatings[subRequest.id]?.rating && (
+                                    <div className="flex items-center gap-2 text-gray-600">
+                                      <span className="font-medium">Оценка:</span>
+                                      <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div>
@@ -1384,93 +1520,88 @@ export default function ClientDashboard() {
                     })}
                   </div>
 
-                  {selectedRequest.executor && (
+                  {/* Исполнители для подзаявок */}
+                  {selectedRequest.requests.some(req => req.executor) && (
                       <div>
-                        <Label>Исполнитель</Label>
-                        <p className="text-sm">{selectedRequest.executor.user.full_name || "не назначена"}</p>
-                      </div>
-                  )}
-
-                  <div>
-                    <Label>Категория услуги</Label>
-                    <p className="text-sm">{categoryName}</p>
-                  </div>
-
-                  {userRatings[selectedRequest.id] && (
-                      <div className="flex items-center">
-                        <Label>Ваша оценка:</Label>
-                        <div className="flex ml-2">
-                          {[...Array(5)].map((_, i) => (
-                              <Star
-                                  key={i}
-                                  className={`w-5 h-5 ${
-                                      i < userRatings[selectedRequest.id].rating
-                                          ? "text-yellow-400 fill-current"
-                                          : "text-gray-300"
-                                  }`}
-                              />
+                        <Label>Исполнители</Label>
+                        <div className="space-y-2">
+                          {selectedRequest.requests.map((subRequest: SubRequest) => (
+                            subRequest.executor && (
+                              <div key={subRequest.id} className="text-sm">
+                                <span className="font-medium">{subRequest.title}:</span> {subRequest.executor.user.full_name}
+                              </div>
+                            )
                           ))}
                         </div>
                       </div>
                   )}
 
-                  <div>
-                    <Label>Описание проблемы</Label>
-                    <p className="text-sm">{selectedRequest.description}</p>
-                  </div>
-
-
-                  {selectedRequest.photos && selectedRequest.photos.length > 0 && (() => {
-                    const clientPhotos = selectedRequest.photos.filter((photo: any) => photo.type === "before");
-                    const contractorPhotos = selectedRequest.photos.filter((photo: any) => photo.type === "after");
-
-                    return (
-                        <div className="mt-4">
-                          {/* Блок ДО */}
-                          {clientPhotos.length > 0 && (
-                              <>
-                                <Label className="font-bold">Фотографии «До» (загружены пользователем)</Label>
-                                <div className="flex space-x-2 mt-2 flex-wrap">
-                                  {clientPhotos.map((photo: any, index: number) => (
-                                      <img
-                                          key={index}
-                                          src={photo.photo_url || "/placeholder.svg"}
-                                          alt={`До ${index + 1}`}
-                                          className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                          onClick={() => {setSelectedPhoto(photo.photo_url); openModal('photoPreview');}}
+                  {/* Оценки для подзаявок */}
+                  {selectedRequest.requests.some(req => userRatings[req.id]) && (
+                      <div>
+                        <Label>Ваши оценки:</Label>
+                        <div className="space-y-2">
+                          {selectedRequest.requests.map((subRequest: SubRequest) => (
+                            userRatings[subRequest.id] && (
+                              <div key={subRequest.id} className="flex items-center gap-2">
+                                <span className="text-sm">{subRequest.title}:</span>
+                                <div className="flex">
+                                  {[...Array(5)].map((_, i) => (
+                                      <Star
+                                          key={i}
+                                          className={`w-4 h-4 ${
+                                              i < userRatings[subRequest.id].rating
+                                                  ? "text-yellow-400 fill-current"
+                                                  : "text-gray-300"
+                                          }`}
                                       />
                                   ))}
                                 </div>
-                              </>
-                          )}
-
-                          {/* Блок ПОСЛЕ */}
-                          <Label className="font-bold mt-4 block">Фотографии «После» (загружены подрядчиком)</Label>
-                          {contractorPhotos.length > 0 ? (
-                              <div className="flex space-x-2 mt-2 flex-wrap">
-                                {contractorPhotos.map((photo: any, index: number) => (
-                                    <img
-                                        key={index}
-                                        src={photo.photo_url || "/placeholder.svg"}
-                                        alt={`После ${index + 1}`}
-                                        className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                        onClick={() => {setSelectedPhoto(photo.photo_url); openModal('photoPreview'); }}
-                                    />
-                                ))}
                               </div>
-                          ) : (
-                              <div className="text-xs text-gray-400 mt-2">Нет загруженных фотографий</div>
-                          )}
+                            )
+                          ))}
                         </div>
-                    );
-                  })()}
+                      </div>
+                  )}
+
+
+                  {/* Фотографии группы заявок */}
+                  {selectedRequest.photos && selectedRequest.photos.length > 0 && (
+                    <div className="mt-4">
+                      <Label className="font-bold block">Фотографии заявки</Label>
+                      <div className="flex space-x-2 mt-2 flex-wrap">
+                        {selectedRequest.photos.map((photo: any, index: number) => (
+                          <img
+                            key={index}
+                            src={photo.photo_url || "/placeholder.svg"}
+                            alt={`Фото ${index + 1}`}
+                            className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                            onClick={() => {
+                              setSelectedPhoto(photo.photo_url);
+                              openModal('photoPreview');
+                            }}
+                            onError={(e) => {
+                              e.currentTarget.src = "/placeholder.svg";
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-4">
-                    <Label className="font-bold block">Комментарий исполнителя</Label>
-                    <p className="text-sm mt-1">
-                      {selectedRequest.comment && selectedRequest.comment.trim() !== ""
-                          ? selectedRequest.comment
-                          : "Исполнитель ничего не написал"}
-                    </p>
+                    <Label className="font-bold block">Комментарии исполнителей</Label>
+                    <div className="space-y-2">
+                      {selectedRequest.requests.map((subRequest: SubRequest) => (
+                        subRequest.comment && subRequest.comment.trim() !== "" ? (
+                          <div key={subRequest.id} className="text-sm mt-1">
+                            <span className="font-medium">{subRequest.title}:</span> {subRequest.comment}
+                          </div>
+                        ) : null
+                      ))}
+                      {!selectedRequest.requests.some(req => req.comment && req.comment.trim() !== "") && (
+                        <p className="text-sm mt-1">Исполнители ничего не написали</p>
+                      )}
+                    </div>
                   </div>
 
 
@@ -1491,52 +1622,7 @@ export default function ClientDashboard() {
                   )}
 
 
-                  {/* Секция для комментариев */}
-                  <Card className="mt-2 border-t border-gray-100">
-                    <CardContent className="p-4">
-                      <CommentList
-                          comments={comments}
-                          currentUserId={currentUserId}
-                          onEdit={handleEdit}
-                          onDelete={handleDelete}
-                      />
 
-                      {/* Поле ввода */}
-                      <div className="mt-4 flex flex-col space-y-2">
-                        {editCommentId && (
-                            <div className="text-xs text-gray-500">
-                              Редактируется комментарий
-                              <button
-                                  className="ml-2 text-red-500 hover:underline"
-                                  onClick={() => {
-                                    setEditCommentId(null);
-                                    setComment("");
-                                  }}
-                              >
-                                Отменить
-                              </button>
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2 w-full">
-                          <input
-                              type="text"
-                              value={comment}
-                              onChange={(e) => setComment(e.target.value)}
-                              placeholder="Написать комментарий..."
-                              className="flex-1 min-w-0 p-2.5 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                          />
-                          <Button
-                              size="sm"
-                              onClick={handleSend}
-                              className="bg-violet-600 hover:bg-violet-700 p-2.5 flex-shrink-0"
-                              aria-label="Отправить комментарий"
-                          >
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
 
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => {
@@ -1546,20 +1632,6 @@ export default function ClientDashboard() {
                     }}>
                       Закрыть
                     </Button>
-                    {selectedRequest.status === "completed" && !userRatings[selectedRequest.id] && (
-                        <Button
-                            onClick={() => {
-                              setRequestToRate(selectedRequest)
-                              setShowRatingModal(true)
-                              openModal('ratingModal')
-                              setSelectedRequest(null);
-                              closeModal()
-                            }}
-                        >
-                          <Star className="w-4 h-4 mr-2" />
-                          Оценить
-                        </Button>
-                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1701,11 +1773,6 @@ export default function ClientDashboard() {
                   </div>
 
                   <div>
-                    <Label>Название заявки</Label>
-                    <Input placeholder="Введите название заявки" value={requestTitle} onChange={e => setRequestTitle(e.target.value)} />
-                  </div>
-
-                  <div>
                     <Label>Локация</Label>
                     <Input
                         placeholder="Определение вашего местоположения..."
@@ -1719,28 +1786,101 @@ export default function ClientDashboard() {
                     <Input placeholder="Введите расположение" value={requestLocationDetails} onChange={e => setRequestLocationDetails(e.target.value)} />
                   </div>
 
+                  {/* Подзаявки */}
                   <div>
-                    <Label>Категория услуги</Label>
-                    <Select
-                        value={selectedCategoryId?.toString() || ""}
-                        onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите категорию" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.name}
-                            </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Описание проблемы</Label>
-                    <Textarea placeholder="Опишите проблему подробно..." className="min-h-[100px]" value={requestDescription} onChange={e => setrequestDescription(e.target.value)} />
+                    <div className="flex items-center justify-between mb-3">
+                      <Label>Подзаявки</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSubRequests([...subRequests, {
+                            title: '',
+                            description: '',
+                            category_id: 0
+                          }]);
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Добавить подзаявку
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {subRequests.map((subRequest, index) => (
+                        <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium">Подзаявка {index + 1}</h4>
+                            {subRequests.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSubRequests(subRequests.filter((_, i) => i !== index));
+                                }}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <div>
+                              <Label>Название подзаявки</Label>
+                              <Input 
+                                placeholder="Введите название подзаявки" 
+                                value={subRequest.title} 
+                                onChange={e => {
+                                  const newSubRequests = [...subRequests];
+                                  newSubRequests[index].title = e.target.value;
+                                  setSubRequests(newSubRequests);
+                                }} 
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label>Категория услуги</Label>
+                              <Select
+                                value={subRequest.category_id?.toString() || ""}
+                                onValueChange={(value) => {
+                                  const newSubRequests = [...subRequests];
+                                  newSubRequests[index].category_id = parseInt(value);
+                                  setSubRequests(newSubRequests);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Выберите категорию" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categories.map((category) => (
+                                    <SelectItem key={category.id} value={category.id.toString()}>
+                                      {category.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div>
+                              <Label>Описание проблемы</Label>
+                              <Textarea 
+                                placeholder="Опишите проблему подробно..." 
+                                className="min-h-[80px]" 
+                                value={subRequest.description} 
+                                onChange={e => {
+                                  const newSubRequests = [...subRequests];
+                                  newSubRequests[index].description = e.target.value;
+                                  setSubRequests(newSubRequests);
+                                }} 
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
@@ -1815,8 +1955,143 @@ export default function ClientDashboard() {
           }}
           onConfirm={confirmDeleteRequest}
           title={`Удалить заявку #${requestToDelete?.id}?`}
-          description={`Вы уверены, что хотите удалить заявку "${requestToDelete?.title}"? Это действие необратимо.`}
+          description={`Вы уверены, что хотите удалить заявку "${requestToDelete?.requests[0]?.title || 'Заявка'}"? Это действие необратимо.`}
         />
+
+        {/* Панель комментариев (Instagram-style) */}
+        {showComments && (
+          <>
+            {/* Мобильная версия */}
+            {!isDesktop && (
+              <div className="fixed inset-0 z-50 flex items-end">
+                {/* Overlay */}
+                <div 
+                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  onClick={() => {
+                    setShowComments(null);
+                    setComments([]);
+                  }}
+                />
+                
+                {/* Панель комментариев */}
+                <div className="relative bg-white w-full max-h-[70vh] rounded-t-3xl flex flex-col">
+                  {/* Заголовок */}
+                  <div className="flex items-center justify-between p-4 border-b">
+                    <h3 className="font-semibold text-lg">Комментарии</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowComments(null);
+                        setComments([]);
+                      }}
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+                  
+                  {/* Список комментариев */}
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <CommentList
+                      comments={comments}
+                      currentUserId={currentUserId}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  </div>
+                  
+                  {/* Поле ввода */}
+                  <div className="p-4 border-t bg-gray-50">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Написать комментарий..."
+                        className="flex-1 min-w-0 p-3 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && showComments) {
+                            handleSend(showComments);
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (showComments) {
+                            handleSend(showComments);
+                          }
+                        }}
+                        className="bg-violet-600 hover:bg-violet-700 p-3 rounded-full"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Десктопная версия - правая панель */}
+            {isDesktop && (
+              <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl border-l border-gray-200 z-50 flex flex-col">
+                {/* Заголовок */}
+                <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                  <h3 className="font-semibold text-lg">Комментарии</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowComments(null);
+                      setComments([]);
+                    }}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+                
+                {/* Список комментариев */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  <CommentList
+                    comments={comments}
+                    currentUserId={currentUserId}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                </div>
+                
+                {/* Поле ввода */}
+                <div className="p-4 border-t bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Написать комментарий..."
+                      className="flex-1 min-w-0 p-3 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && showComments) {
+                          handleSend(showComments);
+                        }
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (showComments) {
+                          handleSend(showComments);
+                        }
+                      }}
+                      className="bg-violet-600 hover:bg-violet-700 p-3 rounded-full"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         <SuccessModal
             isOpen={successModal.isOpen}

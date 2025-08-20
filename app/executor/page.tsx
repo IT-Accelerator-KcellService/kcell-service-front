@@ -963,7 +963,7 @@ export default function ExecutorDashboard() {
         });
         formData.append('type', 'after');
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${response.data.id}/photos`, formData, {
+          await axios.post(`${API_BASE_URL}/request-photos/${response.data.requestGroup.id}/photos`, formData, {
             withCredentials: true,
             headers: {
               Authorization: `Bearer ${token}`
