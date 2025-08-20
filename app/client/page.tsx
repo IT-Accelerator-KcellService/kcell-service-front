@@ -9,6 +9,12 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {Textarea} from "@/components/ui/textarea"
 import {Badge} from "@/components/ui/badge"
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 import {
   AlertCircle,
@@ -28,6 +34,8 @@ import {
   X,
   XCircle,
   Zap,
+  Hourglass,
+  CalendarDays,
 } from "lucide-react"
 import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
@@ -141,6 +149,7 @@ export default function ClientDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
   const [showComments, setShowComments] = useState<number | null>(null);
+  const [showIconInfo, setShowIconInfo] = useState<{type: 'status' | 'longTerm', value: string} | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -155,8 +164,8 @@ export default function ClientDashboard() {
 
   const filteredRequests = requests
       .filter((request) => {
-        const statusMatch = filterStatus === "all" || 
-          (filterStatus === "long_term" ? request.is_long_term : request.status === filterStatus)
+        const statusMatch = filterStatus === "all" ||
+          (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterStatus)
         const requestType = request.request_type
         const typeMatch = filterType === "all" || requestType === filterType
         return statusMatch && typeMatch
@@ -470,7 +479,7 @@ export default function ClientDashboard() {
   const handleDeleteSubRequest = async (subRequest: SubRequest) => {
     try {
       await api.delete(`/requests/${subRequest.id}`)
-      
+
       // Обновляем состояние - удаляем подзаявку из группы
       if (selectedRequest) {
         const updatedRequests = selectedRequest.requests.filter(req => req.id !== subRequest.id)
@@ -479,15 +488,15 @@ export default function ClientDashboard() {
           requests: updatedRequests
         }
         setSelectedRequest(updatedRequestGroup)
-        
+
         // Обновляем в store
         const currentRequests = useRequestStore.getState().requests
-        const updatedStoreRequests = currentRequests.map(req => 
+        const updatedStoreRequests = currentRequests.map(req =>
           req.id === selectedRequest.id ? updatedRequestGroup : req
         )
         useRequestStore.getState().setRequests(updatedStoreRequests)
       }
-      
+
       successModal.showSuccess({
         title: "Подзаявка удалена",
         message: "Подзаявка была успешно удалена."
@@ -505,16 +514,16 @@ export default function ClientDashboard() {
     if (requestToDelete) {
       try {
         await api.delete(`/request-groups/${requestToDelete.id}`)
-        
+
         // Удаляем заявку из локального состояния сразу
         removeRequest(requestToDelete.id);
-        
+
         // Закрываем все модальные окна
         setShowDeleteRequestModal(false);
         setSelectedRequest(null);
         closeModal();
         setRequestToDelete(null);
-        
+
         successModal.showSuccess({
           title: "Заявка удалена",
           message: "Заявка была успешно удалена."
@@ -610,16 +619,16 @@ export default function ClientDashboard() {
     if (selectedRequest?.requests && selectedRequest.requests.length > 0) {
       const firstSubRequest = selectedRequest.requests[0];
       if (firstSubRequest?.category_id) {
-        api
+      api
             .get(`service-categories/${Number(firstSubRequest.category_id)}`)
-            .then((response) => {
-              setCategoryName(response.data.name)
-            })
-            .catch((error) => {
-              console.error("Ошибка при получении категории:", error)
-              setCategoryName("Неизвестно")
-            })
-      }
+          .then((response) => {
+            setCategoryName(response.data.name)
+          })
+          .catch((error) => {
+            console.error("Ошибка при получении категории:", error)
+            setCategoryName("Неизвестно")
+          })
+    }
     }
   }, [selectedRequest?.requests])
 
@@ -720,7 +729,7 @@ export default function ClientDashboard() {
 
   const handleCreateRequest = async () => {
     // Проверяем, что все подзаявки заполнены
-    const validSubRequests = subRequests.filter(sub => 
+    const validSubRequests = subRequests.filter(sub =>
       sub.title.trim() && sub.description.trim() && sub.category_id > 0
     );
 
@@ -924,23 +933,65 @@ export default function ClientDashboard() {
     ))
   }
 
-  const renderLongTermIndicator = (request: any) => {
-    if (!request.is_long_term) {
-      return null;
-    }
+  const renderStatusWithTooltip = (status: string) => {
+    const icon = getStatusIcon(status);
+    const text = translateStatus(status);
 
+    if (isDesktop) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 cursor-help">
+                {icon}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{text}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    } else {
+      return (
+        <div
+          className="flex items-center gap-1 cursor-pointer p-1 rounded"
+          onClick={() => setShowIconInfo({type: 'status', value: text})}
+        >
+          {icon}
+        </div>
+      );
+    }
+  };
+
+  const renderLongTermWithTooltip = (isLongTerm: boolean) => {
+    if (!isLongTerm) return null;
+
+    if (isDesktop) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 cursor-help">
+                <Hourglass className="w-3 h-3 text-blue-600" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Долгосрочная задача</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    } else {
     return (
       <div
-        title="Долгосрочная задача"
-        className="group relative p-2 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/40"
-      >
-        <span className="text-base font-medium animate-pulse drop-shadow-sm">
-          ⏳
-        </span>
-        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping shadow-lg"></span>
-        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-pulse"></span>
+          className="flex items-center gap-1 cursor-pointer p-1 rounded"
+          onClick={() => setShowIconInfo({type: 'longTerm', value: 'Долгосрочная задача'})}
+        >
+          <Hourglass className="w-3 h-3 text-blue-600" />
       </div>
     );
+    }
   };
 
   const handleRefresh = async () => {
@@ -1127,53 +1178,37 @@ export default function ClientDashboard() {
                       const isLast = index === filteredRequests.length - 1;
                       const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
                       const totalSubRequests = requestGroup.requests.length;
-                      
+
                       return (
                           <Card
                               key={requestGroup.id}
                               ref={isLast ? lastRequestRef : null}
-                              className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
-                                isLongTerm 
-                                  ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
-                                  : 'bg-white hover:shadow-purple-400/20'
-                              }`}
+                              className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer`}
                               onClick={() => {
                                 setSelectedRequest(requestGroup);
                                 openModal("requestDetails");
                               }}
                           >
                           {/* Заголовок с ID и статусами */}
-                          <CardHeader className={`pb-3 px-5 pt-5 ${isLongTerm ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-l-4 border-blue-500' : ''}`}>
+                          <CardHeader className={`pb-3 px-5 pt-5`}>
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                   <h3 className={`font-bold text-base leading-tight line-clamp-2 ${isLongTerm ? 'text-blue-900' : 'text-gray-900'}`}>
                                     Заявка #{requestGroup.id}
                                   </h3>
-                                  {isLongTerm && (
-                                    <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-semibold rounded-full shadow-lg">
-                                      <span className="animate-pulse">⏳</span>
-                                      <span>Долгосрочная</span>
-                                    </div>
-                                  )}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
                                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-blue-700 bg-blue-100' : 'text-purple-600 bg-purple-50'}`}>
                                   {totalSubRequests} подзаявок
                                 </span>
                                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
-                                  {requestGroup.request_type === 'urgent' ? 'Срочная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
+                                  {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
                                 </span>
                                 </div>
                               </div>
                               <div className="flex gap-1 items-center">
-                                <Badge
-                                    variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(requestGroup.status)}`}
-                                >
-                                  {getStatusIcon(requestGroup.status)}
-                                  {translateStatus(requestGroup.status)}
-                                </Badge>
+                                {renderStatusWithTooltip(requestGroup.status)}
                                 <RoleBasedActionMenu
                                   request={requestGroup}
                                   isDesktop={isDesktop}
@@ -1363,7 +1398,7 @@ export default function ClientDashboard() {
                       {selectedRequest.requests.map((subRequest: SubRequest, index: number) => {
                         const isExpanded = expandedSubRequests.has(subRequest.id);
                         const hasComments = showComments === subRequest.id;
-                        
+
                         return (
                           <div key={subRequest.id} className={`border rounded-lg bg-white shadow-sm ${isDesktop ? '' : 'border-gray-200'}`}>
                             {/* Заголовок подзаявки */}
@@ -1378,10 +1413,9 @@ export default function ClientDashboard() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                  <Badge className={`${getStatusColor(subRequest.status)} ${isDesktop ? 'text-xs' : 'text-sm'}`}>
-                                    {translateStatus(subRequest.status)}
-                                  </Badge>
-                                  
+                                  {renderStatusWithTooltip(subRequest.status)}
+                                  {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+
                                   {/* Кнопка комментариев */}
                                   <Button
                                     variant="ghost"
@@ -1400,7 +1434,7 @@ export default function ClientDashboard() {
                                   >
                                     <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
                                   </Button>
-                                  
+
                                   <RoleBasedActionMenu
                                     request={subRequest}
                                     isDesktop={isDesktop}
@@ -1419,7 +1453,7 @@ export default function ClientDashboard() {
                                   />
                                 </div>
                               </div>
-                              
+
                               {/* Краткое описание */}
                               <div className={`text-gray-600 mt-2 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
                                 {isDesktop ? (
@@ -1428,7 +1462,7 @@ export default function ClientDashboard() {
                                   <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
                                 )}
                               </div>
-                              
+
                               {/* Кнопка раскрытия */}
                               <Button
                                 variant="ghost"
@@ -1447,7 +1481,7 @@ export default function ClientDashboard() {
                                 {isExpanded ? 'Свернуть' : 'Подробнее'}
                               </Button>
                             </div>
-                            
+
                             {/* Раскрытая информация */}
                             {isExpanded && (
                               <div className={`border-t bg-gray-50 ${isDesktop ? 'p-4' : 'p-5'}`}>
@@ -1458,6 +1492,15 @@ export default function ClientDashboard() {
                                       <Badge className={getComplexityColor(subRequest.complexity)}>
                                         {translateComplexity(subRequest.complexity)}
                                       </Badge>
+                                    </div>
+                                  )}
+                                  {subRequest.is_long_term && (
+                                    <div className="flex items-center gap-2 text-gray-600">
+                                      <span className="font-medium">Тип:</span>
+                                      <div className="flex items-center gap-1">
+                                        <Hourglass className="w-3 h-3 text-blue-600" />
+                                        <span className="text-xs">Долгосрочная</span>
+                                      </div>
                                     </div>
                                   )}
                                   {userRatings[subRequest.id]?.rating && (
@@ -1538,7 +1581,7 @@ export default function ClientDashboard() {
 
                   {/* Оценки для подзаявок */}
                   {selectedRequest.requests.some(req => userRatings[req.id]) && (
-                      <div>
+                  <div>
                         <Label>Ваши оценки:</Label>
                         <div className="space-y-2">
                           {selectedRequest.requests.map((subRequest: SubRequest) => (
@@ -1546,15 +1589,15 @@ export default function ClientDashboard() {
                               <div key={subRequest.id} className="flex items-center gap-2">
                                 <span className="text-sm">{subRequest.title}:</span>
                                 <div className="flex">
-                                  {[...Array(5)].map((_, i) => (
-                                      <Star
-                                          key={i}
+                          {[...Array(5)].map((_, i) => (
+                              <Star
+                                  key={i}
                                           className={`w-4 h-4 ${
                                               i < userRatings[subRequest.id].rating
-                                                  ? "text-yellow-400 fill-current"
-                                                  : "text-gray-300"
-                                          }`}
-                                      />
+                                          ? "text-yellow-400 fill-current"
+                                          : "text-gray-300"
+                                  }`}
+                              />
                                   ))}
                                 </div>
                               </div>
@@ -1567,13 +1610,13 @@ export default function ClientDashboard() {
 
                   {/* Фотографии группы заявок */}
                   {selectedRequest.photos && selectedRequest.photos.length > 0 && (
-                    <div className="mt-4">
+                        <div className="mt-4">
                       <Label className="font-bold block">Фотографии заявки</Label>
-                      <div className="flex space-x-2 mt-2 flex-wrap">
+                                <div className="flex space-x-2 mt-2 flex-wrap">
                         {selectedRequest.photos.map((photo: any, index: number) => (
-                          <img
-                            key={index}
-                            src={photo.photo_url || "/placeholder.svg"}
+                                      <img
+                                          key={index}
+                                          src={photo.photo_url || "/placeholder.svg"}
                             alt={`Фото ${index + 1}`}
                             className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                             onClick={() => {
@@ -1583,9 +1626,9 @@ export default function ClientDashboard() {
                             onError={(e) => {
                               e.currentTarget.src = "/placeholder.svg";
                             }}
-                          />
-                        ))}
-                      </div>
+                                      />
+                                  ))}
+                                </div>
                     </div>
                   )}
                   <div className="mt-4">
@@ -1595,13 +1638,13 @@ export default function ClientDashboard() {
                         subRequest.comment && subRequest.comment.trim() !== "" ? (
                           <div key={subRequest.id} className="text-sm mt-1">
                             <span className="font-medium">{subRequest.title}:</span> {subRequest.comment}
-                          </div>
+                              </div>
                         ) : null
                       ))}
                       {!selectedRequest.requests.some(req => req.comment && req.comment.trim() !== "") && (
                         <p className="text-sm mt-1">Исполнители ничего не написали</p>
-                      )}
-                    </div>
+                          )}
+                        </div>
                   </div>
 
 
@@ -1806,7 +1849,7 @@ export default function ClientDashboard() {
                         Добавить подзаявку
                       </Button>
                     </div>
-                    
+
                     <div className="space-y-4">
                       {subRequests.map((subRequest, index) => (
                         <div key={index} className="border rounded-lg p-4 bg-gray-50">
@@ -1826,55 +1869,55 @@ export default function ClientDashboard() {
                               </Button>
                             )}
                           </div>
-                          
+
                           <div className="space-y-3">
                             <div>
                               <Label>Название подзаявки</Label>
-                              <Input 
-                                placeholder="Введите название подзаявки" 
-                                value={subRequest.title} 
+                              <Input
+                                placeholder="Введите название подзаявки"
+                                value={subRequest.title}
                                 onChange={e => {
                                   const newSubRequests = [...subRequests];
                                   newSubRequests[index].title = e.target.value;
                                   setSubRequests(newSubRequests);
-                                }} 
+                                }}
                               />
-                            </div>
-                            
-                            <div>
-                              <Label>Категория услуги</Label>
-                              <Select
+                  </div>
+
+                  <div>
+                    <Label>Категория услуги</Label>
+                    <Select
                                 value={subRequest.category_id?.toString() || ""}
                                 onValueChange={(value) => {
                                   const newSubRequests = [...subRequests];
                                   newSubRequests[index].category_id = parseInt(value);
                                   setSubRequests(newSubRequests);
                                 }}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Выберите категорию" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {categories.map((category) => (
-                                    <SelectItem key={category.id} value={category.id.toString()}>
-                                      {category.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            
-                            <div>
-                              <Label>Описание проблемы</Label>
-                              <Textarea 
-                                placeholder="Опишите проблему подробно..." 
-                                className="min-h-[80px]" 
-                                value={subRequest.description} 
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите категорию" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              {category.name}
+                            </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Описание проблемы</Label>
+                              <Textarea
+                                placeholder="Опишите проблему подробно..."
+                                className="min-h-[80px]"
+                                value={subRequest.description}
                                 onChange={e => {
                                   const newSubRequests = [...subRequests];
                                   newSubRequests[index].description = e.target.value;
                                   setSubRequests(newSubRequests);
-                                }} 
+                                }}
                               />
                             </div>
                           </div>
@@ -1965,14 +2008,14 @@ export default function ClientDashboard() {
             {!isDesktop && (
               <div className="fixed inset-0 z-50 flex items-end">
                 {/* Overlay */}
-                <div 
+                <div
                   className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                   onClick={() => {
                     setShowComments(null);
                     setComments([]);
                   }}
                 />
-                
+
                 {/* Панель комментариев */}
                 <div className="relative bg-white w-full max-h-[70vh] rounded-t-3xl flex flex-col">
                   {/* Заголовок */}
@@ -1989,7 +2032,7 @@ export default function ClientDashboard() {
                       <X className="h-5 w-5" />
                     </Button>
                   </div>
-                  
+
                   {/* Список комментариев */}
                   <div className="flex-1 overflow-y-auto p-4">
                     <CommentList
@@ -1999,7 +2042,7 @@ export default function ClientDashboard() {
                       onDelete={handleDelete}
                     />
                   </div>
-                  
+
                   {/* Поле ввода */}
                   <div className="p-4 border-t bg-gray-50">
                     <div className="flex items-center gap-2">
@@ -2031,7 +2074,7 @@ export default function ClientDashboard() {
                 </div>
               </div>
             )}
-            
+
             {/* Десктопная версия - правая панель */}
             {isDesktop && (
               <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl border-l border-gray-200 z-50 flex flex-col">
@@ -2049,7 +2092,7 @@ export default function ClientDashboard() {
                     <X className="h-5 w-5" />
                   </Button>
                 </div>
-                
+
                 {/* Список комментариев */}
                 <div className="flex-1 overflow-y-auto p-4">
                   <CommentList
@@ -2059,7 +2102,7 @@ export default function ClientDashboard() {
                     onDelete={handleDelete}
                   />
                 </div>
-                
+
                 {/* Поле ввода */}
                 <div className="p-4 border-t bg-gray-50">
                   <div className="flex items-center gap-2">
@@ -2100,6 +2143,74 @@ export default function ClientDashboard() {
             message={successModal.message}
             duration={successModal.duration}
         />
+
+        {/* Модальное окно информации об иконках для мобильных */}
+        {showIconInfo && !isDesktop && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                {showIconInfo.type === 'status' ? (
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    {getStatusIcon(showIconInfo.value === 'Ожидание' ? 'pending' :
+                                   showIconInfo.value === 'В работе' ? 'in_progress' :
+                                   showIconInfo.value === 'Завершено' ? 'completed' :
+                                   showIconInfo.value === 'Отклонено' ? 'rejected' : 'pending')}
+                  </div>
+                ) : (
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Hourglass className="w-5 h-5 text-blue-600" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-semibold text-lg text-gray-900">
+                    {showIconInfo.type === 'status' ? 'Статус заявки' : 'Тип задачи'}
+                  </h3>
+                  <p className="text-gray-600">{showIconInfo.value}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {showIconInfo.type === 'status' && (
+                  <div className="text-sm text-gray-600">
+                    <p className="font-medium mb-2">Все статусы:</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <span>Ожидание - заявка ожидает обработки</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 text-blue-500" />
+                        <span>В работе - заявка выполняется</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <span>Завершено - работа выполнена</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <XCircle className="w-4 h-4 text-red-500" />
+                        <span>Отклонено - заявка отклонена</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {showIconInfo.type === 'longTerm' && (
+                  <div className="text-sm text-gray-600">
+                    <p className="font-medium mb-2">Долгосрочная задача:</p>
+                    <p>Задача, требующая длительного времени выполнения.</p>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                className="w-full mt-6"
+                onClick={() => setShowIconInfo(null)}
+              >
+                Понятно
+              </Button>
+            </div>
+          </div>
+        )}
 
         {isDesktop && <Link
             href="/chat-bot"
