@@ -57,6 +57,7 @@ export function RoleBasedActionMenu({
   request,
   isDesktop,
   userRole,
+  isSubRequest = false,
   onStartTask,
   onCompleteTask,
   onViewDetails,
@@ -91,7 +92,7 @@ export function RoleBasedActionMenu({
           setOpen(false)
         },
         variant: "default" as const,
-        showForRoles: ["client", "executor", "manager", "department-head", "admin-worker"],
+        showForRoles: ["executor", "manager", "department-head", "admin-worker"],
       },
     ]
 
@@ -188,37 +189,68 @@ export function RoleBasedActionMenu({
 
     // Действия для клиента
     if (userRole === "client") {
-      roleSpecificActions.push(
-        ...(request.status === "completed" && !request.rating
-          ? [
-              {
-                icon: Star,
-                label: "Оценить работу",
-                onClick: () => {
-                  onRateRequest?.(request)
-                  setOpen(false)
+      if (isSubRequest) {
+        // Действия для подзаявок
+        roleSpecificActions.push(
+          ...(request.status === "completed" && !request.rating
+            ? [
+                {
+                  icon: Star,
+                  label: "Оценить работу",
+                  onClick: () => {
+                    onRateRequest?.(request)
+                    setOpen(false)
+                  },
+                  variant: "default" as const,
+                  primary: true,
+                  showForRoles: ["client"],
                 },
-                variant: "default" as const,
-                primary: true,
-                showForRoles: ["client"],
-              },
-            ]
-          : []),
-        ...(request.status === "in_progress" && onDelete
-          ? [
-              {
-                icon: Trash2,
-                label: "Удалить заявку",
-                onClick: () => {
-                  onDelete(request)
-                  setOpen(false)
+              ]
+            : []),
+          ...(request.status === "in_progress" && onDelete
+            ? [
+                {
+                  icon: Trash2,
+                  label: "Удалить подзаявку",
+                  onClick: () => {
+                    onDelete(request)
+                    setOpen(false)
+                  },
+                  variant: "destructive" as const,
+                  showForRoles: ["client"],
                 },
-                variant: "destructive" as const,
-                showForRoles: ["client"],
-              },
-            ]
-          : [])
-      )
+              ]
+            : [])
+        )
+      } else {
+        // Действия для главных заявок (групп)
+        roleSpecificActions.push(
+          {
+            icon: Eye,
+            label: "Посмотреть детали",
+            onClick: () => {
+              onViewDetails?.(request)
+              setOpen(false)
+            },
+            variant: "default" as const,
+            showForRoles: ["client"],
+          },
+          ...(request.status === "in_progress" && onDelete
+            ? [
+                {
+                  icon: Trash2,
+                  label: "Удалить заявку",
+                  onClick: () => {
+                    onDelete(request)
+                    setOpen(false)
+                  },
+                  variant: "destructive" as const,
+                  showForRoles: ["client"],
+                },
+              ]
+            : [])
+        )
+      }
     }
 
     // Действия для менеджера
@@ -349,6 +381,11 @@ export function RoleBasedActionMenu({
   }
 
   const actions = getActionsByRole()
+
+  // Если нет действий, не показываем меню
+  if (actions.length === 0) {
+    return null
+  }
 
   // Обработка свайпа для мобильной версии
   const handleTouchStart = (e: React.TouchEvent) => {

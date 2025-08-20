@@ -495,6 +495,12 @@ export default function ClientDashboard() {
           req.id === selectedRequest.id ? updatedRequestGroup : req
         )
         useRequestStore.getState().setRequests(updatedStoreRequests)
+
+        // Если это была последняя подзаявка в группе, закрываем модальное окно
+        if (updatedRequests.length === 0) {
+          setSelectedRequest(null);
+          closeModal();
+        }
       }
 
       successModal.showSuccess({
@@ -2034,30 +2040,48 @@ export default function ClientDashboard() {
                   </div>
 
                   {/* Список комментариев */}
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <CommentList
-                      comments={comments}
-                      currentUserId={currentUserId}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                    />
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {comments.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 text-sm">Комментариев пока нет</p>
+                      </div>
+                    ) : (
+                      <CommentList
+                        comments={comments}
+                        currentUserId={currentUserId}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
+                    )}
                   </div>
 
                   {/* Поле ввода */}
                   <div className="p-4 border-t bg-gray-50">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Написать комментарий..."
-                        className="flex-1 min-w-0 p-3 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && showComments) {
-                            handleSend(showComments);
-                          }
-                        }}
-                      />
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 min-w-0">
+                        <textarea
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="Написать комментарий..."
+                          className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey && showComments) {
+                              e.preventDefault();
+                              handleSend(showComments);
+                            }
+                          }}
+                          style={{
+                            height: 'auto',
+                            minHeight: '40px',
+                            maxHeight: '120px'
+                          }}
+                          onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = 'auto';
+                            target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                          }}
+                        />
+                      </div>
                       <Button
                         size="sm"
                         onClick={() => {
@@ -2065,7 +2089,8 @@ export default function ClientDashboard() {
                             handleSend(showComments);
                           }
                         }}
-                        className="bg-violet-600 hover:bg-violet-700 p-3 rounded-full"
+                        className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
+                        disabled={!comment.trim()}
                       >
                         <Send className="w-4 h-4" />
                       </Button>
@@ -2094,30 +2119,48 @@ export default function ClientDashboard() {
                 </div>
 
                 {/* Список комментариев */}
-                <div className="flex-1 overflow-y-auto p-4">
-                  <CommentList
-                    comments={comments}
-                    currentUserId={currentUserId}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {comments.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500 text-sm">Комментариев пока нет</p>
+                    </div>
+                  ) : (
+                    <CommentList
+                      comments={comments}
+                      currentUserId={currentUserId}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  )}
                 </div>
 
                 {/* Поле ввода */}
                 <div className="p-4 border-t bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Написать комментарий..."
-                      className="flex-1 min-w-0 p-3 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && showComments) {
-                          handleSend(showComments);
-                        }
-                      }}
-                    />
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 min-w-0">
+                      <textarea
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Написать комментарий..."
+                        className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey && showComments) {
+                            e.preventDefault();
+                            handleSend(showComments);
+                          }
+                        }}
+                        style={{
+                          height: 'auto',
+                          minHeight: '40px',
+                          maxHeight: '120px'
+                        }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                        }}
+                      />
+                    </div>
                     <Button
                       size="sm"
                       onClick={() => {
@@ -2125,7 +2168,8 @@ export default function ClientDashboard() {
                           handleSend(showComments);
                         }
                       }}
-                      className="bg-violet-600 hover:bg-violet-700 p-3 rounded-full"
+                      className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
+                      disabled={!comment.trim()}
                     >
                       <Send className="w-4 h-4" />
                     </Button>

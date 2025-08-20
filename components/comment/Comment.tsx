@@ -117,7 +117,7 @@ export function CommentList({
 
                                     {/* Основной блок */}
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center gap-1.5 mb-1">
                       <span className="font-medium text-sm text-gray-900 truncate">
                         {c.user.full_name}
                       </span>
@@ -127,10 +127,12 @@ export function CommentList({
                         </span>
                                             )}
                                         </div>
-                                        <p className="text-sm text-gray-700 mt-0.5 leading-snug whitespace-pre-wrap">
-                                            {c.comment}
-                                        </p>
-                                        <p className="text-xs text-gray-500 mt-1">{formattedTime}</p>
+                                        <div className="bg-gray-50 rounded-lg p-3 mb-1">
+                                            <p className="text-sm text-gray-700 leading-relaxed break-words">
+                                                {c.comment}
+                                            </p>
+                                        </div>
+                                        <p className="text-xs text-gray-500">{formattedTime}</p>
                                     </div>
 
                                     {/* Иконка действий (десктоп) */}
