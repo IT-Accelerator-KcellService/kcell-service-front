@@ -238,6 +238,7 @@ export default function ManagerDashboard() {
   });
 
   const [modalStack, setModalStack] = useState<string[]>([]);
+  const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
 
   const filteredRequests = requests.filter((request) => {
     const now = new Date();
@@ -304,6 +305,15 @@ export default function ManagerDashboard() {
     setModalStack(prev => prev.slice(0, -1));
   };
 
+  const closeModalWithHistory = () => {
+    setIsClosingProgrammatically(true);
+    const newStack = modalStack.slice(0, -1);
+    setModalStack(newStack);
+    
+    // Откатываем историю браузера назад
+    window.history.back();
+  };
+
   useEffect(() => {
     if (!stats.length) {
       fetchStats();
@@ -317,12 +327,10 @@ export default function ManagerDashboard() {
       closeAllModalsExcept('createRequest');
       setShowCreateRequestModal(true)
       openModal('createRequest');
-      router.replace(`/${role}`, { scroll: false })
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModal()
-      router.replace(`/${role}`, { scroll: false })
+      closeModalWithHistory()
     }
   }, [searchParams])
 
@@ -508,6 +516,12 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      // Если закрытие происходит программно, сбрасываем флаг и не обрабатываем событие
+      if (isClosingProgrammatically) {
+        setIsClosingProgrammatically(false);
+        return;
+      }
+
       if (modalStack.length > 0) {
         e.preventDefault();
         const lastModal = modalStack[modalStack.length - 1];
@@ -557,7 +571,7 @@ export default function ManagerDashboard() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [modalStack]);
+  }, [modalStack, isClosingProgrammatically]);
 
   const closeAllModalsExcept = (modalName: string) => {
     if (modalName !== 'createRequest') {
@@ -838,7 +852,7 @@ export default function ManagerDashboard() {
 
   const handleDeleteRequest = (request: Request) => {
     setRequestToDelete(request)
-    closeModal()
+    closeModalWithHistory()
     setShowDeleteRequestModal(true);
     openModal('deleteRequest');
   }
@@ -849,8 +863,7 @@ export default function ManagerDashboard() {
         await api.delete(`/requests/${requestToDelete.id}`)
         fetchRequests()
         setShowDeleteRequestModal(false);
-        closeModal()
-        closeModal();
+        closeModalWithHistory()
         setRequestToDelete(null)
         setDeleteReason("")
         approveModal.showAccept()
@@ -913,7 +926,7 @@ export default function ManagerDashboard() {
 
   const resetForm = () => {
     setShowCreateRequestModal(false);
-    closeModal();
+    closeModalWithHistory();
     setNewRequestType("");
     setNewRequestTitle("");
     setRequestLocation("");
@@ -2299,7 +2312,7 @@ export default function ManagerDashboard() {
       {showCreateRequestModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
             setShowCreateRequestModal(false)
-            closeModal()
+            closeModalWithHistory()
           }}>
             <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <CardHeader>
@@ -2502,7 +2515,7 @@ export default function ManagerDashboard() {
                         "Отправить заявку"
                     )}
                   </Button>
-                  <Button variant="outline" onClick={() => {setShowCreateRequestModal(false); closeModal(); }} className="flex-1">
+                  <Button variant="outline" onClick={() => {setShowCreateRequestModal(false); closeModalWithHistory(); }} className="flex-1">
                     Отмена
                   </Button>
                 </div>
@@ -2517,7 +2530,7 @@ export default function ManagerDashboard() {
               className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
               onClick={() => {
                 setIsModalOpen(false);
-                closeModal();
+                closeModalWithHistory();
               }}
           >
             <div
@@ -2530,7 +2543,7 @@ export default function ManagerDashboard() {
                     className="text-gray-500 hover:text-black text-2xl focus:outline-none"
                     onClick={() => {
                       setIsModalOpen(false);
-                      closeModal();
+                      closeModalWithHistory();
                     }}
                     aria-label="Закрыть модальное окно"
                 >
@@ -2551,7 +2564,7 @@ export default function ManagerDashboard() {
       {selectedTaskDetails && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
             setSelectedTaskDetails(null);
-            closeModal();
+            closeModalWithHistory();
             setComments([])
           }}>
             <Card className="w-full max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -2721,7 +2734,7 @@ export default function ManagerDashboard() {
                       {selectedPhoto && (
                           <div
                               className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                              onClick={() => {setSelectedPhoto(null); closeModal(); }}
+                              onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
                           >
                             <img
                                 src={selectedPhoto}
@@ -2796,7 +2809,7 @@ export default function ManagerDashboard() {
 
                   <Button className="w-full sm:w-auto flex justify-center items-center gap-2 ml-2" variant="outline" onClick={() => {
                     setSelectedTaskDetails(null)
-                    closeModal()
+                    closeModalWithHistory()
                     setComments([])
                   }}>
                     Закрыть
@@ -2811,7 +2824,7 @@ export default function ManagerDashboard() {
       {showMapModal && (
           <div
               className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-              onClick={() => {setShowMapModal(false); closeModal(); }}
+              onClick={() => {setShowMapModal(false); closeModalWithHistory(); }}
           >
             <Card
                 className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
@@ -2831,7 +2844,7 @@ export default function ManagerDashboard() {
                 </React.Suspense>
               </CardContent>
               <div className="p-4 flex justify-end border-t">
-                <Button onClick={() => {setShowMapModal(false); closeModal(); }}>
+                <Button onClick={() => {setShowMapModal(false); closeModalWithHistory(); }}>
                   Закрыть
                 </Button>
               </div>
@@ -2844,7 +2857,7 @@ export default function ManagerDashboard() {
         isOpen={showDeleteRequestModal && !!requestToDelete}
         onClose={() => {
           setShowDeleteRequestModal(false);
-          closeModal();
+          closeModalWithHistory();
           setRequestToDelete(null);
           setDeleteReason("");
         }}

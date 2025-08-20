@@ -159,6 +159,7 @@ export default function AdminWorkerDashboard() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
+  const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
 
   const lastRequestRef = useCallback((node: HTMLDivElement) => {
@@ -190,19 +191,19 @@ export default function AdminWorkerDashboard() {
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
     window.history.pushState({ modal: name }, '', window.location.pathname);
-    
-    // Устанавливаем соответствующие состояния для модалов
-    switch (name) {
-      case 'deleteRequestModal':
-        setShowDeleteRequestModal(true);
-        break;
-      default:
-        break;
-    }
   };
 
   const closeModal = () => {
     setModalStack(prev => prev.slice(0, -1));
+  };
+
+  const closeModalWithHistory = () => {
+    setIsClosingProgrammatically(true);
+    const newStack = modalStack.slice(0, -1);
+    setModalStack(newStack);
+    
+    // Откатываем историю браузера назад
+    window.history.back();
   };
 
   const [hydrated, setHydrated] = useState(false);
@@ -232,6 +233,12 @@ export default function AdminWorkerDashboard() {
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      // Если закрытие происходит программно, сбрасываем флаг и не обрабатываем событие
+      if (isClosingProgrammatically) {
+        setIsClosingProgrammatically(false);
+        return;
+      }
+
       if (modalStack.length > 0) {
         e.preventDefault();
         const lastModal = modalStack[modalStack.length - 1];
@@ -281,7 +288,7 @@ export default function AdminWorkerDashboard() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [modalStack]);
+  }, [modalStack, isClosingProgrammatically]);
 
   const closeAllModalsExcept = (modalName: string) => {
     if (modalName !== 'createRequest') {
@@ -369,14 +376,12 @@ export default function AdminWorkerDashboard() {
 
     if (create === "true") {
       closeAllModalsExcept("createRequest");
-      setShowCreateRequestModal(true);
+      setShowCreateRequestModal(true)
       openModal('createRequest');
-      router.replace(`/${role}`, { scroll: false })
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModal()
-      router.replace(`/${role}`, { scroll: false })
+      closeModalWithHistory()
     }
   }, [searchParams])
 
@@ -649,7 +654,7 @@ export default function AdminWorkerDashboard() {
       });
       fetchRequests();
       setSelectedRequest(null);
-      closeModal();
+      closeModalWithHistory();
       approveModal.showAccept()
     } catch (error) {
       console.error("Failed to approve request:", error);
@@ -670,7 +675,7 @@ export default function AdminWorkerDashboard() {
         rejection_reason: rejectionReason
       });
       setSelectedRequest(null);
-      closeModal();
+      closeModalWithHistory();
       fetchRequests();
       setRejectionReason("");
       rejectModal.showReject()
@@ -730,7 +735,7 @@ export default function AdminWorkerDashboard() {
 
   const resetForm = () => {
     setShowCreateRequestModal(false);
-    closeModal();
+    closeModalWithHistory();
     setNewRequestTitle("");
     setNewRequestDescription("");
     setNewRequestLocation("");
@@ -770,7 +775,7 @@ export default function AdminWorkerDashboard() {
           [requestToRate.id]: response.data
         }));
         setShowRatingModal(false);
-        closeModal();
+        closeModalWithHistory();
         setRatingValue(0)
         setRequestToRate(null)
       } catch (error) {
@@ -1576,7 +1581,7 @@ export default function AdminWorkerDashboard() {
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
                 onClick={() => {
                   setIsModalOpen(false);
-                  closeModal();
+                  closeModalWithHistory();
                 }}
             >
               <div
@@ -1589,7 +1594,7 @@ export default function AdminWorkerDashboard() {
                       className="text-gray-500 hover:text-black text-2xl focus:outline-none"
                       onClick={() => {
                         setIsModalOpen(false);
-                        closeModal();
+                        closeModalWithHistory();
                       }}
                       aria-label="Закрыть модальное окно"
                   >
@@ -1610,7 +1615,7 @@ export default function AdminWorkerDashboard() {
         {selectedRequest && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
               setSelectedRequest(null)
-              closeModal()
+              closeModalWithHistory()
               setComments([])
             }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -1883,7 +1888,7 @@ export default function AdminWorkerDashboard() {
                   {selectedPhoto && (
                       <div
                           className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                          onClick={() => {setSelectedPhoto(null); closeModal(); }}
+                          onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
                       >
                         <img
                             src={selectedPhoto}
@@ -2017,7 +2022,7 @@ export default function AdminWorkerDashboard() {
                         variant="outline"
                         onClick={() => {
                           setSelectedRequest(null);
-                          closeModal()
+                          closeModalWithHistory()
                           setComments([]);
                         }}
                         className="w-full sm:w-auto"
@@ -2032,7 +2037,7 @@ export default function AdminWorkerDashboard() {
                                   setShowRatingModal(true);
                                   openModal('ratingModal');
                                   setSelectedRequest(null);
-                                  closeModal()
+                                  closeModalWithHistory()
                                 }}
                                 className="w-full sm:w-auto"
                             >
@@ -2050,7 +2055,7 @@ export default function AdminWorkerDashboard() {
         {selectedPhoto && (
             <div
                 className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                onClick={() => {setSelectedPhoto(null); closeModal(); }} // Закрытие при клике
+                onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }} // Закрытие при клике
             >
               <img
                   src={selectedPhoto}
@@ -2063,7 +2068,7 @@ export default function AdminWorkerDashboard() {
 
         {/* Create Request Modal */}
         {showCreateRequestModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {setShowCreateRequestModal(false); closeModal(); }}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {setShowCreateRequestModal(false); closeModalWithHistory(); }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Создать {translateType(newRequestType).toLowerCase()} заявку</CardTitle>
@@ -2296,7 +2301,7 @@ export default function AdminWorkerDashboard() {
                     </Button>
                     <Button
                         variant="outline"
-                        onClick={() => {setShowCreateRequestModal(false); closeModal(); }}
+                        onClick={() => {setShowCreateRequestModal(false); closeModalWithHistory(); }}
                         className="flex-1"
                     >
                       Отмена
@@ -2309,7 +2314,7 @@ export default function AdminWorkerDashboard() {
 
         {/* Rating Modal */}
         {showRatingModal && requestToRate && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {setShowRatingModal(false); closeModal() }}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {setShowRatingModal(false); closeModalWithHistory() }}>
               <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Оценить клиента</CardTitle>
@@ -2338,7 +2343,7 @@ export default function AdminWorkerDashboard() {
                       variant="outline"
                       onClick={() => {
                         setShowRatingModal(false);
-                        closeModal();
+                        closeModalWithHistory();
                         setRatingValue(0);
                         setRequestToRate(null);
                       }}
@@ -2354,7 +2359,7 @@ export default function AdminWorkerDashboard() {
         {showMapModal && (
             <div
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-                onClick={() => {setShowMapModal(false); closeModal(); }}
+                onClick={() => {setShowMapModal(false); closeModalWithHistory(); }}
             >
               <Card
                   className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
@@ -2374,7 +2379,7 @@ export default function AdminWorkerDashboard() {
                   </React.Suspense>
                 </CardContent>
                 <div className="p-4 flex justify-end border-t">
-                  <Button onClick={() => {setShowMapModal(false); closeModal(); }}>
+                  <Button onClick={() => {setShowMapModal(false); closeModalWithHistory(); }}>
                     Закрыть
                   </Button>
                 </div>
@@ -2416,7 +2421,7 @@ export default function AdminWorkerDashboard() {
               handleDeleteRequest(selectedRequest);
               setSelectedRequest(null);
               setShowDeleteRequestModal(false);
-              closeModal();
+              closeModalWithHistory();
             }
           }}
           title="Удалить заявку?"

@@ -115,6 +115,7 @@ export default function ExecutorDashboard() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
+  const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedRequestForReject, setSelectedRequestForReject] = useState<any>(null);
@@ -134,6 +135,15 @@ export default function ExecutorDashboard() {
 
   const closeModal = () => {
     setModalStack(prev => prev.slice(0, -1));
+  };
+
+  const closeModalWithHistory = () => {
+    setIsClosingProgrammatically(true);
+    const newStack = modalStack.slice(0, -1);
+    setModalStack(newStack);
+    
+    // Откатываем историю браузера назад
+    window.history.back();
   };
 
   const handleOpenRejectModal = (request: any) => {
@@ -336,6 +346,12 @@ export default function ExecutorDashboard() {
   // ✅ ОБНОВЛЁННЫЙ handleBackButton
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      // Если закрытие происходит программно, сбрасываем флаг и не обрабатываем событие
+      if (isClosingProgrammatically) {
+        setIsClosingProgrammatically(false);
+        return;
+      }
+
       if (modalStack.length > 0) {
         e.preventDefault();
         const lastModal = modalStack[modalStack.length - 1];
@@ -388,7 +404,7 @@ export default function ExecutorDashboard() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [modalStack]);
+  }, [modalStack, isClosingProgrammatically]);
 
   const fetchStats = async () => {
     try {
@@ -790,12 +806,10 @@ export default function ExecutorDashboard() {
       closeAllModalsExcept('createRequest');
       setShowCreateRequestModal(true)
       openModal('createRequest');
-      router.replace(`/${role}`, { scroll: false })
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModal()
-      router.replace(`/${role}`, { scroll: false })
+      closeModalWithHistory()
     }
   }, [searchParams])
 
@@ -995,7 +1009,7 @@ export default function ExecutorDashboard() {
       setPhotos([]);
       setPhotoPreviews([]);
       setCompletedRequestComment("");
-      closeModal();
+      closeModalWithHistory();
       setIsSubmitting(false);
     } catch (error) {
       console.error("Ошибка при завершении задачи", error);
@@ -1881,7 +1895,7 @@ export default function ExecutorDashboard() {
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
                 onClick={() => {
                   setIsModalOpen(false);
-                  closeModal();
+                  closeModalWithHistory();
                 }}
             >
               <div
@@ -1894,7 +1908,7 @@ export default function ExecutorDashboard() {
                       className="text-gray-500 hover:text-black text-2xl focus:outline-none"
                       onClick={() => {
                         setIsModalOpen(false);
-                        closeModal();
+                        closeModalWithHistory();
                       }}
                       aria-label="Закрыть модальное окно"
                   >
@@ -1913,7 +1927,7 @@ export default function ExecutorDashboard() {
 
         {/* Complete Task Modal */}
         {selectedTask && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => { setSelectedTask(null); closeModal(); }}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => { setSelectedTask(null); closeModalWithHistory(); }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Завершение задачи #{selectedTask.id}</CardTitle>
@@ -1987,7 +2001,7 @@ export default function ExecutorDashboard() {
         {showCreateRequestModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
               setShowCreateRequestModal(false)
-              closeModal()
+              closeModalWithHistory()
             }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
@@ -2189,7 +2203,7 @@ export default function ExecutorDashboard() {
                       )}
                     </Button>
                     <Button variant="outline" onClick={() => {setShowCreateRequestModal(false)
-                      closeModal()
+                      closeModalWithHistory()
                     }} className="flex-1">
                       Отмена
                     </Button>
@@ -2201,7 +2215,7 @@ export default function ExecutorDashboard() {
 
         {/* Task Details Modal */}
         {selectedTaskDetails && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => { setSelectedTaskDetails(null); setComments([]); closeModal(); }}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => { setSelectedTaskDetails(null); setComments([]); closeModalWithHistory(); }}>
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
@@ -2400,7 +2414,7 @@ export default function ExecutorDashboard() {
                   <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
                     {/* Закрыть */}
                     <Button className="w-full sm:w-auto" variant="outline" onClick={() => {setSelectedTaskDetails(null)
-                      closeModal()}}>Закрыть</Button>
+                      closeModalWithHistory()}}>Закрыть</Button>
                   </div>
 
 
@@ -2411,7 +2425,7 @@ export default function ExecutorDashboard() {
 
         {/* Map Modal */}
         {showMapModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => { setShowMapModal(false); closeModal(); }}>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => { setShowMapModal(false); closeModalWithHistory(); }}>
               <Card className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
                 <CardHeader>
                   <CardTitle>Локация заявки</CardTitle>
@@ -2427,7 +2441,7 @@ export default function ExecutorDashboard() {
                   </React.Suspense>
                 </CardContent>
                 <div className="p-4 flex justify-end border-t">
-                  <Button onClick={() => { setShowMapModal(false); closeModal(); }}>Закрыть</Button>
+                  <Button onClick={() => { setShowMapModal(false); closeModalWithHistory(); }}>Закрыть</Button>
                 </div>
               </Card>
             </div>
@@ -2435,7 +2449,7 @@ export default function ExecutorDashboard() {
 
         {/* Photo Preview Modal */}
         {selectedPhoto && (
-            <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex justify-center items-center" onClick={() => { setSelectedPhoto(null); closeModal(); }}>
+            <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex justify-center items-center" onClick={() => { setSelectedPhoto(null); closeModalWithHistory(); }}>
               <img src={selectedPhoto} alt="Увеличенное фото" className="max-w-full max-h-full rounded-lg" onClick={e => e.stopPropagation()} />
             </div>
         )}
