@@ -127,11 +127,9 @@ export function CommentList({
                         </span>
                                             )}
                                         </div>
-                                        <div className="text-sm text-gray-700 mt-0.5 leading-relaxed">
-                                            <p className="whitespace-pre-wrap break-words">
-                                                {c.comment}
-                                            </p>
-                                        </div>
+                                        <p className="text-sm text-gray-700 mt-0.5 leading-snug whitespace-pre-wrap">
+                                            {c.comment}
+                                        </p>
                                         <p className="text-xs text-gray-500 mt-1">{formattedTime}</p>
                                     </div>
 
