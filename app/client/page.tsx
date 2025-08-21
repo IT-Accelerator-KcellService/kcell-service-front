@@ -1,12 +1,10 @@
 "use client"
 
-import {Input} from "@/components/ui/input"
 import React, {useCallback, useEffect, useRef, useState} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
-import {Textarea} from "@/components/ui/textarea"
 import {Badge} from "@/components/ui/badge"
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {
@@ -18,17 +16,13 @@ import {
 
 import {
   AlertTriangle,
-  Camera,
   CheckCircle,
   Clock,
-  Loader2,
   MapPin,
   MessageCircle,
-  Plus, Send,
+  Plus,
   Star,
-  Trash2,
   User,
-  X,
   XCircle,
   Zap,
   Hourglass, ChevronUp, ChevronDown, Users, Calendar as CalendarLucid,
@@ -43,8 +37,7 @@ import {useMediaQuery} from "@/hooks/use-media-query";
 import {BottomNav} from "@/components/BottomNav";
 import Link from "next/link";
 import {ProfileModal} from "@/components/ProfileModal";
-import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
-import {CommentList} from "@/components/comment/Comment";
+
 import {useRequestStore} from "@/stores/useRequestStore";
 import {RequestGroup, SubRequest} from '@/stores/useRequestStore'
 import PullToRefresh from "@/components/pull-to-refresh";
@@ -58,6 +51,10 @@ import {RequestCard} from "@/components/RequestCard";
 import {IconInfoModal} from "@/components/IconInfoModal";
 import {MapModal} from "@/components/MapModal";
 import {CreateRequestModal} from "@/components/CreateRequestModal";
+import {CommentsModal} from "@/components/CommentsModal";
+import {useRejectRequestModal} from "@/hooks/use-reject-modal";
+import {RejectRequestModal} from "@/components/RejectRequestModal";
+import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 
 interface Rating {
   id: number;
@@ -66,20 +63,7 @@ interface Rating {
   created_at: string;
 }
 
-interface Comment {
-  id: number,
-  comment: string,
-  timestamp: Date
-  user: CommentUser
-  request_id: number,
-  sender_id: number,
-}
 
-interface CommentUser {
-  id: number
-  full_name: string
-  role: string
-}
 
 interface Stats {
   totalRequests: number,
@@ -93,12 +77,10 @@ export default function ClientDashboard() {
   const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
+  const rejectModal = useRejectRequestModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("requests")
   const [showCreateRequest, setShowCreateRequest] = useState(false)
-  const [requestType, setRequestType] = useState("")
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<RequestGroup | null>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [ratingValue, setRatingValue] = useState(0)
@@ -107,23 +89,11 @@ export default function ClientDashboard() {
   const [filterType, setFilterType] = useState("all")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [requestLocation, setRequestLocation] = useState("")
-  const [requestLocationDetails, setRequestLocationDetails] = useState("")
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
-  const [subRequests, setSubRequests] = useState<Array<{
-    title: string;
-    description: string;
-    category_id: number;
-  }>>([{
-    title: '',
-    description: '',
-    category_id: 0
-  }])
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
   const { requests, addRequests, clearRequests, removeRequest } = useRequestStore();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [comment, setComment] = useState("");
-  const [comments, setComments] = useState<Comment[] | []>([]);
+
   const [showProfile, setShowProfile] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
@@ -132,9 +102,9 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editCommentId, setEditCommentId] = useState<number | null>(null);
+
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+
   const [requestToDelete, setRequestToDelete] = useState<RequestGroup | null>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [stats, setStats] = useState<Stats | null>(null);
@@ -241,7 +211,6 @@ export default function ClientDashboard() {
             break;
           case 'requestDetails':
             setSelectedRequest(null);
-            setComments([]);
             break;
           case 'ratingModal':
             setShowRatingModal(false);
@@ -257,9 +226,7 @@ export default function ClientDashboard() {
           case 'notification':
             setIsModalOpen(false);
             break;
-          case 'commentDelete':
-            setCommentToDelete(null);
-            break;
+
           default:
             break;
         }
@@ -294,9 +261,7 @@ export default function ClientDashboard() {
     if (modalName !== 'notification') {
       setIsModalOpen(false);
     }
-    if (modalName !== 'commentDelete') {
-      setCommentToDelete(null);
-    }
+
 
     setModalStack([modalName]);
     window.history.replaceState({ modal: modalName }, '', window.location.pathname);
@@ -378,89 +343,6 @@ export default function ClientDashboard() {
     }
   }
 
-  const fetchComments = async (subRequestId?: number) => {
-    if (!subRequestId) return;
-    try {
-      const res = await api.get(`/comments/request/${subRequestId}`);
-      setComments(res.data);
-    } catch (err) {
-      console.error("Ошибка при загрузке комментариев", err);
-    }
-  };
-
-  const handleDelete = (id: number) => {
-    // Убираем из UI сразу
-    const oldComments = comments;
-    setComments(prev => prev.filter(c => c.id !== id));
-
-    api.delete(`/comments/${id}`).catch(err => {
-      console.error("Ошибка при удалении", err);
-      setComments(oldComments); // Восстанавливаем при ошибке
-    });
-  };
-
-  const handleSend = (subRequestId: number) => {
-    if (comment.trim() === "") return;
-
-    if (editCommentId) {
-      // Оптимистично обновляем UI
-      setComments(prev =>
-          prev.map(c => c.id === editCommentId ? { ...c, comment: comment.trim() } : c)
-      );
-
-      const currentEditId = editCommentId;
-      const currentComment = comment.trim();
-
-      setComment("");
-      setEditCommentId(null);
-
-      api.put(`/comments/${currentEditId}`, {
-        comment: currentComment,
-        request_id: subRequestId,
-      }).catch(err => {
-        console.error("Ошибка при обновлении", err);
-        fetchComments(subRequestId); // Откатываем, если ошибка
-      });
-
-    } else {
-      // Создаём временный ID для UI
-      const tempId = -(comments.length + 111);
-      const newComment = {
-        id: tempId,
-        comment: comment.trim(),
-        request_id: subRequestId,
-        isTemp: true,
-        timestamp: new Date(),
-        sender_id: user?.id!,
-        user: {
-          id: user?.id!,
-          full_name: user?.full_name!,
-          role: role!,
-        }
-      };
-
-      setComments(prev => [...prev, newComment]);
-
-      const currentComment = comment.trim();
-      setComment("");
-
-      api.post(`/comments`, {
-        comment: currentComment,
-        request_id: subRequestId,
-      })
-          .then(() => fetchComments(subRequestId)) // Обновляем ID с сервера
-          .catch(err => {
-            console.error("Ошибка при добавлении", err);
-            fetchComments(subRequestId); // Откат
-          });
-    }
-  };
-
-  const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);
-    setEditCommentId(id);
-  };
-
   const handleDeleteRequest = (request: RequestGroup) => {
     setRequestToDelete(request)
     setShowDeleteRequestModal(true);
@@ -534,32 +416,6 @@ export default function ClientDashboard() {
       }
     }
   }
-
-  useEffect(() => {
-    // Комментарии теперь загружаются для конкретной под заявки
-    // при нажатии на кнопку "Обновить" в модальном окне
-  }, [selectedRequest]);
-
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-
-    const fileArray = Array.from(files);
-    const remainingSlots = 3 - photoPreviews.length;
-
-    const selectedFiles = fileArray.slice(0, remainingSlots);
-
-    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
-
-    setPhotos((prev) => [...prev, ...selectedFiles]);
-    setPhotoPreviews((prev) => [...prev, ...previewUrls]);
-
-    event.target.value = '';
-  };
 
   const fetchRequests = async (pageToFetch = page) => {
     try {
@@ -737,17 +593,8 @@ export default function ClientDashboard() {
   const resetForm = () => {
     setShowCreateRequest(false);
     closeModal()
-    setRequestType("");
     setRequestLocation("");
-    setRequestLocationDetails("");
-    setPhotos([]);
-    setPhotoPreviews([]);
     setFormErrors(null);
-    setSubRequests([{
-      title: '',
-      description: '',
-      category_id: 0
-    }]);
   };
 
   const handleRateExecutor = async () => {
@@ -766,8 +613,15 @@ export default function ClientDashboard() {
         setRequestToRate(null)
         closeModal()
       } catch (error) {
-        console.error("Failed to rate executor:", error)
-        alert("Не удалось отправить оценку.")
+        rejectModal.showReject({
+          title: "Ошибка",
+          message: "Недоступно для оценки"
+        })
+        console.error("Failed to rate executor:", error);
+        setShowRatingModal(false);
+        closeModal();
+        setRatingValue(0)
+        setRequestToRate(null)
       }
     }
   }
@@ -1201,36 +1055,6 @@ export default function ClientDashboard() {
 
             {/* Sidebar */}
             <div className="space-y-6 mb-20">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Быстрые действия</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setRequestType("urgent")
-                        handleOpenCreateRequest()
-                      }}
-                  >
-                    <AlertTriangle className="w-4 h-4 mr-2 text-red-500" />
-                    Экстренная заявка
-                  </Button>
-                  <Button
-                      variant="outline"
-                      className="w-full justify-start"
-                      onClick={() => {
-                        setRequestType("normal")
-                        handleOpenCreateRequest()
-                      }}
-                  >
-                    <Clock className="w-4 h-4 mr-2 text-blue-500" />
-                    Обычная заявка
-                  </Button>
-                </CardContent>
-              </Card>
-
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
                   <NotificationsSidebar onNotificationClick={handleNotificationClick} />
@@ -1250,7 +1074,6 @@ export default function ClientDashboard() {
         {selectedRequest && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
               setSelectedRequest(null)
-              setComments([])
               setShowComments(null)
             }}>
               <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
@@ -1323,11 +1146,8 @@ export default function ClientDashboard() {
                                         onClick={() => {
                                           if (hasComments) {
                                             setShowComments(null);
-                                            setComments([]);
                                           } else {
                                             setShowComments(subRequest.id);
-                                            setComments([]);
-                                            fetchComments(subRequest.id);
                                           }
                                         }}
                                     >
@@ -1575,7 +1395,6 @@ export default function ClientDashboard() {
                     <Button variant="outline" onClick={() => {
                       setSelectedRequest(null);
                       closeModal();
-                      setComments([])
                     }}>
                       Закрыть
                     </Button>
@@ -1608,7 +1427,7 @@ export default function ClientDashboard() {
             onSubmit={handleRateExecutor}
         />
 
-        {/* Мод алка */}
+        {/* Модалка */}
         {isModalOpen && selectedNotification && (
             <div
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -1644,7 +1463,7 @@ export default function ClientDashboard() {
             </div>
         )}
 
-                {/* Create Request Modal */}
+        {/* Create Request Modal */}
         <CreateRequestModal
           isOpen={showCreateRequest}
           onClose={() => {
@@ -1672,178 +1491,16 @@ export default function ClientDashboard() {
           description={`Вы уверены, что хотите удалить заявку "${requestToDelete?.requests[0]?.title || 'Заявка'}"? Это действие необратимо.`}
         />
 
-        {/* Панель комментариев (Instagram-style) */}
-        {showComments && (
-          <>
-            {/* Мобильная версия */}
-            {!isDesktop && (
-              <div className="fixed inset-0 z-50 flex items-end">
-                {/* Overlay */}
-                <div
-                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                  onClick={() => {
-                    setShowComments(null);
-                    setComments([]);
-                  }}
-                />
-
-                {/* Панель комментариев */}
-                <div className="relative bg-white w-full max-h-[70vh] rounded-t-3xl flex flex-col">
-                  {/* Заголовок */}
-                  <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold text-lg">Комментарии</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowComments(null);
-                        setComments([]);
-                      }}
-                    >
-                      <X className="h-5 w-5" />
-                    </Button>
-                  </div>
-
-                  {/* Список комментариев */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {comments.length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-gray-500 text-sm">Комментариев пока нет</p>
-                      </div>
-                    ) : (
-                      <CommentList
-                        comments={comments}
-                        currentUserId={currentUserId}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
-                    )}
-                  </div>
-
-                  {/* Поле ввода */}
-                  <div className="p-4 border-t bg-gray-50">
-                    <div className="flex items-end gap-2">
-                      <div className="flex-1 min-w-0">
-                        <textarea
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          placeholder="Написать комментарий..."
-                          className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey && showComments) {
-                              e.preventDefault();
-                              handleSend(showComments);
-                            }
-                          }}
-                          style={{
-                            height: 'auto',
-                            minHeight: '40px',
-                            maxHeight: '120px'
-                          }}
-                          onInput={(e) => {
-                            const target = e.target as HTMLTextAreaElement;
-                            target.style.height = 'auto';
-                            target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                          }}
-                        />
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          if (showComments) {
-                            handleSend(showComments);
-                          }
-                        }}
-                        className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
-                        disabled={!comment.trim()}
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Десктопная версия - правая панель */}
-            {isDesktop && (
-              <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl border-l border-gray-200 z-50 flex flex-col">
-                {/* Заголовок */}
-                <div className="flex items-center justify-between p-4 border-b bg-gray-50">
-                  <h3 className="font-semibold text-lg">Комментарии</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowComments(null);
-                      setComments([]);
-                    }}
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
-
-                {/* Список комментариев */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {comments.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500 text-sm">Комментариев пока нет</p>
-                    </div>
-                  ) : (
-                    <CommentList
-                      comments={comments}
-                      currentUserId={currentUserId}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                    />
-                  )}
-                </div>
-
-                {/* Поле ввода */}
-                <div className="p-4 border-t bg-gray-50">
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1 min-w-0">
-                      <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Написать комментарий..."
-                        className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey && showComments) {
-                            e.preventDefault();
-                            handleSend(showComments);
-                          }
-                        }}
-                        style={{
-                          height: 'auto',
-                          minHeight: '40px',
-                          maxHeight: '120px'
-                        }}
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = 'auto';
-                          target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                        }}
-                      />
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (showComments) {
-                          handleSend(showComments);
-                        }
-                      }}
-                      className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
-                      disabled={!comment.trim()}
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+        {/* Comments Modal */}
+        <CommentsModal
+          isOpen={!!showComments}
+          onClose={() => {
+            setShowComments(null);
+          }}
+          requestId={showComments}
+          currentUserId={currentUserId}
+          isDesktop={isDesktop}
+        />
 
         <SuccessModal
             isOpen={successModal.isOpen}
@@ -1852,7 +1509,13 @@ export default function ClientDashboard() {
             message={successModal.message}
             duration={successModal.duration}
         />
-
+        <RejectRequestModal
+            isOpen={rejectModal.isOpen}
+            onClose={rejectModal.hideReject}
+            title={rejectModal.title}
+            message={rejectModal.message}
+            duration={rejectModal.duration}
+        />
         {/* Модальное окно информации об иконках */}
         <IconInfoModal
           isOpen={!!showIconInfo}

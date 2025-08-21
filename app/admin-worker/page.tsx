@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
 import {
   Tooltip,
   TooltipContent,
@@ -25,18 +24,13 @@ import {
   User,
   Star,
   Plus,
-  Camera,
-  MapPin, Loader2, Calendar as CalendarLucid, Zap, Send, MessageCircle, Trash2,
+  MapPin, Loader2, Calendar as CalendarLucid, Zap, MessageCircle,
   ChevronUp,
   ChevronDown,
   Hourglass,
-  X,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import api from "@/lib/api";
-import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
-import {ru} from "date-fns/locale";
-import {format} from "date-fns";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -49,8 +43,7 @@ import {RejectRequestModal} from "@/components/RejectRequestModal";
 import {AcceptRequestModal} from "@/components/AcceptRequestModal";
 import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
-import {CommentList} from "@/components/comment/Comment";
-import {Calendar} from "@/components/ui/calendar";
+
 import {sortRequests, useRequestStore} from "@/stores/useRequestStore";
 import {Request, RequestGroup, SubRequest} from '@/stores/useRequestStore'
 import PullToRefresh from "@/components/pull-to-refresh";
@@ -66,6 +59,7 @@ import { RatingModal } from "@/components/RatingModal";
 import { IconInfoModal } from "@/components/IconInfoModal";
 import { MapModal } from "@/components/MapModal";
 import { CreateRequestModal } from "@/components/CreateRequestModal";
+import { CommentsModal } from "@/components/CommentsModal";
 
 interface User {
   id: number;
@@ -95,10 +89,6 @@ interface Stats {
   }
 }
 
-const parseLocalDate = (dateString: string) => {
-  return new Date(dateString + "T00:00:00");
-};
-
 export default function AdminWorkerDashboard() {
   const {role, token, clearAuth, user} = useAuthStore()
   const {categories, fetchCategories, clearCategories} = useCategoryStore()
@@ -111,10 +101,7 @@ export default function AdminWorkerDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false);
-  const [newRequestType, setNewRequestType] = useState("normal");
-  const [newRequestLocation, setNewRequestLocation] = useState("");
   const [showProfile, setShowProfile] = useState(false);
-  const [newRequestPlannedDate, setNewRequestPlannedDate] = useState("");
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
   const [requestToRate, setRequestToRate] = useState<Request | null>(null);
@@ -123,40 +110,17 @@ export default function AdminWorkerDashboard() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [newRequestLocationDetails, setNewRequestLocationDetails] = useState("");
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  
-  // Состояния для под заявок
-  const [subRequests, setSubRequests] = useState<Array<{
-    title: string;
-    description: string;
-    category_id: number;
-    complexity?: 'simple' | 'medium' | 'complex';
-    sla?: string;
-  }>>([{
-    title: '',
-    description: '',
-    category_id: 0,
-    complexity: 'simple',
-    sla: '1h'
-  }]);
+
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
-  const [comment, setComment] = useState("");
   const [showComments, setShowComments] = useState<number | null>(null);
-  const [comments, setComments] = useState<any[]>([]);
   const [showIconInfo, setShowIconInfo] = useState<{type: 'status' | 'longTerm', value: string} | null>(null);
   const [subRequestSettings, setSubRequestSettings] = useState<Record<number, {sla: string, complexity: string}>>({});
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
-  const [photos, setPhotos] = useState<File[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [editCommentId, setEditCommentId] = useState<number | null>(null);
+
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const date = newRequestPlannedDate
-      ? parseLocalDate(newRequestPlannedDate)
-      : undefined;
   const [loading, setLoading] = useState(true)
   const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
@@ -255,12 +219,9 @@ export default function AdminWorkerDashboard() {
         switch (lastModal) {
           case 'createRequest':
             setShowCreateRequestModal(false);
-            setPhotos([]);
-            setPhotoPreviews([]);
             break;
           case 'requestDetails':
             setSelectedRequest(null);
-            setComments([]);
             break;
           case 'ratingModal':
             setShowRatingModal(false);
@@ -327,10 +288,6 @@ export default function AdminWorkerDashboard() {
 
     setModalStack([modalName]);
     window.history.replaceState({ modal: modalName }, '', window.location.pathname);
-  };
-
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
   };
 
   const fetchStats = async () => {
@@ -429,23 +386,6 @@ export default function AdminWorkerDashboard() {
     }
   }
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-
-    const fileArray = Array.from(files);
-    const remainingSlots = 3 - photoPreviews.length;
-
-    const selectedFiles = fileArray.slice(0, remainingSlots);
-
-    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
-
-    setPhotos((prev) => [...prev, ...selectedFiles]);
-    setPhotoPreviews((prev) => [...prev, ...previewUrls]);
-
-    event.target.value = '';
-  };
-
   const fetchRequests = async (currentPage = 1, pageSize = 10) => {
     if (loading && currentPage !== 1) return;
     setLoading(true);
@@ -497,88 +437,7 @@ export default function AdminWorkerDashboard() {
     }
   };
 
-  const fetchComments = async (requestId: number) => {
-    try {
-      const res = await api.get(`/comments/request/${requestId}`);
-      setComments(res.data);
-    } catch (err) {
-      console.error("Ошибка при загрузке комментариев", err);
-    }
-  };
 
-  const handleDelete = (id: number) => {
-    const oldComments = comments;
-    
-    // Убираем из UI сразу
-    setComments(prev => prev.filter(c => c.id !== id));
-
-    api.delete(`/comments/${id}`).catch(err => {
-      console.error("Ошибка при удалении", err);
-      setComments(oldComments); // Восстанавливаем при ошибке
-    });
-  };
-
-  const handleSend = (subRequestId: number) => {
-    if (comment.trim() === "") return;
-
-    if (editCommentId) {
-      // Оптимистично обновляем UI
-      setComments(prev =>
-          prev.map(c => c.id === editCommentId ? { ...c, comment: comment.trim() } : c)
-      );
-
-      const currentEditId = editCommentId;
-      const currentComment = comment.trim();
-
-      setComment("");
-      setEditCommentId(null);
-
-      api.put(`/comments/${currentEditId}`, {
-        comment: currentComment,
-        request_id: subRequestId,
-      }).catch(err => {
-        console.error("Ошибка при обновлении", err);
-        fetchComments(subRequestId); // Откатываем, если ошибка
-      });
-
-    } else {
-      // Создаём временный ID для UI
-      const tempId = -(comments.length + 111);
-      const newComment = {
-        id: tempId,
-        comment: comment.trim(),
-        request_id: subRequestId,
-        isTemp: true,
-        timestamp: new Date(),
-        sender_id: user?.id!,
-        user: {
-          id: user?.id!,
-          full_name: user?.full_name!,
-          role: role!,
-        }
-      };
-
-      setComments(prev => [...prev, newComment]);
-
-      const currentComment = comment.trim();
-      setComment("");
-
-      api.post(`/comments`, {
-        comment: currentComment,
-        request_id: subRequestId,
-      })
-          .then(() => fetchComments(subRequestId)) // Обновляем ID с сервера
-          .catch(err => {
-            console.error("Ошибка при добавлении", err);
-            fetchComments(subRequestId); // Откат
-          });
-    }
-  };
-
-  const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);
-    setEditCommentId(id);
-  };
 
   const handleDeleteRequest = async (request: Request) => {
     try {
@@ -605,11 +464,7 @@ export default function AdminWorkerDashboard() {
     }
   }, [filterMyStatus, filterMyType, filterIncomingStatus, filterIncomingType]);
 
-  useEffect(() => {
-    if (selectedRequest?.id) {
-      fetchComments(selectedRequest.id);
-    }
-  }, [selectedRequest]);
+
 
   const fetchClientInfo = async (userId: number) => {
     if (clientInfo[userId]) return; // Уже загружено
@@ -630,41 +485,6 @@ export default function AdminWorkerDashboard() {
       fetchClientInfo(selectedRequest.client_id);
     }
   }, [selectedRequest]);
-
-  // Функции для работы с заявками
-  const addSubRequest = () => {
-    setSubRequests(prev => [...prev, {
-      title: '',
-      description: '',
-      category_id: 0,
-      complexity: 'simple',
-      sla: '1h'
-    }]);
-  };
-
-  const removeSubRequest = (index: number) => {
-    if (subRequests.length > 1) {
-      setSubRequests(prev => prev.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateSubRequest = (index: number, field: string, value: any) => {
-    setSubRequests(prev => prev.map((sub, i) => 
-      i === index ? { ...sub, [field]: value } : sub
-    ));
-  };
-
-  const toggleSubRequestExpansion = (index: number) => {
-    setExpandedSubRequests(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(index)) {
-        newSet.delete(index);
-      } else {
-        newSet.add(index);
-      }
-      return newSet;
-    });
-  };
 
   const handleCreateNewRequest = async (formData: FormData) => {
     setIsSubmitting(true);
@@ -699,21 +519,6 @@ export default function AdminWorkerDashboard() {
   const resetForm = () => {
     setShowCreateRequestModal(false);
     closeModal();
-    setNewRequestLocation("");
-    setNewRequestType("normal");
-    setNewRequestLocationDetails("");
-    setNewRequestPlannedDate("");
-    setPhotos([]);
-    setPhotoPreviews([]);
-    
-    // Сброс под заявок
-    setSubRequests([{
-      title: '',
-      description: '',
-      category_id: 0,
-      complexity: 'simple',
-      sla: '1h'
-    }]);
     setExpandedSubRequests(new Set());
   };
 
@@ -1183,19 +988,10 @@ export default function AdminWorkerDashboard() {
   const handleRefresh = async () => {
     try {
       setRejectionReason("")
-      setNewRequestType("")
-      setNewRequestLocation("")
-      setNewRequestPlannedDate("")
       setRatingValue(0)
       setClientInfo({})
-      setNewRequestLocationDetails("")
-      setPhotoPreviews([])
-      setComment("")
-      setComments([])
       setUserRatings({})
       setFormErrors("")
-      setPhotos([])
-      setEditCommentId(null)
       setStats(null)
       setHasMore(true)
       setPage(1)
@@ -1533,7 +1329,6 @@ export default function AdminWorkerDashboard() {
         {selectedRequest && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
               setSelectedRequest(null)
-              setComments([])
               setShowComments(null);
               setFormErrors(null);
             }}>
@@ -1607,11 +1402,8 @@ export default function AdminWorkerDashboard() {
                                         onClick={() => {
                                           if (hasComments) {
                                             setShowComments(null);
-                                            setComments([]);
                                           } else {
                                             setShowComments(subRequest.id);
-                                            setComments([]);
-                                            fetchComments(subRequest.id);
                                           }
                                         }}
                                     >
@@ -1972,7 +1764,6 @@ export default function AdminWorkerDashboard() {
                     <Button variant="outline" onClick={() => {
                       setSelectedRequest(null);
                       closeModal();
-                      setComments([]);
                       setFormErrors(null);
                     }}>
                       Закрыть
@@ -1984,177 +1775,16 @@ export default function AdminWorkerDashboard() {
         )}
 
 
-        {showComments && (
-          <>
-            {/* Мобильная версия */}
-            {!isDesktop && (
-              <div className="fixed inset-0 z-50 flex items-end">
-                {/* Overlay */}
-                <div
-                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                  onClick={() => {
-                    setShowComments(null);
-                    setComments([]);
-                  }}
-                />
-
-                {/* Панель комментариев */}
-                <div className="relative bg-white w-full max-h-[70vh] rounded-t-3xl flex flex-col">
-                  {/* Заголовок */}
-                  <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold text-lg">Комментарии</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowComments(null);
-                        setComments([]);
-                      }}
-                    >
-                      <X className="h-5 w-5" />
-                    </Button>
-                  </div>
-
-                  {/* Список комментариев */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {comments.length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-gray-500 text-sm">Комментариев пока нет</p>
-                      </div>
-                    ) : (
-                      <CommentList
-                        comments={comments}
-                        currentUserId={currentUserId}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                      />
-                    )}
-                  </div>
-
-                  {/* Поле ввода */}
-                  <div className="p-4 border-t bg-gray-50">
-                    <div className="flex items-end gap-2">
-                      <div className="flex-1 min-w-0">
-                        <textarea
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          placeholder="Написать комментарий..."
-                          className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey && showComments) {
-                              e.preventDefault();
-                              handleSend(showComments);
-                            }
-                          }}
-                          style={{
-                            height: 'auto',
-                            minHeight: '40px',
-                            maxHeight: '120px'
-                          }}
-                          onInput={(e) => {
-                            const target = e.target as HTMLTextAreaElement;
-                            target.style.height = 'auto';
-                            target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                          }}
-                        />
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          if (showComments) {
-                            handleSend(showComments);
-                          }
-                        }}
-                        className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
-                        disabled={!comment.trim()}
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Десктопная версия - правая панель */}
-            {isDesktop && (
-              <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl border-l border-gray-200 z-50 flex flex-col">
-                {/* Заголовок */}
-                <div className="flex items-center justify-between p-4 border-b bg-gray-50">
-                  <h3 className="font-semibold text-lg">Комментарии</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowComments(null);
-                      setComments([]);
-                    }}
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
-
-                {/* Список комментариев */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {comments.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-500 text-sm">Комментариев пока нет</p>
-                    </div>
-                  ) : (
-                    <CommentList
-                      comments={comments}
-                      currentUserId={currentUserId}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                    />
-                  )}
-                </div>
-
-                {/* Поле ввода */}
-                <div className="p-4 border-t bg-gray-50">
-                  <div className="flex items-end gap-2">
-                    <div className="flex-1 min-w-0">
-                      <textarea
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="Написать комментарий..."
-                        className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey && showComments) {
-                            e.preventDefault();
-                            handleSend(showComments);
-                          }
-                        }}
-                        style={{
-                          height: 'auto',
-                          minHeight: '40px',
-                          maxHeight: '120px'
-                        }}
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = 'auto';
-                          target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                        }}
-                      />
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (showComments) {
-                          handleSend(showComments);
-                        }
-                      }}
-                      className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
-                      disabled={!comment.trim()}
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+        {/* Comments Modal */}
+        <CommentsModal
+          isOpen={!!showComments}
+          onClose={() => {
+            setShowComments(null);
+          }}
+          requestId={showComments}
+          currentUserId={currentUserId}
+          isDesktop={isDesktop}
+        />
 
          {/* Create Request Modal */}
          <CreateRequestModal

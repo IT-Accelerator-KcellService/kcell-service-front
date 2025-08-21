@@ -90,7 +90,6 @@ export function RequestCard({
               </div>
             )}
           </div>
-          <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
         </div>
       </CardContent>
     </Card>

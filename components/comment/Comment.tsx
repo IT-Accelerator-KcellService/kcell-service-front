@@ -13,7 +13,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface Comment {
+export interface Comment {
     id: number;
     request_id: number;
     user: {
