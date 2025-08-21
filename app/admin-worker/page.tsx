@@ -65,6 +65,7 @@ import { RequestCard } from "@/components/RequestCard";
 import { RatingModal } from "@/components/RatingModal";
 import { IconInfoModal } from "@/components/IconInfoModal";
 import { MapModal } from "@/components/MapModal";
+import { CreateRequestModal } from "@/components/CreateRequestModal";
 
 interface User {
   id: number;
@@ -665,49 +666,11 @@ export default function AdminWorkerDashboard() {
     });
   };
 
-  const handleCreateNewRequest = async () => {
-    // Проверяем, что все под заявки заполнены
-    const validSubRequests = subRequests.filter(sub =>
-      sub.title.trim() && sub.description.trim() && sub.category_id > 0
-    );
-
-    if (
-        !newRequestType ||
-        !newRequestLocation.trim() ||
-        !newRequestLocationDetails.trim() ||
-        photos.length === 0 ||
-        validSubRequests.length === 0
-    ) {
-      setFormErrors("Заполните все обязательные поля.");
-      return;
-    }
-
+  const handleCreateNewRequest = async (formData: FormData) => {
     setIsSubmitting(true);
     setFormErrors(null);
 
     try {
-      const formData = new FormData();
-
-      // Поля группы заявок
-      formData.append('request_type', newRequestType);
-      formData.append('location', newRequestLocation);
-      formData.append('location_detail', newRequestLocationDetails);
-      formData.append('status', 'awaiting_assignment');
-      if (newRequestPlannedDate) formData.append('planned_date', newRequestPlannedDate);
-
-      // Под заявки с их SLA и сложностью
-      formData.append('sub_requests', JSON.stringify(validSubRequests.map(sub => ({
-        title: sub.title,
-        description: sub.description,
-        category_id: sub.category_id,
-        complexity: sub.complexity || 'simple',
-        sla: sub.sla || '1h',
-        status: 'awaiting_assignment'
-      }))));
-
-      // Фото
-      photos.forEach(photo => formData.append('photos', photo));
-
       const response = await api.post('/request-groups', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -2193,311 +2156,20 @@ export default function AdminWorkerDashboard() {
           </>
         )}
 
-        {/* Create Request Modal */}
-        {showCreateRequestModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {setShowCreateRequestModal(false); closeModal(); }}>
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <CardHeader>
-                  <CardTitle>Создать {translateType(newRequestType).toLowerCase()} заявку</CardTitle>
-                  <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6 pb-16">
-                  <div>
-                    <Label>Тип заявки</Label>
-                    <Select value={newRequestType} onValueChange={setNewRequestType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите тип заявки" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="normal">Обычная</SelectItem>
-                        <SelectItem value="urgent">Экстренная</SelectItem>
-                        <SelectItem value="planned">Плановая</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Локация</Label>
-                    <div className="flex flex-wrap gap-2">
-                      <Input
-                          className="flex-1 min-w-[200px]"
-                          placeholder="Введите расположение"
-                          value={newRequestLocation}
-                          onChange={(e) => setNewRequestLocation(e.target.value)}
-                      />
-                      <Button
-                          variant="outline"
-                          className="whitespace-nowrap"
-                          onClick={() => {
-                            if (navigator.geolocation) {
-                              navigator.geolocation.getCurrentPosition(
-                                  (position) => {
-                                    const { latitude, longitude, accuracy } = position.coords;
-                                    setNewRequestLocation(
-                                        `Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`
-                                    );
-                                  },
-                                  (error) => {
-                                    console.error("Ошибка геолокации:", error);
-                                    setNewRequestLocation("Не удалось определить местоположение");
-                                  }
-                              );
-                            } else {
-                              setNewRequestLocation("Геолокация не поддерживается вашим браузером");
-                            }
-                          }}
-                      >
-                        <MapPin className="w-4 h-4 mr-2" />
-                        Определить местоположение
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Расположение в офисе</Label>
-                    <Input
-                        placeholder="Например: 3 этаж, кабинет 305"
-                        value={newRequestLocationDetails}
-                        onChange={(e) => setNewRequestLocationDetails(e.target.value)}
-                    />
-                  </div>
-
-                  {newRequestType === "planned" && (
-                      <div>
-                        <Label>Планируемая дата</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                className={`w-full justify-start text-left font-normal ${!date && "text-muted-foreground"}`}
-                            >
-                              <CalendarLucid className="mr-2 h-4 w-4" />
-                              {date ? format(date, "PPP", { locale: ru }) : <span>Выберите дату</span>}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={(newDate) => {
-                                  if (newDate) {
-                                    setNewRequestPlannedDate(format(newDate, 'yyyy-MM-dd'));
-                                  }
-                                }}
-                                initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                  )}
-
-                  <div>
-                    <Label>Фотографии (до 3 шт.)</Label>
-                    <div className="flex flex-wrap gap-4 mt-2">
-                      {photoPreviews.map((photo, index) => (
-                          <div key={index} className="relative">
-                            <img
-                                src={photo || "/placeholder.svg"}
-                                alt={`Photo ${index + 1}`}
-                                className="w-20 h-20 object-cover rounded-lg"
-                            />
-                            <button
-                                onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                            >
-                              ×
-                            </button>
-                          </div>
-                      ))}
-                      {photoPreviews.length < 3 && (
-                          <button
-                              type="button"
-                              onClick={handleButtonClick}
-                              className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                          >
-                            <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                            />
-                            <Camera className="w-6 h-6 text-gray-400" />
-                          </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Под заявки */}
-                  <div>
-                    <Label className="text-lg font-semibold">Под заявки</Label>
-                    <p className="text-sm text-gray-600 mb-4">Добавьте одну или несколько под заявок с их параметрами</p>
-                    
-                    <div className="space-y-4">
-                      {subRequests.map((subRequest, index) => (
-                          <Card key={index} className="border border-gray-200">
-                            <CardHeader className="pb-3">
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-medium">Под заявка #{index + 1}</h4>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => toggleSubRequestExpansion(index)}
-                                      className="p-1"
-                                  >
-                                    {expandedSubRequests.has(index) ? (
-                                        <ChevronUp className="w-4 h-4" />
-                                    ) : (
-                                        <ChevronDown className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                  {subRequests.length > 1 && (
-                                      <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => removeSubRequest(index)}
-                                          className="p-1 text-red-500 hover:text-red-700"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </CardHeader>
-
-                            <CardContent className={`space-y-4 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
-                              <div>
-                                <Label htmlFor={`subRequestTitle-${index}`}>Название под заявки</Label>
-                                <Input
-                                    id={`subRequestTitle-${index}`}
-                                    placeholder="Краткое название задачи"
-                                    value={subRequest.title}
-                                    onChange={(e) => updateSubRequest(index, 'title', e.target.value)}
-                                />
-                              </div>
-
-                              <div>
-                                <Label htmlFor={`subRequestCategory-${index}`}>Категория услуги</Label>
-                                <Select
-                                    value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
-                                    onValueChange={(value) => {
-                                      const category = categories.find(c => c.name === value);
-                                      updateSubRequest(index, 'category_id', category?.id || 0);
-                                    }}
-                                >
-                                  <SelectTrigger id={`subRequestCategory-${index}`}>
-                                    <SelectValue placeholder="Выберите категорию" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {categories.map(category => (
-                                        <SelectItem key={category.id} value={category.name}>
-                                          {category.name}
-                                        </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-
-                              <div>
-                                <Label htmlFor={`subRequestDescription-${index}`}>Описание проблемы</Label>
-                                <Textarea
-                                    id={`subRequestDescription-${index}`}
-                                    placeholder="Опишите проблему подробно..."
-                                    className="min-h-[100px]"
-                                    value={subRequest.description}
-                                    onChange={(e) => updateSubRequest(index, 'description', e.target.value)}
-                                />
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label htmlFor={`subRequestComplexity-${index}`}>Сложность</Label>
-                                  <Select
-                                      value={subRequest.complexity}
-                                      onValueChange={(value: 'simple' | 'medium' | 'complex') => updateSubRequest(index, 'complexity', value)}
-                                  >
-                                    <SelectTrigger id={`subRequestComplexity-${index}`}>
-                                      <SelectValue placeholder="Выберите сложность" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="simple">Простая</SelectItem>
-                                      <SelectItem value="medium">Средняя</SelectItem>
-                                      <SelectItem value="complex">Сложная</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-
-                                <div>
-                                  <Label htmlFor={`subRequestSLA-${index}`}>SLA</Label>
-                                  <Select
-                                      value={subRequest.sla}
-                                      onValueChange={(value: string) => updateSubRequest(index, 'sla', value)}
-                                  >
-                                    <SelectTrigger id={`subRequestSLA-${index}`}>
-                                      <SelectValue placeholder="Выберите SLA" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="1h">1 час</SelectItem>
-                                      <SelectItem value="4h">4 часа</SelectItem>
-                                      <SelectItem value="8h">8 часов</SelectItem>
-                                      <SelectItem value="1d">1 день</SelectItem>
-                                      <SelectItem value="3d">3 дня</SelectItem>
-                                      <SelectItem value="1w">1 неделя</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                      ))}
-                      
-                      <Button
-                          type="button"
-                          variant="outline"
-                          onClick={addSubRequest}
-                          className="w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Добавить под заявку
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-4">
-                    <Button
-                        onClick={handleCreateNewRequest}
-                        className="flex-1 bg-violet-600 hover:bg-violet-700"
-                        disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Создание...
-                          </>
-                      ) : (
-                          "Создать заявку"
-                      )}
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowCreateRequestModal(false);
-                          closeModal();
-                          resetForm();
-                        }}
-                        className="flex-1"
-                    >
-                      Отмена
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-        )}
+         {/* Create Request Modal */}
+         <CreateRequestModal
+           isOpen={showCreateRequestModal}
+           onClose={() => {
+             setShowCreateRequestModal(false);
+             closeModal();
+           }}
+           userRole="admin-worker"
+           categories={categories}
+           onSubmit={handleCreateNewRequest}
+           isSubmitting={isSubmitting}
+           formErrors={formErrors}
+           translateType={translateType}
+         />
 
         {/* Rating Modal */}
         <RatingModal

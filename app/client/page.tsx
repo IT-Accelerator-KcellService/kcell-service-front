@@ -57,6 +57,7 @@ import {RatingModal} from "@/components/RatingModal";
 import {RequestCard} from "@/components/RequestCard";
 import {IconInfoModal} from "@/components/IconInfoModal";
 import {MapModal} from "@/components/MapModal";
+import {CreateRequestModal} from "@/components/CreateRequestModal";
 
 interface Rating {
   id: number;
@@ -706,44 +707,11 @@ export default function ClientDashboard() {
     return "Bronze"
   }
 
-  const handleCreateRequest = async () => {
-    // Проверяем, что все под заявки заполнены
-    const validSubRequests = subRequests.filter(sub =>
-      sub.title.trim() && sub.description.trim() && sub.category_id > 0
-    );
-
-    if (
-        !requestType ||
-        !requestLocation.trim() ||
-        !requestLocationDetails.trim() ||
-        photos.length === 0 ||
-        validSubRequests.length === 0
-    ) {
-      setFormErrors("Заполните все обязательные поля.");
-      return;
-    }
-
+  const handleCreateRequest = async (formData: FormData) => {
     setIsSubmitting(true);
     setFormErrors(null);
 
     try {
-      const formData = new FormData();
-
-      // Поля группы заявок
-      formData.append('request_type', requestType);
-      formData.append('location', requestLocation);
-      formData.append('location_detail', requestLocationDetails);
-      formData.append('status', 'in_progress');
-
-      // Под заявки
-      formData.append('sub_requests', JSON.stringify(validSubRequests.map(sub => ({
-        ...sub,
-        status: 'in_progress'
-      }))));
-
-      // Фото
-      photos.forEach(photo => formData.append('photos', photo));
-
       const response = await api.post('/request-groups', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -1370,7 +1338,7 @@ export default function ClientDashboard() {
                                         request={subRequest}
                                         requestGroup={selectedRequest}
                                         isDesktop={isDesktop}
-                                        userRole="admin-worker"
+                                        userRole="client"
                                         isSubRequest={true}
                                         onRateRequest={(subReq) => {
                                           setRequestToRate(subReq)
@@ -1676,200 +1644,20 @@ export default function ClientDashboard() {
             </div>
         )}
 
-        {/* Create Request Modal */}
-        {showCreateRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {setShowCreateRequest(false); closeModal(); }}>
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <CardHeader>
-                  <CardTitle>Создать заявку</CardTitle>
-                  <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6 pb-16">
-                  <div>
-                    <Label>Тип заявки</Label>
-                    <Select value={requestType} onValueChange={setRequestType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите тип заявки" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="normal">Обычная</SelectItem>
-                        <SelectItem value="urgent">Экстренная</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Локация</Label>
-                    <Input
-                        placeholder="Определение вашего местоположения..."
-                        value={requestLocation}
-                        readOnly
-                        className="bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <Label>Расположение в офисе</Label>
-                    <Input placeholder="Введите расположение" value={requestLocationDetails} onChange={e => setRequestLocationDetails(e.target.value)} />
-                  </div>
-
-                  {/* Под заявки */}
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <Label>Под заявки</Label>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSubRequests([...subRequests, {
-                            title: '',
-                            description: '',
-                            category_id: 0
-                          }]);
-                        }}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Добавить под заявку
-                      </Button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {subRequests.map((subRequest, index) => (
-                        <div key={index} className="border rounded-lg p-4 bg-gray-50">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-medium">Под заявка {index + 1}</h4>
-                            {subRequests.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSubRequests(subRequests.filter((_, i) => i !== index));
-                                }}
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-
-                          <div className="space-y-3">
-                            <div>
-                              <Label>Название под заявки</Label>
-                              <Input
-                                placeholder="Введите название подзаявки"
-                                value={subRequest.title}
-                                onChange={e => {
-                                  const newSubRequests = [...subRequests];
-                                  newSubRequests[index].title = e.target.value;
-                                  setSubRequests(newSubRequests);
-                                }}
-                              />
-                  </div>
-
-                  <div>
-                    <Label>Категория услуги</Label>
-                    <Select
-                                value={subRequest.category_id?.toString() || ""}
-                                onValueChange={(value) => {
-                                  const newSubRequests = [...subRequests];
-                                  newSubRequests[index].category_id = parseInt(value);
-                                  setSubRequests(newSubRequests);
-                                }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите категорию" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.name}
-                            </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Описание проблемы</Label>
-                              <Textarea
-                                placeholder="Опишите проблему подробно..."
-                                className="min-h-[80px]"
-                                value={subRequest.description}
-                                onChange={e => {
-                                  const newSubRequests = [...subRequests];
-                                  newSubRequests[index].description = e.target.value;
-                                  setSubRequests(newSubRequests);
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Фотографии (до 3 шт.)</Label>
-                    <div className="flex flex-wrap gap-4 mt-2">
-                      {photoPreviews.map((photo, index) => (
-                          <div key={index} className="relative">
-                            <img
-                                src={photo || "/placeholder.svg"}
-                                alt={`Photo ${index + 1}`}
-                                className="w-20 h-20 object-cover rounded-lg"
-                            />
-                            <button
-                                onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                            >
-                              ×
-                            </button>
-                          </div>
-                      ))}
-                      {photoPreviews.length < 3 && (
-                          <button
-                              type="button"
-                              onClick={handleButtonClick}
-                              className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                          >
-                            <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                ref={fileInputRef}
-                                onChange={handleFileChange}
-                                className="hidden"
-                            />
-                            <Camera className="w-6 h-6 text-gray-400" />
-                          </button>
-                      )}
-                    </div>
-                  </div>
-                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
-                  <div className="flex space-x-4">
-                    <Button
-                        onClick={handleCreateRequest}
-                        className="flex-1 bg-violet-600 hover:bg-violet-700"
-                        disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Отправка...
-                          </>
-                      ) : (
-                          "Отправить заявку"
-                      )}
-                    </Button>
-                    <Button variant="outline" onClick={() => {setShowCreateRequest(false); closeModal(); }} className="flex-1">
-                      Отмена
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-        )}
+                {/* Create Request Modal */}
+        <CreateRequestModal
+          isOpen={showCreateRequest}
+          onClose={() => {
+            setShowCreateRequest(false);
+            closeModal();
+          }}
+          userRole="client"
+          categories={categories}
+          onSubmit={handleCreateRequest}
+          isSubmitting={isSubmitting}
+          formErrors={formErrors}
+          clientLocation={requestLocation}
+        />
 
         {/* Delete Request Confirmation Modal */}
         <DeleteConfirmationModal
