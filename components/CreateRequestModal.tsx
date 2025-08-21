@@ -76,6 +76,14 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
   }, [clientLocation]);
 
+  // Сброс даты при изменении типа заявки
+  useEffect(() => {
+    if (requestType !== "planned") {
+      setDate(undefined);
+      setPlannedDate("");
+    }
+  }, [requestType]);
+
   const resetForm = () => {
     setRequestType("normal");
     setLocation(clientLocation);
@@ -221,7 +229,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" 
-      onClick={onClose}
+      onClick={() => {
+        onClose();
+        resetForm();
+      }}
     >
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <CardHeader>
@@ -250,27 +261,28 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <Label>Планируемая дата</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                        variant={"outline"}
-                        className={`w-full justify-start text-left font-normal ${!date && "text-muted-foreground"}`}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP", { locale: ru }) : <span>Выберите дату</span>}
-                    </Button>
+                                         <Button
+                         variant={"outline"}
+                         className={`w-full justify-start text-left font-normal ${!date && "text-muted-foreground"}`}
+                     >
+                       <CalendarLucid className="mr-2 h-4 w-4" />
+                       {date ? format(date, "PPP", { locale: ru }) : <span>Выберите дату</span>}
+                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(newDate) => {
-                          setDate(newDate);
-                          if (newDate) {
-                            setPlannedDate(format(newDate, 'yyyy-MM-dd'));
-                          }
-                        }}
-                        initialFocus
-                    />
-                  </PopoverContent>
+                                     <PopoverContent className="w-auto p-0">
+                     <Calendar
+                         mode="single"
+                         selected={date}
+                         onSelect={(newDate) => {
+                           setDate(newDate);
+                           if (newDate) {
+                             setPlannedDate(format(newDate, 'yyyy-MM-dd'));
+                           }
+                         }}
+                         disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                         initialFocus
+                     />
+                   </PopoverContent>
                 </Popover>
               </div>
           )}
