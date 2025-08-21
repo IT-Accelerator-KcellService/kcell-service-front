@@ -17,13 +17,10 @@ import {
 } from "@/components/ui/tooltip"
 
 import {
-  AlertCircle,
   AlertTriangle,
-  Calendar,
   Camera,
   CheckCircle,
   Clock,
-  ImageIcon,
   Loader2,
   MapPin,
   MessageCircle,
@@ -34,8 +31,7 @@ import {
   X,
   XCircle,
   Zap,
-  Hourglass,
-  CalendarDays, ChevronUp, ChevronDown, Users, Calendar as CalendarLucid,
+  Hourglass, ChevronUp, ChevronDown, Users, Calendar as CalendarLucid,
 } from "lucide-react"
 import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
@@ -61,6 +57,7 @@ import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import {RatingModal} from "@/components/RatingModal";
 import {RequestCard} from "@/components/RequestCard";
 import {IconInfoModal} from "@/components/IconInfoModal";
+import {MapModal} from "@/components/MapModal";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -114,12 +111,9 @@ export default function ClientDashboard() {
   const [filterType, setFilterType] = useState("all")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [requestLocation, setRequestLocation] = useState("")
-  const [categoryName, setCategoryName] = useState("")
   const [requestLocationDetails, setRequestLocationDetails] = useState("")
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
-  const [requestTitle, setRequestTitle] = useState("")
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [subRequests, setSubRequests] = useState<Array<{
     title: string;
     description: string;
@@ -138,14 +132,12 @@ export default function ClientDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [requestDescription,setrequestDescription]=useState("");
   const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [requestToDelete, setRequestToDelete] = useState<RequestGroup | null>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
@@ -483,7 +475,7 @@ export default function ClientDashboard() {
     try {
       await api.delete(`/requests/${subRequest.id}`)
 
-      // Обновляем состояние - удаляем подзаявку из группы
+      // Обновляем состояние - удаляем под заявку из группы
       if (selectedRequest) {
         const updatedRequests = selectedRequest.requests.filter(req => req.id !== subRequest.id)
         const updatedRequestGroup = {
@@ -499,7 +491,7 @@ export default function ClientDashboard() {
         )
         useRequestStore.getState().setRequests(updatedStoreRequests)
 
-        // Если это была последняя подзаявка в группе, закрываем модальное окно
+        // Если это была последняя под заявка в группе, закрываем модальное окно
         if (updatedRequests.length === 0) {
           setSelectedRequest(null);
           closeModal();
@@ -507,14 +499,14 @@ export default function ClientDashboard() {
       }
 
       successModal.showSuccess({
-        title: "Подзаявка удалена",
-        message: "Подзаявка была успешно удалена."
+        title: "Под заявка удалена",
+        message: "Под заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Error deleting sub-request:", error)
       successModal.showSuccess({
         title: "Ошибка",
-        message: "Не удалось удалить подзаявку."
+        message: "Не удалось удалить под заявку."
       })
     }
   }
@@ -548,7 +540,7 @@ export default function ClientDashboard() {
   }
 
   useEffect(() => {
-    // Комментарии теперь загружаются для конкретной подзаявки
+    // Комментарии теперь загружаются для конкретной под заявки
     // при нажатии на кнопку "Обновить" в модальном окне
   }, [selectedRequest]);
 
@@ -588,7 +580,7 @@ export default function ClientDashboard() {
 
       setPage(pageToFetch);
 
-      // Проверка оценки для каждой подзаявки
+      // Проверка оценки для каждой под заявки
       newRequestGroups.forEach((requestGroup: RequestGroup) => {
         requestGroup.requests.forEach((subRequest: SubRequest) => {
           if (subRequest.status === "completed") {
@@ -623,23 +615,6 @@ export default function ClientDashboard() {
       fetchRequests(1)
     }
   }, [])
-
-  useEffect(() => {
-    if (selectedRequest?.requests && selectedRequest.requests.length > 0) {
-      const firstSubRequest = selectedRequest.requests[0];
-      if (firstSubRequest?.category_id) {
-      api
-            .get(`service-categories/${Number(firstSubRequest.category_id)}`)
-          .then((response) => {
-            setCategoryName(response.data.name)
-          })
-          .catch((error) => {
-            console.error("Ошибка при получении категории:", error)
-            setCategoryName("Неизвестно")
-          })
-    }
-    }
-  }, [selectedRequest?.requests])
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -723,7 +698,7 @@ export default function ClientDashboard() {
           }
       );
     } else {
-      setRequestLocation("Ваш браузер не поддерживает геолокацию");
+      setRequestLocation("Ваш браузер не поддерживает геолокации");
     }
 
     setShowCreateRequest(true);
@@ -737,7 +712,7 @@ export default function ClientDashboard() {
   }
 
   const handleCreateRequest = async () => {
-    // Проверяем, что все подзаявки заполнены
+    // Проверяем, что все под заявки заполнены
     const validSubRequests = subRequests.filter(sub =>
       sub.title.trim() && sub.description.trim() && sub.category_id > 0
     );
@@ -765,7 +740,7 @@ export default function ClientDashboard() {
       formData.append('location_detail', requestLocationDetails);
       formData.append('status', 'in_progress');
 
-      // Подзаявки
+      // Под заявки
       formData.append('sub_requests', JSON.stringify(validSubRequests.map(sub => ({
         ...sub,
         status: 'in_progress'
@@ -902,32 +877,6 @@ export default function ClientDashboard() {
     }
   }
 
-  const getRequestTypeColor = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-500"
-      case "planned":
-        return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
-      case "normal":
-        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
-      default:
-        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
-    }
-  }
-
-  const getRequestTypeIcon = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return <AlertCircle className="w-3 h-3" />
-      case "planned":
-        return <Calendar className="w-3 h-3" />
-      case "normal":
-        return <Clock className="w-3 h-3" />
-      default:
-        return null
-    }
-  }
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("ru-RU", {
       day: "2-digit",
@@ -1043,7 +992,7 @@ export default function ClientDashboard() {
               </div>
               <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50`}>
-                {totalSubRequests} подзаявок
+                {totalSubRequests} под заявок
               </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
@@ -1375,17 +1324,17 @@ export default function ClientDashboard() {
                       </div>
                   )}
 
-                  {/* Подзаявки */}
+                  {/* Под заявки */}
                   <div>
-                    <Label className={isDesktop ? '' : 'text-base font-semibold'}>Подзаявки</Label>
+                    <Label className={isDesktop ? '' : 'text-base font-semibold'}>Под заявки</Label>
                     <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
-                      {selectedRequest.requests.map((subRequest: SubRequest, index: number) => {
+                      {selectedRequest.requests.map((subRequest: SubRequest) => {
                         const isExpanded = expandedSubRequests.has(subRequest.id);
                         const hasComments = showComments === subRequest.id;
 
                         return (
                             <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
-                              {/* Заголовок подзаявки */}
+                              {/* Заголовок под заявки */}
                               <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-3">
                                   <div className="flex-1 min-w-0">
@@ -1674,36 +1623,14 @@ export default function ClientDashboard() {
         )}
 
         {/* Map Modal */}
-        {showMapModal && (
-            <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-                onClick={() => {setShowMapModal(false); closeModal(); }}
-            >
-              <Card
-                  className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
-                  onClick={(e) => e.stopPropagation()}
-              >
-                <CardHeader>
-                  <CardTitle>Локация заявки</CardTitle>
-                  <CardDescription>Точное местоположение проблемы</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-hidden">
-                  <React.Suspense fallback={
-                    <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-                      Загрузка карты...
-                    </div>
-                  }>
-                    <MapView lat={mapLocation.lat} lon={mapLocation.lon} accuracy={mapLocation.accuracy} />
-                  </React.Suspense>
-                </CardContent>
-                <div className="p-4 flex justify-end border-t">
-                  <Button onClick={() => {setShowMapModal(false); closeModal(); }}>
-                    Закрыть
-                  </Button>
-                </div>
-              </Card>
-            </div>
-        )}
+        <MapModal
+          isOpen={showMapModal}
+          onClose={() => {
+            setShowMapModal(false);
+            closeModal();
+          }}
+          mapLocation={mapLocation}
+        />
         {/* Rating Modal */}
         <RatingModal
             isOpen={showRatingModal && !!requestToRate}
@@ -1718,7 +1645,7 @@ export default function ClientDashboard() {
             onSubmit={handleRateExecutor}
         />
 
-        {/* Модалка */}
+        {/* Мод алка */}
         {isModalOpen && selectedNotification && (
             <div
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -1729,7 +1656,7 @@ export default function ClientDashboard() {
             >
               <div
                   className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
-                  onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри модалки
+                  onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри моталки
               >
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
@@ -1790,10 +1717,10 @@ export default function ClientDashboard() {
                     <Input placeholder="Введите расположение" value={requestLocationDetails} onChange={e => setRequestLocationDetails(e.target.value)} />
                   </div>
 
-                  {/* Подзаявки */}
+                  {/* Под заявки */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <Label>Подзаявки</Label>
+                      <Label>Под заявки</Label>
                       <Button
                         type="button"
                         variant="outline"
@@ -1807,7 +1734,7 @@ export default function ClientDashboard() {
                         }}
                       >
                         <Plus className="w-4 h-4 mr-1" />
-                        Добавить подзаявку
+                        Добавить под заявку
                       </Button>
                     </div>
 
@@ -1815,7 +1742,7 @@ export default function ClientDashboard() {
                       {subRequests.map((subRequest, index) => (
                         <div key={index} className="border rounded-lg p-4 bg-gray-50">
                           <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-medium">Подзаявка {index + 1}</h4>
+                            <h4 className="font-medium">Под заявка {index + 1}</h4>
                             {subRequests.length > 1 && (
                               <Button
                                 type="button"
@@ -1833,7 +1760,7 @@ export default function ClientDashboard() {
 
                           <div className="space-y-3">
                             <div>
-                              <Label>Название подзаявки</Label>
+                              <Label>Название под заявки</Label>
                               <Input
                                 placeholder="Введите название подзаявки"
                                 value={subRequest.title}
