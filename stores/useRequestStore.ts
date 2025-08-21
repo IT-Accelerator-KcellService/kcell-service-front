@@ -31,10 +31,10 @@ export interface SubRequest {
     complexity?: string;
     sla?: string;
     created_date: string;
-    executor?: {user: { full_name: any; phone?: string } };
+    executor?: {user: { full_name: any; phone?: string } }; // Для обратной совместимости
+    executors?: Array<{user: { full_name: any; phone?: string } }>; // Новый массив исполнителей
     is_long_term?: boolean;
-    rating?: number;
-    executors?: any[];
+    ratings?: number;
     comment?: string;
 }
 

@@ -9,6 +9,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 import {
   CheckCircle,
@@ -21,6 +27,10 @@ import {
   Plus,
   Camera,
   MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle, Send, MessageCircle, Trash2,
+  ChevronUp,
+  ChevronDown,
+  Hourglass,
+  X,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import dynamic from "next/dynamic";
@@ -43,7 +53,7 @@ import {NotificationsSidebar} from "@/components/notification/NotificationsSideb
 import {CommentList} from "@/components/comment/Comment";
 import {Calendar} from "@/components/ui/calendar";
 import {sortRequests, useRequestStore} from "@/stores/useRequestStore";
-import {Request} from '@/stores/useRequestStore'
+import {Request, RequestGroup, SubRequest} from '@/stores/useRequestStore'
 import PullToRefresh from "@/components/pull-to-refresh";
 import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
@@ -52,6 +62,8 @@ import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RoleBasedActionMenu } from "@/components/action-menu";
 import { LogsViewer } from "@/components/logs-viewer";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { RequestCard } from "@/components/RequestCard";
+import { RatingModal } from "@/components/RatingModal";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -68,14 +80,6 @@ interface Rating {
   rating: number;
   request_id: number;
   created_at: string;
-}
-
-interface Comment {
-  id: number,
-  request_id: number,
-  sender_id: number,
-  comment: string,
-  timestamp: Date
 }
 
 interface Stats {
@@ -110,11 +114,8 @@ export default function AdminWorkerDashboard() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false);
   const [newRequestType, setNewRequestType] = useState("normal");
-  const [newRequestTitle, setNewRequestTitle] = useState("");
   const [newRequestLocation, setNewRequestLocation] = useState("");
   const [showProfile, setShowProfile] = useState(false);
-  const [newRequestCategory, setNewRequestCategory] = useState("");
-  const [newRequestDescription, setNewRequestDescription] = useState("");
   const [newRequestPlannedDate, setNewRequestPlannedDate] = useState("");
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
@@ -123,14 +124,31 @@ export default function AdminWorkerDashboard() {
   const [clientInfo, setClientInfo] = useState<Record<number, User>>({});
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
-  const [newRequestComplexity, setNewRequestComplexity] = useState<'simple' | 'medium' | 'complex'>('simple');
-  const [newRequestSLA, setNewRequestSLA] = useState("1h");
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [newRequestLocationDetails, setNewRequestLocationDetails] = useState("");
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  
+  // Состояния для подзаявок
+  const [subRequests, setSubRequests] = useState<Array<{
+    title: string;
+    description: string;
+    category_id: number;
+    complexity?: 'simple' | 'medium' | 'complex';
+    sla?: string;
+  }>>([{
+    title: '',
+    description: '',
+    category_id: 0,
+    complexity: 'simple',
+    sla: '1h'
+  }]);
+  const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
   const [comment, setComment] = useState("");
+  const [showComments, setShowComments] = useState<number | null>(null);
   const [comments, setComments] = useState<any[]>([]);
+  const [showIconInfo, setShowIconInfo] = useState<{type: 'status' | 'longTerm', value: string} | null>(null);
+  const [subRequestSettings, setSubRequestSettings] = useState<Record<number, {sla: string, complexity: string}>>({});
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
@@ -438,7 +456,7 @@ export default function AdminWorkerDashboard() {
       const response = await api.get<{
         otherRequests: Request[];
         myRequests: Request[];
-      }>(`/requests/admin-worker/me?page=${currentPage}&pageSize=${pageSize}`);
+      }>(`/request-groups?page=${currentPage}&pageSize=${pageSize}`);
 
       const sortedNewIncomingRequests = sortRequests(response.data.otherRequests);
       const sortedNewMyRequests = sortRequests(response.data.myRequests);
@@ -481,10 +499,9 @@ export default function AdminWorkerDashboard() {
     }
   };
 
-  const fetchComments = async () => {
-    if (!selectedRequest?.id) return;
+  const fetchComments = async (requestId: number) => {
     try {
-      const res = await api.get(`/comments/request/${selectedRequest.id}`);
+      const res = await api.get(`/comments/request/${requestId}`);
       setComments(res.data);
     } catch (err) {
       console.error("Ошибка при загрузке комментариев", err);
@@ -503,7 +520,7 @@ export default function AdminWorkerDashboard() {
     });
   };
 
-  const handleSend = () => {
+  const handleSend = (subRequestId: number) => {
     if (comment.trim() === "") return;
 
     if (editCommentId) {
@@ -520,10 +537,10 @@ export default function AdminWorkerDashboard() {
 
       api.put(`/comments/${currentEditId}`, {
         comment: currentComment,
-        request_id: selectedRequest.id,
+        request_id: subRequestId,
       }).catch(err => {
         console.error("Ошибка при обновлении", err);
-        fetchComments(); // Откатываем, если ошибка
+        fetchComments(subRequestId); // Откатываем, если ошибка
       });
 
     } else {
@@ -532,7 +549,7 @@ export default function AdminWorkerDashboard() {
       const newComment = {
         id: tempId,
         comment: comment.trim(),
-        request_id: selectedRequest.id,
+        request_id: subRequestId,
         isTemp: true,
         timestamp: new Date(),
         sender_id: user?.id!,
@@ -550,12 +567,12 @@ export default function AdminWorkerDashboard() {
 
       api.post(`/comments`, {
         comment: currentComment,
-        request_id: selectedRequest.id,
+        request_id: subRequestId,
       })
-          .then(() => fetchComments()) // Обновляем ID с сервера
+          .then(() => fetchComments(subRequestId)) // Обновляем ID с сервера
           .catch(err => {
             console.error("Ошибка при добавлении", err);
-            fetchComments(); // Откат
+            fetchComments(subRequestId); // Откат
           });
     }
   };
@@ -567,7 +584,7 @@ export default function AdminWorkerDashboard() {
 
   const handleDeleteRequest = async (request: Request) => {
     try {
-      await api.delete(`/requests/${request.id}`)
+      await api.delete(`/request-groups/${request.id}`)
       fetchRequests()
       successModal.showSuccess({
         title: "Заявка удалена",
@@ -582,8 +599,6 @@ export default function AdminWorkerDashboard() {
     }
   }
 
-
-
   useEffect(() => {
     if (myRequests.length === 0 || incomingRequests.length === 0) {
       setPage(1);
@@ -594,7 +609,7 @@ export default function AdminWorkerDashboard() {
 
   useEffect(() => {
     if (selectedRequest?.id) {
-      fetchComments();
+      fetchComments(selectedRequest.id);
     }
   }, [selectedRequest]);
 
@@ -632,63 +647,53 @@ export default function AdminWorkerDashboard() {
     return false;
   }
 
-  const handleApproveRequest = async (requestId: number, categoryId: number,sla: any ,complexity :any,requestType: string  ) => {
-    if (await validateForApprove()) {
-      setFormErrors("Пожалуйста, заполните все обязательные поля.");
-      return;
-    }
-    setIsSubmitting(true);
-    setFormErrors(null);
-    try {
-      await api.patch(`/requests/status/${requestId}`, {
-        status: "awaiting_assignment",
-        category_id: categoryId,
-        sla: sla,
-        complexity: complexity,
-        request_type: requestType
-      });
-      fetchRequests();
-      setSelectedRequest(null);
-      closeModal();
-      approveModal.showAccept()
-    } catch (error) {
-      console.error("Failed to approve request:", error);
-    } finally {
-      setIsSubmitting(false);
+  // Функции для работы с подзаявками
+  const addSubRequest = () => {
+    setSubRequests(prev => [...prev, {
+      title: '',
+      description: '',
+      category_id: 0,
+      complexity: 'simple',
+      sla: '1h'
+    }]);
+  };
+
+  const removeSubRequest = (index: number) => {
+    if (subRequests.length > 1) {
+      setSubRequests(prev => prev.filter((_, i) => i !== index));
     }
   };
 
-  const handleRejectRequest = async (requestId: number) => {
-    if (!rejectionReason) {
-      setFormErrors("Пожалуйста, заполните все обязательные поля.");
-      return;
-    }
-    setFormErrors(null);
-    try {
-      await api.patch(`/requests/status/${requestId}`, {
-        status: "rejected",
-        rejection_reason: rejectionReason
-      });
-      setSelectedRequest(null);
-      closeModal();
-      fetchRequests();
-      setRejectionReason("");
-      rejectModal.showReject()
-    } catch (error) {
-      console.error("Failed to reject request:", error);
-    }
+  const updateSubRequest = (index: number, field: string, value: any) => {
+    setSubRequests(prev => prev.map((sub, i) => 
+      i === index ? { ...sub, [field]: value } : sub
+    ));
+  };
+
+  const toggleSubRequestExpansion = (index: number) => {
+    setExpandedSubRequests(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
   };
 
   const handleCreateNewRequest = async () => {
+    // Проверяем, что все подзаявки заполнены
+    const validSubRequests = subRequests.filter(sub =>
+      sub.title.trim() && sub.description.trim() && sub.category_id > 0
+    );
+
     if (
         !newRequestType ||
-        !newRequestTitle.trim() ||
         !newRequestLocation.trim() ||
-        !newRequestDescription.trim() ||
-        !newRequestCategory ||
         !newRequestLocationDetails.trim() ||
-        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity) ||
-        photos.length === 0
+        photos.length === 0 ||
+        validSubRequests.length === 0
     ) {
       setFormErrors("Заполните все обязательные поля.");
       return;
@@ -699,30 +704,47 @@ export default function AdminWorkerDashboard() {
 
     try {
       const formData = new FormData();
-      formData.append('title', newRequestTitle);
-      formData.append('description', newRequestDescription);
+
+      // Поля группы заявок
       formData.append('request_type', newRequestType);
       formData.append('location', newRequestLocation);
       formData.append('location_detail', newRequestLocationDetails);
-      formData.append('category_id', String(categories.find(c => c.name === newRequestCategory)?.id));
       formData.append('status', 'awaiting_assignment');
-      if (newRequestComplexity) formData.append('complexity', newRequestComplexity);
-      if (newRequestSLA) formData.append('sla', newRequestSLA);
       if (newRequestPlannedDate) formData.append('planned_date', newRequestPlannedDate);
-      photos.forEach(photo => formData.append('photos', photo));
-      formData.append('type', 'before');
 
-      const response = await api.post('/requests/with-photos', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      // Подзаявки с их SLA и сложностью
+      formData.append('sub_requests', JSON.stringify(validSubRequests.map(sub => ({
+        title: sub.title,
+        description: sub.description,
+        category_id: sub.category_id,
+        complexity: sub.complexity || 'simple',
+        sla: sub.sla || '1h',
+        status: 'awaiting_assignment'
+      }))));
+
+      // Фото
+      photos.forEach(photo => formData.append('photos', photo));
+
+      const response = await api.post('/request-groups', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const newRequest = response.data;
-      setMyRequests(prev => [newRequest, ...prev]);
-      successModal.showSuccess();
+      const newRequestGroup = response.data;
+
+      // Обновляем состояние
+      setMyRequests(prev => [newRequestGroup, ...prev]);
+      successModal.showSuccess({
+        title: "Заявка создана!",
+        message: "Заявка отправлена на назначение исполнителей."
+      });
+
+      // Сброс формы
       resetForm();
     } catch (error: any) {
-      console.error("Ошибка при создании заявки:", error);
-      setFormErrors("Не удалось создать заявку.");
+      console.error("Ошибка при создании группы заявок:", error);
+      setFormErrors(
+          error.response?.data?.error || "Не удалось создать заявку. Повторите попытку."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -731,17 +753,22 @@ export default function AdminWorkerDashboard() {
   const resetForm = () => {
     setShowCreateRequestModal(false);
     closeModal();
-    setNewRequestTitle("");
-    setNewRequestDescription("");
     setNewRequestLocation("");
     setNewRequestType("normal");
     setNewRequestLocationDetails("");
-    setNewRequestCategory("");
     setNewRequestPlannedDate("");
-    setNewRequestComplexity("simple");
-    setNewRequestSLA("1h");
     setPhotos([]);
     setPhotoPreviews([]);
+    
+    // Сброс подзаявок
+    setSubRequests([{
+      title: '',
+      description: '',
+      category_id: 0,
+      complexity: 'simple',
+      sla: '1h'
+    }]);
+    setExpandedSubRequests(new Set());
   };
 
   const checkUserRating = async (requestId: number) => {
@@ -757,6 +784,125 @@ export default function AdminWorkerDashboard() {
       console.error("Failed to check user rating:", error);
     }
   };
+
+  const handleAcceptRequestGroup = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      // Проверяем, что все подзаявки имеют SLA и complexity
+      const allSubRequestsHaveSettings = selectedRequest?.requests.every((subReq: SubRequest) => {
+        const settings = subRequestSettings[subReq.id];
+        return settings && settings.sla && settings.complexity;
+      });
+
+      if (!allSubRequestsHaveSettings) {
+        setFormErrors("Пожалуйста, укажите SLA и сложность для всех подзаявок");
+        return;
+      }
+
+      // Подготавливаем данные для отправки
+      const sub_requests = selectedRequest.requests.map((subReq: SubRequest) => {
+        const settings = subRequestSettings[subReq.id];
+        return {
+          id: subReq.id,
+          sla: settings.sla,
+          complexity: settings.complexity,
+          category_id: subReq.category_id
+        };
+      });
+
+      // Отправляем запрос на принятие группы заявок
+      await api.patch(`/request-groups/${selectedRequest.id}`, {
+        patch_code: 1,
+        sub_requests: sub_requests,
+        request_type: selectedRequest.request_type
+      });
+
+      successModal.showSuccess({
+        title: "Заявка принята в работу",
+        message: "Все подзаявки успешно приняты"
+      });
+      setSelectedRequest(null);
+      closeModal();
+      fetchRequests();
+    } catch (error) {
+      console.error("Ошибка при принятии заявки:", error);
+      setFormErrors("Ошибка при принятии заявки");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRejectRequestGroup = async () => {
+    try {
+      if (!rejectionReason.trim()) {
+        setFormErrors("Пожалуйста, укажите причину отклонения");
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      // Отправляем запрос на отклонение группы заявок
+      await api.patch(`/request-groups/${selectedRequest.id}`, {
+        patch_code: 2,
+        rejection_reason: rejectionReason
+      });
+
+      successModal.showSuccess({
+        title: "Заявка отклонена",
+        message: "Группа заявок успешно отклонена"
+      });
+      setSelectedRequest(null);
+      setRejectionReason("");
+      closeModal();
+      fetchRequests();
+    } catch (error) {
+      console.error("Ошибка при отклонении заявки:", error);
+      setFormErrors("Ошибка при отклонении заявки");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteSubRequest = async (subRequest: SubRequest) => {
+    try {
+      await api.delete(`/requests/${subRequest.id}`)
+
+      // Обновляем состояние - удаляем подзаявку из группы
+      if (selectedRequest) {
+        const updatedRequests = selectedRequest.requests.filter((req: { id: number }) => req.id !== subRequest.id)
+        const updatedRequestGroup = {
+          ...selectedRequest,
+          requests: updatedRequests
+        }
+        setSelectedRequest(updatedRequestGroup)
+
+        // Обновляем в store
+        const currentRequests = useRequestStore.getState().requests
+        const updatedStoreRequests = currentRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        )
+        useRequestStore.getState().setRequests(updatedStoreRequests)
+
+        // Если это была последняя подзаявка в группе, закрываем модальное окно
+        if (updatedRequests.length === 0) {
+          setSelectedRequest(null);
+          closeModal();
+        }
+      }
+
+      successModal.showSuccess({
+        title: "Подзаявка удалена",
+        message: "Подзаявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Error deleting sub-request:", error)
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Не удалось удалить подзаявку."
+      })
+    }
+  }
 
   const handleRateExecutor = async () => {
     if (requestToRate && ratingValue > 0) {
@@ -774,7 +920,15 @@ export default function AdminWorkerDashboard() {
         setRatingValue(0)
         setRequestToRate(null)
       } catch (error) {
-        console.error("Failed to rate executor:", error)
+        rejectModal.showReject({
+          title: "Ошибка",
+          message: "Недоступно для оценки"
+        })
+        console.error("Failed to rate executor:", error);
+        setShowRatingModal(false);
+        closeModal();
+        setRatingValue(0)
+        setRequestToRate(null)
       }
     }
   }
@@ -817,7 +971,8 @@ export default function AdminWorkerDashboard() {
       case "completed": return "Завершено";
       case "rejected": return "Отклонено";
       case "awaiting_assignment": return "Ожидание назначения";
-      case "assigned": return "назначенный";
+      case "assigned": return "Назначено";
+      case "awaiting_sla": return "Ожидание SLA";
       default: return status;
     }
   };
@@ -892,31 +1047,66 @@ export default function AdminWorkerDashboard() {
     }
   };
 
-  const getRequestTypeColor = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-500"
-      case "planned":
-        return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
-      case "normal":
-        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
-      default:
-        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
-    }
-  }
+  const renderStatusWithTooltip = (status: string) => {
+    const icon = getStatusIcon(status);
+    const text = translateStatus(status);
 
-  const getRequestTypeIcon = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return <AlertCircle className="w-3 h-3" />
-      case "planned":
-        return <CalendarLucid className="w-3 h-3" />
-      case "normal":
-        return <Clock className="w-3 h-3" />
-      default:
-        return null
+    if (isDesktop) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 cursor-help">
+                {icon}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{text}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    } else {
+      return (
+        <div
+          className="flex items-center gap-1 cursor-pointer p-1 rounded"
+          onClick={() => setShowIconInfo({type: 'status', value: text})}
+        >
+          {icon}
+        </div>
+      );
     }
-  }
+  };
+
+  const renderLongTermWithTooltip = (isLongTerm: boolean) => {
+    if (!isLongTerm) return null;
+
+    if (isDesktop) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1 cursor-help">
+                <Hourglass className="w-3 h-3 text-blue-600" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Долгосрочная задача</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    } else {
+      return (
+        <div
+          className="flex items-center gap-1 cursor-pointer p-1 rounded"
+          onClick={() => setShowIconInfo({type: 'longTerm', value: 'Долгосрочная задача'})}
+        >
+          <Hourglass className="w-3 h-3 text-blue-600" />
+        </div>
+      );
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("ru-RU", {
@@ -932,23 +1122,48 @@ export default function AdminWorkerDashboard() {
     ))
   }
 
-  const handleToggleLongTerm = async (requestId: number, currentStatus: boolean) => {
+  const handleToggleLongTerm = async (requestId: number, requestGroupId: number, currentStatus: boolean) => {
     try {
       const response = await api.patch(`/requests/${requestId}/long-term`, {
         is_long_term: !currentStatus
       });
 
-      // Обновляем состояние в UI
-      const updateRequest = (prev: any[]) => 
-        prev.map(req => 
-          req.id === requestId 
-            ? { ...req, is_long_term: !currentStatus }
-            : req
-        );
+      // Обновляем состояние в UI - обновляем подзаявку внутри группы заявок
+      const updateRequestGroups = (prev: RequestGroup[]) => 
+        prev.map(group => {
+          if (group.id === requestGroupId) {
+            return {
+              ...group,
+              requests: group.requests.map(subRequest => 
+                subRequest.id === requestId 
+                  ? { ...subRequest, is_long_term: !currentStatus }
+                  : subRequest
+              )
+            };
+          }
+          return group;
+        }); 
+
+      // Обновляем selectedRequest если он открыт и это та же группа заявок
+      if (selectedRequest && selectedRequest.id === requestGroupId) {
+        setSelectedRequest((prev: RequestGroup | null) => {
+          if (prev) {
+            return {
+              ...prev,
+              requests: prev.requests.map(subRequest => 
+                subRequest.id === requestId 
+                  ? { ...subRequest, is_long_term: !currentStatus }
+                  : subRequest
+              )
+            };
+          }
+          return prev;
+        });
+      }
 
       // Обновляем все списки заявок
-      setIncomingRequests(updateRequest);
-      setMyRequests(updateRequest);
+      setIncomingRequests(updateRequestGroups);
+      setMyRequests(updateRequestGroups);
 
       // Показываем сообщение об успехе
       successModal.showSuccess({
@@ -967,83 +1182,36 @@ export default function AdminWorkerDashboard() {
     }
   };
 
-  const renderLongTermButton = (request: any) => {
-    if (request.status !== "assigned" && request.status !== "execution" && request.status !== "awaiting_assignment") {
-      return null;
-    }
-
+  const renderCardHeader = (requestGroup: RequestGroup) => {
+    const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
+    const totalSubRequests = requestGroup.requests.length;
+    
     return (
-      <button
-        onClick={(e) => {
-          e.stopPropagation()
-          handleToggleLongTerm(request.id, request.is_long_term || false)
-        }}
-        title={request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную"}
-        className={`group relative p-2 rounded-xl transition-all duration-500 ease-out transform hover:scale-105 active:scale-95 ${
-          request.is_long_term 
-            ? 'bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/40 hover:shadow-blue-500/60 hover:from-blue-600 hover:to-indigo-700' 
-            : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-500 hover:text-blue-600 border border-gray-200 hover:border-blue-300 hover:from-blue-50 hover:to-blue-100 shadow-sm hover:shadow-md'
-        }`}
-      >
-        <span className={`text-base font-medium transition-all duration-500 ${
-          request.is_long_term 
-            ? 'animate-pulse group-hover:animate-none drop-shadow-sm' 
-            : 'group-hover:scale-110 group-hover:rotate-12'
-        }`}>
-          ⏳
-        </span>
-        {request.is_long_term && (
-          <>
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping shadow-lg"></span>
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-pulse"></span>
-          </>
-        )}
-        <div className={`absolute inset-0 rounded-xl transition-all duration-500 ${
-          request.is_long_term 
-            ? 'bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100' 
-            : 'bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100'
-        }`}></div>
-      </button>
-    );
-  };
-
-  const renderCardHeader = (request: any) => {
-    return (
-      <CardHeader className={`pb-3 px-5 pt-5 ${request.is_long_term ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-l-4 border-blue-500' : ''}`}>
+      <CardHeader className={`pb-3 px-5 pt-5`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className={`font-bold text-base leading-tight line-clamp-2 ${request.is_long_term ? 'text-blue-900' : 'text-gray-900'}`}>
-                {request.title}
+              <h3 className={`font-bold text-base leading-tight line-clamp-2 text-gray-900`}>
+                Заявка #{requestGroup.id}
               </h3>
-              {request.is_long_term && (
-                <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-semibold rounded-full shadow-lg">
-                  <span className="animate-pulse">⏳</span>
-                  <span>Долгосрочная</span>
-                </div>
-              )}
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-blue-700 bg-blue-100' : 'text-purple-600 bg-purple-50'}`}>
-                #{request.id}
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50`}>
+                {totalSubRequests} подзаявок
               </span>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
-                {request?.category?.name}
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
+                {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
             </div>
           </div>
           <div className="flex gap-1 items-center">
-            <Badge
-              variant="outline"
-              className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
-            >
-              {getStatusIcon(request.status)}
-              {translateStatus(request.status)}
-            </Badge>
+            {renderStatusWithTooltip(requestGroup.status)}
+            {isLongTerm && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
-              request={request}
+              request={requestGroup}
               isDesktop={isDesktop}
               userRole="admin-worker"
+              isSubRequest={false}
               onViewDetails={(request) => {
                 setSelectedRequest(request);
                 openModal('requestDetails');
@@ -1052,12 +1220,13 @@ export default function AdminWorkerDashboard() {
                 setRequestToRate(request);
                 setShowRatingModal(true);
                 openModal('ratingModal');
+                setSelectedRequest(null);
+                closeModal()
               }}
-              onDelete={(request) => {
-                setSelectedRequest(request);
+              onDelete={(requestGroup) => {
+                setSelectedRequest(requestGroup);
                 setShowDeleteRequestModal(true);
               }}
-              onToggleLongTerm={handleToggleLongTerm}
             />
           </div>
         </div>
@@ -1065,25 +1234,14 @@ export default function AdminWorkerDashboard() {
     );
   };
 
-  const formatDateToString = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
   const handleRefresh = async () => {
     try {
       setRejectionReason("")
       setNewRequestType("")
-      setNewRequestTitle("")
       setNewRequestLocation("")
-      setNewRequestCategory("")
-      setNewRequestDescription("")
       setNewRequestPlannedDate("")
       setRatingValue(0)
       setClientInfo({})
-      setNewRequestSLA("1h")
       setNewRequestLocationDetails("")
       setPhotoPreviews([])
       setComment("")
@@ -1240,106 +1398,16 @@ export default function AdminWorkerDashboard() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {filteredMyRequests.map((request, index: number) => (
-                          <Card key={index} className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
-                            request.is_long_term 
-                              ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
-                              : 'bg-white hover:shadow-purple-400/20'
-                          }`}
-                                onClick={() => {setSelectedRequest(request); openModal('requestDetails'); }}>
-                            {renderCardHeader(request)}
-
-                            <CardContent className="px-5 pb-5 pt-0 space-y-3">
-                              {/* Описание */}
-                              <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
-
-                              {/* Основная информация в сетке */}
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                  <span className="truncate font-medium">{request.location_detail}</span>
-                                </div>
-
-                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                  <span className="truncate font-medium">{formatDate(request.created_date)}</span>
-                                </div>
-
-                                {request.executor && request.executor.user.full_name ? (
-                                    <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                      <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                      <span className="truncate font-medium">{request.executor.user.full_name}</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                      <User className="w-4 h-4 flex-shrink-0" />
-                                      <span className="truncate font-medium">Не назначен</span>
-                                    </div>
-                                )}
-
-                                {userRatings[request.id]?.rating ? (
-                                    <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                      {renderStars(userRatings[request.id].rating)}
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                      <span className="text-sm font-medium">Без оценки</span>
-                                    </div>
-                                )}
-                              </div>
-
-                              {/* Фотографии */}
-                              {request.photos && request.photos.length > 0 && (
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <ImageIcon className="w-4 h-4 text-purple-500" />
-                                      <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
-                                    </div>
-                                    <div className="flex gap-2 overflow-x-auto">
-                                      {request.photos.slice(0, 4).map((photo, index) => (
-                                          <div key={index} className="flex-shrink-0">
-                                            <img
-                                                src={photo.photo_url || "/placeholder.svg"}
-                                                alt={`Фото ${index + 1}`}
-                                                className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
-                                                onError={(e) => {
-                                                  e.currentTarget.src = `/placeholder.svg?height=48&width=48`
-                                                }}
-                                            />
-                                          </div>
-                                      ))}
-                                      {request.photos.length > 4 && (
-                                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                                            <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
-                                          </div>
-                                      )}
-                                    </div>
-                                  </div>
-                              )}
-
-                              {/* Нижняя панель */}
-                              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                                <div className="flex gap-2">
-                                  <Badge
-                                      variant="outline"
-                                      className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
-                                  >
-                                    {getRequestTypeIcon(request.request_type)}
-                                    {translateType(request.request_type)}
-                                  </Badge>
-                                  {request.complexity && request.complexity !== "" && (
-                                      <Badge
-                                          variant="outline"
-                                          className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
-                                      >
-                                        {translateComplexity(request.complexity)}
-                                      </Badge>
-                                  )}
-                                </div>
-
-                                <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
-                              </div>
-                            </CardContent>
-                          </Card>
+                        <RequestCard
+                          key={index}
+                          request={request}
+                          onCardClick={(request) => {
+                            setSelectedRequest(request);
+                            openModal('requestDetails');
+                          }}
+                          renderCardHeader={renderCardHeader}
+                          formatDate={formatDate}
+                        />
                       ))}
                     </div>
                   </div>
@@ -1355,10 +1423,10 @@ export default function AdminWorkerDashboard() {
                         <SelectContent>
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначения</SelectItem>
+                          <SelectItem value="assigned">Назначено</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
-                          <SelectItem value="assigned">Назначено</SelectItem>
-                          <SelectItem value="awaiting_assignment">Ожидает назначения</SelectItem>
                           <SelectItem value="long_term">⏳ Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1379,111 +1447,20 @@ export default function AdminWorkerDashboard() {
                       {filteredIncomingRequests.map((request, index) => {
                         const isLast = index === filteredIncomingRequests.length - 1;
                         return (
-                        <Card
+                          <RequestCard
                             key={`incoming-${request.id}`}
-                            ref={isLast ? lastRequestRef : null}
-                            className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
-                              request.is_long_term 
-                                ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
-                                : 'bg-white hover:shadow-purple-400/20'
-                            }`}
-                            onClick={() => {setSelectedRequest(request); openModal('requestDetails'); }}
-                        >
-                            {renderCardHeader(request)}
-
-                            <CardContent className="px-5 pb-5 pt-0 space-y-3">
-                              {/* Описание */}
-                              <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
-
-                              {/* Основная информация в сетке */}
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                  <span className="truncate font-medium">{request.location_detail}</span>
-                                </div>
-
-                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                  <span className="truncate font-medium">{formatDate(request.created_date)}</span>
-                                </div>
-
-                                {request.executor && request.executor.user.full_name ? (
-                                    <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                      <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                      <span className="truncate font-medium">{request.executor.user.full_name}</span>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                      <User className="w-4 h-4 flex-shrink-0" />
-                                      <span className="truncate font-medium">Не назначен</span>
-                                    </div>
-                                )}
-
-                                {userRatings[request.id]?.rating ? (
-                                    <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                      {renderStars(userRatings[request.id].rating)}
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                      <span className="text-sm font-medium">Без оценки</span>
-                                    </div>
-                                )}
-                              </div>
-
-                              {/* Фотографии */}
-                              {request.photos && request.photos.length > 0 && (
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <ImageIcon className="w-4 h-4 text-purple-500" />
-                                      <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
-                                    </div>
-                                    <div className="flex gap-2 overflow-x-auto">
-                                      {request.photos.slice(0, 4).map((photo, index) => (
-                                          <div key={index} className="flex-shrink-0">
-                                            <img
-                                                src={photo.photo_url || "/placeholder.svg"}
-                                                alt={`Фото ${index + 1}`}
-                                                className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
-                                                onError={(e) => {
-                                                  e.currentTarget.src = `/placeholder.svg?height=48&width=48`
-                                                }}
-                                            />
-                                          </div>
-                                      ))}
-                                      {request.photos.length > 4 && (
-                                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                                            <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
-                                          </div>
-                                      )}
-                                    </div>
-                                  </div>
-                              )}
-
-                              {/* Нижняя панель */}
-                              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                                <div className="flex gap-2">
-                                  <Badge
-                                      variant="outline"
-                                      className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
-                                  >
-                                    {getRequestTypeIcon(request.request_type)}
-                                    {translateType(request.request_type)}
-                                  </Badge>
-                                  {request.complexity && request.complexity !== "" && (
-                                      <Badge
-                                          variant="outline"
-                                          className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
-                                      >
-                                        {translateComplexity(request.complexity)}
-                                      </Badge>
-                                  )}
-                                </div>
-
-                                <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                      )})}
+                            request={request}
+                            onCardClick={(request) => {
+                              setSelectedRequest(request);
+                              openModal('requestDetails');
+                            }}
+                            renderCardHeader={renderCardHeader}
+                            formatDate={formatDate}
+                            isLast={isLast}
+                            lastElementRef={lastRequestRef}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 </TabsContent>
@@ -1608,79 +1585,295 @@ export default function AdminWorkerDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
               setSelectedRequest(null)
-              closeModal()
               setComments([])
+              setShowComments(null);
+              setFormErrors(null);
             }}>
-              <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <CardHeader>
-                  <CardTitle>Детали заявки #{selectedRequest.id}</CardTitle>
-                  <CardDescription>Проверка и классификация заявки</CardDescription>
+              <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+                <CardHeader className={isDesktop ? '' : 'sticky top-0 bg-white z-10 border-b'}>
+                  <CardTitle className={isDesktop ? '' : 'text-lg'}>Детали заявки #{selectedRequest.id}</CardTitle>
+                  <CardDescription className={isDesktop ? '' : 'text-sm'}>Подробная информация о вашей заявке</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6 pb-16">
+                <CardContent className="space-y-4 pb-16">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Приоритет заявки</Label>
-                      {selectedRequest.status === 'in_progress' ? (
-                          <Select
-                              value={selectedRequest.request_type}
-                              onValueChange={(value) =>
-                                  setSelectedRequest({
-                                    ...selectedRequest,
-                                    request_type: value
-                                  })
-                              }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Выберите приоритет" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="urgent">Экстренная</SelectItem>
-                              <SelectItem value="normal">Обычная</SelectItem>
-                              <SelectItem value="planned">Плановая</SelectItem>
-                            </SelectContent>
-                          </Select>
-                      ) : (
-                          <Badge className={getRequestTypeColor(selectedRequest.request_type)}>
-                            {translateType(selectedRequest.request_type)}
-                          </Badge>
-                      )}
+                      <Label>Тип заявки</Label>
+                      <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
                     </div>
-
                     <div>
                       <Label>Статус</Label>
-                      <Badge className={getStatusColor(selectedRequest.status)}>
-                        {translateStatus(selectedRequest.status)}
-                      </Badge>
+                      <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                     </div>
                   </div>
-
-                  <div>
-                    <Label>Название</Label>
-                    <p className="text-sm font-medium">{selectedRequest.title}</p>
-                  </div>
-                  {selectedRequest?.client_id && clientInfo[selectedRequest.client_id] && (
+                  
+                  {/* Показываем запланированное время для плановых заявок */}
+                  {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
+                    <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <CalendarLucid className="w-4 h-4 text-blue-600" />
                       <div>
-                        <Label>Клиент</Label>
-                        <p className="text-sm font-medium">
-                          {clientInfo[selectedRequest.client_id].full_name} ({clientInfo[selectedRequest.client_id].email})
-                        </p>
+                        <Label className="text-sm font-medium text-blue-800">Запланировано на: </Label>
+                        <span className="text-sm text-blue-700">
+                          {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </span>
                       </div>
+                    </div>
                   )}
 
-                  {selectedRequest.request_type === "planned" ? (
-                      <div>
-                        <Label>Заплонированная время</Label>
-                        <p className="text-sm font-medium">
-                          {selectedRequest.planned_date}
-                        </p>
-                      </div>
-                  ): null}
+                  {/* Подзаявки */}
+                  <div>
+                    <Label className={isDesktop ? '' : 'text-base font-semibold'}>Подзаявки</Label>
+                    <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
+                      {selectedRequest.requests.map((subRequest: SubRequest, index: number) => {
+                        const isExpanded = expandedSubRequests.has(subRequest.id);
+                        const hasComments = showComments === subRequest.id;
+
+                        return (
+                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                              {/* Заголовок подзаявки */}
+                              <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
+                                <div className="flex justify-between items-start mb-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
+                                    </div>
+                                    <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
+                                      <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
+                                        <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                        {subRequest.category?.name || 'Без категории'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    {renderStatusWithTooltip(subRequest.status)}
+                                    {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+
+                                    {/* Кнопка комментариев */}
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
+                                        onClick={() => {
+                                          if (hasComments) {
+                                            setShowComments(null);
+                                            setComments([]);
+                                          } else {
+                                            setShowComments(subRequest.id);
+                                            setComments([]);
+                                            fetchComments(subRequest.id);
+                                          }
+                                        }}
+                                    >
+                                      <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
+                                    </Button>
+
+                                    <RoleBasedActionMenu
+                                        request={subRequest}
+                                        requestGroup={selectedRequest}
+                                        isDesktop={isDesktop}
+                                        userRole="admin-worker"
+                                        isSubRequest={true}
+                                        onRateRequest={(subReq) => {
+                                          setRequestToRate(subReq)
+                                          setShowRatingModal(true)
+                                          openModal('ratingModal')
+                                          setSelectedRequest(null);
+                                          closeModal()
+                                        }}
+                                        onDelete={(subReq) => {
+                                          handleDeleteSubRequest(subReq);
+                                        }}
+                                        onToggleLongTerm={handleToggleLongTerm}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Краткое описание */}
+                                <div className={`text-gray-600 mb-3 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
+                                  {isDesktop ? (
+                                      <p className="line-clamp-2">{subRequest.description}</p>
+                                  ) : (
+                                      <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
+                                  )}
+                                </div>
+
+                                {/* Кнопка раскрытия */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
+                                    onClick={() => {
+                                      const newExpanded = new Set(expandedSubRequests);
+                                      if (isExpanded) {
+                                        newExpanded.delete(subRequest.id);
+                                      } else {
+                                        newExpanded.add(subRequest.id);
+                                      }
+                                      setExpandedSubRequests(newExpanded);
+                                    }}
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      <ChevronUp className="w-4 h-4 mr-2" />
+                                      Свернуть
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown className="w-4 h-4 mr-2" />
+                                      Подробнее
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+
+                              {/* Раскрытая информация */}
+                              {isExpanded && (
+                                  <div className={`border-t bg-gradient-to-br from-gray-50 to-gray-100 ${isDesktop ? 'p-4' : 'p-5'}`}>
+                                    {/* Основная информация */}
+                                    <div className={`grid gap-3 text-sm mb-4 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                      {subRequest.complexity && (
+                                          <div className="flex items-center gap-2 text-gray-600">
+                                            <span className="font-medium">Сложность:</span>
+                                            <Badge className={getComplexityColor(subRequest.complexity)}>
+                                              {translateComplexity(subRequest.complexity)}
+                                            </Badge>
+                                          </div>
+                                      )}
+                                      {subRequest.sla && (
+                                          <div className="flex items-center gap-2 text-gray-600">
+                                            <span className="font-medium">SLA:</span>
+                                            <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                                              {subRequest.sla}
+                                            </Badge>
+                                          </div>
+                                      )}
+                                    </div>
+
+                                    {/* Исполнители */}
+                                    {(() => {
+                                      const executors = subRequest.executors && subRequest.executors.length > 0 
+                                        ? subRequest.executors 
+                                        : subRequest.executor 
+                                          ? [subRequest.executor] 
+                                          : [];
+                                      
+                                      return executors.length > 0 ? (
+                                        <div className="mb-4">
+                                          <h5 className="font-medium text-sm mb-3 text-gray-700 flex items-center gap-2">
+                                            <Users className="w-4 h-4 text-purple-500" />
+                                            Исполнители
+                                          </h5>
+                                          <div className="space-y-2">
+                                            {executors.map((executor, index) => (
+                                              <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                                <div className="flex items-center gap-2">
+                                                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                                    <User className="w-4 h-4 text-purple-600" />
+                                                  </div>
+                                                  <span className="text-sm font-medium text-gray-800">
+                                                    {executor.user.full_name} {executor.user.phone}
+                                                  </span>
+                                                </div>
+                                                {userRatings[subRequest.id]?.rating && (
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-gray-500">Оценка:</span>
+                                                    <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : null;
+                                    })()}
+
+                                    {/* Комментарий исполнителя */}
+                                    {subRequest.comment && subRequest.comment.trim() !== "" && (
+                                      <div className="mb-4">
+                                        <h5 className="font-medium text-sm mb-3 text-gray-700 flex items-center gap-2">
+                                          <MessageCircle className="w-4 h-4 text-purple-500" />
+                                          Комментарий исполнителя
+                                        </h5>
+                                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                          <div className="flex items-start gap-3">
+                                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                              <User className="w-4 h-4 text-purple-600" />
+                                            </div>
+                                            <div className="flex-1">
+                                              <p className="text-sm text-gray-700 leading-relaxed">
+                                                {subRequest.comment}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Настройки SLA и сложности для админа */}
+                                    {selectedRequest?.status === 'in_progress' && (
+                                        <div className="border-t border-gray-200 pt-3 mt-3">
+                                          <h5 className="font-medium text-sm mb-3 text-gray-700">Настройки для принятия</h5>
+                                          <div className={`grid gap-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                            <div>
+                                              <Label className="text-xs font-medium text-gray-600">SLA</Label>
+                                              <Select
+                                                  value={subRequestSettings[subRequest.id]?.sla || ''}
+                                                  onValueChange={(value) => setSubRequestSettings(prev => ({
+                                                    ...prev,
+                                                    [subRequest.id]: { ...prev[subRequest.id], sla: value }
+                                                  }))}
+                                              >
+                                                <SelectTrigger className="h-8 text-xs">
+                                                  <SelectValue placeholder="Выберите SLA" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="1h">1 час</SelectItem>
+                                                  <SelectItem value="4h">4 часа</SelectItem>
+                                                  <SelectItem value="8h">8 часов</SelectItem>
+                                                  <SelectItem value="1d">1 день</SelectItem>
+                                                  <SelectItem value="3d">3 дня</SelectItem>
+                                                  <SelectItem value="1w">1 неделя</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
+                                            <div>
+                                              <Label className="text-xs font-medium text-gray-600">Сложность</Label>
+                                              <Select
+                                                  value={subRequestSettings[subRequest.id]?.complexity || ''}
+                                                  onValueChange={(value) => setSubRequestSettings(prev => ({
+                                                    ...prev,
+                                                    [subRequest.id]: { ...prev[subRequest.id], complexity: value }
+                                                  }))}
+                                              >
+                                                <SelectTrigger className="h-8 text-xs">
+                                                  <SelectValue placeholder="Выберите сложность" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="simple">Простая</SelectItem>
+                                                  <SelectItem value="medium">Средняя</SelectItem>
+                                                  <SelectItem value="complex">Сложная</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
+                                          </div>
+                                        </div>
+                                    )}
+                                  </div>
+                              )}
+                            </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
                   <div>
                     <Label>Локация</Label>
-                    <p className="text-sm">{selectedRequest.location_detail || selectedRequest.location}</p>
+                    <p className="text-sm">{selectedRequest.location_detail}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -1711,171 +1904,41 @@ export default function AdminWorkerDashboard() {
                       </Button>
                     </div>
                   </div>
-                  <div>
-                    <Label>Описание</Label>
-                    <p className="text-sm">{selectedRequest.description}</p>
-                  </div>
-                  <div>
-                    <Label htmlFor="category">Категория услуги</Label>
-                    {selectedRequest.status === 'in_progress' ? (
-                        <Select
-                            value={selectedRequest.category_id?.toString() || ""}
-                            onValueChange={(val) => setSelectedRequest({
-                              ...selectedRequest,
-                              category_id: parseInt(val)
-                            })}
-                        >
-                          <SelectTrigger id="category">
-                            <SelectValue placeholder="Выберите категорию" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map(category => (
-                                <SelectItem key={category.id} value={category.id.toString()}>
-                                  {category.name}
-                                </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                    ) : (
-                        <p className="text-sm font-medium">
-                          {categories.find(c => c.id === selectedRequest.category_id)?.name || "Не указана"}
-                        </p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Сложность</Label>
-                      {selectedRequest.status === 'in_progress' ? (
-                          <Select
-                              value={selectedRequest.complexity}
-                              onValueChange={(value: 'simple' | 'medium' | 'complex') => {
-                                setSelectedRequest({
-                                  ...selectedRequest,
-                                  complexity: value
-                                });
-                              }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Выберите сложность" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="simple">Простая</SelectItem>
-                              <SelectItem value="medium">Средняя</SelectItem>
-                              <SelectItem value="complex">Сложная</SelectItem>
-                            </SelectContent>
-                          </Select>
-                      ) : (
-                          <Badge className="bg-blue-500">
-                            {selectedRequest.complexity === 'simple' && 'Простая'}
-                            {selectedRequest.complexity === 'medium' && 'Средняя'}
-                            {selectedRequest.complexity === 'complex' && 'Сложная'}
-                          </Badge>
-                      )}
-                    </div>
 
-                    <div>
-                      <Label>SLA</Label>
-                      {selectedRequest.status === 'in_progress' ? (
-                          <Select
-                              value={selectedRequest.sla}
-                              onValueChange={(value: string) => {
-                                setSelectedRequest({
-                                  ...selectedRequest,
-                                  sla: value
-                                });
-                              }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Выберите срок выполнения" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1h">1 час</SelectItem>
-                              <SelectItem value="4h">4 часа</SelectItem>
-                              <SelectItem value="8h">8 часов</SelectItem>
-                              <SelectItem value="1d">1 день</SelectItem>
-                              <SelectItem value="3d">3 дня</SelectItem>
-                              <SelectItem value="1w">1 неделя</SelectItem>
-                            </SelectContent>
-                          </Select>
-                      ) : (
-                          <p className="text-sm font-medium">
-                            {selectedRequest.sla === '1h' && '1 час'}
-                            {selectedRequest.sla === '4h' && '4 часа'}
-                            {selectedRequest.sla === '8h' && '8 часов'}
-                            {selectedRequest.sla === '1d' && '1 день'}
-                            {selectedRequest.sla === '3d' && '3 дня'}
-                            {selectedRequest.sla === '1w' && '1 неделя'}
-                          </p>
-                      )}
-                    </div>
+                  <div className="flex items-center">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {new Date(selectedRequest.created_date).toLocaleString("ru-RU", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })}
                   </div>
 
-                  {userRatings[selectedRequest.id]?.rating && (
-                      <div>
-                        <Label>Оценка</Label>
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                              <Star
-                                  key={i}
-                                  className={`w-5 h-5 ${i < userRatings[selectedRequest.id].rating! ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                  {/* Фотографии группы заявок */}
+                  {selectedRequest.photos && selectedRequest.photos.length > 0 && (
+                      <div className="mt-4">
+                        <Label className="font-bold block">Фотографии заявки</Label>
+                        <div className="flex space-x-2 mt-2 flex-wrap">
+                          {selectedRequest.photos.map((photo: any, index: number) => (
+                              <img
+                                  key={index}
+                                  src={photo.photo_url || "/placeholder.svg"}
+                                  alt={`Фото ${index + 1}`}
+                                  className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                  onClick={() => {
+                                    setSelectedPhoto(photo.photo_url);
+                                    openModal('photoPreview');
+                                  }}
+                                  onError={(e) => {
+                                    e.currentTarget.src = "/placeholder.svg";
+                                  }}
                               />
                           ))}
                         </div>
                       </div>
                   )}
-
-                  {selectedRequest.photos && selectedRequest.photos.length > 0 && (() => {
-                    const clientPhotos = selectedRequest.photos.filter((photo: any) => photo.type === "before");
-                    const contractorPhotos = selectedRequest.photos.filter((photo: any) => photo.type === "after");
-
-                    return (
-                        <div className="mt-4">
-                          {/* Блок ДО */}
-                          {clientPhotos.length > 0 && (
-                              <>
-                                <Label className="font-bold">Фотографии «До» (загружены пользователем)</Label>
-                                <div className="flex space-x-2 mt-2 flex-wrap">
-                                  {clientPhotos.map((photo: any, index: number) => (
-                                      <img
-                                          key={index}
-                                          src={photo.photo_url || "/placeholder.svg"}
-                                          alt={`До ${index + 1}`}
-                                          className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                          onClick={() => {setSelectedPhoto(photo.photo_url); openModal('photoPreview'); }}
-                                      />
-                                  ))}
-                                </div>
-                              </>
-                          )}
-
-                          {/* Блок ПОСЛЕ */}
-                          <Label className="font-bold mt-4 block">Фотографии «После» (загружены подрядчиком)</Label>
-                          {contractorPhotos.length > 0 ? (
-                              <div className="flex space-x-2 mt-2 flex-wrap">
-                                {contractorPhotos.map((photo: any, index: number) => (
-                                    <img
-                                        key={index}
-                                        src={photo.photo_url || "/placeholder.svg"}
-                                        alt={`После ${index + 1}`}
-                                        className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                        onClick={() => {setSelectedPhoto(photo.photo_url); openModal('photoPreview'); }}
-                                    />
-                                ))}
-                              </div>
-                          ) : (
-                              <div className="text-xs text-gray-400 mt-2">Нет загруженных фотографий</div>
-                          )}
-                        </div>
-                    );
-                  })()}
-                  <div className="mt-4">
-                    <Label className="font-bold block">Комментарий исполнителя</Label>
-                    <p className="text-sm mt-1">
-                      {selectedRequest.comment && selectedRequest.comment.trim() !== ""
-                          ? selectedRequest.comment
-                          : "Исполнитель ничего не написал"}
-                    </p>
-                  </div>
 
 
 
@@ -1893,172 +1956,258 @@ export default function AdminWorkerDashboard() {
                         />
                       </div>
                   )}
-                  {/* Кнопки принятия/отклонения */}
-                  {selectedRequest.status === "in_progress" && (
-                      <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 mt-4">
-                        <Button
-                            onClick={() => {
-                              if (selectedRequest.category_id) {
-                                handleApproveRequest(
-                                    selectedRequest.id,
-                                    selectedRequest.category_id,
-                                    selectedRequest.sla,
-                                    selectedRequest.complexity,
-                                    selectedRequest.request_type,
-                                );
-                              }
-                            }}
-                            className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
-                            disabled={
-                                !selectedRequest.category_id ||
-                                !selectedRequest.sla ||
-                                !selectedRequest.complexity ||
-                                !selectedRequest.id ||
-                                isSubmitting
-                            }
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Принять в работу
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                              if (rejectionReason) {
-                                handleRejectRequest(selectedRequest.id);
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-700 w-full sm:w-auto"
-                            disabled={!rejectionReason}
-                        >
-                          <XCircle className="w-4 h-4 mr-2" />
-                          Отклонить
-                        </Button>
-                      </div>
-                  )}
-                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
 
-                  {/* Поле причины отклонения */}
-                  {selectedRequest.status === "in_progress" && (
-                      <div className="mt-4">
-                        <Label htmlFor="rejectionReason">Причина отклонения</Label>
-                        <Textarea
-                            id="rejectionReason"
-                            placeholder="Укажите причину отклонения заявки..."
-                            value={rejectionReason}
-                            onChange={(e) => setRejectionReason(e.target.value)}
-                        />
-                      </div>
-                  )}
-
-                  {/* Секция для комментариев */}
-                  <Card className="mt-2 border-t border-gray-100">
-                    <CardContent className="p-4">
-                      <CommentList
-                          comments={comments}
-                          currentUserId={currentUserId}
-                          onEdit={handleEdit}
-                          onDelete={handleDelete}
-                      />
-
-                      {/* Поле ввода */}
-                      <div className="mt-4 flex flex-col space-y-2">
-                        {editCommentId && (
-                            <div className="text-xs text-gray-500">
-                              Редактируется комментарий
-                              <button
-                                  className="ml-2 text-red-500 hover:underline"
-                                  onClick={() => {
-                                    setEditCommentId(null);
-                                    setComment("");
-                                  }}
-                              >
-                                Отменить
-                              </button>
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2 w-full">
-                          <input
-                              type="text"
-                              value={comment}
-                              onChange={(e) => setComment(e.target.value)}
-                              placeholder="Написать комментарий..."
-                              className="flex-1 min-w-0 p-2.5 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  {/* Кнопки действий для админа */}
+                  {selectedRequest?.status === 'in_progress' && (
+                      <>
+                        {/* Причина отклонения */}
+                        <div className="border-t border-gray-100 pt-4">
+                          <Label>Причина отклонения (если необходимо)</Label>
+                          <Textarea
+                              placeholder="Укажите причину отклонения..."
+                              value={rejectionReason}
+                              onChange={(e) => setRejectionReason(e.target.value)}
+                              className="mt-2"
                           />
+                        </div>
+
+                        {/* Кнопки принятия/отклонения */}
+                        <div className={`flex gap-4 pt-4 border-t border-gray-100 ${isDesktop ? 'flex-row' : 'flex-col'}`}>
                           <Button
-                              size="sm"
-                              onClick={handleSend}
-                              className="bg-violet-600 hover:bg-violet-700 p-2.5 flex-shrink-0"
-                              aria-label="Отправить комментарий"
+                              onClick={handleAcceptRequestGroup}
+                              className={`${isDesktop ? 'flex-1' : 'w-full'} bg-green-600 hover:bg-green-700`}
+                              disabled={isSubmitting}
                           >
-                            <Send className="w-4 h-4" />
+                            {isSubmitting ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Принятие...
+                                </>
+                            ) : (
+                                <>
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Принять заявку
+                                </>
+                            )}
+                          </Button>
+                          <Button
+                              variant="outline"
+                              onClick={handleRejectRequestGroup}
+                              className={`${isDesktop ? 'flex-1' : 'w-full'} text-red-600 hover:text-red-700`}
+                              disabled={isSubmitting}
+                          >
+                            {isSubmitting ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Отклонение...
+                                </>
+                            ) : (
+                                <>
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Отклонить заявку
+                                </>
+                            )}
                           </Button>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </>
+                  )}
 
-                  {/* Кнопки внизу */}
-                  <div className="flex flex-col sm:flex-row justify-end mt-4 space-y-2 sm:space-y-0 sm:space-x-2">
-                    {/* Кнопка удаления - только для заявок в статусе "draft", "in_progress" или "awaiting_assignment" */}
-                    {(selectedRequest.status === "draft" || selectedRequest.status === "in_progress" || selectedRequest.status === "awaiting_assignment") && (
-                      <Button
-                          variant="destructive"
-                          className="w-full sm:w-auto flex justify-center items-center gap-2"
-                          onClick={() => {
-                            setShowDeleteRequestModal(true);
-                          }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Удалить
-                      </Button>
-                    )}
-                    
-                    <Button
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedRequest(null);
-                          closeModal()
-                          setComments([]);
-                        }}
-                        className="w-full sm:w-auto"
-                    >
+
+
+                  {/* Ошибки */}
+                  {formErrors && (
+                      <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-200">
+                        {formErrors}
+                      </div>
+                  )}
+
+
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => {
+                      setSelectedRequest(null);
+                      closeModal();
+                      setComments([]);
+                      setFormErrors(null);
+                    }}>
                       Закрыть
                     </Button>
-                    {selectedRequest.status === "completed" &&
-                        !userRatings[selectedRequest.id] && (
-                            <Button
-                                onClick={() => {
-                                  setRequestToRate(selectedRequest);
-                                  setShowRatingModal(true);
-                                  openModal('ratingModal');
-                                  setSelectedRequest(null);
-                                  closeModal()
-                                }}
-                                className="w-full sm:w-auto"
-                            >
-                              <Star className="w-4 h-4 mr-2" />
-                              Оценить
-                            </Button>
-                        )}
                   </div>
-
                 </CardContent>
               </Card>
             </div>
         )}
-        {/* Модальное окно */}
-        {selectedPhoto && (
-            <div
-                className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                onClick={() => {setSelectedPhoto(null); closeModal(); }} // Закрытие при клике
-            >
-              <img
-                  src={selectedPhoto}
-                  alt="Увеличенное фото"
-                  className="max-w-full max-h-full rounded-lg"
-                  onClick={(e) => e.stopPropagation()} // Не закрывать при клике по фото
-              />
-            </div>
+
+
+        {showComments && (
+          <>
+            {/* Мобильная версия */}
+            {!isDesktop && (
+              <div className="fixed inset-0 z-50 flex items-end">
+                {/* Overlay */}
+                <div
+                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  onClick={() => {
+                    setShowComments(null);
+                    setComments([]);
+                  }}
+                />
+
+                {/* Панель комментариев */}
+                <div className="relative bg-white w-full max-h-[70vh] rounded-t-3xl flex flex-col">
+                  {/* Заголовок */}
+                  <div className="flex items-center justify-between p-4 border-b">
+                    <h3 className="font-semibold text-lg">Комментарии</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowComments(null);
+                        setComments([]);
+                      }}
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+
+                  {/* Список комментариев */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {comments.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 text-sm">Комментариев пока нет</p>
+                      </div>
+                    ) : (
+                      <CommentList
+                        comments={comments}
+                        currentUserId={currentUserId}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                      />
+                    )}
+                  </div>
+
+                  {/* Поле ввода */}
+                  <div className="p-4 border-t bg-gray-50">
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 min-w-0">
+                        <textarea
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="Написать комментарий..."
+                          className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey && showComments) {
+                              e.preventDefault();
+                              handleSend(showComments);
+                            }
+                          }}
+                          style={{
+                            height: 'auto',
+                            minHeight: '40px',
+                            maxHeight: '120px'
+                          }}
+                          onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = 'auto';
+                            target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                          }}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (showComments) {
+                            handleSend(showComments);
+                          }
+                        }}
+                        className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
+                        disabled={!comment.trim()}
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Десктопная версия - правая панель */}
+            {isDesktop && (
+              <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl border-l border-gray-200 z-50 flex flex-col">
+                {/* Заголовок */}
+                <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                  <h3 className="font-semibold text-lg">Комментарии</h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowComments(null);
+                      setComments([]);
+                    }}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                {/* Список комментариев */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {comments.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500 text-sm">Комментариев пока нет</p>
+                    </div>
+                  ) : (
+                    <CommentList
+                      comments={comments}
+                      currentUserId={currentUserId}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  )}
+                </div>
+
+                {/* Поле ввода */}
+                <div className="p-4 border-t bg-gray-50">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 min-w-0">
+                      <textarea
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Написать комментарий..."
+                        className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey && showComments) {
+                            e.preventDefault();
+                            handleSend(showComments);
+                          }
+                        }}
+                        style={{
+                          height: 'auto',
+                          minHeight: '40px',
+                          maxHeight: '120px'
+                        }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                        }}
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (showComments) {
+                          handleSend(showComments);
+                        }
+                      }}
+                      className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
+                      disabled={!comment.trim()}
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Create Request Modal */}
@@ -2082,16 +2231,6 @@ export default function AdminWorkerDashboard() {
                         <SelectItem value="planned">Плановая</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="newRequestTitle">Название заявки</Label>
-                    <Input
-                        id="newRequestTitle"
-                        placeholder="Краткое название проблемы"
-                        value={newRequestTitle}
-                        onChange={(e) => setNewRequestTitle(e.target.value)}
-                    />
                   </div>
 
                   <div>
@@ -2129,7 +2268,6 @@ export default function AdminWorkerDashboard() {
                         Определить местоположение
                       </Button>
                     </div>
-
                   </div>
 
                   <div>
@@ -2141,105 +2279,34 @@ export default function AdminWorkerDashboard() {
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="newRequestCategory">Категория услуги</Label>
-                    <Select
-                        value={newRequestCategory}
-                        onValueChange={setNewRequestCategory}
-                    >
-                      <SelectTrigger id="newRequestCategory">
-                        <SelectValue placeholder="Выберите категорию" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(category => (
-                            <SelectItem key={category.id} value={category.name}>
-                              {category.name}
-                            </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Сложность</Label>
-                      <Select
-                          value={newRequestComplexity}
-                          onValueChange={(value: 'simple' | 'medium' | 'complex') => setNewRequestComplexity(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите сложность" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="simple">Простая</SelectItem>
-                          <SelectItem value="medium">Средняя</SelectItem>
-                          <SelectItem value="complex">Сложная</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label>SLA (Срок выполнения)</Label>
-                      <Select
-                          value={newRequestSLA}
-                          onValueChange={setNewRequestSLA}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите срок" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1h">1 час</SelectItem>
-                          <SelectItem value="4h">4 часа</SelectItem>
-                          <SelectItem value="8h">8 часов</SelectItem>
-                          <SelectItem value="1d">1 день</SelectItem>
-                          <SelectItem value="3d">3 дня</SelectItem>
-                          <SelectItem value="1w">1 неделя</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
                   {newRequestType === "planned" && (
                       <div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                  variant="outline"
-                                  className="w-full justify-start text-left font-normal"
-                              >
-                                {date ? format(date, "dd MMMM yyyy", { locale: ru }) : <span>Выберите дату</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                              <Calendar
-                                  mode="single"
-                                  selected={date}
-                                  onSelect={(selectedDate) => {
-                                    if (selectedDate) {
-                                      setNewRequestPlannedDate(formatDateToString(selectedDate))
-                                    }
-                                  }}
-                                  initialFocus
-                                  locale={ru}
-                                  fromDate={new Date()}
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                        <Label>Планируемая дата</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={`w-full justify-start text-left font-normal ${!date && "text-muted-foreground"}`}
+                            >
+                              <CalendarLucid className="mr-2 h-4 w-4" />
+                              {date ? format(date, "PPP", { locale: ru }) : <span>Выберите дату</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                                mode="single"
+                                selected={date}
+                                onSelect={(newDate) => {
+                                  if (newDate) {
+                                    setNewRequestPlannedDate(format(newDate, 'yyyy-MM-dd'));
+                                  }
+                                }}
+                                initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
                       </div>
                   )}
-
-                  <div>
-                    <Label>Описание проблемы</Label>
-                    <Textarea
-                        placeholder="Опишите проблему подробно..."
-                        className="min-h-[100px]"
-                        value={newRequestDescription}
-                        onChange={(e) => setNewRequestDescription(e.target.value)}
-                    />
-                  </div>
 
                   <div>
                     <Label>Фотографии (до 3 шт.)</Label>
@@ -2278,7 +2345,145 @@ export default function AdminWorkerDashboard() {
                       )}
                     </div>
                   </div>
-                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+
+                  {/* Подзаявки */}
+                  <div>
+                    <Label className="text-lg font-semibold">Подзаявки</Label>
+                    <p className="text-sm text-gray-600 mb-4">Добавьте одну или несколько подзаявок с их параметрами</p>
+                    
+                    <div className="space-y-4">
+                      {subRequests.map((subRequest, index) => (
+                          <Card key={index} className="border border-gray-200">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-medium">Подзаявка #{index + 1}</h4>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleSubRequestExpansion(index)}
+                                      className="p-1"
+                                  >
+                                    {expandedSubRequests.has(index) ? (
+                                        <ChevronUp className="w-4 h-4" />
+                                    ) : (
+                                        <ChevronDown className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                  {subRequests.length > 1 && (
+                                      <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => removeSubRequest(index)}
+                                          className="p-1 text-red-500 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </CardHeader>
+
+                            <CardContent className={`space-y-4 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
+                              <div>
+                                <Label htmlFor={`subRequestTitle-${index}`}>Название подзаявки</Label>
+                                <Input
+                                    id={`subRequestTitle-${index}`}
+                                    placeholder="Краткое название задачи"
+                                    value={subRequest.title}
+                                    onChange={(e) => updateSubRequest(index, 'title', e.target.value)}
+                                />
+                              </div>
+
+                              <div>
+                                <Label htmlFor={`subRequestCategory-${index}`}>Категория услуги</Label>
+                                <Select
+                                    value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
+                                    onValueChange={(value) => {
+                                      const category = categories.find(c => c.name === value);
+                                      updateSubRequest(index, 'category_id', category?.id || 0);
+                                    }}
+                                >
+                                  <SelectTrigger id={`subRequestCategory-${index}`}>
+                                    <SelectValue placeholder="Выберите категорию" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {categories.map(category => (
+                                        <SelectItem key={category.id} value={category.name}>
+                                          {category.name}
+                                        </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div>
+                                <Label htmlFor={`subRequestDescription-${index}`}>Описание проблемы</Label>
+                                <Textarea
+                                    id={`subRequestDescription-${index}`}
+                                    placeholder="Опишите проблему подробно..."
+                                    className="min-h-[100px]"
+                                    value={subRequest.description}
+                                    onChange={(e) => updateSubRequest(index, 'description', e.target.value)}
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor={`subRequestComplexity-${index}`}>Сложность</Label>
+                                  <Select
+                                      value={subRequest.complexity}
+                                      onValueChange={(value: 'simple' | 'medium' | 'complex') => updateSubRequest(index, 'complexity', value)}
+                                  >
+                                    <SelectTrigger id={`subRequestComplexity-${index}`}>
+                                      <SelectValue placeholder="Выберите сложность" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="simple">Простая</SelectItem>
+                                      <SelectItem value="medium">Средняя</SelectItem>
+                                      <SelectItem value="complex">Сложная</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div>
+                                  <Label htmlFor={`subRequestSLA-${index}`}>SLA</Label>
+                                  <Select
+                                      value={subRequest.sla}
+                                      onValueChange={(value: string) => updateSubRequest(index, 'sla', value)}
+                                  >
+                                    <SelectTrigger id={`subRequestSLA-${index}`}>
+                                      <SelectValue placeholder="Выберите SLA" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="1h">1 час</SelectItem>
+                                      <SelectItem value="4h">4 часа</SelectItem>
+                                      <SelectItem value="8h">8 часов</SelectItem>
+                                      <SelectItem value="1d">1 день</SelectItem>
+                                      <SelectItem value="3d">3 дня</SelectItem>
+                                      <SelectItem value="1w">1 неделя</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                      ))}
+                      
+                      <Button
+                          type="button"
+                          variant="outline"
+                          onClick={addSubRequest}
+                          className="w-full"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Добавить подзаявку
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="flex space-x-4">
                     <Button
                         onClick={handleCreateNewRequest}
@@ -2288,15 +2493,19 @@ export default function AdminWorkerDashboard() {
                       {isSubmitting ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Отправка...
+                            Создание...
                           </>
                       ) : (
-                          "Отправить заявку"
+                          "Создать заявку"
                       )}
                     </Button>
                     <Button
                         variant="outline"
-                        onClick={() => {setShowCreateRequestModal(false); closeModal(); }}
+                        onClick={() => {
+                          setShowCreateRequestModal(false);
+                          closeModal();
+                          resetForm();
+                        }}
                         className="flex-1"
                     >
                       Отмена
@@ -2308,48 +2517,18 @@ export default function AdminWorkerDashboard() {
         )}
 
         {/* Rating Modal */}
-        {showRatingModal && requestToRate && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {setShowRatingModal(false); closeModal() }}>
-              <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-                <CardHeader>
-                  <CardTitle>Оценить клиента</CardTitle>
-                  <CardDescription>Пожалуйста, оцените взаимодействие по заявке #{requestToRate.id}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex justify-center space-x-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                            key={star}
-                            className={`w-10 h-10 cursor-pointer ${
-                                star <= ratingValue ? "text-yellow-400 fill-current" : "text-gray-300"
-                            }`}
-                            onClick={() => setRatingValue(star)}
-                        />
-                    ))}
-                  </div>
-                  <Button
-                      onClick={handleRateExecutor}
-                      disabled={ratingValue === 0}
-                      className="w-full bg-violet-600 hover:bg-violet-700"
-                  >
-                    Отправить оценку
-                  </Button>
-                  <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowRatingModal(false);
-                        closeModal();
-                        setRatingValue(0);
-                        setRequestToRate(null);
-                      }}
-                      className="w-full"
-                  >
-                    Отмена
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-        )}
+        <RatingModal
+          isOpen={showRatingModal && !!requestToRate}
+          onClose={() => {
+            setShowRatingModal(false);
+            closeModal();
+            setRatingValue(0);
+            setRequestToRate(null);
+          }}
+          ratingValue={ratingValue}
+          onRatingChange={setRatingValue}
+          onSubmit={handleRateExecutor}
+        />
         {/* Map Modal */}
         {showMapModal && (
             <div
@@ -2436,6 +2615,74 @@ export default function AdminWorkerDashboard() {
           <MessageCircle className="w-7 h-7" />
 
         </Link>}
+
+        {/* Модальное окно информации об иконках для мобильных */}
+        {showIconInfo && !isDesktop && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+              <div className="flex items-center gap-3 mb-4">
+                {showIconInfo.type === 'status' ? (
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    {getStatusIcon(showIconInfo.value === 'Ожидание' ? 'pending' :
+                                   showIconInfo.value === 'В работе' ? 'in_progress' :
+                                   showIconInfo.value === 'Завершено' ? 'completed' :
+                                   showIconInfo.value === 'Отклонено' ? 'rejected' : 'pending')}
+                  </div>
+                ) : (
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Hourglass className="w-5 h-5 text-blue-600" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-semibold text-lg text-gray-900">
+                    {showIconInfo.type === 'status' ? 'Статус заявки' : 'Тип задачи'}
+                  </h3>
+                  <p className="text-gray-600">{showIconInfo.value}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {showIconInfo.type === 'status' && (
+                  <div className="text-sm text-gray-600">
+                    <p className="font-medium mb-2">Все статусы:</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <span>Ожидание - заявка ожидает обработки</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 text-blue-500" />
+                        <span>В работе - заявка выполняется</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                        <span>Завершено - работа выполнена</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <XCircle className="w-4 h-4 text-red-500" />
+                        <span>Отклонено - заявка отклонена</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {showIconInfo.type === 'longTerm' && (
+                  <div className="text-sm text-gray-600">
+                    <p className="font-medium mb-2">Долгосрочная задача:</p>
+                    <p>Задача, требующая длительного времени выполнения.</p>
+                  </div>
+                )}
+              </div>
+
+              <Button
+                className="w-full mt-6"
+                onClick={() => setShowIconInfo(null)}
+              >
+                Понятно
+              </Button>
+            </div>
+          </div>
+        )}
       </>
   );
 }

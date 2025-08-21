@@ -30,6 +30,7 @@ interface ActionItem {
 
 interface RoleBasedActionMenuProps {
   request: any
+  requestGroup?: any
   isDesktop: boolean
   userRole: string
   isSubRequest?: boolean // Новый параметр для определения типа заявки
@@ -39,7 +40,7 @@ interface RoleBasedActionMenuProps {
   onReject?: (request: any) => void
   onEdit?: (request: any) => void
   onDelete?: (request: any) => void
-  onToggleLongTerm?: (requestId: number, currentStatus: boolean) => void
+  onToggleLongTerm?: (requestId: number, requestGroupId: number, currentStatus: boolean) => void
   onAssignExecutor?: (request: any) => void
   onUnassignExecutor?: (request: any) => void
   onRateRequest?: (request: any) => void
@@ -55,6 +56,7 @@ interface RoleBasedActionMenuProps {
 
 export function RoleBasedActionMenu({
   request,
+  requestGroup,
   isDesktop,
   userRole,
   isSubRequest = false,
@@ -83,7 +85,7 @@ export function RoleBasedActionMenu({
 
   // Определяем действия в зависимости от роли
   const getActionsByRole = (): ActionItem[] => {
-    const baseActions: ActionItem[] = [
+    const baseActions: ActionItem[] = !isSubRequest ? [
       {
         icon: Eye,
         label: "Посмотреть детали",
@@ -94,7 +96,7 @@ export function RoleBasedActionMenu({
         variant: "default" as const,
         showForRoles: ["executor", "manager", "department-head", "admin-worker"],
       },
-    ]
+    ] : []
 
     const roleSpecificActions: ActionItem[] = []
 
@@ -151,7 +153,7 @@ export function RoleBasedActionMenu({
                 icon: Clock,
                 label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
                 onClick: () => {
-                  onToggleLongTerm(request.id, request.is_long_term || false)
+                  onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
                   setOpen(false)
                 },
                 variant: "default" as const,
@@ -311,7 +313,7 @@ export function RoleBasedActionMenu({
                 icon: Clock,
                 label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
                 onClick: () => {
-                  onToggleLongTerm(request.id, request.is_long_term || false)
+                  onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
                   setOpen(false)
                 },
                 variant: "default" as const,
@@ -325,52 +327,71 @@ export function RoleBasedActionMenu({
 
     // Действия для администратора офиса
     if (userRole === "admin-worker") {
-      roleSpecificActions.push(
-        ...(request.status === "completed" && !request.rating
-          ? [
-              {
-                icon: Star,
-                label: "Оценить работу",
-                onClick: () => {
-                  onRateRequest?.(request)
-                  setOpen(false)
-                },
-                variant: "default" as const,
-                primary: true,
-                showForRoles: ["admin-worker"],
-              },
-            ]
-          : []),
-        ...(onDelete && (request.status === "in_progress" || request.status === "assigned" || request.status === "awaiting_assignment")
-          ? [
-              {
-                icon: Trash2,
-                label: "Удалить",
-                onClick: () => {
-                  onDelete(request)
-                  setOpen(false)
-                },
-                variant: "destructive" as const,
-                showForRoles: ["admin-worker"],
-              },
-            ]
-          : []),
-        ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned")
-          ? [
-              {
-                icon: Clock,
-                label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
-                onClick: () => {
-                  onToggleLongTerm(request.id, request.is_long_term || false)
-                  setOpen(false)
-                },
-                variant: "default" as const,
-                longTerm: true,
-                showForRoles: ["admin-worker"],
-              },
-            ]
-          : [])
-      )
+      if (isSubRequest) {
+        roleSpecificActions.push(
+            ...(request.status === "completed" && !request?.ratings[0]
+                ? [
+                  {
+                    icon: Star,
+                    label: "Оценить работу",
+                    onClick: () => {
+                      onRateRequest?.(request)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    primary: true,
+                    showForRoles: ["admin-worker"],
+                  },
+                ]
+                : []),
+            ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned")
+                ? [
+                  {
+                    icon: Clock,
+                    label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
+                    onClick: () => {
+                      onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    longTerm: true,
+                    showForRoles: ["admin-worker"],
+                  },
+                ]
+                : []),
+            ...(request.status === "in_progress" && onDelete
+                ? [
+                  {
+                    icon: Trash2,
+                    label: "Удалить подзаявку",
+                    onClick: () => {
+                      onDelete(request)
+                      setOpen(false)
+                    },
+                    variant: "destructive" as const,
+                    showForRoles: ["admin-worker"],
+                  },
+                ]
+                : [])
+        )
+      } else {
+        roleSpecificActions.push(
+            ...(onDelete && (request.status === "in_progress" || request.status === "assigned" || request.status === "awaiting_assignment")
+                ? [
+                  {
+                    icon: Trash2,
+                    label: "Удалить",
+                    onClick: () => {
+                      onDelete(request)
+                      setOpen(false)
+                    },
+                    variant: "destructive" as const,
+                    showForRoles: ["admin-worker"],
+                  },
+                ]
+                : [])
+        )
+      }
     }
 
     // Фильтруем действия по роли пользователя

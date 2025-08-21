@@ -58,6 +58,8 @@ import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RoleBasedActionMenu } from "@/components/action-menu";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import {RatingModal} from "@/components/RatingModal";
+import {RequestCard} from "@/components/RequestCard";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -1025,6 +1027,58 @@ export default function ClientDashboard() {
     }
   };
 
+  const renderCardHeader = (requestGroup: RequestGroup) => {
+    const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
+    const totalSubRequests = requestGroup.requests.length;
+
+    return (
+        <CardHeader className={`pb-3 px-5 pt-5`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className={`font-bold text-base leading-tight line-clamp-2 text-gray-900`}>
+                  Заявка #{requestGroup.id}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50`}>
+                {totalSubRequests} подзаявок
+              </span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
+                {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
+              </span>
+              </div>
+            </div>
+            <div className="flex gap-1 items-center">
+              {renderStatusWithTooltip(requestGroup.status)}
+              {isLongTerm && renderLongTermWithTooltip(true)}
+              <RoleBasedActionMenu
+                  request={requestGroup}
+                  isDesktop={isDesktop}
+                  userRole="client"
+                  isSubRequest={false}
+                  onViewDetails={(request) => {
+                    setSelectedRequest(request);
+                    openModal('requestDetails');
+                  }}
+                  onRateRequest={(subReq) => {
+                    setRequestToRate(subReq)
+                    setShowRatingModal(true)
+                    openModal('ratingModal')
+                    setSelectedRequest(null);
+                    closeModal()
+                  }}
+                  onDelete={(request) => {
+                    handleDeleteRequest(request);
+                    setShowDeleteRequestModal(true);
+                  }}
+              />
+            </div>
+          </div>
+        </CardHeader>
+    );
+  };
+
   return (
       <>
         {/* Header */}
@@ -1160,11 +1214,11 @@ export default function ClientDashboard() {
                       <SelectContent>
                         <SelectItem value="all">Все</SelectItem>
                         <SelectItem value="in_progress">В обработке</SelectItem>
-                        <SelectItem value="execution">Исполнение</SelectItem>
-                        <SelectItem value="completed">Завершено</SelectItem>
                         <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                         <SelectItem value="assigned">Назначен</SelectItem>
-                        <SelectItem value="long_term">⏳ Долгосрочные</SelectItem>
+                        <SelectItem value="execution">Исполнение</SelectItem>
+                        <SelectItem value="completed">Завершено</SelectItem>
+                        <SelectItem value="long_term">Долгосрочные</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={filterType} onValueChange={setFilterType}>
@@ -1182,114 +1236,20 @@ export default function ClientDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredRequests.map((requestGroup, index) => {
                       const isLast = index === filteredRequests.length - 1;
-                      const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
-                      const totalSubRequests = requestGroup.requests.length;
-
                       return (
-                          <Card
-                              key={requestGroup.id}
-                              ref={isLast ? lastRequestRef : null}
-                              className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer`}
-                              onClick={() => {
-                                setSelectedRequest(requestGroup);
-                                openModal("requestDetails");
+                          <RequestCard
+                              key={`incoming-${requestGroup.id}`}
+                              request={requestGroup}
+                              onCardClick={(request) => {
+                                setSelectedRequest(request);
+                                openModal('requestDetails');
                               }}
-                          >
-                          {/* Заголовок с ID и статусами */}
-                          <CardHeader className={`pb-3 px-5 pt-5`}>
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className={`font-bold text-base leading-tight line-clamp-2 ${isLongTerm ? 'text-blue-900' : 'text-gray-900'}`}>
-                                    Заявка #{requestGroup.id}
-                                  </h3>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-blue-700 bg-blue-100' : 'text-purple-600 bg-purple-50'}`}>
-                                  {totalSubRequests} подзаявок
-                                </span>
-                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
-                                  {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
-                                </span>
-                                </div>
-                              </div>
-                              <div className="flex gap-1 items-center">
-                                {renderStatusWithTooltip(requestGroup.status)}
-                                <RoleBasedActionMenu
-                                  request={requestGroup}
-                                  isDesktop={isDesktop}
-                                  userRole="client"
-                                  isSubRequest={false}
-                                  onViewDetails={(request) => {
-                                    setSelectedRequest(request);
-                                    openModal("requestDetails");
-                                  }}
-                                  onDelete={handleDeleteRequest}
-                                />
-                              </div>
-                            </div>
-                          </CardHeader>
-
-                          <CardContent className="px-5 pb-5 pt-0 space-y-3">
-                            {/* Основная информация в сетке */}
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{requestGroup.location_detail}</span>
-                              </div>
-
-                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{formatDate(requestGroup.created_date)}</span>
-                              </div>
-                            </div>
-
-                            {/* Фотографии */}
-                            {requestGroup.photos && requestGroup.photos.length > 0 && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <ImageIcon className="w-4 h-4 text-purple-500" />
-                                    <span className="text-sm font-medium text-gray-700">{requestGroup.photos.length} фото</span>
-                                  </div>
-                                  <div className="flex gap-2 overflow-x-auto">
-                                    {requestGroup.photos.slice(0, 4).map((photo: any, index) => (
-                                        <div key={index} className="flex-shrink-0">
-                                          <img
-                                              src={photo.photo_url || "/placeholder.svg"}
-                                              alt={`Фото ${index + 1}`}
-                                              className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
-                                              onError={(e) => {
-                                                e.currentTarget.src = `/placeholder.svg?height=48&width=48`
-                                              }}
-                                          />
-                                        </div>
-                                    ))}
-                                    {requestGroup.photos.length > 4 && (
-                                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                                          <span className="text-xs font-bold text-white">+{requestGroup.photos.length - 4}</span>
-                                        </div>
-                                    )}
-                                  </div>
-                                </div>
-                            )}
-
-                            {/* Нижняя панель */}
-                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                              <div className="flex gap-2">
-                                <Badge
-                                    variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(requestGroup.request_type)}`}
-                                >
-                                  {getRequestTypeIcon(requestGroup.request_type)}
-                                  {translateType(requestGroup.request_type)}
-                                </Badge>
-                              </div>
-
-                              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {requestGroup.id}</div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )})}
+                              renderCardHeader={renderCardHeader}
+                              formatDate={formatDate}
+                              isLast={isLast}
+                              lastElementRef={lastRequestRef}
+                          />
+                      );})}
                   </div>
                     </div>
                   </TabsContent>
@@ -1719,49 +1679,18 @@ export default function ClientDashboard() {
             </div>
         )}
         {/* Rating Modal */}
-        {showRatingModal && requestToRate && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {setShowRatingModal(false)
-              closeModal()}} >
-              <Card className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-                <CardHeader>
-                  <CardTitle>Оценить исполнителя</CardTitle>
-                  <CardDescription>Пожалуйста, оцените работу по заявке #{requestToRate.id}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex justify-center space-x-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                            key={star}
-                            className={`w-10 h-10 cursor-pointer ${
-                                star <= ratingValue ? "text-yellow-400 fill-current" : "text-gray-300"
-                            }`}
-                            onClick={() => setRatingValue(star)}
-                        />
-                    ))}
-                  </div>
-                  <Button
-                      onClick={handleRateExecutor}
-                      disabled={ratingValue === 0}
-                      className="w-full bg-violet-600 hover:bg-violet-700"
-                  >
-                    Отправить оценку
-                  </Button>
-                  <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowRatingModal(false)
-                        setRatingValue(0)
-                        setRequestToRate(null)
-                        closeModal()
-                      }}
-                      className="w-full"
-                  >
-                    Отмена
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-        )}
+        <RatingModal
+            isOpen={showRatingModal && !!requestToRate}
+            onClose={() => {
+              setShowRatingModal(false);
+              closeModal();
+              setRatingValue(0);
+              setRequestToRate(null);
+            }}
+            ratingValue={ratingValue}
+            onRatingChange={setRatingValue}
+            onSubmit={handleRateExecutor}
+        />
 
         {/* Модалка */}
         {isModalOpen && selectedNotification && (
