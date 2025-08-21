@@ -8,14 +8,29 @@ import {useMediaQuery} from "@/hooks/use-media-query"
 import {BottomNav} from "@/components/BottomNav"
 import Header from "@/app/header/Header"
 import OfficeMap, {type OfficePoint} from "@/components/office-map/OfficeMap"
-import {AlertCircle, AlertTriangle, BarChart3, Calendar as CalendarLucid, Gem, MapPin, Medal, Star} from "lucide-react"
+import {AlertCircle, AlertTriangle, BarChart3, Calendar as CalendarLucid, Download, Gem, MapPin, Medal, Star} from "lucide-react"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
+import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, LineChart} from "recharts";
+import {Label} from "@/components/ui/label";
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
+import {Calendar} from "@/components/ui/calendar";
+import {format} from "date-fns";
+import {ru} from "date-fns/locale";
 import PullToRefresh from "@/components/pull-to-refresh";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {CardModal} from "@/components/home-modal/CardModal";
 import api from "@/lib/api";
+
+declare global {
+  interface Window {
+    androidApp?: {
+      saveFileBase64: (fileName: string, base64: string, mimeType: string) => void;
+      reloadPage: () => void;
+      notifyReady: () => void;
+    };
+  }
+}
 
 type OfficeType = {
     id: number
@@ -42,6 +57,8 @@ export default function HomePage() {
     const [mapOpen, setMapOpen] = useState(false)
     const [period, setPeriod] = useState("month")
     const [office, setOffice] = useState("all")
+    const [startDate, setStartDate] = useState<Date | undefined>(undefined)
+    const [endDate, setEndDate] = useState<Date | undefined>(undefined)
     const {
         clientStats,
         adminWorkerStats,
@@ -79,6 +96,27 @@ export default function HomePage() {
     const chartData: ChartData[] = useMemo(() => {
         if (role !== 'manager') return [];
         const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
+        
+        // Если выбран интервал дат, показываем данные за этот интервал
+        if (startDate && endDate) {
+            const startDateStr = startDate.toISOString().split('T')[0];
+            const endDateStr = endDate.toISOString().split('T')[0];
+            const map: Record<string, number> = {};
+
+            subset.forEach((s) => {
+                Object.entries(s.data).forEach(([date, d]) => {
+                    if (date >= startDateStr && date <= endDateStr) {
+                        map[date] = (map[date] || 0) + d.totalRequests;
+                    }
+                });
+            });
+
+            return Object.entries(map)
+                .map(([date, count]) => ({ date, count }))
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        }
+
+        // Иначе используем обычную логику по периодам
         const now = new Date()
         const start = new Date(
             period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
@@ -95,7 +133,7 @@ export default function HomePage() {
         return Object.entries(map)
             .map(([date, count]) => ({ date, count }))
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    }, [office, period])
+    }, [office, period, startDate, endDate])
 
     const distribution = useMemo(() => {
         if (role !== 'manager') return;
@@ -226,6 +264,68 @@ export default function HomePage() {
         resetStats()
         setOffices([])
     }
+
+    const resetDateFilters = () => {
+        setStartDate(undefined);
+        setEndDate(undefined);
+    }
+
+    const handleExport = async (format: "xlsx" | "pbix") => {
+        try {
+            const params = new URLSearchParams();
+            if (office && office !== 'all') params.append("office_id", String(office));
+            if (startDate) params.append("from", startDate.toISOString().split('T')[0]);
+            if (endDate) params.append("to", endDate.toISOString().split('T')[0]);
+            params.append("format", format);
+
+            // Для Android WebView используем специальный обработчик
+            if (window.androidApp) {
+                const response = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const blob = await response.blob();
+                const reader = new FileReader();
+
+                reader.onloadend = function() {
+                    const base64data = reader.result?.toString().split(',')[1] || '';
+                    const mimeType = blob.type ||
+                        (format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
+                            'application/octet-stream');
+
+                    window.androidApp?.saveFileBase64(
+                        `analytics.${format}`,
+                        base64data,
+                        mimeType
+                    );
+                };
+
+                reader.readAsDataURL(blob);
+            } else {
+                // Оригинальный код для веб-браузеров
+                const res = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `analytics.${format}`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            }
+        } catch (error) {
+            console.error("Ошибка при экспорте файла:", error);
+            alert("Не удалось экспортировать файл");
+        }
+    };
 
     const Stat = ({ label, value }: { label: string; value: number | string }) => (
         <div className="rounded-lg border bg-white">
@@ -376,96 +476,146 @@ export default function HomePage() {
                         </div>
                     </section>
 
-                    {/* Manager only: show BOTH sections inline (no tabs) */}
-                    {role === "manager" && (
-                        <>
-                            {/* Chart: near max phone width via wrapper max-width, full width inside */}
-                            <section className="pt-3" id="stats">
-                                <div className="mx-auto max-w-screen-sm">
-                                    <div className="px-3">
-                                        <div className="rounded-t-xl border-x border-t bg-white">
-                                            <div className="px-3 pt-3">
-                                                <div className="text-sm font-medium">Динамика заявок</div>
-                                                <div className="text-xs text-neutral-500">
-                                                    За последний {period === "week" ? "неделю" : period === "month" ? "месяц" : "год"}
+                    {/* График "Динамика по дням" для всех ролей на мобильных устройствах */}
+                    {!isDesktop && (
+                        <section className="pt-3">
+                            <div className="mx-auto max-w-screen-sm px-3">
+                                <Card className="border bg-white">
+                                    <CardContent className="p-3">
+                                        <div className="mb-3">
+                                            <div className="text-sm font-medium">Динамика по дням</div>
+                                            <div className="text-xs text-neutral-500">Количество заявок по дням</div>
+                                        </div>
+
+                                        {/* Селектор интервала дат */}
+                                        <div className="mb-4 space-y-3">
+                                            <div className="flex items-center gap-2">
+                                                <Label className="text-sm font-medium">Фильтр по дате:</Label>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={resetDateFilters}
+                                                    className="text-xs"
+                                                >
+                                                    Сбросить
+                                                </Button>
+                                            </div>
+
+                                            {/* Выбор интервала дат */}
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <Label className="text-xs text-gray-600">От:</Label>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                className="w-full justify-start text-left font-normal"
+                                                            >
+                                                                <CalendarLucid className="mr-2 h-4 w-4" />
+                                                                {startDate ? format(startDate, "dd.MM", { locale: ru }) : "От"}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0" align="start">
+                                                            <Calendar
+                                                                mode="single"
+                                                                selected={startDate}
+                                                                onSelect={setStartDate}
+                                                                initialFocus
+                                                            />
+                                                        </PopoverContent>
+                                                    </Popover>
                                                 </div>
+                                                
+                                                <div>
+                                                    <Label className="text-xs text-gray-600">До:</Label>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                className="w-full justify-start text-left font-normal"
+                                                            >
+                                                                <CalendarLucid className="mr-2 h-4 w-4" />
+                                                                {endDate ? format(endDate, "dd.MM", { locale: ru }) : "До"}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0" align="start">
+                                                            <Calendar
+                                                                mode="single"
+                                                                selected={endDate}
+                                                                onSelect={setEndDate}
+                                                                disabled={(date) => startDate ? date < startDate : false}
+                                                                initialFocus
+                                                            />
+                                                        </PopoverContent>
+                                                    </Popover>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="h-64 w-full">
+                                        <div className="h-48">
                                         {chartData.length > 0 ? (
                                             <ResponsiveContainer width="100%" height="100%">
-                                                <AreaChart data={chartData} margin={{ left: 10, right: 10, top: 12, bottom: 6 }}>
+                                                    <LineChart data={chartData}>
                                                     <defs>
-                                                        <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
-                                                            <stop offset="0%" stopColor="rgb(126,34,206)" stopOpacity={0.35} />
-                                                            <stop offset="100%" stopColor="rgb(126,34,206)" stopOpacity={0.05} />
+                                                            <linearGradient id="kcellGradientHome" x1="0" y1="0" x2="0" y2="1">
+                                                                <stop offset="0%" stopColor="#8E24AA" stopOpacity={1} />
+                                                                <stop offset="100%" stopColor="#6A1B9A" stopOpacity={0.8} />
                                                         </linearGradient>
                                                     </defs>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#EAEAEA" />
-                                                    <XAxis
-                                                        dataKey="date"
-                                                        tick={{ fontSize: 11, fill: "#6B7280" }}
-                                                        tickLine={false}
-                                                        axisLine={{ stroke: "#E5E7EB" }}
-                                                        tickFormatter={(value: string) => {
-                                                            const d = new Date(value)
-                                                            return period === "year"
-                                                                ? d.toLocaleDateString("ru-RU", { month: "short" })
-                                                                : d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })
-                                                        }}
-                                                    />
-                                                    <YAxis
-                                                        allowDecimals={false}
-                                                        tick={{ fontSize: 11, fill: "#6B7280" }}
-                                                        tickLine={false}
-                                                        axisLine={{ stroke: "#E5E7EB" }}
-                                                    />
-                                                    <Tooltip
-                                                        cursor={{ stroke: "#D1D5DB" }}
-                                                        contentStyle={{
-                                                            borderRadius: 10,
-                                                            border: "1px solid #eee",
-                                                            background: "rgba(255,255,255,0.95)",
-                                                            fontSize: 12,
-                                                        }}
-                                                        labelFormatter={(value) => {
-                                                            const d = new Date(value as string)
-                                                            return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })
-                                                        }}
-                                                        formatter={(val: any) => [val, "Заявки"]}
-                                                    />
-                                                    <Area
+
+                                                        <CartesianGrid strokeDasharray="3 3" />
+                                                        <XAxis dataKey="date" />
+                                                        <YAxis allowDecimals={false} />
+                                                        <Tooltip />
+                                                        <Line
                                                         type="monotone"
                                                         dataKey="count"
-                                                        stroke="rgb(126,34,206)"
-                                                        strokeWidth={2.2}
-                                                        fill="url(#purpleGradient)"
-                                                        activeDot={{ r: 4, strokeWidth: 0, fill: "rgb(126,34,206)" }}
-                                                        dot={{ r: 2, fill: "rgb(126,34,206)" }}
-                                                    />
-                                                </AreaChart>
+                                                            stroke="url(#kcellGradientHome)"
+                                                            strokeWidth={2.5}
+                                                            dot={{ r: 4, stroke: '#6A1B9A', strokeWidth: 1.5, fill: '#fff' }}
+                                                            activeDot={{ r: 6 }}
+                                                        />
+                                                    </LineChart>
                                             </ResponsiveContainer>
                                         ) : (
-                                            <div className="flex h-full items-center justify-center gap-2 text-neutral-500">
-                                                <AlertCircle className="h-5 w-5" />
-                                                <span className="text-sm">Нет данных для отображения</span>
+                                                <div className="text-gray-500 text-center py-16">Нет данных для отображения</div>
+                                            )}
+                                        </div>
+
+                                        {/* Кнопки экспорта */}
+                                        {role === "manager" && (
+                                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                                <div className="text-sm font-medium mb-3">Экспорт данных</div>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1"
+                                                        onClick={() => handleExport("xlsx")}
+                                                    >
+                                                        <Download className="w-4 h-4 mr-2" />
+                                                        Excel
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1"
+                                                        onClick={() => handleExport("pbix")}
+                                                    >
+                                                        <Download className="w-4 h-4 mr-2" />
+                                                        Power BI
+                                                    </Button>
+                                                </div>
                                             </div>
                                         )}
-                                    </div>
-
-                                    <div className="px-3">
-                                        <div className="rounded-b-xl border-x border-b bg-white">
-                                            <div className="px-3 py-3 text-xs text-neutral-500">
-                                                Суммарные заявки по выбранному периоду и офису.
-                                            </div>
-                                        </div>
-                                    </div>
+                                    </CardContent>
+                                </Card>
                                 </div>
                             </section>
+                    )}
 
-                            {/* Overview section below, same wrapper max-width */}
+                    {/* Только обзор для Manager */}
+                    {role === "manager" && (
                             <section className="pt-3">
                                 <div className="mx-auto max-w-screen-sm px-3">
                                     <Card className="border bg-white">
@@ -527,7 +677,6 @@ export default function HomePage() {
                                     </Card>
                                 </div>
                             </section>
-                        </>
                     )}
                 </main>
             </PullToRefresh>

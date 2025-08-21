@@ -230,6 +230,8 @@ export default function ManagerDashboard() {
   }, []);
   const [stats, setStats] = useState<Stats[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [kpi, setKpi] = useState({
     total: 0,
     completed: 0,
@@ -314,6 +316,11 @@ export default function ManagerDashboard() {
     window.history.back();
   };
 
+  const resetDateFilters = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
+
   useEffect(() => {
     if (!stats.length) {
       fetchStats();
@@ -337,10 +344,10 @@ export default function ManagerDashboard() {
   useEffect(() => {
     if (stats.length) {
       setKpi(calculateKPI(stats, office, period));
-      setChartData(prepareChartData(stats, office, period));
+      setChartData(prepareChartData(stats, office, period, startDate, endDate));
       setDistribution(getRequestsDistribution(stats, office, period));
     }
-  }, [stats, office, period]);
+  }, [stats, office, period, startDate, endDate]);
 
   const getRequestsDistribution = (stats: Stats[], selectedOffice: string, selectedPeriod: string) => {
     let filteredStats = stats;
@@ -451,7 +458,7 @@ export default function ManagerDashboard() {
     return { total, completed, overdue, emergency };
   };
 
-  const prepareChartData = (stats: Stats[], selectedOffice: string, selectedPeriod: string) => {
+  const prepareChartData = (stats: Stats[], selectedOffice: string, selectedPeriod: string, startDateParam?: Date, endDateParam?: Date) => {
     let filteredStats = stats;
 
     if (selectedOffice !== "all") {
@@ -462,6 +469,29 @@ export default function ManagerDashboard() {
     const now = new Date();
     let startDate: Date;
 
+    // Если выбран интервал дат, показываем данные за этот интервал
+    if (startDateParam && endDateParam) {
+      const startDateStr = startDateParam.toISOString().split('T')[0];
+      const endDateStr = endDateParam.toISOString().split('T')[0];
+      const dataMap: Record<string, number> = {};
+
+      filteredStats.forEach(stat => {
+        Object.entries(stat.data).forEach(([date, data]) => {
+          if (date >= startDateStr && date <= endDateStr) {
+            if (!dataMap[date]) {
+              dataMap[date] = 0;
+            }
+            dataMap[date] += data.totalRequests;
+          }
+        });
+      });
+
+      return Object.entries(dataMap)
+          .map(([date, count]) => ({ date, count }))
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }
+
+    // Иначе используем обычную логику по периодам
     switch (selectedPeriod) {
       case "week":
         startDate = new Date(now);
@@ -1501,7 +1531,7 @@ export default function ManagerDashboard() {
       {/* Header */}
       <main className="px-4 py-4 sm:px-6 sm:py-8 max-w-7xl mx-auto">
         {/* Mobile Filters */}
-        <div className="flex flex-col space-y-3 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-6">
+        <div className="flex flex-col space-y-3 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-3">
           <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4">
             <Select value={office} onValueChange={setOffice}>
               <SelectTrigger className="w-full sm:w-48">
@@ -1530,25 +1560,29 @@ export default function ManagerDashboard() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-            <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center justify-center min-w-[150px] h-10 px-4"
-                onClick={() => handleExport("xlsx")}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Excel
-            </Button>
+            {isDesktop && (
+              <>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center justify-center min-w-[150px] h-10 px-4"
+                    onClick={() => handleExport("xlsx")}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Excel
+                </Button>
 
-            <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center justify-center min-w-[150px] h-10 px-4"
-                onClick={() => handleExport("pbix")}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Power BI
-            </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center justify-center min-w-[150px] h-10 px-4"
+                    onClick={() => handleExport("pbix")}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Power BI
+                </Button>
+              </>
+            )}
             {isDesktop ? (
                 <Button
                     onClick={() => {
@@ -1565,7 +1599,7 @@ export default function ManagerDashboard() {
 
         {/* KPI Cards - Mobile optimized grid */}
         {isDesktop ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 mb-3 sm:mb-6">
               <StatCard
                   title="Всего заявок"
                   value={kpi.total}
@@ -1603,7 +1637,7 @@ export default function ManagerDashboard() {
 
         {/* Mobile-optimized Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-3">
             <TabsTrigger value="requests" className="text-xs sm:text-sm">
               Заявки
             </TabsTrigger>
@@ -1619,43 +1653,113 @@ export default function ManagerDashboard() {
           </TabsList>
 
           <TabsContent value="requests">
-            <Card className="mb-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg sm:text-xl">Динамика заявок</CardTitle>
-                <CardDescription className="text-sm">Количество заявок по дням</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48 sm:h-64">
-                  {chartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData}>
-                          <defs>
-                            <linearGradient id="kcellGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#8E24AA" stopOpacity={1} />
-                              <stop offset="100%" stopColor="#6A1B9A" stopOpacity={0.8} />
-                            </linearGradient>
-                          </defs>
+            {/* График для десктопа */}
+            {isDesktop && (
+              <Card className="mb-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg sm:text-xl">Динамика заявок</CardTitle>
+                  <CardDescription className="text-sm">Количество заявок по дням</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* Селектор интервала дат для десктопа */}
+                  <div className="mb-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium">Фильтр по дате:</Label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={resetDateFilters}
+                        className="text-xs"
+                      >
+                        Сбросить
+                      </Button>
+                    </div>
 
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="date" />
-                          <YAxis allowDecimals={false} />
-                          <Tooltip />
-                          <Line
-                              type="monotone"
-                              dataKey="count"
-                              stroke="url(#kcellGradient)"
-                              strokeWidth={2.5}
-                              dot={{ r: 4, stroke: '#6A1B9A', strokeWidth: 1.5, fill: '#fff' }}
-                              activeDot={{ r: 6 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                  ) : (
-                      <div className="text-gray-500 text-center py-16">Нет данных для отображения</div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {/* Выбор интервала дат */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-xs text-gray-600">От:</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <CalendarLucid className="mr-2 h-4 w-4" />
+                              {startDate ? format(startDate, "dd.MM.yyyy", { locale: ru }) : "Начальная дата"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={startDate}
+                              onSelect={setStartDate}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs text-gray-600">До:</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-start text-left font-normal"
+                            >
+                              <CalendarLucid className="mr-2 h-4 w-4" />
+                              {endDate ? format(endDate, "dd.MM.yyyy", { locale: ru }) : "Конечная дата"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={endDate}
+                              onSelect={setEndDate}
+                              disabled={(date) => startDate ? date < startDate : false}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="h-48 sm:h-64">
+                    {chartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData}>
+                            <defs>
+                              <linearGradient id="kcellGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#8E24AA" stopOpacity={1} />
+                                <stop offset="100%" stopColor="#6A1B9A" stopOpacity={0.8} />
+                              </linearGradient>
+                            </defs>
+
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="date" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Line
+                                type="monotone"
+                                dataKey="count"
+                                stroke="url(#kcellGradient)"
+                                strokeWidth={2.5}
+                                dot={{ r: 4, stroke: '#6A1B9A', strokeWidth: 1.5, fill: '#fff' }}
+                                activeDot={{ r: 6 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="text-gray-500 text-center py-16">Нет данных для отображения</div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+
             <div className="space-y-4">
               <div className="flex items-center space-x-4 mb-4">
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -1888,6 +1992,10 @@ export default function ManagerDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+
+
+
 
             <Card className="overflow-hidden">
               <CardContent className="p-0">
