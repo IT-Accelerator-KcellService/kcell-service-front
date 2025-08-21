@@ -35,7 +35,7 @@ import {
   XCircle,
   Zap,
   Hourglass,
-  CalendarDays,
+  CalendarDays, ChevronUp, ChevronDown, Users, Calendar as CalendarLucid,
 } from "lucide-react"
 import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
@@ -1357,6 +1357,23 @@ export default function ClientDashboard() {
                     </div>
                   </div>
 
+                  {/* Показываем запланированное время для плановых заявок */}
+                  {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
+                      <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <CalendarLucid className="w-4 h-4 text-blue-600" />
+                        <div>
+                          <Label className="text-sm font-medium text-blue-800">Запланировано на: </Label>
+                          <span className="text-sm text-blue-700">
+                          {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </span>
+                        </div>
+                      </div>
+                  )}
+
                   {/* Подзаявки */}
                   <div>
                     <Label className={isDesktop ? '' : 'text-base font-semibold'}>Подзаявки</Label>
@@ -1366,119 +1383,187 @@ export default function ClientDashboard() {
                         const hasComments = showComments === subRequest.id;
 
                         return (
-                          <div key={subRequest.id} className={`border rounded-lg bg-white shadow-sm ${isDesktop ? '' : 'border-gray-200'}`}>
-                            {/* Заголовок подзаявки */}
-                            <div className={`p-4 ${isDesktop ? '' : 'p-5'}`}>
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className={`font-semibold text-gray-900 mb-1 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
-                                  <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
-                                    <span className={isDesktop ? 'truncate' : ''}>{subRequest.category?.name || 'Без категории'}</span>
-                                    {isDesktop && <span className="flex-shrink-0">•</span>}
-                                    <span className={isDesktop ? 'truncate' : ''}>{subRequest.executor?.user.full_name || 'Не назначен'}</span>
+                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                              {/* Заголовок подзаявки */}
+                              <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
+                                <div className="flex justify-between items-start mb-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
+                                    </div>
+                                    <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
+                                      <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
+                                        <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                        {subRequest.category?.name || 'Без категории'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    {renderStatusWithTooltip(subRequest.status)}
+                                    {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+
+                                    {/* Кнопка комментариев */}
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
+                                        onClick={() => {
+                                          if (hasComments) {
+                                            setShowComments(null);
+                                            setComments([]);
+                                          } else {
+                                            setShowComments(subRequest.id);
+                                            setComments([]);
+                                            fetchComments(subRequest.id);
+                                          }
+                                        }}
+                                    >
+                                      <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
+                                    </Button>
+
+                                    <RoleBasedActionMenu
+                                        request={subRequest}
+                                        requestGroup={selectedRequest}
+                                        isDesktop={isDesktop}
+                                        userRole="admin-worker"
+                                        isSubRequest={true}
+                                        onRateRequest={(subReq) => {
+                                          setRequestToRate(subReq)
+                                          setShowRatingModal(true)
+                                          openModal('ratingModal')
+                                          setSelectedRequest(null);
+                                          closeModal()
+                                        }}
+                                        onDelete={(subReq) => {
+                                          handleDeleteSubRequest(subReq);
+                                        }}
+                                    />
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {renderStatusWithTooltip(subRequest.status)}
-                                  {renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
-                                  {/* Кнопка комментариев */}
-                                  <Button
-                                    variant="ghost"
+                                {/* Краткое описание */}
+                                <div className={`text-gray-600 mb-3 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
+                                  {isDesktop ? (
+                                      <p className="line-clamp-2">{subRequest.description}</p>
+                                  ) : (
+                                      <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
+                                  )}
+                                </div>
+
+                                {/* Кнопка раскрытия */}
+                                <Button
+                                    variant="outline"
                                     size="sm"
-                                    className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0`}
+                                    className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
                                     onClick={() => {
-                                      if (hasComments) {
-                                        setShowComments(null);
-                                        setComments([]);
+                                      const newExpanded = new Set(expandedSubRequests);
+                                      if (isExpanded) {
+                                        newExpanded.delete(subRequest.id);
                                       } else {
-                                        setShowComments(subRequest.id);
-                                        setComments([]);
-                                        fetchComments(subRequest.id);
+                                        newExpanded.add(subRequest.id);
                                       }
+                                      setExpandedSubRequests(newExpanded);
                                     }}
-                                  >
-                                    <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
-                                  </Button>
-
-                                  <RoleBasedActionMenu
-                                    request={subRequest}
-                                    isDesktop={isDesktop}
-                                    userRole="client"
-                                    isSubRequest={true}
-                                    onRateRequest={(subReq) => {
-                                      setRequestToRate(subReq)
-                                      setShowRatingModal(true)
-                                      openModal('ratingModal')
-                                      setSelectedRequest(null);
-                                      closeModal()
-                                    }}
-                                    onDelete={(subReq) => {
-                                      handleDeleteSubRequest(subReq);
-                                    }}
-                                  />
-                                </div>
+                                >
+                                  {isExpanded ? (
+                                      <>
+                                        <ChevronUp className="w-4 h-4 mr-2" />
+                                        Свернуть
+                                      </>
+                                  ) : (
+                                      <>
+                                        <ChevronDown className="w-4 h-4 mr-2" />
+                                        Подробнее
+                                      </>
+                                  )}
+                                </Button>
                               </div>
 
-                              {/* Краткое описание */}
-                              <div className={`text-gray-600 mt-2 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
-                                {isDesktop ? (
-                                  <p className="line-clamp-2">{subRequest.description}</p>
-                                ) : (
-                                  <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
-                                )}
-                              </div>
+                              {/* Раскрытая информация */}
+                              {isExpanded && (
+                                  <div className={`border-t bg-gradient-to-br from-gray-50 to-gray-100 ${isDesktop ? 'p-4' : 'p-5'}`}>
+                                    {/* Основная информация */}
+                                    <div className={`grid gap-3 text-sm mb-4 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                      {subRequest.complexity && (
+                                          <div className="flex items-center gap-2 text-gray-600">
+                                            <span className="font-medium">Сложность:</span>
+                                            <Badge className={getComplexityColor(subRequest.complexity)}>
+                                              {translateComplexity(subRequest.complexity)}
+                                            </Badge>
+                                          </div>
+                                      )}
+                                      {subRequest.sla && (
+                                          <div className="flex items-center gap-2 text-gray-600">
+                                            <span className="font-medium">SLA:</span>
+                                            <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                                              {subRequest.sla}
+                                            </Badge>
+                                          </div>
+                                      )}
+                                    </div>
 
-                              {/* Кнопка раскрытия */}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className={`mt-3 text-purple-600 hover:text-purple-700 ${isDesktop ? '' : 'text-base py-2'}`}
-                                onClick={() => {
-                                  const newExpanded = new Set(expandedSubRequests);
-                                  if (isExpanded) {
-                                    newExpanded.delete(subRequest.id);
-                                  } else {
-                                    newExpanded.add(subRequest.id);
-                                  }
-                                  setExpandedSubRequests(newExpanded);
-                                }}
-                              >
-                                {isExpanded ? 'Свернуть' : 'Подробнее'}
-                              </Button>
+                                    {/* Исполнители */}
+                                    {(() => {
+                                      const executors = subRequest.executors && subRequest.executors.length > 0
+                                          ? subRequest.executors
+                                          : subRequest.executor
+                                              ? [subRequest.executor]
+                                              : [];
+
+                                      return executors.length > 0 ? (
+                                          <div className="mb-4">
+                                            <h5 className="font-medium text-sm mb-3 text-gray-700 flex items-center gap-2">
+                                              <Users className="w-4 h-4 text-purple-500" />
+                                              Исполнители
+                                            </h5>
+                                            <div className="space-y-2">
+                                              {executors.map((executor, index) => (
+                                                  <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                                    <div className="flex items-center gap-2">
+                                                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                                        <User className="w-4 h-4 text-purple-600" />
+                                                      </div>
+                                                      <span className="text-sm font-medium text-gray-800">
+                                                    {executor.user.full_name} {executor.user.phone}
+                                                  </span>
+                                                    </div>
+                                                    {userRatings[subRequest.id]?.rating && (
+                                                        <div className="flex items-center gap-2">
+                                                          <span className="text-xs text-gray-500">Оценка:</span>
+                                                          <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
+                                                        </div>
+                                                    )}
+                                                  </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                      ) : null;
+                                    })()}
+
+                                    {/* Комментарий исполнителя */}
+                                    {subRequest.comment && subRequest.comment.trim() !== "" && (
+                                        <div className="mb-4">
+                                          <h5 className="font-medium text-sm mb-3 text-gray-700 flex items-center gap-2">
+                                            <MessageCircle className="w-4 h-4 text-purple-500" />
+                                            Комментарий исполнителя
+                                          </h5>
+                                          <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                                            <div className="flex items-start gap-3">
+                                              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                                <User className="w-4 h-4 text-purple-600" />
+                                              </div>
+                                              <div className="flex-1">
+                                                <p className="text-sm text-gray-700 leading-relaxed">
+                                                  {subRequest.comment}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                    )}
+                                  </div>
+                              )}
                             </div>
-
-                            {/* Раскрытая информация */}
-                            {isExpanded && (
-                              <div className={`border-t bg-gray-50 ${isDesktop ? 'p-4' : 'p-5'}`}>
-                                <div className={`grid gap-3 text-sm mb-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                                  {subRequest.complexity && (
-                                    <div className="flex items-center gap-2 text-gray-600">
-                                      <span className="font-medium">Сложность:</span>
-                                      <Badge className={getComplexityColor(subRequest.complexity)}>
-                                        {translateComplexity(subRequest.complexity)}
-                                      </Badge>
-                                    </div>
-                                  )}
-                                  {subRequest.is_long_term && (
-                                    <div className="flex items-center gap-2 text-gray-600">
-                                      <span className="font-medium">Тип:</span>
-                                      <div className="flex items-center gap-1">
-                                        <Hourglass className="w-3 h-3 text-blue-600" />
-                                        <span className="text-xs">Долгосрочная</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {userRatings[subRequest.id]?.rating && (
-                                    <div className="flex items-center gap-2 text-gray-600">
-                                      <span className="font-medium">Оценка:</span>
-                                      <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
                         );
                       })}
                     </div>
@@ -1529,89 +1614,29 @@ export default function ClientDashboard() {
                     })}
                   </div>
 
-                  {/* Исполнители для подзаявок */}
-                  {selectedRequest.requests.some(req => req.executor) && (
-                      <div>
-                        <Label>Исполнители</Label>
-                        <div className="space-y-2">
-                          {selectedRequest.requests.map((subRequest: SubRequest) => (
-                            subRequest.executor && (
-                              <div key={subRequest.id} className="text-sm">
-                                <span className="font-medium">{subRequest.title}:</span> {subRequest.executor.user.full_name}
-                              </div>
-                            )
-                          ))}
-                        </div>
-                      </div>
-                  )}
-
-                  {/* Оценки для подзаявок */}
-                  {selectedRequest.requests.some(req => userRatings[req.id]) && (
-                  <div>
-                        <Label>Ваши оценки:</Label>
-                        <div className="space-y-2">
-                          {selectedRequest.requests.map((subRequest: SubRequest) => (
-                            userRatings[subRequest.id] && (
-                              <div key={subRequest.id} className="flex items-center gap-2">
-                                <span className="text-sm">{subRequest.title}:</span>
-                                <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                              <Star
-                                  key={i}
-                                          className={`w-4 h-4 ${
-                                              i < userRatings[subRequest.id].rating
-                                          ? "text-yellow-400 fill-current"
-                                          : "text-gray-300"
-                                  }`}
-                              />
-                                  ))}
-                                </div>
-                              </div>
-                            )
-                          ))}
-                        </div>
-                      </div>
-                  )}
-
-
                   {/* Фотографии группы заявок */}
                   {selectedRequest.photos && selectedRequest.photos.length > 0 && (
-                        <div className="mt-4">
-                      <Label className="font-bold block">Фотографии заявки</Label>
-                                <div className="flex space-x-2 mt-2 flex-wrap">
-                        {selectedRequest.photos.map((photo: any, index: number) => (
-                                      <img
-                                          key={index}
-                                          src={photo.photo_url || "/placeholder.svg"}
-                            alt={`Фото ${index + 1}`}
-                            className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
-                            onClick={() => {
-                              setSelectedPhoto(photo.photo_url);
-                              openModal('photoPreview');
-                            }}
-                            onError={(e) => {
-                              e.currentTarget.src = "/placeholder.svg";
-                            }}
-                                      />
-                                  ))}
-                                </div>
-                    </div>
-                  )}
-                  <div className="mt-4">
-                    <Label className="font-bold block">Комментарии исполнителей</Label>
-                    <div className="space-y-2">
-                      {selectedRequest.requests.map((subRequest: SubRequest) => (
-                        subRequest.comment && subRequest.comment.trim() !== "" ? (
-                          <div key={subRequest.id} className="text-sm mt-1">
-                            <span className="font-medium">{subRequest.title}:</span> {subRequest.comment}
-                              </div>
-                        ) : null
-                      ))}
-                      {!selectedRequest.requests.some(req => req.comment && req.comment.trim() !== "") && (
-                        <p className="text-sm mt-1">Исполнители ничего не написали</p>
-                          )}
+                      <div className="mt-4">
+                        <Label className="font-bold block">Фотографии заявки</Label>
+                        <div className="flex space-x-2 mt-2 flex-wrap">
+                          {selectedRequest.photos.map((photo: any, index: number) => (
+                              <img
+                                  key={index}
+                                  src={photo.photo_url || "/placeholder.svg"}
+                                  alt={`Фото ${index + 1}`}
+                                  className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                  onClick={() => {
+                                    setSelectedPhoto(photo.photo_url);
+                                    openModal('photoPreview');
+                                  }}
+                                  onError={(e) => {
+                                    e.currentTarget.src = "/placeholder.svg";
+                                  }}
+                              />
+                          ))}
                         </div>
-                  </div>
+                      </div>
+                  )}
 
 
 
