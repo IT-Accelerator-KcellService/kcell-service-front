@@ -26,7 +26,7 @@ import {
   Star,
   Plus,
   Camera,
-  MapPin, Loader2, ImageIcon, Calendar as CalendarLucid, Zap, AlertCircle, Send, MessageCircle, Trash2,
+  MapPin, Loader2, Calendar as CalendarLucid, Zap, Send, MessageCircle, Trash2,
   ChevronUp,
   ChevronDown,
   Hourglass,
@@ -64,6 +64,7 @@ import { LogsViewer } from "@/components/logs-viewer";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { RequestCard } from "@/components/RequestCard";
 import { RatingModal } from "@/components/RatingModal";
+import { IconInfoModal } from "@/components/IconInfoModal";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -129,7 +130,7 @@ export default function AdminWorkerDashboard() {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
-  // Состояния для подзаявок
+  // Состояния для под заявок
   const [subRequests, setSubRequests] = useState<Array<{
     title: string;
     description: string;
@@ -160,7 +161,7 @@ export default function AdminWorkerDashboard() {
       ? parseLocalDate(newRequestPlannedDate)
       : undefined;
   const [loading, setLoading] = useState(true)
-  const { notifications, notificationLoading, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
+  const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -209,7 +210,7 @@ export default function AdminWorkerDashboard() {
     setModalStack(prev => [...prev, name]);
     window.history.pushState({ modal: name }, '', window.location.pathname);
     
-    // Устанавливаем соответствующие состояния для модалов
+    // Устанавливаем соответствующие состояния для модулы
     switch (name) {
       case 'deleteRequestModal':
         setShowDeleteRequestModal(true);
@@ -633,21 +634,7 @@ export default function AdminWorkerDashboard() {
     }
   }, [selectedRequest]);
 
-
-
-  const validateForApprove = async () => {
-    if (
-        !selectedRequest.id ||
-        !selectedRequest.category_id ||
-        !selectedRequest.sla ||
-        !selectedRequest.complexity
-    ) {
-      return true;
-    }
-    return false;
-  }
-
-  // Функции для работы с подзаявками
+  // Функции для работы с заявками
   const addSubRequest = () => {
     setSubRequests(prev => [...prev, {
       title: '',
@@ -683,7 +670,7 @@ export default function AdminWorkerDashboard() {
   };
 
   const handleCreateNewRequest = async () => {
-    // Проверяем, что все подзаявки заполнены
+    // Проверяем, что все под заявки заполнены
     const validSubRequests = subRequests.filter(sub =>
       sub.title.trim() && sub.description.trim() && sub.category_id > 0
     );
@@ -712,7 +699,7 @@ export default function AdminWorkerDashboard() {
       formData.append('status', 'awaiting_assignment');
       if (newRequestPlannedDate) formData.append('planned_date', newRequestPlannedDate);
 
-      // Подзаявки с их SLA и сложностью
+      // Под заявки с их SLA и сложностью
       formData.append('sub_requests', JSON.stringify(validSubRequests.map(sub => ({
         title: sub.title,
         description: sub.description,
@@ -760,7 +747,7 @@ export default function AdminWorkerDashboard() {
     setPhotos([]);
     setPhotoPreviews([]);
     
-    // Сброс подзаявок
+    // Сброс под заявок
     setSubRequests([{
       title: '',
       description: '',
@@ -789,14 +776,14 @@ export default function AdminWorkerDashboard() {
     try {
       setIsSubmitting(true);
       
-      // Проверяем, что все подзаявки имеют SLA и complexity
+      // Проверяем, что все под заявки имеют SLA и complexity
       const allSubRequestsHaveSettings = selectedRequest?.requests.every((subReq: SubRequest) => {
         const settings = subRequestSettings[subReq.id];
         return settings && settings.sla && settings.complexity;
       });
 
       if (!allSubRequestsHaveSettings) {
-        setFormErrors("Пожалуйста, укажите SLA и сложность для всех подзаявок");
+        setFormErrors("Пожалуйста, укажите SLA и сложность для всех под заявок");
         return;
       }
 
@@ -820,7 +807,7 @@ export default function AdminWorkerDashboard() {
 
       successModal.showSuccess({
         title: "Заявка принята в работу",
-        message: "Все подзаявки успешно приняты"
+        message: "Все под заявки успешно приняты"
       });
       setSelectedRequest(null);
       closeModal();
@@ -868,7 +855,7 @@ export default function AdminWorkerDashboard() {
     try {
       await api.delete(`/requests/${subRequest.id}`)
 
-      // Обновляем состояние - удаляем подзаявку из группы
+      // Обновляем состояние - удаляем под заявку из группы
       if (selectedRequest) {
         const updatedRequests = selectedRequest.requests.filter((req: { id: number }) => req.id !== subRequest.id)
         const updatedRequestGroup = {
@@ -884,7 +871,7 @@ export default function AdminWorkerDashboard() {
         )
         useRequestStore.getState().setRequests(updatedStoreRequests)
 
-        // Если это была последняя подзаявка в группе, закрываем модальное окно
+        // Если это была последняя под заявка в группе, закрываем модальное окно
         if (updatedRequests.length === 0) {
           setSelectedRequest(null);
           closeModal();
@@ -892,14 +879,14 @@ export default function AdminWorkerDashboard() {
       }
 
       successModal.showSuccess({
-        title: "Подзаявка удалена",
-        message: "Подзаявка была успешно удалена."
+        title: "Под заявка удалена",
+        message: "Под заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Error deleting sub-request:", error)
       successModal.showSuccess({
         title: "Ошибка",
-        message: "Не удалось удалить подзаявку."
+        message: "Не удалось удалить под заявку."
       })
     }
   }
@@ -1124,11 +1111,11 @@ export default function AdminWorkerDashboard() {
 
   const handleToggleLongTerm = async (requestId: number, requestGroupId: number, currentStatus: boolean) => {
     try {
-      const response = await api.patch(`/requests/${requestId}/long-term`, {
+      await api.patch(`/requests/${requestId}/long-term`, {
         is_long_term: !currentStatus
       });
 
-      // Обновляем состояние в UI - обновляем подзаявку внутри группы заявок
+      // Обновляем состояние в UI - обновляем под заявку внутри группы заявок
       const updateRequestGroups = (prev: RequestGroup[]) => 
         prev.map(group => {
           if (group.id === requestGroupId) {
@@ -1197,7 +1184,7 @@ export default function AdminWorkerDashboard() {
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50`}>
-                {totalSubRequests} подзаявок
+                {totalSubRequests} под заявок
               </span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
@@ -1380,7 +1367,7 @@ export default function AdminWorkerDashboard() {
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
-                          <SelectItem value="assigned">Назнечено</SelectItem>
+                          <SelectItem value="assigned">Назначено</SelectItem>
                           <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1547,7 +1534,7 @@ export default function AdminWorkerDashboard() {
         </div>
       </div>
         </PullToRefresh>
-        {/* Модалка */}
+        {/* Мод алка */}
         {isModalOpen && selectedNotification && (
             <div
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -1558,7 +1545,7 @@ export default function AdminWorkerDashboard() {
             >
               <div
                   className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
-                  onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри модалки
+                  onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри моталки
               >
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
@@ -1625,17 +1612,17 @@ export default function AdminWorkerDashboard() {
                     </div>
                   )}
 
-                  {/* Подзаявки */}
+                  {/* Под заявки */}
                   <div>
-                    <Label className={isDesktop ? '' : 'text-base font-semibold'}>Подзаявки</Label>
+                    <Label className={isDesktop ? '' : 'text-base font-semibold'}>Под заявки</Label>
                     <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
-                      {selectedRequest.requests.map((subRequest: SubRequest, index: number) => {
+                      {selectedRequest.requests.map((subRequest: SubRequest) => {
                         const isExpanded = expandedSubRequests.has(subRequest.id);
                         const hasComments = showComments === subRequest.id;
 
                         return (
                             <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
-                              {/* Заголовок подзаявки */}
+                              {/* Заголовок под заявки */}
                               <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-3">
                                   <div className="flex-1 min-w-0">
@@ -2346,17 +2333,17 @@ export default function AdminWorkerDashboard() {
                     </div>
                   </div>
 
-                  {/* Подзаявки */}
+                  {/* Под заявки */}
                   <div>
-                    <Label className="text-lg font-semibold">Подзаявки</Label>
-                    <p className="text-sm text-gray-600 mb-4">Добавьте одну или несколько подзаявок с их параметрами</p>
+                    <Label className="text-lg font-semibold">Под заявки</Label>
+                    <p className="text-sm text-gray-600 mb-4">Добавьте одну или несколько под заявок с их параметрами</p>
                     
                     <div className="space-y-4">
                       {subRequests.map((subRequest, index) => (
                           <Card key={index} className="border border-gray-200">
                             <CardHeader className="pb-3">
                               <div className="flex items-center justify-between">
-                                <h4 className="font-medium">Подзаявка #{index + 1}</h4>
+                                <h4 className="font-medium">Под заявка #{index + 1}</h4>
                                 <div className="flex items-center gap-2">
                                   <Button
                                       type="button"
@@ -2388,7 +2375,7 @@ export default function AdminWorkerDashboard() {
 
                             <CardContent className={`space-y-4 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
                               <div>
-                                <Label htmlFor={`subRequestTitle-${index}`}>Название подзаявки</Label>
+                                <Label htmlFor={`subRequestTitle-${index}`}>Название под заявки</Label>
                                 <Input
                                     id={`subRequestTitle-${index}`}
                                     placeholder="Краткое название задачи"
@@ -2479,7 +2466,7 @@ export default function AdminWorkerDashboard() {
                           className="w-full"
                       >
                         <Plus className="w-4 h-4 mr-2" />
-                        Добавить подзаявку
+                        Добавить под заявку
                       </Button>
                     </div>
                   </div>
@@ -2616,73 +2603,13 @@ export default function AdminWorkerDashboard() {
 
         </Link>}
 
-        {/* Модальное окно информации об иконках для мобильных */}
-        {showIconInfo && !isDesktop && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
-              <div className="flex items-center gap-3 mb-4">
-                {showIconInfo.type === 'status' ? (
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    {getStatusIcon(showIconInfo.value === 'Ожидание' ? 'pending' :
-                                   showIconInfo.value === 'В работе' ? 'in_progress' :
-                                   showIconInfo.value === 'Завершено' ? 'completed' :
-                                   showIconInfo.value === 'Отклонено' ? 'rejected' : 'pending')}
-                  </div>
-                ) : (
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Hourglass className="w-5 h-5 text-blue-600" />
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-semibold text-lg text-gray-900">
-                    {showIconInfo.type === 'status' ? 'Статус заявки' : 'Тип задачи'}
-                  </h3>
-                  <p className="text-gray-600">{showIconInfo.value}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {showIconInfo.type === 'status' && (
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium mb-2">Все статусы:</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-gray-500" />
-                        <span>Ожидание - заявка ожидает обработки</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 text-blue-500" />
-                        <span>В работе - заявка выполняется</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span>Завершено - работа выполнена</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <XCircle className="w-4 h-4 text-red-500" />
-                        <span>Отклонено - заявка отклонена</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {showIconInfo.type === 'longTerm' && (
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium mb-2">Долгосрочная задача:</p>
-                    <p>Задача, требующая длительного времени выполнения.</p>
-                  </div>
-                )}
-              </div>
-
-              <Button
-                className="w-full mt-6"
-                onClick={() => setShowIconInfo(null)}
-              >
-                Понятно
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Модальное окно информации об иконках */}
+        <IconInfoModal
+          isOpen={!!showIconInfo}
+          onClose={() => setShowIconInfo(null)}
+          iconInfo={showIconInfo}
+          isDesktop={isDesktop}
+        />
       </>
   );
 }

@@ -60,6 +60,7 @@ import { RoleBasedActionMenu } from "@/components/action-menu";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import {RatingModal} from "@/components/RatingModal";
 import {RequestCard} from "@/components/RequestCard";
+import {IconInfoModal} from "@/components/IconInfoModal";
 
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
@@ -2142,73 +2143,13 @@ export default function ClientDashboard() {
             duration={successModal.duration}
         />
 
-        {/* Модальное окно информации об иконках для мобильных */}
-        {showIconInfo && !isDesktop && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
-              <div className="flex items-center gap-3 mb-4">
-                {showIconInfo.type === 'status' ? (
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    {getStatusIcon(showIconInfo.value === 'Ожидание' ? 'pending' :
-                                   showIconInfo.value === 'В работе' ? 'in_progress' :
-                                   showIconInfo.value === 'Завершено' ? 'completed' :
-                                   showIconInfo.value === 'Отклонено' ? 'rejected' : 'pending')}
-                  </div>
-                ) : (
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Hourglass className="w-5 h-5 text-blue-600" />
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-semibold text-lg text-gray-900">
-                    {showIconInfo.type === 'status' ? 'Статус заявки' : 'Тип задачи'}
-                  </h3>
-                  <p className="text-gray-600">{showIconInfo.value}</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {showIconInfo.type === 'status' && (
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium mb-2">Все статусы:</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-gray-500" />
-                        <span>Ожидание - заявка ожидает обработки</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 text-blue-500" />
-                        <span>В работе - заявка выполняется</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span>Завершено - работа выполнена</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <XCircle className="w-4 h-4 text-red-500" />
-                        <span>Отклонено - заявка отклонена</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {showIconInfo.type === 'longTerm' && (
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium mb-2">Долгосрочная задача:</p>
-                    <p>Задача, требующая длительного времени выполнения.</p>
-                  </div>
-                )}
-              </div>
-
-              <Button
-                className="w-full mt-6"
-                onClick={() => setShowIconInfo(null)}
-              >
-                Понятно
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Модальное окно информации об иконках */}
+        <IconInfoModal
+          isOpen={!!showIconInfo}
+          onClose={() => setShowIconInfo(null)}
+          iconInfo={showIconInfo}
+          isDesktop={isDesktop}
+        />
 
         {isDesktop && <Link
             href="/chat-bot"
