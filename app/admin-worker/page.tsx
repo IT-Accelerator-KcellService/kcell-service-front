@@ -33,7 +33,6 @@ import {
   X,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import dynamic from "next/dynamic";
 import api from "@/lib/api";
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 import {ru} from "date-fns/locale";
@@ -66,10 +65,6 @@ import { RequestCard } from "@/components/RequestCard";
 import { RatingModal } from "@/components/RatingModal";
 import { IconInfoModal } from "@/components/IconInfoModal";
 import { MapModal } from "@/components/MapModal";
-
-const MapView = dynamic(() => import('@/app/map/MapView'), {
-  ssr: false,
-})
 
 interface User {
   id: number;

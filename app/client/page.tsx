@@ -33,7 +33,6 @@ import {
   Zap,
   Hourglass, ChevronUp, ChevronDown, Users, Calendar as CalendarLucid,
 } from "lucide-react"
-import dynamic from "next/dynamic";
 import Header from "@/app/header/Header";
 import api from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
@@ -58,10 +57,6 @@ import {RatingModal} from "@/components/RatingModal";
 import {RequestCard} from "@/components/RequestCard";
 import {IconInfoModal} from "@/components/IconInfoModal";
 import {MapModal} from "@/components/MapModal";
-
-const MapView = dynamic(() => import('@/app/map/MapView'), {
-  ssr: false,
-})
 
 interface Rating {
   id: number;
