@@ -43,7 +43,7 @@ import {useCategoryStore} from "@/stores/useCategoryStore";
 import { RejectModal } from "@/components/reject-modal";
 import { RoleBasedActionMenu } from "@/components/action-menu";
 
-const API_BASE_URL = 'https://kcell-service.onrender.com/api';
+const API_BASE_URL = 'http://localhost:8080/api';
 const MapView = dynamic(() => import('@/app/map/MapView'), {
   ssr: false,
 })

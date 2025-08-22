@@ -67,6 +67,7 @@ import {IconInfoModal} from "@/components/IconInfoModal";
 import {CommentsModal} from "@/components/CommentsModal";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {RejectRequestModal} from "@/components/RejectRequestModal";
+import {AssignExecutorsModal} from "@/components/AssignExecutorsModal";
 
 interface User {
   id: number
@@ -158,10 +159,11 @@ export default function DepartmentHeadDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [showRedirectModal, setShowRedirectModal] = useState(false);
   const [selectedRequestForRedirect, setSelectedRequestForRedirect] = useState<any>(null);
-  const [availableDepartments, setAvailableDepartments] = useState<any[]>([]);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [redirectError, setRedirectError] = useState<string | null>(null);
+  const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
+  const [selectedSubRequestForAssignment, setSelectedSubRequestForAssignment] = useState<any>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
@@ -1078,63 +1080,69 @@ export default function DepartmentHeadDashboard() {
 
   const handleOpenRedirectModal = async (request: any) => {
     setSelectedRequestForRedirect(request);
-    setSelectedDepartmentId(null);
     setRedirectError(null);
     setShowRedirectModal(true);
     openModal('redirectModal');
-
-    try {
-      // Получаем доступных руководителей
-      const response = await api.get('/departments/me');
-      setAvailableDepartments(response.data.data || []);
-    } catch (error: any) {
-      console.error("Ошибка при получении списка руководителей:", error);
-      setRedirectError("Не удалось загрузить список руководителей");
-    }
   };
 
   const handleCloseRedirectModal = () => {
     setShowRedirectModal(false);
     setSelectedRequestForRedirect(null);
-    setSelectedDepartmentId(null);
+    setSelectedCategoryId(null);
     setRedirectError(null);
     closeModal();
   };
 
   const handleRedirectRequest = async () => {
-    if (!selectedRequestForRedirect || !selectedDepartmentId) return;
+    if (!selectedRequestForRedirect || !selectedCategoryId) return;
 
     setIsRedirecting(true);
     setRedirectError(null);
 
     try {
-      const selectedDepartment = availableDepartments.find(dept => dept.id === selectedDepartmentId);
-      
+      // Используем выбранную категорию для перенаправления
       await api.patch(`/requests/${selectedRequestForRedirect.id}`, {
         status: "awaiting_assignment",
         executor_id: null,
         actual_completion_date: null,
-        category_id: selectedDepartment.service_category_id,
+        category_id: selectedCategoryId,
         patch_code: 1
       });
 
-      // Обновляем состояние в UI
-      setMyRequests(prev => 
-        prev.filter(req => req.id !== selectedRequestForRedirect.id)
+      // Проверяем, есть ли в главной заявке другие подзаявки с нашей категорией
+      const requestGroup = selectedRequestForRedirect.requestGroup || selectedRequestForRedirect;
+      const hasOtherSubRequestsWithOurCategory = requestGroup.requests?.some((subReq: any) => 
+        subReq.id !== selectedRequestForRedirect.id && 
+        subReq.category_id === user?.service_category_id
       );
 
-      setIncomingRequests(prev =>
-          prev.filter(req => req.id !== selectedRequestForRedirect.id)
-      );
+      if (hasOtherSubRequestsWithOurCategory) {
+        // Если есть другие подзаявки с нашей категорией, просто обновляем данные
+        fetchRequests();
+        successModal.showSuccess({
+          title: "Подзаявка перенаправлена",
+          message: `Подзаявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+        });
+      } else {
+        // Если нет других подзаявок с нашей категорией, удаляем заявку из UI
+        setMyRequests(prev => 
+          prev.filter(req => req.id !== requestGroup.id)
+        );
+        setIncomingRequests(prev =>
+          prev.filter(req => req.id !== requestGroup.id)
+        );
+        successModal.showSuccess({
+          title: "Заявка перенаправлена",
+          message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+        });
+      }
 
-      // Закрываем модальное окно
+      // Закрываем все модальные окна
       handleCloseRedirectModal();
-
-      // Показываем сообщение об успехе
-      successModal.showSuccess({
-        title: "Заявка перенаправлена",
-        message: `Заявка успешно перенаправлена руководителю ${selectedDepartment.full_name}`
-      });
+      if (selectedRequest) {
+        setSelectedRequest(null);
+        closeModal();
+      }
 
     } catch (error: any) {
       console.error("Ошибка при перенаправлении заявки:", error);
@@ -1142,6 +1150,27 @@ export default function DepartmentHeadDashboard() {
     } finally {
       setIsRedirecting(false);
     }
+  };
+
+  const handleAssignExecutors = (subRequest: any) => {
+    setSelectedSubRequestForAssignment(subRequest);
+    setShowAssignExecutorsModal(true);
+    openModal('assignExecutorsModal');
+  };
+
+  const handleCloseAssignExecutorsModal = () => {
+    setShowAssignExecutorsModal(false);
+    setSelectedSubRequestForAssignment(null);
+    closeModal();
+  };
+
+  const handleAssignExecutorsSuccess = () => {
+    // Обновляем данные после успешного назначения
+    fetchRequests();
+    successModal.showSuccess({
+      title: "Исполнители назначены",
+      message: "Исполнители успешно назначены на подзаявку"
+    });
   };
 
   return (
@@ -1638,10 +1667,7 @@ export default function DepartmentHeadDashboard() {
                                           closeModal()
                                         }}
                                         onRedirectToOtherDepartment={handleOpenRedirectModal}
-                                        onAssignExecutor={(request) => {
-                                          setSelectedRequest(request);
-                                          openModal("assignExecutorModal");
-                                        }}
+                                        onAssignExecutor={handleAssignExecutors}
                                         onToggleLongTerm={handleToggleLongTerm}
                                     />
                                   </div>
@@ -1932,29 +1958,39 @@ export default function DepartmentHeadDashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle>Перенаправить заявку #{selectedRequestForRedirect.id}</CardTitle>
+                <CardTitle>Перенаправить подзаявку #{selectedRequestForRedirect.id}</CardTitle>
                 <CardDescription>
-                  Выберите руководителя, которому хотите перенаправить заявку
+                  Выберите категорию, к которой нужно перенаправить подзаявку
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="department">Руководитель</Label>
+                  <Label htmlFor="category">Категория</Label>
                   <Select
-                    value={selectedDepartmentId?.toString() || ""}
-                    onValueChange={(value) => setSelectedDepartmentId(parseInt(value))}
+                    value={selectedCategoryId?.toString() || ""}
+                    onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Выберите руководителя" />
+                      <SelectValue placeholder="Выберите категорию" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableDepartments.map((department) => (
-                        <SelectItem key={department.id} value={department.id.toString()}>
-                          {department.full_name} - {department.service_category.name}
-                        </SelectItem>
-                      ))}
+                      {categories
+                        .filter(category => category.id !== selectedRequestForRedirect.category_id)
+                        .map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-blue-600" />
+                    <span className="text-sm text-blue-800">
+                      Подзаявка будет перенаправлена всем руководителям с категорией "{categories.find(c => c.id === selectedCategoryId)?.name || 'выбранная категория'}"
+                    </span>
+                  </div>
                 </div>
                 {redirectError && (
                   <p className="text-sm text-red-500">{redirectError}</p>
@@ -1968,7 +2004,7 @@ export default function DepartmentHeadDashboard() {
                   </Button>
                   <Button 
                     onClick={handleRedirectRequest} 
-                    disabled={!selectedDepartmentId || isRedirecting}
+                    disabled={!selectedCategoryId || isRedirecting}
                   >
                     {isRedirecting ? "Перенаправление..." : "Перенаправить"}
                   </Button>
@@ -2015,7 +2051,7 @@ export default function DepartmentHeadDashboard() {
         <BottomNav
             onCreateRequest={() => setShowCreateRequestModal(true)}
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showRedirectModal}
+            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal}
         />
         {isDesktop && <Link
             href="/chat-bot"
@@ -2031,6 +2067,16 @@ export default function DepartmentHeadDashboard() {
             onClose={() => setShowIconInfo(null)}
             iconInfo={showIconInfo}
             isDesktop={isDesktop}
+        />
+
+        {/* Модальное окно назначения исполнителей */}
+        <AssignExecutorsModal
+            isOpen={showAssignExecutorsModal}
+            onClose={handleCloseAssignExecutorsModal}
+            subRequest={selectedSubRequestForAssignment}
+            executors={executors}
+            userServiceCategoryId={user?.service_category_id}
+            onSuccess={handleAssignExecutorsSuccess}
         />
       </>
   )

@@ -274,7 +274,7 @@ export function RoleBasedActionMenu({
               ? [
                 {
                   icon: UserPlus,
-                  label: "Назначить исполнителя",
+                  label: "Назначить исполнителей",
                   onClick: () => {
                     onAssignExecutor(request)
                     setOpen(false)
@@ -289,7 +289,7 @@ export function RoleBasedActionMenu({
               ? [
                 {
                   icon: ArrowRight,
-                  label: "Перенаправить другому руководителю",
+                  label: "Перенаправить к другой категории",
                   onClick: () => {
                     onRedirectToOtherDepartment?.(request)
                     setOpen(false)
