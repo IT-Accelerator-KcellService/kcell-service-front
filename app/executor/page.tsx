@@ -596,63 +596,28 @@ export default function ExecutorDashboard() {
     }
   }, [])
 
-  const handleCreateRequest = async () => {
-    if (
-        !newRequestTitle ||
-        !description ||
-        !newRequestType ||
-        !requestLocation ||
-        !newRequestLocation ||
-        !selectedCategoryId ||
-        photos.length === 0
-    ) {
-      setFormErrors("Заполните все обязательные поля.");
-      return;
-    }
+  const handleCreateRequest = async (formData: FormData) => {
     setIsSubmitting(true);
     setFormErrors(null);
-    try {
-      // Используем кэшированный executor_id или получаем его
-      let currentExecutorId = executorId;
-      if (!currentExecutorId && user?.id) {
-        try {
-          const executorResponse = await api.get(`/executors/${user.id}/user`);
-          currentExecutorId = executorResponse.data.id;
-          setExecutorId(executorResponse.data.id); // Кэшируем для будущего использования
-        } catch (executorError) {
-          console.error("Ошибка при получении executor_id:", executorError);
-        }
-      }
 
-      const formData = new FormData();
-      formData.append('title', newRequestTitle);
-      formData.append('description', description);
-      formData.append('request_type', newRequestType === "urgent" ? "urgent" : "normal");
-      formData.append('location', requestLocation);
-      formData.append('location_detail', newRequestLocation);
-      formData.append('category_id', String(selectedCategoryId));
-      formData.append('status', 'in_progress');
-      if (currentExecutorId) {
-        formData.append('executor_id', String(currentExecutorId)); // Добавляем ID исполнителя
-      }
-      photos.forEach(photo => formData.append('photos', photo));
-      formData.append('type', 'before');
-      const response = await api.post('/requests/with-photos', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+    try {
+      const response = await api.post('/request-groups', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const newRequest = response.data;
-      setMyRequests(prev => [newRequest, ...prev]);
-      
-      // Показываем сообщение об успехе
-      successModal.showSuccess({
-        title: "Заявка создана!",
-        message: "Заявка успешно создана и взята в работу."
-      });
-      
+
+      const newRequestGroup = response.data;
+
+      // Обновляем состояние
+      setMyRequests(prev => [newRequestGroup, ...prev]);
+      successModal.showSuccess();
+
+      // Сброс формы
       resetForm();
     } catch (error: any) {
-      console.error("Ошибка при создании заявки:", error);
-      setFormErrors(error.response?.data?.error || "Не удалось создать заявку.");
+      console.error("Ошибка при создании группы заявок:", error);
+      setFormErrors(
+          error.response?.data?.error || "Не удалось создать заявку. Повторите попытку."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -2087,6 +2052,7 @@ export default function ExecutorDashboard() {
             onSubmit={handleCreateRequest}
             isSubmitting={isSubmitting}
             formErrors={formErrors}
+            clientLocation={requestLocation}
         />
 
         {/* Map Modal */}

@@ -391,7 +391,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     // Определяем статус группы заявок для department-head
     let groupStatus = 'awaiting_assignment';
-    if (userRole === 'client') {
+    if (userRole === 'client' || userRole === 'executor') {
       groupStatus = 'in_progress';
     } else if (userRole === 'department-head') {
       // Если хотя бы одна подзаявка имеет исполнителей, то статус execution
@@ -412,7 +412,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     const subRequestsData = validSubRequests.map(sub => {
       let subStatus = 'awaiting_assignment';
       
-      if (userRole === 'client') {
+      if (userRole === 'client' || userRole === 'executor') {
         subStatus = 'in_progress';
       } else if (userRole === 'department-head') {
         // Если у подзаявки есть исполнители, то статус assigned
@@ -514,13 +514,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </Label>
             <div className="flex flex-wrap gap-2">
               <Input
-                className={`flex-1 min-w-[200px] ${userRole === 'client' ? "bg-gray-100 cursor-not-allowed" : ""} ${
+                className={`flex-1 min-w-[200px] ${['client', 'executor'].includes(userRole) ? "bg-gray-100 cursor-not-allowed" : ""} ${
                   hasAttemptedSubmit && basicFieldErrors.has('location') ? 'border-red-300 focus:border-red-500' : ''
                 }`}
-                placeholder={userRole === 'client' ? "Определение вашего местоположения..." : "Введите расположение"}
+                placeholder={['client', 'executor'].includes(userRole) ? "Определение вашего местоположения..." : "Введите расположение"}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                readOnly={userRole === 'client'}
+                readOnly={['client', 'executor'].includes(userRole)}
               />
               {(userRole === 'admin-worker' || userRole === 'department-head') && (
                 <Button
@@ -1019,10 +1019,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {userRole === 'client' ? 'Отправка...' : 'Создание...'}
+                  {['client', 'executor'].includes(userRole) ? 'Отправка...' : 'Создание...'}
                 </>
               ) : (
-                userRole === 'client' ? 'Отправить заявку' : 'Создать заявку'
+                  ['client', 'executor'].includes(userRole) ? 'Отправить заявку' : 'Создать заявку'
               )}
             </Button>
             <Button
