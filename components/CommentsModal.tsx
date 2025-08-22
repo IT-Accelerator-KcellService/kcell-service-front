@@ -150,7 +150,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
     <>
       {/* Мобильная версия */}
       {!isDesktop && (
-        <div className="fixed inset-0 z-50 flex items-end">
+        <div className="fixed inset-0 z-50 flex items-end safe-area-bottom">
           {/* Overlay */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -158,7 +158,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
           />
 
           {/* Панель комментариев */}
-          <div className="relative bg-white w-full max-h-[70vh] rounded-t-3xl flex flex-col">
+          <div className="relative bg-white w-full max-h-[85vh] min-h-[50vh] rounded-t-3xl flex flex-col transform translate-y-0 transition-all duration-300 ease-out shadow-2xl animate-in slide-in-from-bottom-8">
             {/* Заголовок */}
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="font-semibold text-lg">Комментарии</h3>
@@ -172,7 +172,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             </div>
 
             {/* Список комментариев */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
               {isLoading ? (
                 <div className="text-center py-8">
                   <p className="text-gray-500 text-sm">Загрузка комментариев...</p>
@@ -192,7 +192,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
             </div>
 
             {/* Поле ввода */}
-            <div className="p-4 border-t bg-gray-50">
+            <div className="p-4 border-t bg-gray-50 safe-area-bottom">
               <div className="flex items-end gap-2">
                 <div className="flex-1 min-w-0">
                   <textarea

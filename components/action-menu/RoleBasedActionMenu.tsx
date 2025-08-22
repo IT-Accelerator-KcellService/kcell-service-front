@@ -83,7 +83,11 @@ export function RoleBasedActionMenu({
   // Для Portal
   useEffect(() => {
     setMounted(true)
-  }, [])
+  }, []);
+
+  const isExecutorLeader = request?.executors?.find((executor: any) => {
+    return executor?.user?.id === user?.id && executor?.RequestExecutor?.role === 'leader'
+  })
 
   // Определяем действия в зависимости от роли
   const getActionsByRole = (): ActionItem[] => {
@@ -103,7 +107,7 @@ export function RoleBasedActionMenu({
     const roleSpecificActions: ActionItem[] = []
 
     // Действия для исполнителя
-    if (userRole === "executor") {
+    if (userRole === "executor" && isSubRequest && isExecutorLeader) {
       roleSpecificActions.push(
         ...(request.status === "assigned"
           ? [
@@ -149,7 +153,7 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-        ...(onToggleLongTerm && (request.status === "execution")
+        ...(onToggleLongTerm && (request.status === "assigned" || request.status === 'execution')
           ? [
               {
                 icon: Clock,
