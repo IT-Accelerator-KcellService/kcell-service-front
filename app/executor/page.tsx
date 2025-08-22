@@ -55,6 +55,7 @@ import {CommentsModal} from "@/components/CommentsModal";
 import {RequestCard} from "@/components/RequestCard";
 import {CompleteTaskModal} from "@/components/CompleteTaskModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
+import {RejectSubRequestModal} from "@/components/RejectSubRequestModal";
 
 const API_BASE_URL = 'http://localhost:8080/api';
 
@@ -143,6 +144,8 @@ export default function ExecutorDashboard() {
   const [redirectError, setRedirectError] = useState<string | null>(null);
   const [showCompleteTaskModal, setShowCompleteTaskModal] = useState(false);
   const [selectedTaskForComplete, setSelectedTaskForComplete] = useState<any>(null);
+  const [showRejectSubRequestModal, setShowRejectSubRequestModal] = useState(false);
+  const [selectedSubRequestForReject, setSelectedSubRequestForReject] = useState<any>(null);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
@@ -184,7 +187,7 @@ export default function ExecutorDashboard() {
       // Отправляем запрос на отклонение заявки
       await api.put(`/requests/${selectedRequestForReject.id}`, {
         status: "awaiting_assignment",
-        executor_id: null
+        patch_code: 1
       });
 
       // Обновляем состояние в UI
@@ -220,6 +223,68 @@ export default function ExecutorDashboard() {
     } catch (error: any) {
       console.error("Ошибка при отклонении заявки:", error);
       setRejectError(error.response?.data?.error || "Не удалось отклонить заявку");
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  const handleRejectSubRequestSubmit = async (reason: string) => {
+    if (!selectedSubRequestForReject) return;
+
+    setIsRejecting(true);
+    setRejectError(null);
+
+    try {
+      // Отправляем запрос на отклонение подзаявки
+      await api.put(`/requests/${selectedSubRequestForReject.id}`, {
+        status: "awaiting_assignment",
+        patch_code: 1
+      });
+
+      // Оптимистично обновляем UI
+      const updateRequestStatus = (requests: any[]) =>
+        requests.map((request: any) => {
+          if (request.requests && request.requests.length > 0) {
+            const updatedRequests = request.requests.map((subReq: any) => 
+              subReq.id === selectedSubRequestForReject.id 
+                ? { ...subReq, status: "awaiting_assignment" }
+                : subReq
+            );
+            return { ...request, requests: updatedRequests };
+          }
+          return request;
+        });
+
+      setAssignedRequests(updateRequestStatus);
+      setMyRequests(updateRequestStatus);
+      
+      // Обновляем selectedRequest если он содержит эту подзаявку
+      if (selectedRequest && selectedRequest.requests) {
+        const updatedSelectedRequest = updateRequestStatus([selectedRequest])[0];
+        setSelectedRequest(updatedSelectedRequest);
+      }
+
+      // Асинхронно отправляем уведомление об отклонении (не ждем ответа)
+      api.post('/notifications/reject-assigned', {
+        request_id: selectedSubRequestForReject.id,
+        reason: reason
+      }).catch(error => {
+        console.error("Ошибка при отправке уведомления об отклонении:", error);
+      });
+
+      // Закрываем модальное окно
+      setShowRejectSubRequestModal(false);
+      setSelectedSubRequestForReject(null);
+
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: "Подзаявка отклонена",
+        message: "Подзаявка успешно отклонена и возвращена в очередь назначения"
+      });
+
+    } catch (error: any) {
+      console.error("Ошибка при отклонении подзаявки:", error);
+      setRejectError(error.response?.data?.error || "Не удалось отклонить подзаявку");
     } finally {
       setIsRejecting(false);
     }
@@ -948,6 +1013,11 @@ export default function ExecutorDashboard() {
   const handleCompleteTask = async (task: any) => {
     setSelectedTaskForComplete(task);
     setShowCompleteTaskModal(true);
+  };
+
+  const handleRejectSubRequest = async (subRequest: any) => {
+    setSelectedSubRequestForReject(subRequest);
+    setShowRejectSubRequestModal(true);
   };
 
   const handleCompleteTaskSubmit = async (comment: string, photos: File[]) => {
@@ -1708,6 +1778,7 @@ export default function ExecutorDashboard() {
                                         isSubRequest={true}
                                         onStartTask={handleStartTask}
                                         onCompleteTask={handleCompleteTask}
+                                        onReject={handleRejectSubRequest}
                                         onRedirectToOtherDepartment={handleOpenRedirectModal}
                                         onToggleLongTerm={handleToggleLongTerm}
                                     />
@@ -1989,6 +2060,19 @@ export default function ExecutorDashboard() {
             onComplete={handleCompleteTaskSubmit}
             task={selectedTaskForComplete}
             isSubmitting={isSubmitting}
+        />
+
+        {/* Reject Sub Request Modal */}
+        <RejectSubRequestModal
+            isOpen={showRejectSubRequestModal}
+            onClose={() => {
+              setShowRejectSubRequestModal(false);
+              setSelectedSubRequestForReject(null);
+            }}
+            onReject={handleRejectSubRequestSubmit}
+            request={selectedSubRequestForReject}
+            isSubmitting={isRejecting}
+            error={rejectError}
         />
 
         {/* Create Request Modal */}
