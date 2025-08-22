@@ -1,46 +1,35 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
+import React, {useEffect, useState} from "react"
+import {Button} from "@/components/ui/button"
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
+import {Label} from "@/components/ui/label"
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
+import {Badge} from "@/components/ui/badge"
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
+import {Input} from "@/components/ui/input"
 import {
-  CheckCircle,
-  XCircle,
-  Clock,
   AlertTriangle,
-  Users,
-  User,
-  Star,
-  Plus,
-  Camera,
-  Calendar,
-  MapPin,
-  Trash2,
-  Loader2,
-  Zap,
-  AlertCircle,
-  ImageIcon,
-  Send,
-  MessageCircle,
-  Hourglass,
   Calendar as CalendarLucid,
-  ChevronUp,
+  CheckCircle,
   ChevronDown,
+  ChevronUp,
+  Clock,
+  Hourglass,
+  MapPin,
+  MessageCircle,
+  Plus,
+  Star,
+  Trash2,
+  User,
+  Users,
+  XCircle,
+  Zap,
 } from "lucide-react"
 
 
 import Header from "@/app/header/Header"
 import api from "@/lib/api";
-import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
-import {Calendar as CalendarPlanned} from "@/components/ui/calendar";
-import {format} from "date-fns";
-import {ru} from "date-fns/locale";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {SuccessModal} from "@/components/success-model";
@@ -49,15 +38,14 @@ import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
-import {CommentList} from "@/components/comment/Comment";
-import {useRequestStore, Request, RequestGroup, SubRequest} from "@/stores/useRequestStore";
+import {Request, RequestGroup, SubRequest, useRequestStore} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
 import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
-import { RoleBasedActionMenu } from "@/components/action-menu";
-import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import {RoleBasedActionMenu} from "@/components/action-menu";
+import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 import {MapModal} from "@/components/MapModal";
 import {RatingModal} from "@/components/RatingModal";
 import {RequestCard} from "@/components/RequestCard";
@@ -107,10 +95,6 @@ interface Stats {
   }
 }
 
-const parseLocalDate = (dateString: string) => {
-  return new Date(dateString + "T00:00:00");
-};
-
 export default function DepartmentHeadDashboard() {
   const {role, token, clearAuth, user} = useAuthStore()
   const {categories, fetchCategories, clearCategories} = useCategoryStore()
@@ -120,7 +104,6 @@ export default function DepartmentHeadDashboard() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("incoming")
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
-  const [rejectionReason, setRejectionReason] = useState("")
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
 
   const [showProfile, setShowProfile] = useState(false)
@@ -134,14 +117,11 @@ export default function DepartmentHeadDashboard() {
   const [showMapModal, setShowMapModal] = useState(false)
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 })
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
-  const [comment, setComment] = useState("")
-  const [comments, setComments] = useState<any[]>([])
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({})
   const [newExecutorEmail,setNewExecutorEmail]=useState("")
   const [newExecutorPhone, setNewExecutorPhone] = useState("")
   const [executors, setExecutors] = useState<Executor[]>([])
   const [newExecutorName, setNewExecutorName] = useState("")
-  const [isLoadingExecutors, setIsLoadingExecutors] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
@@ -150,7 +130,6 @@ export default function DepartmentHeadDashboard() {
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [executorToDelete, setExecutorToDelete] = useState<Executor | null>(null)
   const [showDeleteExecutorModal, setShowDeleteExecutorModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -214,7 +193,6 @@ export default function DepartmentHeadDashboard() {
             break;
           case 'requestDetails':
             setSelectedRequest(null);
-            setComments([]);
             break;
           case 'ratingModal':
             setShowRatingModal(false);
@@ -464,98 +442,12 @@ export default function DepartmentHeadDashboard() {
   };
   const fetchExecutors = async () => {
     try {
-      setIsLoadingExecutors(true)
       const response = await api.get('/executors')
       setExecutors(response.data)
     } catch (error) {
       console.error("Failed to fetch executors:", error)
-    } finally {
-      setIsLoadingExecutors(false)
     }
   }
-
-  const fetchComments = async () => {
-    if (!selectedRequest?.id) return
-    try {
-      const res = await api.get(`/comments/request/${selectedRequest.id}`)
-      setComments(res.data)
-    } catch (err) {
-      console.error("Ошибка при загрузке комментариев", err)
-    }
-  }
-
-  const handleDelete = (id: number) => {
-    // Убираем из UI сразу
-    const oldComments = comments;
-    setComments(prev => prev.filter(c => c.id !== id));
-
-    api.delete(`/comments/${id}`).catch(err => {
-      console.error("Ошибка при удалении", err);
-      setComments(oldComments); // Восстанавливаем при ошибке
-    });
-  };
-
-  const handleSend = () => {
-    if (comment.trim() === "") return;
-
-    if (editCommentId) {
-      // Оптимистично обновляем UI
-      setComments(prev =>
-          prev.map(c => c.id === editCommentId ? { ...c, comment: comment.trim() } : c)
-      );
-
-      const currentEditId = editCommentId;
-      const currentComment = comment.trim();
-
-      setComment("");
-      setEditCommentId(null);
-
-      api.put(`/comments/${currentEditId}`, {
-        comment: currentComment,
-        request_id: selectedRequest?.id!,
-      }).catch(err => {
-        console.error("Ошибка при обновлении", err);
-        fetchComments(); // Откатываем, если ошибка
-      });
-
-    } else {
-      // Создаём временный ID для UI
-      const tempId = -(comments.length + 111);
-      const newComment = {
-        id: tempId,
-        comment: comment.trim(),
-        request_id: selectedRequest?.id!,
-        isTemp: true,
-        timestamp: new Date(),
-        sender_id: user?.id!,
-        user: {
-          id: user?.id!,
-          full_name: user?.full_name!,
-          role: role!,
-        }
-      };
-
-      setComments(prev => [...prev, newComment]);
-
-      const currentComment = comment.trim();
-      setComment("");
-
-      api.post(`/comments`, {
-        comment: currentComment,
-        request_id: selectedRequest?.id!,
-      })
-          .then(() => fetchComments()) // Обновляем ID с сервера
-          .catch(err => {
-            console.error("Ошибка при добавлении", err);
-            fetchComments(); // Откат
-          });
-    }
-  };
-
-  const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);
-    setEditCommentId(id);
-  };
 
   useEffect(() => {
     if (myRequests.length === 0 || incomingRequests.length === 0) {
@@ -565,12 +457,6 @@ export default function DepartmentHeadDashboard() {
       fetchExecutors()
     }
   }, [])
-
-  useEffect(() => {
-    if (selectedRequest?.id) {
-      fetchComments()
-    }
-  }, [selectedRequest])
 
   const fetchClientInfo = async (userId: number) => {
     if (clientInfo[userId]) return
@@ -591,32 +477,6 @@ export default function DepartmentHeadDashboard() {
       fetchClientInfo(selectedRequest.client_id)
     }
   }, [selectedRequest])
-
-  const handleRejectRequest = async (requestId: number) => {
-    try {
-      await api.patch(`/requests/status/${requestId}`, {
-        status: "rejected",
-        rejection_reason: rejectionReason
-      })
-      fetchRequests()
-      setSelectedRequest(null);
-      closeModal();
-      setRejectionReason("")
-    } catch (error) {
-      console.error("Failed to reject request:", error)
-    }
-  }
-
-  const assignExecutorToRequest = async (requestId: number,executorId: number) => {
-    try {
-      await api.patch(`requests/${requestId}/assign-executor/${executorId}`)
-      fetchRequests()
-      setSelectedRequest(null);
-      closeModal();
-    }catch (error) {
-      console.error("Failed to create request:", error)
-    }
-  }
 
   // Фильтрация входящих заявок
   const filteredIncomingRequests = incomingRequests.filter((request) => {
@@ -852,32 +712,6 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const getRequestTypeColor = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-500"
-      case "planned":
-        return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
-      case "normal":
-        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
-      default:
-        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
-    }
-  }
-
-  const getRequestTypeIcon = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return <AlertCircle className="w-3 h-3" />
-      case "planned":
-        return <Calendar className="w-3 h-3" />
-      case "normal":
-        return <Clock className="w-3 h-3" />
-      default:
-        return null
-    }
-  }
-
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
         <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
@@ -1048,19 +882,14 @@ export default function DepartmentHeadDashboard() {
 
   const handleRefresh = async () => {
     try {
-      setRejectionReason("")
       setRatingValue(0)
       setClientInfo({})
-      setComment("")
-      setComments([])
       setUserRatings({})
       setFormErrors(null)
-      setEditCommentId(null)
       setCurrentUserId(null)
       setStats(null)
       setExecutors([])
       setNewExecutorName("")
-      setIsLoadingExecutors(false)
 
       clearRequests();
       clearNotifications()
