@@ -859,14 +859,6 @@ export default function AdminWorkerDashboard() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("ru-RU", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
-  }
-
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
         <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
@@ -1148,7 +1140,6 @@ export default function AdminWorkerDashboard() {
                             openModal('requestDetails');
                           }}
                           renderCardHeader={renderCardHeader}
-                          formatDate={formatDate}
                         />
                       ))}
                     </div>
@@ -1197,7 +1188,6 @@ export default function AdminWorkerDashboard() {
                               openModal('requestDetails');
                             }}
                             renderCardHeader={renderCardHeader}
-                            formatDate={formatDate}
                             isLast={isLast}
                             lastElementRef={lastRequestRef}
                           />

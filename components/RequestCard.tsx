@@ -9,7 +9,6 @@ interface RequestCardProps {
   request: RequestGroup
   onCardClick: (request: RequestGroup) => void
   renderCardHeader: (request: RequestGroup) => React.ReactNode
-  formatDate: (date: string) => string
   isLast?: boolean
   lastElementRef?: (node: HTMLDivElement) => void
 }
@@ -18,10 +17,18 @@ export function RequestCard({
   request,
   onCardClick,
   renderCardHeader,
-  formatDate,
   isLast = false,
   lastElementRef
 }: RequestCardProps) {
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  }
+
   return (
     <Card
       ref={isLast ? lastElementRef : null}

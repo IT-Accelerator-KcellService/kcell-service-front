@@ -17,6 +17,7 @@ import {
   ArrowRight
 } from "lucide-react"
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu"
+import {useAuthStore} from "@/stores/useAuthStore";
 
 interface ActionItem {
   icon: any
@@ -71,6 +72,7 @@ export function RoleBasedActionMenu({
   onAddComment,
   onRedirectToOtherDepartment,
 }: RoleBasedActionMenuProps) {
+  const {user} = useAuthStore()
   const [open, setOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [startY, setStartY] = useState(0)
@@ -162,16 +164,6 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-        {
-          icon: MessageCircle,
-          label: "Добавить комментарий",
-          onClick: () => {
-            onAddComment?.(request)
-            setOpen(false)
-          },
-          variant: "default" as const,
-          showForRoles: ["executor"],
-        },
         ...(onRedirectToOtherDepartment && (request.status !== "completed")
                 ? [
           {
@@ -276,53 +268,69 @@ export function RoleBasedActionMenu({
     }
 
     // Действия для руководителя направления
-    if (userRole === "department-head") {
+    if (userRole === "department-head" && isSubRequest && request?.category?.id === user?.service_category_id) {
       roleSpecificActions.push(
-        ...(request.status === "awaiting_assignment" && onAssignExecutor
-          ? [
-              {
-                icon: UserPlus,
-                label: "Назначить исполнителя",
-                onClick: () => {
-                  onAssignExecutor(request)
-                  setOpen(false)
+          ...(request.status === "awaiting_assignment" && onAssignExecutor
+              ? [
+                {
+                  icon: UserPlus,
+                  label: "Назначить исполнителя",
+                  onClick: () => {
+                    onAssignExecutor(request)
+                    setOpen(false)
+                  },
+                  variant: "default" as const,
+                  primary: true,
+                  showForRoles: ["department-head"],
                 },
-                variant: "default" as const,
-                primary: true,
-                showForRoles: ["department-head"],
-              },
-            ]
-          : []),
-        ...(onRedirectToOtherDepartment && (request.status !== "completed")
-                ? [
-            {
-              icon: ArrowRight,
-              label: "Перенаправить другому руководителю",
-              onClick: () => {
-                onRedirectToOtherDepartment?.(request)
-                setOpen(false)
-              },
-              variant: "default" as const,
-              showForRoles: ["department-head"],
-            },
-          ]
-          : []),
-        ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned")
-          ? [
-              {
-                icon: Clock,
-                label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
-                onClick: () => {
-                  onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
-                  setOpen(false)
+              ]
+              : []),
+          ...(onRedirectToOtherDepartment && (request.status !== "completed")
+              ? [
+                {
+                  icon: ArrowRight,
+                  label: "Перенаправить другому руководителю",
+                  onClick: () => {
+                    onRedirectToOtherDepartment?.(request)
+                    setOpen(false)
+                  },
+                  variant: "default" as const,
+                  showForRoles: ["department-head"],
                 },
-                variant: "default" as const,
-                longTerm: true,
-                showForRoles: ["department-head"],
-              },
-            ]
-          : [])
+              ]
+              : []),
+          ...(request.status === "completed" && request.client_id === user?.id && !request.rating
+              ? [
+                {
+                  icon: Star,
+                  label: "Оценить работу",
+                  onClick: () => {
+                    onRateRequest?.(request)
+                    setOpen(false)
+                  },
+                  variant: "default" as const,
+                  primary: true,
+                  showForRoles: ["department-head"],
+                },
+              ]
+              : []),
+          ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned")
+              ? [
+                {
+                  icon: Clock,
+                  label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
+                  onClick: () => {
+                    onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
+                    setOpen(false)
+                  },
+                  variant: "default" as const,
+                  longTerm: true,
+                  showForRoles: ["department-head"],
+                },
+              ]
+              : [])
       )
+
     }
 
     // Действия для администратора офиса

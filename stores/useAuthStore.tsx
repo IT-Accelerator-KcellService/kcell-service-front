@@ -17,6 +17,7 @@ interface User {
     security_notifications: boolean;
     marketing_notifications: boolean;
     push_notifications: boolean;
+    service_category_id?: number;
 }
 
 interface AuthState {

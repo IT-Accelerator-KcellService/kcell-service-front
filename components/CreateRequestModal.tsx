@@ -7,14 +7,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Camera, MapPin, Plus, Trash2, ChevronUp, ChevronDown, Loader2, Calendar as CalendarLucid } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Camera, MapPin, Plus, Trash2, ChevronUp, ChevronDown, Loader2, Calendar as CalendarLucid, CheckCircle, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { api } from "@/lib/api";
 
 interface ServiceCategory {
   id: number;
   name: string;
+}
+
+interface Executor {
+  id: number;
+  executor_id: number;
+  user: {
+    id: number;
+    full_name: string;
+    phone?: string;
+  };
+  specialty: string;
+  workload: number;
+}
+
+interface SubRequestExecutor {
+  id: number;
+  role: 'executor' | 'leader';
 }
 
 interface SubRequest {
@@ -23,18 +40,21 @@ interface SubRequest {
   category_id: number;
   complexity?: 'simple' | 'medium' | 'complex';
   sla?: string;
+  executors?: SubRequestExecutor[]; // Массив с ID и ролями исполнителей
 }
 
 interface CreateRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  userRole: 'client' | 'admin-worker';
+  userRole: 'client' | 'admin-worker' | 'department-head' | 'executor' | 'manager';
   categories: ServiceCategory[];
   onSubmit: (formData: FormData) => Promise<void>;
   isSubmitting: boolean;
   formErrors: string | null;
   clientLocation?: string;
   translateType?: (type: string) => string;
+  executors?: Executor[]; // Список исполнителей для department-head
+  userServiceCategoryId?: number; // ID категории пользователя для department-head
 }
 
 export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
@@ -47,6 +67,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   formErrors,
   clientLocation = "",
   translateType = (type) => type,
+  executors = [],
+  userServiceCategoryId,
 }) => {
   const [requestType, setRequestType] = useState("normal");
   const [location, setLocation] = useState(clientLocation);
@@ -56,9 +78,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [subRequests, setSubRequests] = useState<SubRequest[]>([
-    { title: "", description: "", category_id: 0 }
+    { title: "", description: "", category_id: 0, executors: [] }
   ]);
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set([0]));
+  const [validationErrors, setValidationErrors] = useState<Set<number>>(new Set());
+  const [basicFieldErrors, setBasicFieldErrors] = useState<Set<string>>(new Set());
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,8 +117,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setDate(undefined);
     setPhotos([]);
     setPhotoPreviews([]);
-    setSubRequests([{ title: "", description: "", category_id: 0 }]);
+    setSubRequests([{ title: "", description: "", category_id: 0, executors: [] }]);
     setExpandedSubRequests(new Set([0]));
+    setValidationErrors(new Set());
+    setBasicFieldErrors(new Set());
+    setHasAttemptedSubmit(false);
   };
 
   const handleButtonClick = () => {
@@ -105,7 +133,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     const validFiles = files.filter(file => file.type.startsWith('image/'));
     
     if (photos.length + validFiles.length > 3) {
-      alert("Максимум 3 фотографии");
       return;
     }
 
@@ -129,7 +156,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
   const addSubRequest = () => {
     const newIndex = subRequests.length;
-    setSubRequests([...subRequests, { title: "", description: "", category_id: 0 }]);
+    setSubRequests([...subRequests, { title: "", description: "", category_id: 0, executors: [] }]);
     setExpandedSubRequests(prev => new Set([...prev, newIndex]));
   };
 
@@ -149,6 +176,71 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     newSubRequests[index] = { ...newSubRequests[index], [field]: value };
     setSubRequests(newSubRequests);
   };
+
+  const updateSubRequestExecutors = (index: number, executors: SubRequestExecutor[]) => {
+    const newSubRequests = [...subRequests];
+    newSubRequests[index] = { ...newSubRequests[index], executors };
+    setSubRequests(newSubRequests);
+  };
+
+  // Обновление ошибок валидации при изменении подзаявок
+  useEffect(() => {
+    if (!hasAttemptedSubmit) {
+      setValidationErrors(new Set());
+      return;
+    }
+
+    if (userRole === 'admin-worker' || userRole === 'department-head') {
+      const newValidationErrors = new Set<number>();
+      subRequests.forEach((subRequest, index) => {
+        if (subRequest.title.trim() && subRequest.description.trim() && subRequest.category_id > 0) {
+          // Проверяем сложность и SLA
+          if (!subRequest.complexity || !subRequest.sla) {
+            newValidationErrors.add(index);
+          }
+          
+          // Для department-head проверяем наличие лидера в исполнителях
+          if (userRole === 'department-head' && userServiceCategoryId && 
+              subRequest.category_id === userServiceCategoryId && 
+              subRequest.executors && subRequest.executors.length > 0) {
+            const hasLeader = subRequest.executors.some(e => e.role === 'leader');
+            if (!hasLeader) {
+              newValidationErrors.add(index);
+            }
+          }
+        }
+      });
+      setValidationErrors(newValidationErrors);
+    }
+  }, [subRequests, userRole, hasAttemptedSubmit, userServiceCategoryId]);
+
+  // Обновление ошибок основных полей
+  useEffect(() => {
+    if (!hasAttemptedSubmit) {
+      setBasicFieldErrors(new Set());
+      return;
+    }
+
+    const newBasicFieldErrors = new Set<string>();
+    
+    if (!requestType) {
+      newBasicFieldErrors.add('requestType');
+    }
+    
+    if (!location.trim()) {
+      newBasicFieldErrors.add('location');
+    }
+    
+    if (!locationDetails.trim()) {
+      newBasicFieldErrors.add('locationDetails');
+    }
+    
+    if (photos.length === 0) {
+      newBasicFieldErrors.add('photos');
+    }
+    
+    setBasicFieldErrors(newBasicFieldErrors);
+  }, [requestType, location, locationDetails, photos, hasAttemptedSubmit]);
 
   const toggleSubRequestExpansion = (index: number) => {
     setExpandedSubRequests(prev => {
@@ -182,39 +274,163 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   };
 
   const handleSubmit = async () => {
+    // Устанавливаем флаг попытки отправки
+    setHasAttemptedSubmit(true);
+
+    // Проверяем основные поля формы
+    const basicFieldErrors = [];
+    
+    if (!requestType) {
+      basicFieldErrors.push('тип заявки');
+    }
+    
+    if (!location.trim()) {
+      basicFieldErrors.push('локацию');
+    }
+    
+    if (!locationDetails.trim()) {
+      basicFieldErrors.push('расположение в офисе');
+    }
+    
+    if (photos.length === 0) {
+      basicFieldErrors.push('фотографии (минимум 1)');
+    }
+
     // Проверяем, что все под заявки заполнены
     const validSubRequests = subRequests.filter(sub =>
       sub.title.trim() && sub.description.trim() && sub.category_id > 0
     );
 
-    if (
-      !requestType ||
-      !location.trim() ||
-      !locationDetails.trim() ||
-      photos.length === 0 ||
-      validSubRequests.length === 0
-    ) {
+    if (validSubRequests.length === 0) {
+      basicFieldErrors.push('хотя бы одну подзаявку');
+    }
+
+    // Проверяем обязательные поля в подзаявках
+    const subRequestErrors: string[] = [];
+    subRequests.forEach((subRequest, index) => {
+      if (subRequest.title.trim() && subRequest.description.trim() && subRequest.category_id > 0) {
+        // Если подзаявка заполнена, проверяем обязательные поля
+        if (!subRequest.title.trim()) {
+          subRequestErrors.push(`название подзаявки #${index + 1}`);
+        }
+        if (!subRequest.description.trim()) {
+          subRequestErrors.push(`описание подзаявки #${index + 1}`);
+        }
+        if (!subRequest.category_id || subRequest.category_id === 0) {
+          subRequestErrors.push(`категорию подзаявки #${index + 1}`);
+        }
+      }
+    });
+
+    if (basicFieldErrors.length > 0 || subRequestErrors.length > 0) {
+      const allErrors = [...basicFieldErrors, ...subRequestErrors];
+      const errorMessage = `Пожалуйста, заполните следующие обязательные поля:\n\n${allErrors.join('\n')}`;
       return;
     }
 
+    // Валидация SLA и complexity для admin-worker и department-head
+    if (userRole === 'admin-worker' || userRole === 'department-head') {
+      const invalidSubRequests = validSubRequests.filter(sub => 
+        !sub.complexity || !sub.sla
+      );
+      
+      if (invalidSubRequests.length > 0) {
+        // Показываем ошибку валидации
+        const invalidIndices = invalidSubRequests.map((_, index) => {
+          const originalIndex = subRequests.findIndex(sub => 
+            sub.title === validSubRequests[index].title && 
+            sub.description === validSubRequests[index].description
+          );
+          return originalIndex + 1;
+        });
+        
+        // Автоматически разворачиваем подзаявки с ошибками валидации
+        const newExpandedSubRequests = new Set(expandedSubRequests);
+        invalidIndices.forEach(index => {
+          newExpandedSubRequests.add(index - 1); // index - 1 потому что индексы начинаются с 1
+        });
+        setExpandedSubRequests(newExpandedSubRequests);
+        
+        const errorMessage = `Пожалуйста, заполните сложность и SLA для всех подзаявок.\n\nНе заполнено для подзаявок: ${invalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
+        return;
+      }
+    }
+
+    // Валидация лидера для department-head
+    if (userRole === 'department-head') {
+      const subRequestsWithoutLeader = validSubRequests.filter(sub => {
+        if (userServiceCategoryId && sub.category_id === userServiceCategoryId && 
+            sub.executors && sub.executors.length > 0) {
+          return !sub.executors.some(e => e.role === 'leader');
+        }
+        return false;
+      });
+      
+      if (subRequestsWithoutLeader.length > 0) {
+        const leaderInvalidIndices = subRequestsWithoutLeader.map((_, index) => {
+          const originalIndex = subRequests.findIndex(sub => 
+            sub.title === validSubRequests[index].title && 
+            sub.description === validSubRequests[index].description
+          );
+          return originalIndex + 1;
+        });
+        
+        // Автоматически разворачиваем подзаявки без лидера
+        const newExpandedSubRequests = new Set(expandedSubRequests);
+        leaderInvalidIndices.forEach(index => {
+          newExpandedSubRequests.add(index - 1);
+        });
+        setExpandedSubRequests(newExpandedSubRequests);
+        
+        const errorMessage = `Пожалуйста, назначьте лидера для всех подзаявок с исполнителями.\n\nНе назначен лидер для подзаявок: ${leaderInvalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
+        return;
+      }
+    }
+
     const formData = new FormData();
+
+    // Определяем статус группы заявок для department-head
+    let groupStatus = 'awaiting_assignment';
+    if (userRole === 'client') {
+      groupStatus = 'in_progress';
+    } else if (userRole === 'department-head') {
+      // Если хотя бы одна подзаявка имеет исполнителей, то статус execution
+      const hasExecutors = validSubRequests.some(sub => 
+        sub.executors && sub.executors.length > 0
+      );
+      groupStatus = hasExecutors ? 'execution' : 'awaiting_assignment';
+    }
 
     // Поля группы заявок
     formData.append('request_type', requestType);
     formData.append('location', location);
     formData.append('location_detail', locationDetails);
-    formData.append('status', userRole === 'client' ? 'in_progress' : 'awaiting_assignment');
+    formData.append('status', groupStatus);
     if (plannedDate) formData.append('planned_date', plannedDate);
 
-    // Под заявки с их SLA и сложностью (только для admin-worker)
-    const subRequestsData = validSubRequests.map(sub => ({
-      title: sub.title,
-      description: sub.description,
-      category_id: sub.category_id,
-      complexity: userRole === 'admin-worker' ? (sub.complexity || 'simple') : undefined,
-      sla: userRole === 'admin-worker' ? (sub.sla || '1h') : undefined,
-      status: userRole === 'client' ? 'in_progress' : 'awaiting_assignment'
-    }));
+    // Под заявки с их SLA и сложностью
+    const subRequestsData = validSubRequests.map(sub => {
+      let subStatus = 'awaiting_assignment';
+      
+      if (userRole === 'client') {
+        subStatus = 'in_progress';
+      } else if (userRole === 'department-head') {
+        // Если у подзаявки есть исполнители, то статус assigned
+        if (sub.executors && sub.executors.length > 0) {
+          subStatus = 'assigned';
+        }
+      }
+
+      return {
+        title: sub.title,
+        description: sub.description,
+        category_id: sub.category_id,
+        complexity: (userRole === 'admin-worker' || userRole === 'department-head') ? sub.complexity : undefined,
+        sla: (userRole === 'admin-worker' || userRole === 'department-head') ? sub.sla : undefined,
+        status: subStatus,
+        executors: sub.executors || []
+      };
+    });
 
     formData.append('sub_requests', JSON.stringify(subRequestsData));
 
@@ -236,27 +452,32 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     >
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <CardHeader>
-          <CardTitle>Создать {translateType(requestType).toLowerCase()} заявку</CardTitle>
+          <CardTitle>Создать заявку</CardTitle>
           <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pb-16">
           <div>
-            <Label>Тип заявки</Label>
+            <Label className="flex items-center gap-1">
+              Тип заявки
+            </Label>
             <Select value={requestType} onValueChange={setRequestType}>
-              <SelectTrigger>
+              <SelectTrigger className={hasAttemptedSubmit && basicFieldErrors.has('requestType') ? 'border-red-300 focus:border-red-500' : ''}>
                 <SelectValue placeholder="Выберите тип заявки" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="normal">Обычная</SelectItem>
                 <SelectItem value="urgent">Экстренная</SelectItem>
-                {userRole === 'admin-worker' && (
+                {(userRole === 'admin-worker' || userRole === 'department-head') && (
                   <SelectItem value="planned">Плановая</SelectItem>
                 )}
               </SelectContent>
             </Select>
+            {hasAttemptedSubmit && basicFieldErrors.has('requestType') && (
+              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+            )}
           </div>
 
-          {requestType === "planned" && userRole === 'admin-worker' && (
+          {requestType === "planned" && (userRole === 'admin-worker' || userRole === 'department-head') && (
               <div>
                 <Label>Планируемая дата</Label>
                 <Popover>
@@ -288,16 +509,20 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           )}
 
           <div>
-            <Label>Локация</Label>
+            <Label className="flex items-center gap-1">
+              Локация
+            </Label>
             <div className="flex flex-wrap gap-2">
               <Input
-                className={`flex-1 min-w-[200px] ${userRole === 'client' ? "bg-gray-100 cursor-not-allowed" : ""}`}
+                className={`flex-1 min-w-[200px] ${userRole === 'client' ? "bg-gray-100 cursor-not-allowed" : ""} ${
+                  hasAttemptedSubmit && basicFieldErrors.has('location') ? 'border-red-300 focus:border-red-500' : ''
+                }`}
                 placeholder={userRole === 'client' ? "Определение вашего местоположения..." : "Введите расположение"}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 readOnly={userRole === 'client'}
               />
-              {userRole === 'admin-worker' && (
+              {(userRole === 'admin-worker' || userRole === 'department-head') && (
                 <Button
                   variant="outline"
                   className="whitespace-nowrap"
@@ -308,20 +533,33 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 </Button>
               )}
             </div>
+            {hasAttemptedSubmit && basicFieldErrors.has('location') && (
+              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+            )}
           </div>
 
           <div>
-            <Label>Расположение в офисе</Label>
+            <Label className="flex items-center gap-1">
+              Расположение в офисе
+            </Label>
             <Input
+              className={hasAttemptedSubmit && basicFieldErrors.has('locationDetails') ? 'border-red-300 focus:border-red-500' : ''}
               placeholder="Например: 3 этаж, кабинет 305"
               value={locationDetails}
               onChange={(e) => setLocationDetails(e.target.value)}
             />
+            {hasAttemptedSubmit && basicFieldErrors.has('locationDetails') && (
+              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+            )}
           </div>
 
           <div>
-            <Label>Фотографии (до 3 шт.)</Label>
-            <div className="flex flex-wrap gap-4 mt-2">
+            <Label className="flex items-center gap-1">
+              Фотографии (до 3 шт.)
+            </Label>
+            <div className={`flex flex-wrap gap-4 mt-2 ${
+              hasAttemptedSubmit && basicFieldErrors.has('photos') ? 'border-2 border-red-300 border-dashed rounded-lg p-4' : ''
+            }`}>
               {photoPreviews.map((photo, index) => (
                 <div key={index} className="relative">
                   <img
@@ -355,28 +593,90 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 </button>
               )}
             </div>
+            {hasAttemptedSubmit && basicFieldErrors.has('photos') && (
+              <p className="text-xs text-red-500 mt-1">Добавьте хотя бы одну фотографию</p>
+            )}
           </div>
 
           {/* Под заявки */}
-          <div>
-            <Label className="text-lg font-semibold">Под заявки</Label>
-            <p className="text-sm text-gray-600 mb-4">
-              Добавьте одну или несколько под заявок с их параметрами
-            </p>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addSubRequest}
+                className="flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Добавить под заявку
+              </Button>
+            </div>
             
             <div className="space-y-4">
               {subRequests.map((subRequest, index) => (
-                <Card key={index} className="border border-gray-200">
+                <Card key={index} className="border border-gray-200 hover:border-gray-300 transition-colors">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Под заявка #{index + 1}</h4>
+                                              <div className="flex items-center gap-3">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                            hasAttemptedSubmit && (
+                              validationErrors.has(index) || 
+                              !subRequest.title.trim() || 
+                              !subRequest.description.trim() || 
+                              !subRequest.category_id ||
+                              (userRole === 'department-head' && userServiceCategoryId && 
+                               subRequest.category_id === userServiceCategoryId && 
+                               subRequest.executors && subRequest.executors.length > 0 && 
+                               !subRequest.executors.some(e => e.role === 'leader'))
+                            )
+                              ? 'bg-red-100 text-red-600' 
+                              : 'bg-blue-100 text-blue-600'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-base">Под заявка #{index + 1}</h4>
+                            {subRequest.title && (
+                              <p className="text-sm text-gray-600 mt-1">{subRequest.title}</p>
+                            )}
+                            {hasAttemptedSubmit && validationErrors.has(index) && (
+                              <p className="text-xs text-red-500 mt-1">
+                                {userRole === 'admin-worker' 
+                                  ? 'Требуется заполнить сложность и SLA'
+                                  : userRole === 'department-head'
+                                    ? (() => {
+                                        const subRequest = subRequests[index];
+                                        const hasComplexityAndSLA = subRequest.complexity && subRequest.sla;
+                                        const hasExecutors = subRequest.executors && subRequest.executors.length > 0;
+                                        const hasLeader = hasExecutors && subRequest.executors!.some(e => e.role === 'leader');
+                                        
+                                        if (!hasComplexityAndSLA && !hasLeader) {
+                                          return 'Требуется заполнить сложность, SLA и назначить лидера';
+                                        } else if (!hasComplexityAndSLA) {
+                                          return 'Требуется заполнить сложность и SLA';
+                                        } else if (!hasLeader) {
+                                          return 'Требуется назначить лидера среди исполнителей';
+                                        }
+                                        return 'Требуется заполнить обязательные поля';
+                                      })()
+                                  : 'Требуется заполнить обязательные поля'
+                                }
+                              </p>
+                            )}
+                            {hasAttemptedSubmit && !validationErrors.has(index) && (!subRequest.title.trim() || !subRequest.description.trim() || !subRequest.category_id) && (
+                              <p className="text-xs text-red-500 mt-1">Требуется заполнить название, описание и категорию</p>
+                            )}
+                          </div>
+                        </div>
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleSubRequestExpansion(index)}
-                          className="p-1"
+                          className="p-2 hover:bg-gray-100"
                         >
                           {expandedSubRequests.has(index) ? (
                             <ChevronUp className="w-4 h-4" />
@@ -390,7 +690,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => removeSubRequest(index)}
-                            className="p-1 text-red-500 hover:text-red-700"
+                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -399,19 +699,27 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     </div>
                   </CardHeader>
 
-                  <CardContent className={`space-y-4 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
+                  <CardContent className={`space-y-6 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
                     <div>
-                      <Label htmlFor={`subRequestTitle-${index}`}>Название под заявки</Label>
+                      <Label htmlFor={`subRequestTitle-${index}`} className="flex items-center gap-1">
+                        Название под заявки
+                      </Label>
                       <Input
                         id={`subRequestTitle-${index}`}
+                        className={hasAttemptedSubmit && !subRequest.title.trim() ? 'border-red-300 focus:border-red-500' : ''}
                         placeholder="Краткое название задачи"
                         value={subRequest.title}
                         onChange={(e) => updateSubRequest(index, 'title', e.target.value)}
                       />
+                      {hasAttemptedSubmit && !subRequest.title.trim() && (
+                        <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                      )}
                     </div>
 
                     <div>
-                      <Label htmlFor={`subRequestCategory-${index}`}>Категория услуги</Label>
+                      <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1">
+                        Категория услуги
+                      </Label>
                       <Select
                         value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
                         onValueChange={(value) => {
@@ -419,7 +727,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                           updateSubRequest(index, 'category_id', category?.id || 0);
                         }}
                       >
-                        <SelectTrigger id={`subRequestCategory-${index}`}>
+                        <SelectTrigger 
+                          id={`subRequestCategory-${index}`}
+                          className={hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) ? 'border-red-300 focus:border-red-500' : ''}
+                        >
                           <SelectValue placeholder="Выберите категорию" />
                         </SelectTrigger>
                         <SelectContent>
@@ -430,75 +741,270 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                           ))}
                         </SelectContent>
                       </Select>
+                      {hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) && (
+                        <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                      )}
                     </div>
 
                     <div>
-                      <Label htmlFor={`subRequestDescription-${index}`}>Описание проблемы</Label>
+                      <Label htmlFor={`subRequestDescription-${index}`} className="flex items-center gap-1">
+                        Описание проблемы
+                      </Label>
                       <Textarea
                         id={`subRequestDescription-${index}`}
                         placeholder="Опишите проблему подробно..."
-                        className="min-h-[100px]"
+                        className={`min-h-[100px] ${hasAttemptedSubmit && !subRequest.description.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
                         value={subRequest.description}
                         onChange={(e) => updateSubRequest(index, 'description', e.target.value)}
                       />
+                      {hasAttemptedSubmit && !subRequest.description.trim() && (
+                        <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                      )}
                     </div>
 
-                    {/* Дополнительные поля только для admin-worker */}
-                    {userRole === 'admin-worker' && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor={`subRequestComplexity-${index}`}>Сложность</Label>
-                          <Select
-                            value={subRequest.complexity}
-                            onValueChange={(value: 'simple' | 'medium' | 'complex') => 
-                              updateSubRequest(index, 'complexity', value)
-                            }
-                          >
-                            <SelectTrigger id={`subRequestComplexity-${index}`}>
-                              <SelectValue placeholder="Выберите сложность" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="simple">Простая</SelectItem>
-                              <SelectItem value="medium">Средняя</SelectItem>
-                              <SelectItem value="complex">Сложная</SelectItem>
-                            </SelectContent>
-                          </Select>
+                                        {/* Выбор исполнителей для department-head */}
+                    {userRole === 'department-head' && userServiceCategoryId && 
+                     subRequest.category_id === userServiceCategoryId && executors.length > 0 && (
+                      <div className="space-y-4">
+                        {/* Выбор исполнителей через Select */}
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-sm font-medium">Добавить исполнителя (необязательно)</Label>
+                            <Select
+                              value=""
+                              onValueChange={(value) => {
+                                if (value) {
+                                  const executorId = parseInt(value);
+                                  const currentExecutors = subRequest.executors || [];
+                                  const executor = executors.find(e => e.id === executorId);
+                                  
+                                  if (executor && !currentExecutors.some(e => e.id === executorId)) {
+                                    // Добавляем исполнителя как обычного исполнителя
+                                    const newExecutors = [...currentExecutors, { id: executorId, role: 'executor' as const }];
+                                    updateSubRequestExecutors(index, newExecutors);
+                                  }
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Выберите исполнителя для добавления" />
+                              </SelectTrigger>
+                                                              <SelectContent>
+                                                                     {executors
+                                     .filter(executor => !subRequest.executors?.some(e => e.id === executor.id))
+                                     .map(executor => (
+                                       <SelectItem key={executor.id} value={executor.id.toString()}>
+                                        <div className="flex flex-col">
+                                          <span className="font-medium">{executor.user.full_name}</span>
+                                          <span className="text-xs text-gray-500">
+                                            {executor.specialty} • Загрузка: {executor.workload}
+                                          </span>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          {/* Список выбранных исполнителей */}
+                          {subRequest.executors && subRequest.executors.length > 0 && (
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Выбранные исполнители:</Label>
+                              {subRequest.executors.map(executorData => {
+                                const executor = executors.find(e => e.id === executorData.id);
+                                if (!executor) return null;
+                                
+                                return (
+                                  <div 
+                                    key={executorData.id}
+                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                                  >
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium text-sm">
+                                          {executor.user.full_name}
+                                        </span>
+                                        {executorData.role === 'leader' && (
+                                          <Badge variant="secondary" className="text-xs">
+                                            Лидер
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-gray-600 mt-1">
+                                        {executor.specialty} • Загрузка: {executor.workload}
+                                      </p>
+                                      {executor.user.phone && (
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          Тел: {executor.user.phone}
+                                        </p>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                      <Select
+                                        value={executorData.role}
+                                        onValueChange={(role: 'executor' | 'leader') => {
+                                          const currentExecutors = subRequest.executors || [];
+                                          const updatedExecutors = currentExecutors.map(e => 
+                                            e.id === executorData.id
+                                              ? { ...e, role } 
+                                              : e
+                                          );
+                                          updateSubRequestExecutors(index, updatedExecutors);
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-28 h-8 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="executor">Исполнитель</SelectItem>
+                                          <SelectItem value="leader">Лидер</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          const currentExecutors = subRequest.executors || [];
+                                          updateSubRequestExecutors(
+                                            index, 
+                                            currentExecutors.filter(e => e.id !== executorData.id)
+                                          );
+                                        }}
+                                        className="text-red-500 hover:text-red-700 p-1 h-8 w-8"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
+                        
+                        {/* Индикатор статуса */}
+                        {subRequest.executors && subRequest.executors.length > 0 && (
+                          <div className={`p-3 rounded-lg border ${
+                            subRequest.executors.some(e => e.role === 'leader')
+                              ? 'bg-green-50 border-green-200' 
+                              : 'bg-yellow-50 border-yellow-200'
+                          }`}>
+                            <div className="flex items-center gap-2 text-sm">
+                              {subRequest.executors.some(e => e.role === 'leader') ? (
+                                <>
+                                  <CheckCircle className="w-4 h-4 text-green-600" />
+                                  <span className="text-green-800">
+                                    Выбрано исполнителей: {subRequest.executors.length} (включая лидера)
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                  <span className="text-yellow-800">
+                                    Выбрано исполнителей: {subRequest.executors.length}. Назначьте лидера!
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-                        <div>
-                          <Label htmlFor={`subRequestSLA-${index}`}>SLA</Label>
-                          <Select
-                            value={subRequest.sla}
-                            onValueChange={(value: string) => updateSubRequest(index, 'sla', value)}
-                          >
-                            <SelectTrigger id={`subRequestSLA-${index}`}>
-                              <SelectValue placeholder="Выберите SLA" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1h">1 час</SelectItem>
-                              <SelectItem value="4h">4 часа</SelectItem>
-                              <SelectItem value="8h">8 часов</SelectItem>
-                              <SelectItem value="1d">1 день</SelectItem>
-                              <SelectItem value="3d">3 дня</SelectItem>
-                              <SelectItem value="1w">1 неделя</SelectItem>
-                            </SelectContent>
-                          </Select>
+                    {/* Дополнительные поля только для admin-worker and department-head */}
+                    {(userRole === 'admin-worker' || userRole === 'department-head') && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`subRequestComplexity-${index}`} className="flex items-center gap-1">
+                              Сложность
+                            </Label>
+                            <Select
+                              value={subRequest.complexity || ''}
+                              onValueChange={(value: 'simple' | 'medium' | 'complex') => 
+                                updateSubRequest(index, 'complexity', value)
+                              }
+                            >
+                              <SelectTrigger 
+                                id={`subRequestComplexity-${index}`}
+                                className={hasAttemptedSubmit && !subRequest.complexity ? 'border-red-300 focus:border-red-500' : ''}
+                              >
+                                <SelectValue placeholder="Выберите сложность" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="simple">Простая</SelectItem>
+                                <SelectItem value="medium">Средняя</SelectItem>
+                                <SelectItem value="complex">Сложная</SelectItem>
+                              </SelectContent>
+                            </Select>
+                                                          {hasAttemptedSubmit && !subRequest.complexity && (
+                                <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                              )}
+                          </div>
+
+                          <div>
+                            <Label htmlFor={`subRequestSLA-${index}`} className="flex items-center gap-1">
+                              SLA
+                            </Label>
+                            <Select
+                              value={subRequest.sla || ''}
+                              onValueChange={(value: string) => updateSubRequest(index, 'sla', value)}
+                            >
+                              <SelectTrigger 
+                                id={`subRequestSLA-${index}`}
+                                className={hasAttemptedSubmit && !subRequest.sla ? 'border-red-300 focus:border-red-500' : ''}
+                              >
+                                <SelectValue placeholder="Выберите SLA" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1h">1 час</SelectItem>
+                                <SelectItem value="4h">4 часа</SelectItem>
+                                <SelectItem value="8h">8 часов</SelectItem>
+                                <SelectItem value="1d">1 день</SelectItem>
+                                <SelectItem value="3d">3 дня</SelectItem>
+                                <SelectItem value="1w">1 неделя</SelectItem>
+                              </SelectContent>
+                            </Select>
+                                                          {hasAttemptedSubmit && !subRequest.sla && (
+                                <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                              )}
+                          </div>
                         </div>
+                        
+                        {/* Индикатор заполненности обязательных полей */}
+                        {hasAttemptedSubmit && (
+                          <div className={`p-3 rounded-lg border ${
+                            subRequest.complexity && subRequest.sla 
+                              ? 'bg-green-50 border-green-200' 
+                              : 'bg-yellow-50 border-yellow-200'
+                          }`}>
+                          <div className="flex items-center gap-2 text-sm">
+                            {subRequest.complexity && subRequest.sla ? (
+                              <>
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                <span className="text-green-800">
+                                  Все обязательные поля заполнены
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                <span className="text-yellow-800">
+                                  Заполните сложность и SLA для этой подзаявки
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
                 </Card>
               ))}
-              
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addSubRequest}
-                className="w-full"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Добавить под заявку
-              </Button>
             </div>
           </div>
 
