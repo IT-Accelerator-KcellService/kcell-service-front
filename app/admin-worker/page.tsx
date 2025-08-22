@@ -1486,51 +1486,49 @@ export default function AdminWorkerDashboard() {
 
                                     {/* Исполнители */}
                                     {(() => {
-                                      const executors = subRequest.executors && subRequest.executors.length > 0 
-                                        ? subRequest.executors 
-                                        : subRequest.executor 
-                                          ? [subRequest.executor] 
-                                          : [];
-                                      
+                                      const executors = subRequest.executors && subRequest.executors.length > 0
+                                          ? subRequest.executors
+                                          : subRequest.executor
+                                              ? [subRequest.executor]
+                                              : [];
+
                                       return executors.length > 0 ? (
-                                        <div className="mb-4">
-                                          <h5 className="font-medium text-sm mb-3 text-gray-700 flex items-center gap-2">
-                                            <Users className="w-4 h-4 text-purple-500" />
-                                            Исполнители
-                                          </h5>
-                                          <div className="space-y-2">
-                                            {executors.map((executor, index) => (
-                                              <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                                                <div className="flex items-center gap-2">
-                                                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                                    <User className="w-4 h-4 text-purple-600" />
-                                                  </div>
-                                                  <div className="flex items-center gap-2">
+                                          <div className="mb-4">
+                                            <h5 className="font-medium text-sm mb-3 text-gray-700 flex items-center gap-2">
+                                              <Users className="w-4 h-4 text-purple-500" />
+                                              Исполнители
+                                            </h5>
+                                            <div className="space-y-2">
+                                              {executors.map((executor, index) => (
+                                                  <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                                    <div className="flex items-center gap-2">
+                                                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                                        <User className="w-4 h-4 text-purple-600" />
+                                                      </div>
+                                                      <div className="flex items-center gap-2">
                                                         <span className="text-sm font-medium text-gray-800">
                                                           {executor.user.full_name}
                                                         </span>
                                                         {executor?.RequestExecutor?.role === "leader" && (
-                                                          <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs px-2 py-0.5 border-0 shadow-sm">
-                                                            Ответственный
-                                                          </Badge>
+                                                            <LeaderIndicator isDesktop={isDesktop} size="sm" />
                                                         )}
                                                       </div>
                                                       {executor.user.phone && (
-                                                        <div className="text-xs text-gray-500 mt-1">
-                                                          {executor.user.phone}
-                                                        </div>
+                                                          <div className="text-xs text-gray-500 mt-1">
+                                                            {executor.user.phone}
+                                                          </div>
                                                       )}
-                                                </div>
-                                                {userRatings[subRequest.id]?.rating && (
-                                                  <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-gray-500">Оценка:</span>
-                                                    <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
+                                                    </div>
+                                                    {userRatings[subRequest.id]?.rating && (
+                                                        <div className="flex items-center gap-2">
+                                                          <span className="text-xs text-gray-500">Оценка:</span>
+                                                          <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
+                                                        </div>
+                                                    )}
                                                   </div>
-                                                )}
-                                              </div>
-                                            ))}
+                                              ))}
+                                            </div>
                                           </div>
-                                        </div>
                                       ) : null;
                                     })()}
 

@@ -1254,13 +1254,13 @@ export default function ClientDashboard() {
                                                           {executor.user.full_name}
                                                         </span>
                                                         {executor?.RequestExecutor?.role === "leader" && (
-                                                          <LeaderIndicator isDesktop={isDesktop} size="sm" />
+                                                            <LeaderIndicator isDesktop={isDesktop} size="sm" />
                                                         )}
                                                       </div>
                                                       {executor.user.phone && (
-                                                        <div className="text-xs text-gray-500 mt-1">
-                                                          {executor.user.phone}
-                                                        </div>
+                                                          <div className="text-xs text-gray-500 mt-1">
+                                                            {executor.user.phone}
+                                                          </div>
                                                       )}
                                                     </div>
                                                     {userRatings[subRequest.id]?.rating && (
