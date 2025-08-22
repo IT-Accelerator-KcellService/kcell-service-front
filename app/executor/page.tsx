@@ -1,5 +1,5 @@
 "use client"
-import React, {useEffect, useRef, useState} from "react"
+import React, {useEffect, useState} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
@@ -93,17 +93,9 @@ export default function ExecutorDashboard() {
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({})
 
   const [activeTab, setActiveTab] = useState("tasks")
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const [afterPhotos, setAfterPhotos] = useState<File[]>([]);
-  const [afterPhotoPreviews, setAfterPhotoPreviews] = useState<string[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
-  const [selectedTaskDetails, setSelectedTaskDetails] = useState<any>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
-  const [newRequestType, setNewRequestType] = useState("")
-  const [newRequestTitle, setNewRequestTitle] = useState("")
-  const [newRequestLocation, setNewRequestLocation] = useState("")
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [showProfile, setShowProfile] = useState(false)
   const [showComments, setShowComments] = useState<number | null>(null);
@@ -113,17 +105,10 @@ export default function ExecutorDashboard() {
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [requestLocation, setRequestLocation] = useState("")
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const afterFileInputRef = useRef<HTMLInputElement | null>(null);
-  const [description, setDescription] = useState("");
-  const [comment, setComment] = useState("");
-  const [comments, setComments] = useState<any[]>([]);
-  const [completedRequestComment, setCompletedRequestComment] = useState("");
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
-  const [completeFormErrors, setCompleteFormErrors] = useState<string | null>(null);
   const [createMode, setCreateMode] = useState<'create' | 'createAndComplete'>('create');
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [executorId, setExecutorId] = useState<number | null>(null);
@@ -139,7 +124,6 @@ export default function ExecutorDashboard() {
   const [rejectError, setRejectError] = useState<string | null>(null);
   const [showRedirectModal, setShowRedirectModal] = useState(false);
   const [selectedRequestForRedirect, setSelectedRequestForRedirect] = useState<any>(null);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [redirectError, setRedirectError] = useState<string | null>(null);
   const [showCompleteTaskModal, setShowCompleteTaskModal] = useState(false);
@@ -300,7 +284,6 @@ export default function ExecutorDashboard() {
   const handleCloseRedirectModal = () => {
     setShowRedirectModal(false);
     setSelectedRequestForRedirect(null);
-    setSelectedDepartmentId(null);
     setRedirectError(null);
     closeModal();
   };
@@ -468,8 +451,7 @@ export default function ExecutorDashboard() {
             setSelectedRequest(null);
             break;
           case 'taskDetails':
-            setSelectedTaskDetails(null);
-            setComments([]);
+            setSelectedRequest(null);
             break;
           case 'mapModal':
             setShowMapModal(false);
@@ -540,16 +522,6 @@ export default function ExecutorDashboard() {
     return statusMatch && typeMatch
   })
 
-  const fetchComments = async () => {
-    if (!selectedTaskDetails?.id) return;
-    try {
-      const res = await api.get(`/comments/request/${selectedTaskDetails.id}`);
-      setComments(res.data);
-    } catch (err) {
-      console.error("Ошибка при загрузке комментариев", err);
-    }
-  };
-
   const closeAllModalsExcept = async (modalName: string) => {
 
     if (modalName !== 'createRequest') {
@@ -559,8 +531,7 @@ export default function ExecutorDashboard() {
       setSelectedRequest(null);
     }
     if (modalName !== 'taskDetails') {
-      setSelectedTaskDetails(null);
-      setComments([]);
+      setSelectedRequest(null);
     }
     if (modalName !== 'mapModal') {
       setShowMapModal(false);
@@ -581,12 +552,6 @@ export default function ExecutorDashboard() {
   };
 
   useEffect(() => {
-    if (selectedTaskDetails?.id) {
-      fetchComments();
-    }
-  }, [selectedTaskDetails]);
-
-  useEffect(() => {
     if (assignedRequests.length === 0 || myRequests.length === 0 || completedRequests.length === 0) {
       fetchNotifications()
       fetchRequests()
@@ -601,15 +566,62 @@ export default function ExecutorDashboard() {
     setFormErrors(null);
 
     try {
-      const response = await api.post('/request-groups', formData, {
+      // Извлекаем after_photos и удаляем их из formData
+      const afterPhotos = formData.getAll('after_photos');
+      formData.delete('after_photos');
+
+      // Отправляем основной запрос на создание заявки с фото
+      let response = await api.post('/request-groups', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const newRequestGroup = response.data;
+             const newRequestGroup = response.data;
+       console.log('New request group:', newRequestGroup);
 
-      // Обновляем состояние
-      setMyRequests(prev => [newRequestGroup, ...prev]);
-      successModal.showSuccess();
+             // Если есть after_photos, загружаем их отдельным запросом
+       let uploadedPhotos;
+       if (afterPhotos.length > 0) {
+         const afterFormData = new FormData();
+         afterPhotos.forEach(photo => afterFormData.append('photos', photo));
+         afterFormData.append('type', 'after');
+         try {
+           response = await api.post(`/request-photos/${newRequestGroup.id}/photos`, afterFormData, {
+             headers: { 'Content-Type': 'multipart/form-data' }
+           });
+           uploadedPhotos = response.data.photos;
+         } catch (photoError) {
+           console.error("Ошибка при загрузке after_photos:", photoError);
+         }
+       }
+
+        // Добавляем uploadedPhotos в newRequestGroup
+        let updatedRequestGroup = { ...newRequestGroup };
+        
+        if (uploadedPhotos && uploadedPhotos.length > 0) {
+          // Проверяем структуру uploadedPhotos и добавляем их к существующим фотографиям
+          const existingPhotos = newRequestGroup.photos || [];
+          const newPhotos = Array.isArray(uploadedPhotos) ? uploadedPhotos : [uploadedPhotos];
+          
+          updatedRequestGroup = {
+            ...newRequestGroup,
+            photos: [...existingPhotos, ...newPhotos]
+          };
+        }
+
+              // Обновляем состояние в зависимости от режима
+        if (createMode === 'createAndComplete') {
+          setMyRequests(prev => [updatedRequestGroup, ...prev]);
+          successModal.showSuccess({
+            title: "Заявка создана и завершена!",
+            message: "Заявка успешно создана, выполнена и закрыта с отчётом."
+          });
+        } else {
+          setMyRequests(prev => [updatedRequestGroup, ...prev]);
+          successModal.showSuccess({
+            title: "Заявка создана!",
+            message: "Заявка успешно создана и взята в работу."
+          });
+        }
 
       // Сброс формы
       resetForm();
@@ -623,126 +635,10 @@ export default function ExecutorDashboard() {
     }
   };
 
-  const handleCreateAndCompleteRequest = async () => {
-    if (
-        !newRequestTitle ||
-        !description ||
-        !newRequestType ||
-        !requestLocation ||
-        !newRequestLocation ||
-        !selectedCategoryId ||
-        photos.length === 0 ||
-        !completedRequestComment.trim()
-    ) {
-      setFormErrors("Заполните все обязательные поля и добавьте отчёт о выполненной работе.");
-      return;
-    }
-    setIsSubmitting(true);
-    setFormErrors(null);
-    try {
-      // Используем кэшированный executor_id или получаем его
-      let currentExecutorId = executorId;
-      if (!currentExecutorId && user?.id) {
-        try {
-          const executorResponse = await api.get(`/executors/${user.id}/user`);
-          currentExecutorId = executorResponse.data.id;
-          setExecutorId(executorResponse.data.id); // Кэшируем для будущего использования
-        } catch (executorError) {
-          console.error("Ошибка при получении executor_id:", executorError);
-        }
-      }
-
-      // Создаём заявку
-      const formData = new FormData();
-      formData.append('title', newRequestTitle);
-      formData.append('description', description);
-      formData.append('request_type', newRequestType === "urgent" ? "urgent" : "normal");
-      formData.append('location', requestLocation);
-      formData.append('location_detail', newRequestLocation);
-      formData.append('category_id', String(selectedCategoryId));
-      formData.append('status', 'completed'); // Создаём сразу завершённую заявку
-      formData.append('comment', completedRequestComment); // Добавляем комментарий завершения
-      if (currentExecutorId) {
-        formData.append('executor_id', String(currentExecutorId)); // Добавляем ID исполнителя
-      }
-      photos.forEach(photo => formData.append('photos', photo));
-      formData.append('type', 'before');
-      
-      const response = await api.post('/requests/with-photos', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      
-      const newRequest = response.data;
-      
-      // Проверяем, что заявка создана успешно
-      if (!newRequest || !newRequest.id) {
-        throw new Error("Не удалось создать заявку");
-      }
-
-      // Добавляем фотографии результата, если они есть
-      if (afterPhotos.length > 0) {
-        const afterFormData = new FormData();
-        afterPhotos.forEach((photo) => {
-          afterFormData.append('photos', photo);
-        });
-        afterFormData.append('type', 'after');
-        
-        try {
-          await axios.post(`${API_BASE_URL}/request-photos/${newRequest.id}/photos`, afterFormData, {
-            withCredentials: true,
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-        } catch (photoUploadError) {
-          console.error("Ошибка при загрузке фотографий результата:", photoUploadError);
-        }
-      }
-
-      // Перемещаем заявку в завершённые
-      setCompletedRequests(prev => [{
-        ...newRequest,
-        status: "completed",
-        completedDate: new Date().toISOString(),
-        rating: 0
-      }, ...prev]);
-      
-      // Показываем сообщение об успехе
-      successModal.showSuccess({
-        title: "Заявка создана и завершена!",
-        message: "Заявка успешно создана, выполнена и закрыта с отчётом."
-      });
-      
-      resetForm();
-    } catch (error: any) {
-      console.error("Ошибка при создании и завершении заявки:", error);
-      let errorMessage = "Не удалось создать и завершить заявку.";
-      
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setFormErrors(errorMessage);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const resetForm = () => {
     setShowCreateRequestModal(false);
-    setNewRequestType("");
-    setNewRequestTitle("");
     setRequestLocation("");
-    setNewRequestLocation("");
-    setDescription("");
-    setPhotos([]);
-    setPhotoPreviews([]);
-    setAfterPhotos([]);
-    setAfterPhotoPreviews([]);
     setCreateMode('create');
-    setCompletedRequestComment("");
   };
 
   useEffect(() => {
@@ -951,7 +847,7 @@ export default function ExecutorDashboard() {
       }
 
       // Отправляем запрос на сервер
-      const response = await api.patch(`/requests/${taskId}/execute`);
+      await api.patch(`/requests/${taskId}/execute`);
       
       // Показываем уведомление об успехе
       successModal.showSuccess({
@@ -1279,22 +1175,11 @@ export default function ExecutorDashboard() {
 
   const handleRefresh = async () => {
     try {
-      setNewRequestType("")
-      setNewRequestTitle("")
-      setNewRequestLocation("")
-      setDescription("")
       setSelectedCategoryId(null)
       setMyRating(null)
-      setPhotoPreviews([])
-      setAfterPhotoPreviews([])
-      setComment("")
-      setComments([])
       setFormErrors(null)
-      setPhotos([])
-      setAfterPhotos([])
       setStats(null)
       setCreateMode('create')
-      setCompletedRequestComment("")
       setExecutorId(null)
       setUserRatings({})
 
@@ -2053,6 +1938,8 @@ export default function ExecutorDashboard() {
             isSubmitting={isSubmitting}
             formErrors={formErrors}
             clientLocation={requestLocation}
+            createMode={createMode}
+            onModeChange={setCreateMode}
         />
 
         {/* Map Modal */}

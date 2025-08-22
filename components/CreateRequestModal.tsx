@@ -55,6 +55,8 @@ interface CreateRequestModalProps {
   translateType?: (type: string) => string;
   executors?: Executor[]; // Список исполнителей для department-head
   userServiceCategoryId?: number; // ID категории пользователя для department-head
+  createMode?: 'create' | 'createAndComplete'; // Режим создания для executor
+  onModeChange?: (mode: 'create' | 'createAndComplete') => void; // Функция изменения режима
 }
 
 export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
@@ -69,6 +71,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   translateType = (type) => type,
   executors = [],
   userServiceCategoryId,
+  createMode = 'create',
+  onModeChange,
 }) => {
   const [requestType, setRequestType] = useState("normal");
   const [location, setLocation] = useState(clientLocation);
@@ -84,6 +88,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [validationErrors, setValidationErrors] = useState<Set<number>>(new Set());
   const [basicFieldErrors, setBasicFieldErrors] = useState<Set<string>>(new Set());
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [afterPhotos, setAfterPhotos] = useState<File[]>([]);
+  const [afterPhotoPreviews, setAfterPhotoPreviews] = useState<string[]>([]);
+  const [completionComment, setCompletionComment] = useState("");
+  const [completionDate, setCompletionDate] = useState<Date>(new Date());
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -117,6 +125,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setDate(undefined);
     setPhotos([]);
     setPhotoPreviews([]);
+    setAfterPhotos([]);
+    setAfterPhotoPreviews([]);
+    setCompletionComment("");
+    setCompletionDate(new Date());
     setSubRequests([{ title: "", description: "", category_id: 0, executors: [] }]);
     setExpandedSubRequests(new Set([0]));
     setValidationErrors(new Set());
@@ -152,6 +164,32 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const removePhoto = (index: number) => {
     setPhotos(photos.filter((_, i) => i !== index));
     setPhotoPreviews(photoPreviews.filter((_, i) => i !== index));
+  };
+
+  const handleAfterPhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const validFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (afterPhotos.length + validFiles.length > 3) {
+      return;
+    }
+
+    const newPhotos = [...afterPhotos, ...validFiles];
+    setAfterPhotos(newPhotos);
+
+    // Создаем превью
+    validFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAfterPhotoPreviews(prev => [...prev, e.target?.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeAfterPhoto = (index: number) => {
+    setAfterPhotos(afterPhotos.filter((_, i) => i !== index));
+    setAfterPhotoPreviews(afterPhotoPreviews.filter((_, i) => i !== index));
   };
 
   const addSubRequest = () => {
@@ -238,9 +276,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     if (photos.length === 0) {
       newBasicFieldErrors.add('photos');
     }
+
+    // Валидация для режима создания с завершением
+    if (userRole === 'executor' && createMode === 'createAndComplete') {
+      if (afterPhotos.length === 0) {
+        newBasicFieldErrors.add('фотографии результата');
+      }
+      if (!completionComment.trim()) {
+        newBasicFieldErrors.add('комментарий о выполненной работе');
+      }
+    }
     
     setBasicFieldErrors(newBasicFieldErrors);
-  }, [requestType, location, locationDetails, photos, hasAttemptedSubmit]);
+  }, [requestType, location, locationDetails, photos, afterPhotos, completionComment, userRole, createMode, hasAttemptedSubmit]);
 
   const toggleSubRequestExpansion = (index: number) => {
     setExpandedSubRequests(prev => {
@@ -294,6 +342,16 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     
     if (photos.length === 0) {
       basicFieldErrors.push('фотографии (минимум 1)');
+    }
+
+    // Валидация для режима создания с завершением
+    if (userRole === 'executor' && createMode === 'createAndComplete') {
+      if (afterPhotos.length === 0) {
+        basicFieldErrors.push('фотографии результата (минимум 1)');
+      }
+      if (!completionComment.trim()) {
+        basicFieldErrors.push('комментарий о выполненной работе');
+      }
     }
 
     // Проверяем, что все под заявки заполнены
@@ -389,10 +447,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     const formData = new FormData();
 
-    // Определяем статус группы заявок для department-head
+    // Определяем статус группы заявок
     let groupStatus = 'awaiting_assignment';
-    if (userRole === 'client' || userRole === 'executor') {
+    if (userRole === 'client') {
       groupStatus = 'in_progress';
+    } else if (userRole === 'executor') {
+      groupStatus = createMode === 'createAndComplete' ? 'completed' : 'in_progress';
     } else if (userRole === 'department-head') {
       // Если хотя бы одна подзаявка имеет исполнителей, то статус execution
       const hasExecutors = validSubRequests.some(sub => 
@@ -412,8 +472,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     const subRequestsData = validSubRequests.map(sub => {
       let subStatus = 'awaiting_assignment';
       
-      if (userRole === 'client' || userRole === 'executor') {
+      if (userRole === 'client') {
         subStatus = 'in_progress';
+      } else if (userRole === 'executor') {
+        subStatus = createMode === 'createAndComplete' ? 'completed' : 'in_progress';
       } else if (userRole === 'department-head') {
         // Если у подзаявки есть исполнители, то статус assigned
         if (sub.executors && sub.executors.length > 0) {
@@ -437,6 +499,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     // Фото
     photos.forEach(photo => formData.append('photos', photo));
 
+    // Дополнительные данные для режима создания с завершением
+    if (userRole === 'executor' && createMode === 'createAndComplete') {
+      formData.append('completion_comment', completionComment);
+      formData.append('completion_date', format(completionDate, 'yyyy-MM-dd'));
+      afterPhotos.forEach(photo => formData.append('after_photos', photo));
+    }
+
     await onSubmit(formData);
   };
 
@@ -456,6 +525,42 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pb-16">
+          {/* Выбор режима создания для executor */}
+          {userRole === 'executor' && onModeChange && (
+            <div>
+              <Label className="flex items-center gap-1 mb-3">
+                Режим создания
+              </Label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  type="button"
+                  variant={createMode === 'create' ? 'default' : 'outline'}
+                  onClick={() => onModeChange('create')}
+                  className="flex-1 text-sm sm:text-base"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Создать заявку</span>
+                  <span className="sm:hidden">Обычная</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={createMode === 'createAndComplete' ? 'default' : 'outline'}
+                  onClick={() => onModeChange('createAndComplete')}
+                  className="flex-1 text-sm sm:text-base"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Создать с завершением</span>
+                  <span className="sm:hidden">С завершением</span>
+                </Button>
+              </div>
+              {createMode === 'createAndComplete' && (
+                <p className="text-xs text-gray-600 mt-2">
+                  Создайте заявку для уже выполненной работы с отчетом и фотографиями результата
+                </p>
+              )}
+            </div>
+          )}
+
           <div>
             <Label className="flex items-center gap-1">
               Тип заявки
@@ -597,6 +702,103 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               <p className="text-xs text-red-500 mt-1">Добавьте хотя бы одну фотографию</p>
             )}
           </div>
+
+          {/* Поля для режима создания с завершением */}
+          {userRole === 'executor' && createMode === 'createAndComplete' && (
+            <>
+              <div>
+                <Label className="flex items-center gap-1">
+                  Дата выполнения
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={`w-full justify-start text-left font-normal ${!completionDate && "text-muted-foreground"}`}
+                    >
+                      <CalendarLucid className="mr-2 h-4 w-4" />
+                      {completionDate ? format(completionDate, "PPP", { locale: ru }) : <span>Выберите дату</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={completionDate}
+                      onSelect={(newDate) => {
+                        if (newDate) {
+                          setCompletionDate(newDate);
+                        }
+                      }}
+                      disabled={(date) => date > new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-1">
+                  Комментарий о выполненной работе *
+                </Label>
+                <Textarea
+                  placeholder="Опишите выполненную работу, использованные материалы, время выполнения и т.д."
+                  value={completionComment}
+                  onChange={(e) => setCompletionComment(e.target.value)}
+                  className={`min-h-[100px] resize-none ${
+                    hasAttemptedSubmit && !completionComment.trim() ? 'border-red-300 focus:border-red-500' : ''
+                  }`}
+                />
+                {hasAttemptedSubmit && !completionComment.trim() && (
+                  <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                )}
+              </div>
+
+              <div>
+                <Label className="flex items-center gap-1">
+                  Фотографии результата (до 3 шт.) *
+                </Label>
+                <div className={`flex flex-wrap gap-4 mt-2 ${
+                  hasAttemptedSubmit && basicFieldErrors.has('фотографии результата') ? 'border-2 border-red-300 border-dashed rounded-lg p-4' : ''
+                }`}>
+                  {afterPhotoPreviews.map((photo, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={photo || "/placeholder.svg"}
+                        alt={`After Photo ${index + 1}`}
+                        className="w-20 h-20 object-cover rounded-lg"
+                      />
+                      <button
+                        onClick={() => removeAfterPhoto(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {afterPhotoPreviews.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('after-photo-input')?.click()}
+                      className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
+                    >
+                      <input
+                        id="after-photo-input"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleAfterPhotoUpload}
+                        className="hidden"
+                      />
+                      <Camera className="w-6 h-6 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+                {hasAttemptedSubmit && basicFieldErrors.has('фотографии результата') && (
+                  <p className="text-xs text-red-500 mt-1">Добавьте хотя бы одну фотографию результата</p>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Под заявки */}
           <div className="space-y-6">
@@ -1019,10 +1221,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {['client', 'executor'].includes(userRole) ? 'Отправка...' : 'Создание...'}
+                  {userRole === 'executor' && createMode === 'createAndComplete' ? 'Создание с завершением...' : 
+                   ['client', 'executor'].includes(userRole) ? 'Отправка...' : 'Создание...'}
                 </>
               ) : (
-                  ['client', 'executor'].includes(userRole) ? 'Отправить заявку' : 'Создать заявку'
+                userRole === 'executor' && createMode === 'createAndComplete' ? 'Создать с завершением' :
+                ['client', 'executor'].includes(userRole) ? 'Отправить заявку' : 'Создать заявку'
               )}
             </Button>
             <Button
