@@ -168,20 +168,20 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-        ...(onRedirectToOtherDepartment && (request.status !== "completed")
-                ? [
-          {
-            icon: ArrowRight,
-            label: "Перенаправить другому руководителю",
-            onClick: () => {
-              onRedirectToOtherDepartment?.(request)
-              setOpen(false)
-            },
-            variant: "default" as const,
-            showForRoles: ["executor"],
-          }
-        ]
-        : []),
+          ...(onRedirectToOtherDepartment && (request.status !== "completed")
+              ? [
+                {
+                  icon: ArrowRight,
+                  label: "Перенаправить к другой категории",
+                  onClick: () => {
+                    onRedirectToOtherDepartment?.(request)
+                    setOpen(false)
+                  },
+                  variant: "default" as const,
+                  showForRoles: ["executor"],
+                },
+              ]
+              : []),
       )
     }
 

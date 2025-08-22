@@ -1340,122 +1340,70 @@ export default function ClientDashboard() {
                     })}
                   </div>
 
-                  {/* Фотографии группы заявок (адаптивное отображение) */}
-                  {(() => {
-                    const beforePhotos = selectedRequest.photos?.filter((photo: any) => photo.type === 'before') || [];
-                    const afterPhotos = selectedRequest.photos?.filter((photo: any) => photo.type === 'after') || [];
+                  {/* Фотографии группы заявок (только before) */}
+                  {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
+                      <div className="mt-4">
+                        <Label className="font-bold block">Фотографии заявки (до выполнения)</Label>
+                        <div className="flex space-x-2 mt-2 flex-wrap">
+                          {selectedRequest.photos
+                              .filter((photo: any) => photo.type === 'before')
+                              .map((photo: any, index: number) => (
+                                  <img
+                                      key={index}
+                                      src={photo.photo_url || "/placeholder.svg"}
+                                      alt={`Фото ${index + 1}`}
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      onClick={() => {
+                                        setSelectedPhoto(photo.photo_url);
+                                        openModal('photoPreview');
+                                      }}
+                                      onError={(e) => {
+                                        e.currentTarget.src = "/placeholder.svg";
+                                      }}
+                                  />
+                              ))}
+                        </div>
+                      </div>
+                  )}
 
-                    return (
-                        <>
-                          {/* Фотографии до выполнения */}
-                          {beforePhotos.length > 0 && (
-                              <div className="mt-4">
-                                <Label className="font-bold block mb-3">Фотографии заявки (до выполнения)</Label>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                  {beforePhotos.map((photo: any, index: number) => (
-                                      <div key={index} className="relative group">
-                                        <img
-                                            src={photo.photo_url || "/placeholder.svg"}
-                                            alt={`Фото до ${index + 1}`}
-                                            className="w-full aspect-square object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-all duration-200 hover:scale-105"
-                                            onClick={() => {
-                                              setSelectedPhoto(photo.photo_url);
-                                              openModal('photoPreview');
-                                            }}
-                                            onError={(e) => {
-                                              e.currentTarget.src = "/placeholder.svg";
-                                            }}
-                                        />
-                                        <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                                          {index + 1}
-                                        </div>
-                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 rounded-lg flex items-center justify-center">
-                                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                            <div className="bg-white bg-opacity-90 rounded-full p-2">
-                                              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                              </svg>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                  ))}
-                                </div>
-                                {beforePhotos.length > 5 && (
-                                    <p className="text-xs text-gray-500 mt-2">
-                                      Показано {beforePhotos.length} фотографий. Нажмите на фото для увеличения.
-                                    </p>
-                                )}
-                              </div>
-                          )}
+                  {/* Фотографии группы заявок (только before) */}
+                  {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'after').length > 0 && (
+                      <div className="mt-4">
+                        <Label className="font-bold block">Фотографии заявки (после выполнения)</Label>
+                        <div className="flex space-x-2 mt-2 flex-wrap">
+                          {selectedRequest.photos
+                              .filter((photo: any) => photo.type === 'after')
+                              .map((photo: any, index: number) => (
+                                  <img
+                                      key={index}
+                                      src={photo.photo_url || "/placeholder.svg"}
+                                      alt={`Фото ${index + 1}`}
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      onClick={() => {
+                                        setSelectedPhoto(photo.photo_url);
+                                        openModal('photoPreview');
+                                      }}
+                                      onError={(e) => {
+                                        e.currentTarget.src = "/placeholder.svg";
+                                      }}
+                                  />
+                              ))}
+                        </div>
+                      </div>
+                  )}
 
-                          {/* Фотографии после выполнения */}
-                          {afterPhotos.length > 0 && (
-                              <div className="mt-4">
-                                <Label className="font-bold block mb-3">Фотографии заявки (после выполнения)</Label>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                  {afterPhotos.map((photo: any, index: number) => (
-                                      <div key={index} className="relative group">
-                                        <img
-                                            src={photo.photo_url || "/placeholder.svg"}
-                                            alt={`Фото после ${index + 1}`}
-                                            className="w-full aspect-square object-cover rounded-lg cursor-pointer border-2 border-green-200 hover:border-green-400 transition-all duration-200 hover:scale-105"
-                                            onClick={() => {
-                                              setSelectedPhoto(photo.photo_url);
-                                              openModal('photoPreview');
-                                            }}
-                                            onError={(e) => {
-                                              e.currentTarget.src = "/placeholder.svg";
-                                            }}
-                                        />
-                                        <div className="absolute top-2 left-2 bg-green-600 bg-opacity-90 text-white text-xs px-2 py-1 rounded-full">
-                                          {index + 1}
-                                        </div>
-                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 rounded-lg flex items-center justify-center">
-                                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                            <div className="bg-white bg-opacity-90 rounded-full p-2">
-                                              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                              </svg>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                  ))}
-                                </div>
-                                {afterPhotos.length > 5 && (
-                                    <p className="text-xs text-gray-500 mt-2">
-                                      Показано {afterPhotos.length} фотографий. Нажмите на фото для увеличения.
-                                    </p>
-                                )}
-                              </div>
-                          )}
-                        </>
-                    );
-                  })()}
-
-                  {/* Модальное окно для просмотра фото */}
+                  {/* Модальное окно */}
                   {selectedPhoto && (
                       <div
-                          className="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center z-50 p-4"
+                          className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
                           onClick={() => {setSelectedPhoto(null); closeModal(); }}
                       >
-                        <div className="relative max-w-full max-h-full">
-                          <img
-                              src={selectedPhoto}
-                              alt="Увеличенное фото"
-                              className="max-w-full max-h-full rounded-lg shadow-2xl"
-                              onClick={(e) => e.stopPropagation()}
-                          />
-                          <button
-                              className="absolute top-4 right-4 bg-black bg-opacity-50 text-white rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70 transition-all duration-200"
-                              onClick={() => {setSelectedPhoto(null); closeModal(); }}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
+                        <img
+                            src={selectedPhoto}
+                            alt="Увеличенное фото"
+                            className="max-w-full max-h-full rounded-lg"
+                            onClick={(e) => e.stopPropagation()}
+                        />
                       </div>
                   )}
 
