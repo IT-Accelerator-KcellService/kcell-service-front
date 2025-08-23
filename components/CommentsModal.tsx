@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Send, X } from "lucide-react";
 import { CommentList, Comment } from "@/components/comment/Comment";
-import { api } from "@/lib/api";
-import {useAuthStore} from "@/stores/useAuthStore";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useCommentsStore } from "@/stores/useCommentsStore";
 
 interface CommentsModalProps {
   isOpen: boolean;
@@ -20,52 +20,43 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
   currentUserId,
   isDesktop,
 }) => {
-  const {user} = useAuthStore()
+  const { user } = useAuthStore();
+  const {
+    comments,
+    loading,
+    initialized,
+    fetchComments,
+    addComment,
+    updateComment,
+    deleteComment,
+    resetComments
+  } = useCommentsStore();
 
   const [comment, setComment] = useState("");
-  const [comments, setComments] = useState<Comment[]>([]);
   const [editCommentId, setEditCommentId] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Загрузка комментариев при открытии модального окна
+  // Загрузка комментариев только при первом открытии модального окна
   useEffect(() => {
-    if (isOpen && requestId) {
+    if (isOpen && requestId && !initialized[requestId]) {
       fetchComments(requestId);
     }
-  }, [isOpen, requestId]);
+  }, [isOpen, requestId, initialized, fetchComments]);
 
   // Сброс состояния при закрытии
   useEffect(() => {
     if (!isOpen) {
       setComment("");
-      setComments([]);
       setEditCommentId(null);
     }
   }, [isOpen]);
 
-  const fetchComments = async (requestId: number) => {
-    try {
-      setIsLoading(true);
-      const res = await api.get(`/comments/request/${requestId}`);
-      setComments(res.data);
-    } catch (error) {
-      console.error("Ошибка при загрузке комментариев:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleDelete = async (id: number) => {
-    const oldComments = comments;
-    
-    // Оптимистичное обновление
-    setComments(prev => prev.filter(c => c.id !== id));
+    if (!requestId) return;
     
     try {
-      await api.delete(`/comments/${id}`);
+      await deleteComment(requestId, id);
     } catch (err) {
       console.error("Ошибка при удалении комментария:", err);
-      setComments(oldComments); // Восстанавливаем при ошибке
     }
   };
 
@@ -74,54 +65,20 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
     if (editCommentId) {
       // Редактирование комментария
-      setComments(prev =>
-        prev.map(c => c.id === editCommentId ? { ...c, comment: comment.trim() } : c)
-      );
-
-      const currentEditId = editCommentId;
-      const currentComment = comment.trim();
-      
-      setComment("");
-      setEditCommentId(null);
-
       try {
-        await api.put(`/comments/${currentEditId}`, {
-          comment: currentComment,
-        });
+        await updateComment(subRequestId, editCommentId, comment.trim());
+        setComment("");
+        setEditCommentId(null);
       } catch (error) {
         console.error("Ошибка при редактировании комментария:", error);
-        fetchComments(subRequestId); // Откатываем, если ошибка
       }
     } else {
       // Создание нового комментария
-      const tempId = -(comments.length + 111);
-      const newComment = {
-        id: tempId,
-        comment: comment.trim(),
-        user_id: currentUserId || 0,
-        request_id: subRequestId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        user: { id: user?.id ? user.id : 0, full_name: user?.full_name ? user.full_name : 'Вы', role: user?.role ? user.role : '' },
-        sender_id: user?.id ? user.id : 0,
-        timestamp: new Date().toISOString(),
-      };
-
-      // Оптимистичное обновление
-      setComments(prev => [...prev, newComment]);
-      
-      const currentComment = comment.trim();
-      setComment("");
-
       try {
-        await api.post(`/comments`, {
-          comment: currentComment,
-          request_id: subRequestId,
-        });
-        await fetchComments(subRequestId); // Обновляем ID с сервера
+        await addComment(subRequestId, comment.trim(), user);
+        setComment("");
       } catch (error) {
         console.error("Ошибка при отправке комментария:", error);
-        fetchComments(subRequestId); // Откат
       }
     }
   };
@@ -173,17 +130,17 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
             {/* Список комментариев */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-              {isLoading ? (
+              {loading[requestId || 0] ? (
                 <div className="text-center py-8">
                   <p className="text-gray-500 text-sm">Загрузка комментариев...</p>
                 </div>
-              ) : comments.length === 0 ? (
+              ) : (comments[requestId || 0] || []).length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-500 text-sm">Комментариев пока нет</p>
                 </div>
               ) : (
                 <CommentList
-                  comments={comments}
+                  comments={comments[requestId || 0] || []}
                   currentUserId={currentUserId}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
@@ -215,7 +172,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
                   disabled={!comment.trim()}
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="w-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -240,17 +197,17 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
           {/* Список комментариев */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {isLoading ? (
+            {loading[requestId || 0] ? (
               <div className="text-center py-8">
                 <p className="text-gray-500 text-sm">Загрузка комментариев...</p>
               </div>
-            ) : comments.length === 0 ? (
+            ) : (comments[requestId || 0] || []).length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500 text-sm">Комментариев пока нет</p>
               </div>
             ) : (
               <CommentList
-                comments={comments}
+                comments={comments[requestId || 0] || []}
                 currentUserId={currentUserId}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
@@ -282,7 +239,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                 className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
                 disabled={!comment.trim()}
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-4 w-4" />
               </Button>
             </div>
           </div>
