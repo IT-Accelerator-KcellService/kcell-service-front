@@ -1089,17 +1089,17 @@ export default function ClientDashboard() {
               setShowComments(null)
             }}>
               <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
-                <CardHeader className={isDesktop ? '' : 'sticky top-0 bg-white z-10 border-b'}>
-                  <CardTitle className={isDesktop ? '' : 'text-lg'}>Заявка #{selectedRequest.id}</CardTitle>
+                <CardHeader>
+                  <CardTitle className="font-medium text-gray-900">Заявка #{selectedRequest.id}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 pb-16">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Тип заявки</Label>
+                      <Label className="font-medium text-gray-900">Тип заявки</Label>
                       <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
                     </div>
                     <div>
-                      <Label>Статус</Label>
+                      <Label className="font-medium text-gray-900">Статус</Label>
                       <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                     </div>
                   </div>
