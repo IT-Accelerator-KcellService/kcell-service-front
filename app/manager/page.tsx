@@ -2246,8 +2246,7 @@ export default function ManagerDashboard() {
           }}>
             <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
               <CardHeader className={isDesktop ? '' : 'sticky top-0 bg-white z-10 border-b'}>
-                <CardTitle className={isDesktop ? '' : 'text-lg'}>Детали заявки #{selectedRequest.id}</CardTitle>
-                <CardDescription className={isDesktop ? '' : 'text-sm'}>Подробная информация о вашей заявке</CardDescription>
+                <CardTitle className={isDesktop ? '' : 'text-lg'}>Заявка #{selectedRequest.id}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pb-16">
                 <div className="grid grid-cols-2 gap-4">
@@ -2293,7 +2292,7 @@ export default function ManagerDashboard() {
                               <div className="flex justify-between items-start mb-3">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
+                                    <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>{subRequest.title}</h4>
                   </div>
                                   <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
