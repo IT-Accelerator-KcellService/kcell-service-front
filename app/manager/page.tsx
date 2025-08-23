@@ -2243,7 +2243,7 @@ export default function ManagerDashboard() {
 
                 {/* Под заявки */}
                 <div>
-                  <Label className={isDesktop ? '' : 'text-base font-semibold'}>Под заявки</Label>
+                  <Label className={isDesktop ? '' : 'text-base font-medium'}>Под заявки</Label>
                   <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
                     {selectedRequest.requests.map((subRequest: SubRequest) => {
                       const isExpanded = expandedSubRequests.has(subRequest.id);
@@ -2366,41 +2366,41 @@ export default function ManagerDashboard() {
                   </div>
                 </div>
 
-                  <div>
-                  <Label>Локация</Label>
+                <div>
+                  <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Локация в офисе</Label>
                   <p className="text-sm">{selectedRequest.location_detail}</p>
-                  </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
                           const locText = selectedRequest.location;
-                              const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
-                              const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
-                              const accMatch = locText.match(/±(\d+) м/);
+                          const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
+                          const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
+                          const accMatch = locText.match(/±(\d+) м/);
 
-                              if (latMatch && lonMatch && accMatch) {
-                                setMapLocation({
-                                  lat: parseFloat(latMatch[1]),
-                                  lon: parseFloat(lonMatch[1]),
-                                  accuracy: parseInt(accMatch[1])
-                                });
-                                setShowMapModal(true);
-                                openModal('mapModal');
-                              } else {
-                                alert("Не удалось определить координаты из локации");
-                              }
-                            }}
-                        >
-                          <MapPin className="w-4 h-4 mr-1" />
-                          Показать на карте
-                        </Button>
-                      </div>
-                    </div>
+                          if (latMatch && lonMatch && accMatch) {
+                            setMapLocation({
+                              lat: parseFloat(latMatch[1]),
+                              lon: parseFloat(lonMatch[1]),
+                              accuracy: parseInt(accMatch[1])
+                            });
+                            setShowMapModal(true);
+                            openModal('mapModal');
+                          } else {
+                            alert("Не удалось определить координаты из локации");
+                          }
+                        }}
+                    >
+                      <MapPin className="w-4 h-4 mr-1" />
+                      Показать на карте
+                    </Button>
+                  </div>
+                </div>
 
-                <div className="flex items-center">
+                <div className="flex items-center font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">
                   <Clock className="w-4 h-4 mr-1" />
                   {new Date(selectedRequest.created_date).toLocaleString("ru-RU", {
                     day: "2-digit",
@@ -2409,12 +2409,12 @@ export default function ManagerDashboard() {
                     hour: "2-digit",
                     minute: "2-digit"
                   })}
-                  </div>
+                </div>
 
                 {/* Фотографии группы заявок (только before) */}
                 {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
                     <div className="mt-4">
-                      <Label className="font-bold block">Фотографии заявки (до выполнения)</Label>
+                      <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Фотографии (до выполнения)</Label>
                       <div className="flex space-x-2 mt-2 flex-wrap">
                         {selectedRequest.photos
                             .filter((photo: any) => photo.type === 'before')
@@ -2440,7 +2440,7 @@ export default function ManagerDashboard() {
                 {/* Фотографии группы заявок (только before) */}
                 {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'after').length > 0 && (
                     <div className="mt-4">
-                      <Label className="font-bold block">Фотографии заявки (после выполнения)</Label>
+                      <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Фотографии (после выполнения)</Label>
                       <div className="flex space-x-2 mt-2 flex-wrap">
                         {selectedRequest.photos
                             .filter((photo: any) => photo.type === 'after')
