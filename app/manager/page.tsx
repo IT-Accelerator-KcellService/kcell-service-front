@@ -25,7 +25,6 @@ import {
   MapPin,
   MessageCircle,
   Plus,
-  Star,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -129,13 +128,6 @@ interface Category {
   name: string
 }
 
-interface Rating {
-  id: number;
-  rating: number;
-  request_id: number;
-  created_at: string;
-}
-
 export default function ManagerDashboard() {
   const {token, clearAuth, user} = useAuthStore()
   const {categories, fetchCategories, clearCategories, updateCategories} = useCategoryStore()
@@ -149,8 +141,6 @@ export default function ManagerDashboard() {
   const rejectModal = useRejectRequestModal()
   const [showComments, setShowComments] = useState<number | null>(null);
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
-  const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
-
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
   const [tab, setTab] = useState("requests")
@@ -690,20 +680,6 @@ export default function ManagerDashboard() {
     }
   };
 
-  const checkUserRating = async (requestId: number) => {
-    try {
-      const response = await api.get(`/ratings/user/${requestId}`);
-      if (response.data) {
-        setUserRatings(prev => ({
-          ...prev,
-          [requestId]: response.data[0]
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to check user rating:", error);
-    }
-  };
-
   const handleAddOrUpdateUser = async () => {
     try {
       setFormErrors(null);
@@ -846,14 +822,6 @@ export default function ManagerDashboard() {
       setHasMore(pageToLoad < response.data.totalPages);
       setPage(pageToLoad);
 
-      // Проверка оценки для каждой под заявки
-      newRequests.forEach((requestGroup: RequestGroup) => {
-        requestGroup.requests.forEach((subRequest: SubRequest) => {
-          if (subRequest.status === "completed") {
-            checkUserRating(subRequest.id);
-          }
-        });
-      });
     } catch (error) {
       console.error("Failed to fetch requests:", error);
     } finally {
@@ -1267,12 +1235,6 @@ export default function ManagerDashboard() {
       default:
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
-  }
-
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-        <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
-    ))
   }
 
   const renderStatusWithTooltip = (status: string) => {
@@ -2432,12 +2394,6 @@ export default function ManagerDashboard() {
           </div>
       )}
                                                   </div>
-                                                  {userRatings[subRequest.id]?.rating && (
-                                                      <div className="flex items-center gap-2">
-                                                        <span className="text-xs text-gray-500">Оценка:</span>
-                                                        <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
-                                                      </div>
-                                                  )}
                                                 </div>
                                             ))}
                                           </div>

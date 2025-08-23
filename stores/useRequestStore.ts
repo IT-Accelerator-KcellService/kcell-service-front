@@ -36,6 +36,7 @@ export interface SubRequest {
     is_long_term?: boolean;
     ratings?: number;
     comment?: string;
+    rating?: number
 }
 
 export interface RequestGroup {

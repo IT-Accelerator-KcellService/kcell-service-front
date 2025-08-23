@@ -153,20 +153,6 @@ export default function ExecutorDashboard() {
     closeModalWithHistory();
   };
 
-  const checkUserRating = async (requestId: number) => {
-    try {
-      const response = await api.get(`/ratings/user/${requestId}`)
-      if (response.data) {
-        setUserRatings(prev => ({
-          ...prev,
-          [requestId]: response.data[0]
-        }))
-      }
-    } catch (error) {
-      console.error("Failed to check user rating:", error)
-    }
-  }
-
   const handleRejectRequest = async (reason: string) => {
     if (!selectedRequestForReject) return;
 
@@ -748,15 +734,15 @@ export default function ExecutorDashboard() {
       for (const r of responseRating.data) {
         ratingsMap.set(r.request_id, parseFloat(r.rating))
       }
-      const completed = response.data.completedRequests.map((req: Request) => ({
-        ...req,
-        rating: ratingsMap.get(req.id) || null,
+
+      const completed = response.data.completedRequests.map((reqGroup: RequestGroup) => ({
+        ...reqGroup,
+        requests: reqGroup.requests.map((req: SubRequest) => ({
+          ...req,
+          rating: ratingsMap.get(req.id) || null,
+        })),
       }))
-      response.data.myRequests.forEach((request: Request) => {
-        if (request.status === "completed") {
-          checkUserRating(request.id);
-        }
-      });
+
       setCompletedRequests(completed)
       setAssignedRequests(response.data.assignedRequests);
       setMyRequests(response.data.myRequests);
@@ -1745,16 +1731,16 @@ export default function ExecutorDashboard() {
                   </div>
                                                       )}
                   </div>
-                                                    {userRatings[subRequest.id]?.rating && (
+                                                    {subRequest?.rating && (
                                                         <div className="flex items-center gap-2">
                                                           <span className="text-xs text-gray-500">Оценка:</span>
-                                                          <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
-                    </div>
-                  )}
-                          </div>
-                      ))}
-                    </div>
-                  </div>
+                                                          <div className="flex">{renderStars(subRequest.rating)}</div>
+                                                        </div>
+                                                      )}
+                                                              </div>
+                                                          ))}
+                                                        </div>
+                                                      </div>
                                       ) : null;
                                     })()}
 

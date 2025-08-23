@@ -190,7 +190,7 @@ export function RoleBasedActionMenu({
       if (isSubRequest) {
         // Действия для подзаявок
         roleSpecificActions.push(
-          ...(request.status === "completed" && !request.rating
+          ...(request.status === "completed" && !request.ratings[0]
             ? [
                 {
                   icon: Star,
@@ -303,7 +303,7 @@ export function RoleBasedActionMenu({
                 },
               ]
               : []),
-          ...(request.status === "completed" && request.client_id === user?.id && !request.rating
+          ...(request.status === "completed" && request.client_id === user?.id && !request.ratings[0]
               ? [
                 {
                   icon: Star,

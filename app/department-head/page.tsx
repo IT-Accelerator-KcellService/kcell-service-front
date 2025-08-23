@@ -67,12 +67,6 @@ interface User {
   role: string
 }
 
-interface Rating {
-  id: number
-  rating: number
-  request_id: number
-  created_at: string
-}
 interface Executor{
   id: number,
   executor_id: number
@@ -119,7 +113,6 @@ export default function DepartmentHeadDashboard() {
   const [showMapModal, setShowMapModal] = useState(false)
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 })
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
-  const [userRatings, setUserRatings] = useState<Record<number, Rating>>({})
   const [newExecutorEmail,setNewExecutorEmail]=useState("")
   const [newExecutorPhone, setNewExecutorPhone] = useState("")
   const [executors, setExecutors] = useState<Executor[]>([])
@@ -445,11 +438,6 @@ export default function DepartmentHeadDashboard() {
         const dateB = new Date(b.created_date).getTime();
         return dateB - dateA;
       });
-      myRequests.forEach((request: Request) => {
-        if (request.status === "completed") {
-          checkUserRating(request.id);
-        }
-      });
       setIncomingRequests(sortedOtherRequests);
       setMyRequests(myRequests);
     } catch (error) {
@@ -562,22 +550,6 @@ export default function DepartmentHeadDashboard() {
     }
   };
 
-
-
-  const checkUserRating = async (requestId: number) => {
-    try {
-      const response = await api.get(`/ratings/user/${requestId}`)
-      if (response.data) {
-        setUserRatings(prev => ({
-          ...prev,
-          [requestId]: response.data[0]
-        }))
-      }
-    } catch (error) {
-      console.error("Failed to check user rating:", error)
-    }
-  }
-
   const handleRateExecutor = async () => {
     if (requestToRate && ratingValue > 0) {
       try {
@@ -585,10 +557,6 @@ export default function DepartmentHeadDashboard() {
           rating: ratingValue,
           request_id: requestToRate.id
         })
-        setUserRatings(prev => ({
-          ...prev,
-          [requestToRate.id]: response.data
-        }))
         setShowRatingModal(false);
         closeModalWithHistory();
         setRatingValue(0)
@@ -726,12 +694,6 @@ export default function DepartmentHeadDashboard() {
       default:
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
-  }
-
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-        <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
-    ))
   }
 
   const handleToggleLongTerm = async (requestId: number, requestGroupId: number, currentStatus: boolean) => {
@@ -900,7 +862,6 @@ export default function DepartmentHeadDashboard() {
     try {
       setRatingValue(0)
       setClientInfo({})
-      setUserRatings({})
       setFormErrors(null)
       setCurrentUserId(null)
       setStats(null)
@@ -1614,12 +1575,6 @@ export default function DepartmentHeadDashboard() {
                       </div>
                   )}
                                                     </div>
-                                                    {userRatings[subRequest.id]?.rating && (
-                                                        <div className="flex items-center gap-2">
-                                                          <span className="text-xs text-gray-500">Оценка:</span>
-                                                          <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
-                                                        </div>
-                                                    )}
                                                   </div>
                                               ))}
                                             </div>
