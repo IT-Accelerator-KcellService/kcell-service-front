@@ -22,7 +22,7 @@ export const useCategoryStore = create<CategoryState>()(
 
       fetchCategories: async (token) => {
         try {
-          const res = await fetch("http://localhost:8080/api/service-categories", {
+          const res = await fetch("https://kcell-service.onrender.com/api/service-categories", {
             method: "GET",
             headers: {
               "Content-Type": "application/json",

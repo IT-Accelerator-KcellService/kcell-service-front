@@ -57,7 +57,7 @@ import {CompleteTaskModal} from "@/components/CompleteTaskModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import {RejectSubRequestModal} from "@/components/RejectSubRequestModal";
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
 
 interface Rating {
