@@ -552,7 +552,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       <Card className={`w-full overflow-y-auto ${
         isFullScreen 
           ? 'max-w-none max-h-none h-full rounded-none' 
-          : 'max-w-2xl max-h-[90vh]'
+          : 'max-w-4xl max-h-[90vh]'
       }`} onClick={(e) => e.stopPropagation()}>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -579,7 +579,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-6 pb-16">
+        <CardContent className="space-y-5 pb-16 px-6">
           {/* Выбор режима создания для executor */}
           {userRole === 'executor' && onModeChange && (
             <div>
@@ -883,9 +883,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           )}
 
           {/* Под заявки */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              
               <Button
                 type="button"
                 variant="outline"
@@ -898,13 +897,47 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </Button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
               {subRequests.map((subRequest, index) => (
-                <Card key={index} className="border border-gray-200 hover:border-gray-300 transition-colors">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                                              <div className="flex items-center gap-3">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                <div key={index} className="relative group">
+                  {/* Основная карточка подзаявки */}
+                  <div className={`relative overflow-hidden rounded-xl border transition-all duration-200 ${
+                    hasAttemptedSubmit && (
+                      validationErrors.has(index) || 
+                      !subRequest.title.trim() || 
+                      !subRequest.description.trim() || 
+                      !subRequest.category_id ||
+                      (userRole === 'department-head' && userServiceCategoryId && 
+                       subRequest.category_id === userServiceCategoryId && 
+                       subRequest.executors && subRequest.executors.length > 0 && 
+                       !subRequest.executors.some(e => e.role === 'leader'))
+                    )
+                      ? 'border-red-200 bg-red-50/30' 
+                      : 'border-gray-200 bg-white hover:border-violet-300 hover:shadow-md'
+                  }`}>
+                    
+                    {/* Градиентная полоса слева */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+                      hasAttemptedSubmit && (
+                        validationErrors.has(index) || 
+                        !subRequest.title.trim() || 
+                        !subRequest.description.trim() || 
+                        !subRequest.category_id ||
+                        (userRole === 'department-head' && userServiceCategoryId && 
+                         subRequest.category_id === userServiceCategoryId && 
+                         subRequest.executors && subRequest.executors.length > 0 && 
+                         !subRequest.executors.some(e => e.role === 'leader'))
+                      )
+                        ? 'bg-gradient-to-b from-red-400 to-red-600' 
+                        : 'bg-gradient-to-b from-violet-400 to-violet-600'
+                    }`} />
+                    
+                    {/* Заголовок подзаявки */}
+                    <div className="pl-6 pr-4 py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 flex-1">
+                          {/* Номер подзаявки */}
+                          <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold shadow-sm ${
                             hasAttemptedSubmit && (
                               validationErrors.has(index) || 
                               !subRequest.title.trim() || 
@@ -915,379 +948,394 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                subRequest.executors && subRequest.executors.length > 0 && 
                                !subRequest.executors.some(e => e.role === 'leader'))
                             )
-                              ? 'bg-red-100 text-red-600' 
-                              : 'bg-blue-100 text-blue-600'
+                              ? 'bg-red-100 text-red-700 border-2 border-red-200' 
+                              : 'bg-violet-100 text-violet-700 border-2 border-violet-200'
                           }`}>
                             {index + 1}
                           </div>
-                          <div>
-                            <h4 className="font-medium text-base">Под заявка #{index + 1}</h4>
-                            {subRequest.title && (
-                              <p className="text-sm text-gray-600 mt-1">{subRequest.title}</p>
-                            )}
+                          
+                          {/* Информация о подзаявке */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-1">
+                              <h4 className="font-semibold text-lg text-gray-900">Под заявка #{index + 1}</h4>
+                            </div>
+                            
+                            {/* Сообщения об ошибках */}
                             {hasAttemptedSubmit && validationErrors.has(index) && (
-                              <p className="text-xs text-red-500 mt-1">
-                                {userRole === 'admin-worker' 
-                                  ? 'Требуется заполнить сложность и SLA'
-                                  : userRole === 'department-head'
-                                    ? (() => {
-                                        const subRequest = subRequests[index];
-                                        const hasComplexityAndSLA = subRequest.complexity && subRequest.sla;
-                                        const hasExecutors = subRequest.executors && subRequest.executors.length > 0;
-                                        const hasLeader = hasExecutors && subRequest.executors!.some(e => e.role === 'leader');
-                                        
-                                        if (!hasComplexityAndSLA && !hasLeader) {
-                                          return 'Требуется заполнить сложность, SLA и назначить лидера';
-                                        } else if (!hasComplexityAndSLA) {
-                                          return 'Требуется заполнить сложность и SLA';
-                                        } else if (!hasLeader) {
-                                          return 'Требуется назначить лидера среди исполнителей';
-                                        }
-                                        return 'Требуется заполнить обязательные поля';
-                                      })()
-                                  : 'Требуется заполнить обязательные поля'
-                                }
-                              </p>
+                              <div className="flex items-center gap-2 text-red-600 text-sm">
+                                <AlertTriangle className="w-4 h-4" />
+                                <span>
+                                  {userRole === 'admin-worker' 
+                                    ? 'Требуется заполнить сложность и SLA'
+                                    : userRole === 'department-head'
+                                      ? (() => {
+                                          const subRequest = subRequests[index];
+                                          const hasComplexityAndSLA = subRequest.complexity && subRequest.sla;
+                                          const hasExecutors = subRequest.executors && subRequest.executors.length > 0;
+                                          const hasLeader = hasExecutors && subRequest.executors!.some(e => e.role === 'leader');
+                                          
+                                          if (!hasComplexityAndSLA && !hasLeader) {
+                                            return 'Требуется заполнить сложность, SLA и назначить лидера';
+                                          } else if (!hasComplexityAndSLA) {
+                                            return 'Требуется заполнить сложность и SLA';
+                                          } else if (!hasLeader) {
+                                            return 'Требуется назначить лидера среди исполнителей';
+                                          }
+                                          return 'Требуется заполнить обязательные поля';
+                                        })()
+                                      : 'Требуется заполнить обязательные поля'
+                                  }
+                                </span>
+                              </div>
                             )}
                             {hasAttemptedSubmit && !validationErrors.has(index) && (!subRequest.title.trim() || !subRequest.description.trim() || !subRequest.category_id) && (
-                              <p className="text-xs text-red-500 mt-1">Требуется заполнить название, описание и категорию</p>
+                              <div className="flex items-center gap-2 text-red-600 text-sm">
+                                <AlertTriangle className="w-4 h-4" />
+                                <span>Требуется заполнить название, описание и категорию</span>
+                              </div>
                             )}
                           </div>
                         </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleSubRequestExpansion(index)}
-                          className="p-2 hover:bg-gray-100"
-                        >
-                          {expandedSubRequests.has(index) ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4" />
-                          )}
-                        </Button>
-                        {subRequests.length > 1 && (
+                        
+                        {/* Кнопки управления */}
+                        <div className="flex items-center gap-1">
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => removeSubRequest(index)}
-                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => toggleSubRequestExpansion(index)}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {expandedSubRequests.has(index) ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
                           </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className={`space-y-6 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
-                    <div>
-                      <Label htmlFor={`subRequestTitle-${index}`} className="flex items-center gap-1">
-                        Название под заявки
-                      </Label>
-                      <Input
-                        id={`subRequestTitle-${index}`}
-                        className={hasAttemptedSubmit && !subRequest.title.trim() ? 'border-red-300 focus:border-red-500' : ''}
-                        placeholder="Краткое название задачи"
-                        value={subRequest.title}
-                        onChange={(e) => updateSubRequest(index, 'title', e.target.value)}
-                      />
-                      {hasAttemptedSubmit && !subRequest.title.trim() && (
-                        <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1">
-                        Категория услуги
-                      </Label>
-                      <Select
-                        value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
-                        onValueChange={(value) => {
-                          const category = categories.find(c => c.name === value);
-                          updateSubRequest(index, 'category_id', category?.id || 0);
-                        }}
-                      >
-                        <SelectTrigger 
-                          id={`subRequestCategory-${index}`}
-                          className={hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) ? 'border-red-300 focus:border-red-500' : ''}
-                        >
-                          <SelectValue placeholder="Выберите категорию" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map(category => (
-                            <SelectItem key={category.id} value={category.name}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) && (
-                        <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`subRequestDescription-${index}`} className="flex items-center gap-1">
-                        Описание проблемы
-                      </Label>
-                      <Textarea
-                        id={`subRequestDescription-${index}`}
-                        placeholder="Опишите проблему подробно..."
-                        className={`min-h-[100px] ${hasAttemptedSubmit && !subRequest.description.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                        value={subRequest.description}
-                        onChange={(e) => updateSubRequest(index, 'description', e.target.value)}
-                      />
-                      {hasAttemptedSubmit && !subRequest.description.trim() && (
-                        <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                      )}
-                    </div>
-
-                                        {/* Выбор исполнителей для department-head */}
-                    {userRole === 'department-head' && userServiceCategoryId && 
-                     subRequest.category_id === userServiceCategoryId && executors.length > 0 && (
-                      <div className="space-y-4">
-                        {/* Выбор исполнителей через Select */}
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-sm font-medium">Добавить исполнителя (необязательно)</Label>
-                            <Select
-                              value=""
-                              onValueChange={(value) => {
-                                if (value) {
-                                  const executorId = parseInt(value);
-                                  const currentExecutors = subRequest.executors || [];
-                                  const executor = executors.find(e => e.id === executorId);
-                                  
-                                  if (executor && !currentExecutors.some(e => e.id === executorId)) {
-                                    // Добавляем исполнителя как обычного исполнителя
-                                    const newExecutors = [...currentExecutors, { id: executorId, role: 'executor' as const }];
-                                    updateSubRequestExecutors(index, newExecutors);
-                                  }
-                                }
-                              }}
+                          {subRequests.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeSubRequest(index)}
+                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                             >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Выберите исполнителя для добавления" />
-                              </SelectTrigger>
-                                                              <SelectContent>
-                                                                     {executors
-                                     .filter(executor => !subRequest.executors?.some(e => e.id === executor.id))
-                                     .map(executor => (
-                                       <SelectItem key={executor.id} value={executor.id.toString()}>
-                                        <div className="flex flex-col">
-                                          <span className="font-medium">{executor.user.full_name}</span>
-                                          <span className="text-xs text-gray-500">
-                                            {executor.specialty} • Загрузка: {executor.workload}
-                                          </span>
-                                        </div>
-                                      </SelectItem>
-                                    ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          
-                          {/* Список выбранных исполнителей */}
-                          {subRequest.executors && subRequest.executors.length > 0 && (
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">Выбранные исполнители:</Label>
-                              {subRequest.executors.map(executorData => {
-                                const executor = executors.find(e => e.id === executorData.id);
-                                if (!executor) return null;
-                                
-                                return (
-                                  <div 
-                                    key={executorData.id}
-                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
-                                  >
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-medium text-sm">
-                                          {executor.user.full_name}
-                                        </span>
-                                        {executorData.role === 'leader' && (
-                                          <Badge variant="secondary" className="text-xs">
-                                            Лидер
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      <p className="text-sm text-gray-600 mt-1">
-                                        {executor.specialty} • Загрузка: {executor.workload}
-                                      </p>
-                                      {executor.user.phone && (
-                                        <p className="text-xs text-gray-500 mt-1">
-                                          Тел: {executor.user.phone}
-                                        </p>
-                                      )}
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2">
-                                      <Select
-                                        value={executorData.role}
-                                        onValueChange={(role: 'executor' | 'leader') => {
-                                          const currentExecutors = subRequest.executors || [];
-                                          const updatedExecutors = currentExecutors.map(e => 
-                                            e.id === executorData.id
-                                              ? { ...e, role } 
-                                              : e
-                                          );
-                                          updateSubRequestExecutors(index, updatedExecutors);
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-28 h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="executor">Исполнитель</SelectItem>
-                                          <SelectItem value="leader">Лидер</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                      
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          const currentExecutors = subRequest.executors || [];
-                                          updateSubRequestExecutors(
-                                            index, 
-                                            currentExecutors.filter(e => e.id !== executorData.id)
-                                          );
-                                        }}
-                                        className="text-red-500 hover:text-red-700 p-1 h-8 w-8"
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           )}
                         </div>
-                        
-                        {/* Индикатор статуса */}
-                        {subRequest.executors && subRequest.executors.length > 0 && (
-                          <div className={`p-3 rounded-lg border ${
-                            subRequest.executors.some(e => e.role === 'leader')
-                              ? 'bg-green-50 border-green-200' 
-                              : 'bg-yellow-50 border-yellow-200'
-                          }`}>
-                            <div className="flex items-center gap-2 text-sm">
-                              {subRequest.executors.some(e => e.role === 'leader') ? (
-                                <>
-                                  <CheckCircle className="w-4 h-4 text-green-600" />
-                                  <span className="text-green-800">
-                                    Выбрано исполнителей: {subRequest.executors.length} (включая лидера)
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                                  <span className="text-yellow-800">
-                                    Выбрано исполнителей: {subRequest.executors.length}. Назначьте лидера!
-                                  </span>
-                                </>
+                      </div>
+                    </div>
+
+                                        {/* Содержимое подзаявки */}
+                    <div className={`border-t border-gray-100 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
+                      <div className="p-6 space-y-5">
+                        <div>
+                          <Label htmlFor={`subRequestTitle-${index}`} className="flex items-center gap-1">
+                            Название под заявки
+                          </Label>
+                          <Input
+                            id={`subRequestTitle-${index}`}
+                            className={hasAttemptedSubmit && !subRequest.title.trim() ? 'border-red-300 focus:border-red-500' : ''}
+                            placeholder="Краткое название задачи"
+                            value={subRequest.title}
+                            onChange={(e) => updateSubRequest(index, 'title', e.target.value)}
+                          />
+                          {hasAttemptedSubmit && !subRequest.title.trim() && (
+                            <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1">
+                            Категория услуги
+                          </Label>
+                          <Select
+                            value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
+                            onValueChange={(value) => {
+                              const category = categories.find(c => c.name === value);
+                              updateSubRequest(index, 'category_id', category?.id || 0);
+                            }}
+                          >
+                            <SelectTrigger 
+                              id={`subRequestCategory-${index}`}
+                              className={hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) ? 'border-red-300 focus:border-red-500' : ''}
+                            >
+                              <SelectValue placeholder="Выберите категорию" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map(category => (
+                                <SelectItem key={category.id} value={category.name}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) && (
+                            <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label htmlFor={`subRequestDescription-${index}`} className="flex items-center gap-1">
+                            Описание проблемы
+                          </Label>
+                          <Textarea
+                            id={`subRequestDescription-${index}`}
+                            placeholder="Опишите проблему подробно..."
+                            className={`min-h-[100px] ${hasAttemptedSubmit && !subRequest.description.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+                            value={subRequest.description}
+                            onChange={(e) => updateSubRequest(index, 'description', e.target.value)}
+                          />
+                          {hasAttemptedSubmit && !subRequest.description.trim() && (
+                            <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                          )}
+                        </div>
+
+                        {/* Выбор исполнителей для department-head */}
+                        {userRole === 'department-head' && userServiceCategoryId && 
+                         subRequest.category_id === userServiceCategoryId && executors.length > 0 && (
+                          <div className="space-y-4">
+                            {/* Выбор исполнителей через Select */}
+                            <div className="space-y-3">
+                              <div>
+                                <Label className="text-sm font-medium">Добавить исполнителя (необязательно)</Label>
+                                <Select
+                                  value=""
+                                  onValueChange={(value) => {
+                                    if (value) {
+                                      const executorId = parseInt(value);
+                                      const currentExecutors = subRequest.executors || [];
+                                      const executor = executors.find(e => e.id === executorId);
+                                      
+                                      if (executor && !currentExecutors.some(e => e.id === executorId)) {
+                                        // Добавляем исполнителя как обычного исполнителя
+                                        const newExecutors = [...currentExecutors, { id: executorId, role: 'executor' as const }];
+                                        updateSubRequestExecutors(index, newExecutors);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Выберите исполнителя для добавления" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {executors
+                                      .filter(executor => !subRequest.executors?.some(e => e.id === executor.id))
+                                      .map(executor => (
+                                        <SelectItem key={executor.id} value={executor.id.toString()}>
+                                          <div className="flex flex-col">
+                                            <span className="font-medium">{executor.user.full_name}</span>
+                                            <span className="text-xs text-gray-500">
+                                              {executor.specialty} • Загрузка: {executor.workload}
+                                            </span>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              {/* Список выбранных исполнителей */}
+                              {subRequest.executors && subRequest.executors.length > 0 && (
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">Выбранные исполнители:</Label>
+                                  {subRequest.executors.map(executorData => {
+                                    const executor = executors.find(e => e.id === executorData.id);
+                                    if (!executor) return null;
+                                    
+                                    return (
+                                      <div 
+                                        key={executorData.id}
+                                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
+                                      >
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium text-sm">
+                                              {executor.user.full_name}
+                                            </span>
+                                            {executorData.role === 'leader' && (
+                                              <Badge variant="secondary" className="text-xs">
+                                                Лидер
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          <p className="text-sm text-gray-600 mt-1">
+                                            {executor.specialty} • Загрузка: {executor.workload}
+                                          </p>
+                                          {executor.user.phone && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                              Тел: {executor.user.phone}
+                                            </p>
+                                          )}
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                          <Select
+                                            value={executorData.role}
+                                            onValueChange={(role: 'executor' | 'leader') => {
+                                              const currentExecutors = subRequest.executors || [];
+                                              const updatedExecutors = currentExecutors.map(e => 
+                                                e.id === executorData.id
+                                                  ? { ...e, role } 
+                                                  : e
+                                              );
+                                              updateSubRequestExecutors(index, updatedExecutors);
+                                            }}
+                                          >
+                                            <SelectTrigger className="w-28 h-8 text-xs">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="executor">Исполнитель</SelectItem>
+                                              <SelectItem value="leader">Лидер</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                          
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              const currentExecutors = subRequest.executors || [];
+                                              updateSubRequestExecutors(
+                                                index, 
+                                                currentExecutors.filter(e => e.id !== executorData.id)
+                                              );
+                                            }}
+                                            className="text-red-500 hover:text-red-700 p-1 h-8 w-8"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               )}
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Дополнительные поля только для admin-worker and department-head */}
-                    {(userRole === 'admin-worker' || userRole === 'department-head') && (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor={`subRequestComplexity-${index}`} className="flex items-center gap-1">
-                              Сложность
-                            </Label>
-                            <Select
-                              value={subRequest.complexity || ''}
-                              onValueChange={(value: 'simple' | 'medium' | 'complex') => 
-                                updateSubRequest(index, 'complexity', value)
-                              }
-                            >
-                              <SelectTrigger 
-                                id={`subRequestComplexity-${index}`}
-                                className={hasAttemptedSubmit && !subRequest.complexity ? 'border-red-300 focus:border-red-500' : ''}
-                              >
-                                <SelectValue placeholder="Выберите сложность" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="simple">Простая</SelectItem>
-                                <SelectItem value="medium">Средняя</SelectItem>
-                                <SelectItem value="complex">Сложная</SelectItem>
-                              </SelectContent>
-                            </Select>
-                                                          {hasAttemptedSubmit && !subRequest.complexity && (
-                                <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                              )}
-                          </div>
-
-                          <div>
-                            <Label htmlFor={`subRequestSLA-${index}`} className="flex items-center gap-1">
-                              SLA
-                            </Label>
-                            <Select
-                              value={subRequest.sla || ''}
-                              onValueChange={(value: string) => updateSubRequest(index, 'sla', value)}
-                            >
-                              <SelectTrigger 
-                                id={`subRequestSLA-${index}`}
-                                className={hasAttemptedSubmit && !subRequest.sla ? 'border-red-300 focus:border-red-500' : ''}
-                              >
-                                <SelectValue placeholder="Выберите SLA" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="1h">1 час</SelectItem>
-                                <SelectItem value="4h">4 часа</SelectItem>
-                                <SelectItem value="8h">8 часов</SelectItem>
-                                <SelectItem value="1d">1 день</SelectItem>
-                                <SelectItem value="3d">3 дня</SelectItem>
-                                <SelectItem value="1w">1 неделя</SelectItem>
-                              </SelectContent>
-                            </Select>
-                                                          {hasAttemptedSubmit && !subRequest.sla && (
-                                <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                              )}
-                          </div>
-                        </div>
-                        
-                        {/* Индикатор заполненности обязательных полей */}
-                        {hasAttemptedSubmit && (
-                          <div className={`p-3 rounded-lg border ${
-                            subRequest.complexity && subRequest.sla 
-                              ? 'bg-green-50 border-green-200' 
-                              : 'bg-yellow-50 border-yellow-200'
-                          }`}>
-                          <div className="flex items-center gap-2 text-sm">
-                            {subRequest.complexity && subRequest.sla ? (
-                              <>
-                                <CheckCircle className="w-4 h-4 text-green-600" />
-                                <span className="text-green-800">
-                                  Все обязательные поля заполнены
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                                <span className="text-yellow-800">
-                                  Заполните сложность и SLA для этой подзаявки
-                                </span>
-                              </>
+                            
+                            {/* Индикатор статуса */}
+                            {subRequest.executors && subRequest.executors.length > 0 && (
+                              <div className={`p-3 rounded-lg border ${
+                                subRequest.executors.some(e => e.role === 'leader')
+                                  ? 'bg-green-50 border-green-200' 
+                                  : 'bg-yellow-50 border-yellow-200'
+                              }`}>
+                                <div className="flex items-center gap-2 text-sm">
+                                  {subRequest.executors.some(e => e.role === 'leader') ? (
+                                    <>
+                                      <CheckCircle className="w-4 h-4 text-green-600" />
+                                      <span className="text-green-800">
+                                        Выбрано исполнителей: {subRequest.executors.length} (включая лидера)
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                      <span className="text-yellow-800">
+                                        Выбрано исполнителей: {subRequest.executors.length}. Назначьте лидера!
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                             )}
                           </div>
-                        </div>
+                        )}
+
+                        {/* Дополнительные поля только для admin-worker and department-head */}
+                        {(userRole === 'admin-worker' || userRole === 'department-head') && (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor={`subRequestComplexity-${index}`} className="flex items-center gap-1">
+                                  Сложность
+                                </Label>
+                                <Select
+                                  value={subRequest.complexity || ''}
+                                  onValueChange={(value: 'simple' | 'medium' | 'complex') => 
+                                    updateSubRequest(index, 'complexity', value)
+                                  }
+                                >
+                                  <SelectTrigger 
+                                    id={`subRequestComplexity-${index}`}
+                                    className={hasAttemptedSubmit && !subRequest.complexity ? 'border-red-300 focus:border-red-500' : ''}
+                                  >
+                                    <SelectValue placeholder="Выберите сложность" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="simple">Простая</SelectItem>
+                                    <SelectItem value="medium">Средняя</SelectItem>
+                                    <SelectItem value="complex">Сложная</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                {hasAttemptedSubmit && !subRequest.complexity && (
+                                  <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                                )}
+                              </div>
+
+                              <div>
+                                <Label htmlFor={`subRequestSLA-${index}`} className="flex items-center gap-1">
+                                  SLA
+                                </Label>
+                                <Select
+                                  value={subRequest.sla || ''}
+                                  onValueChange={(value: string) => updateSubRequest(index, 'sla', value)}
+                                >
+                                  <SelectTrigger 
+                                    id={`subRequestSLA-${index}`}
+                                    className={hasAttemptedSubmit && !subRequest.sla ? 'border-red-300 focus:border-red-500' : ''}
+                                  >
+                                    <SelectValue placeholder="Выберите SLA" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1h">1 час</SelectItem>
+                                    <SelectItem value="4h">4 часа</SelectItem>
+                                    <SelectItem value="8h">8 часов</SelectItem>
+                                    <SelectItem value="1d">1 день</SelectItem>
+                                    <SelectItem value="3d">3 дня</SelectItem>
+                                    <SelectItem value="1w">1 неделя</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                {hasAttemptedSubmit && !subRequest.sla && (
+                                  <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Индикатор заполненности обязательных полей */}
+                            {hasAttemptedSubmit && (
+                              <div className={`p-3 rounded-lg border ${
+                                subRequest.complexity && subRequest.sla 
+                                  ? 'bg-green-50 border-green-200' 
+                                  : 'bg-yellow-50 border-yellow-200'
+                              }`}>
+                                <div className="flex items-center gap-2 text-sm">
+                                  {subRequest.complexity && subRequest.sla ? (
+                                    <>
+                                      <CheckCircle className="w-4 h-4 text-green-600" />
+                                      <span className="text-green-800">
+                                        Все обязательные поля заполнены
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                      <span className="text-yellow-800">
+                                        Заполните сложность и SLA для этой подзаявки
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
