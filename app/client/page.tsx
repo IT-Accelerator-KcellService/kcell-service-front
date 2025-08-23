@@ -104,6 +104,7 @@ export default function ClientDashboard() {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [loading, setLoading] = useState(true)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -410,6 +411,7 @@ export default function ClientDashboard() {
 
   const confirmDeleteRequest = async () => {
     if (requestToDelete) {
+      setDeleteLoading(true)
       try {
         await api.delete(`/request-groups/${requestToDelete.id}`)
         
@@ -417,11 +419,9 @@ export default function ClientDashboard() {
         removeRequest(requestToDelete.id);
         
         // Закрываем все модальные окна
-        setShowDeleteRequestModal(false);
         setSelectedRequest(null);
-        closeModalWithHistory();
         setRequestToDelete(null);
-        
+        setShowDeleteRequestModal(false);
         successModal.showSuccess({
           title: "Заявка удалена",
           message: "Заявка была успешно удалена."
@@ -432,6 +432,8 @@ export default function ClientDashboard() {
           title: "Ошибка",
           message: "Не удалось удалить заявку."
         })
+      } finally {
+        setDeleteLoading(false)
       }
     }
   }
@@ -1459,10 +1461,11 @@ export default function ClientDashboard() {
         <DeleteConfirmationModal
           isOpen={showDeleteRequestModal && !!requestToDelete}
           onClose={() => {
-                          setShowDeleteRequestModal(false);
+            setShowDeleteRequestModal(false);
             closeModalWithHistory();
             setRequestToDelete(null);
           }}
+          isLoading={deleteLoading}
           onConfirm={confirmDeleteRequest}
           title={`Удалить заявку #${requestToDelete?.id}?`}
           description={`Вы уверены, что хотите удалить заявку "${requestToDelete?.requests[0]?.title || 'Заявка'}"? Это действие необратимо.`}
