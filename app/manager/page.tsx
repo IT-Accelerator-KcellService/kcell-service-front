@@ -1668,11 +1668,10 @@ export default function ManagerDashboard() {
                   <SelectContent>
                     <SelectItem value="all">Все</SelectItem>
                     <SelectItem value="in_progress">В обработке</SelectItem>
+                    <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                     <SelectItem value="execution">Исполнение</SelectItem>
                     <SelectItem value="completed">Завершено</SelectItem>
-                    <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
-                    <SelectItem value="assigned">Назначен</SelectItem>
-                    <SelectItem value="long_term">⏳ Долгосрочные</SelectItem>
+                    <SelectItem value="long_term">Долгосрочные</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={filterType} onValueChange={setFilterType}>

@@ -1307,9 +1307,8 @@ export default function ExecutorDashboard() {
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
-                          <SelectItem value="completed">Завершено</SelectItem>
                           <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
-                          <SelectItem value="assigned">Назначен</SelectItem>
+                          <SelectItem value="completed">Завершено</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={filterType} onValueChange={setFilterType}>
@@ -1321,6 +1320,7 @@ export default function ExecutorDashboard() {
                           <SelectItem value="normal">Обычная</SelectItem>
                           <SelectItem value="urgent">Экстренная</SelectItem>
                           <SelectItem value="planed">Плановая</SelectItem>
+                          <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
 
@@ -1400,6 +1400,7 @@ export default function ExecutorDashboard() {
                         <SelectContent>
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
                         </SelectContent>

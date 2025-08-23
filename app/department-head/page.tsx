@@ -1114,7 +1114,6 @@ export default function DepartmentHeadDashboard() {
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="awaiting_assignment">Ожидает назначения</SelectItem>
-                          <SelectItem value="assigned">Назначено</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>

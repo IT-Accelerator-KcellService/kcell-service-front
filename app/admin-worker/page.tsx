@@ -1121,10 +1121,10 @@ export default function AdminWorkerDashboard() {
                         <SelectContent>
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
-                          <SelectItem value="assigned">Назначено</SelectItem>
-                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                          <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={filterMyType} onValueChange={setFilterMyType}>
@@ -1166,10 +1166,9 @@ export default function AdminWorkerDashboard() {
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="awaiting_assignment">Ожидает назначения</SelectItem>
-                          <SelectItem value="assigned">Назначено</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
-                          <SelectItem value="long_term">⏳ Долгосрочные</SelectItem>
+                          <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={filterIncomingType} onValueChange={setFilterIncomingType}>
