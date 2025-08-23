@@ -37,7 +37,7 @@ import {
 import axios from "axios";
 import Header from "@/app/header/Header";
 import api from "@/lib/api";
-import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as TooltipForTabs, XAxis, YAxis} from "recharts";
+import {CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip as TooltipForTabs} from "recharts";
 import {format, isAfter, subDays, subMonths, subYears} from "date-fns";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {SuccessModal} from "@/components/success-model";
@@ -1675,7 +1675,7 @@ export default function ManagerDashboard() {
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="date" />
                               <YAxis allowDecimals={false} />
-                              <Tooltip />
+                              <TooltipForTabs />
                               <Line
                                   type="monotone"
                                   dataKey="count"
