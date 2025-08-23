@@ -476,8 +476,8 @@ export default function HomePage() {
                         </div>
                     </section>
 
-                    {/* График "Динамика по дням" для всех ролей на мобильных устройствах */}
-                    {!isDesktop && (
+                    {/* График "Динамика по дням" только для manager на мобильных устройствах */}
+                    {!isDesktop && role === "manager" && (
                         <section className="pt-3">
                             <div className="mx-auto max-w-screen-sm px-3">
                                 <Card className="border bg-white">
