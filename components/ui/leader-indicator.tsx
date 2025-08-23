@@ -41,14 +41,14 @@ export function LeaderIndicator({ isDesktop, size = 'md', className = '' }: Lead
         <Tooltip>
           <TooltipTrigger asChild>
             <div className={`inline-flex items-center justify-center ${className}`}>
-              <Crown className={`${iconSize} text-violet-600 fill-violet-500 drop-shadow-sm hover:text-violet-700 transition-colors`} />
+              <Crown className={`${iconSize} text-purple-600 hover:text-purple-700 transition-colors`} />
             </div>
           </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs bg-white border border-gray-200 shadow-lg">
-            <div className="text-center">
-              <p className="font-medium mb-1 text-gray-900">Ответственный исполнитель</p>
-              <p className="text-xs text-gray-600">
-                Только этот исполнитель может начать или завершить подзаявку
+          <TooltipContent side="top" className="max-w-xs bg-white border border-gray-200 shadow-lg rounded-lg">
+            <div className="p-2">
+              <p className="font-medium text-sm text-gray-900">Ответственный исполнитель</p>
+              <p className="text-xs text-gray-600 mt-1">
+                Может управлять подзаявкой
               </p>
             </div>
           </TooltipContent>
@@ -62,88 +62,75 @@ export function LeaderIndicator({ isDesktop, size = 'md', className = '' }: Lead
       <Button
         variant="ghost"
         size="sm"
-        className={`p-1 h-auto hover:bg-violet-50 ${className}`}
+        className={`p-1 h-auto hover:bg-purple-50 ${className}`}
         onClick={handleClick}
       >
-        <Crown className={`${iconSize} text-violet-600 fill-violet-500 drop-shadow-sm`} />
+        <Crown className={`${iconSize} text-purple-600`} />
       </Button>
 
-      {/* Кастомная модалка в стиле Kcell */}
+      {/* Минималистичная модалка */}
       {showMobileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Фон затемнения */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          {/* Фон */}
           <div 
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm animate-in fade-in"
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
             onClick={handleClose}
           />
           
-          {/* Модальное окно в стиле Kcell */}
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden animate-in zoom-in-95 fade-in duration-300 border border-gray-200">
-            {/* Заголовок в стиле Kcell */}
-            <div className="flex items-center justify-between border-b px-6 py-4 bg-gradient-to-r from-violet-50 to-purple-50">
+          {/* Модальное окно */}
+          <div className="relative bg-white rounded-xl sm:rounded-2xl shadow-xl w-full max-w-sm sm:max-w-md mx-auto overflow-hidden">
+            {/* Заголовок */}
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-violet-600 rounded-lg flex items-center justify-center shadow-lg">
-                  <Crown className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                  <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">Ответственный исполнитель</h2>
-                  <p className="text-sm text-gray-600">Особые полномочия и права</p>
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">Ответственный исполнитель</h2>
+                  <p className="text-xs sm:text-sm text-gray-500">Особые полномочия</p>
                 </div>
               </div>
               <Button
                 variant="ghost"
-                size="icon"
-                className="rounded-full hover:bg-white/50"
+                size="sm"
+                className="w-8 h-8 sm:w-10 sm:h-10 p-0 rounded-lg hover:bg-gray-100"
                 onClick={handleClose}
-                aria-label="Закрыть модальное окно"
               >
-                <X className="h-5 w-5 text-gray-500" />
+                <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
               </Button>
             </div>
 
             {/* Контент */}
-            <div className="p-6 space-y-4">
-              <div className="text-center">
-                <p className="text-gray-700 leading-relaxed">
-                  Этот исполнитель назначен ответственным за данную подзаявку и имеет расширенные полномочия.
-                </p>
-              </div>
-
-              {/* Карточка с полномочиями в стиле Kcell */}
-              <div className="bg-gradient-to-br from-violet-50 to-purple-50 p-4 rounded-xl border border-violet-200">
+            <div className="p-4 sm:p-6 space-y-4">
+              {/* Полномочия */}
+              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Info className="w-4 h-4 text-white" />
-                  </div>
+                  <Info className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <h3 className="font-semibold text-violet-900 mb-2">Особые полномочия:</h3>
-                    <ul className="space-y-2 text-sm text-violet-800">
+                    <h3 className="font-medium text-gray-900 text-sm sm:text-base mb-2">Полномочия:</h3>
+                    <ul className="space-y-1.5 text-xs sm:text-sm text-gray-700">
                       <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-violet-600 rounded-full"></div>
-                        Может начать выполнение подзаявки
+                        <div className="w-1 h-1 bg-purple-600 rounded-full"></div>
+                        Начать выполнение
                       </li>
                       <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-violet-600 rounded-full"></div>
-                        Может завершить подзаявку
+                        <div className="w-1 h-1 bg-purple-600 rounded-full"></div>
+                        Завершить подзаявку
                       </li>
                       <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-violet-600 rounded-full"></div>
-                        Координирует работу команды
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-violet-600 rounded-full"></div>
-                        Принимает финальные решения
+                        <div className="w-1 h-1 bg-purple-600 rounded-full"></div>
+                        Координировать команду
                       </li>
                     </ul>
                   </div>
                 </div>
               </div>
 
-              {/* Кнопка закрытия в стиле Kcell */}
+              {/* Кнопка */}
               <div className="flex justify-center pt-2">
                 <Button
                   onClick={handleClose}
-                  className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                   Понятно
                 </Button>

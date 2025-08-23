@@ -82,142 +82,131 @@ export const CompleteTaskModal: React.FC<CompleteTaskModalProps> = ({
   if (!isOpen || !task) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <Card className="w-full max-w-md max-h-[90vh] overflow-hidden">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Завершить задачу</CardTitle>
-                <CardDescription>
-                  Подзаявка #{task.id}
-                </CardDescription>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          {/* Информация о задаче */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <h4 className="font-medium text-gray-900">{task.title}</h4>
-            <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {task.category?.name || "Без категории"}
-              </Badge>
-              {task.complexity && (
-                <Badge variant="outline" className="text-xs">
-                  {task.complexity === 'simple' ? 'Простая' : 
-                   task.complexity === 'medium' ? 'Средняя' : 'Сложная'}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {/* Комментарий */}
-          <div className="space-y-2">
-            <Label htmlFor="comment" className="text-sm font-medium">
-              Комментарий о выполнении
-            </Label>
-            <Textarea
-              id="comment"
-              placeholder="Опишите, что было выполнено..."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              className="min-h-[100px] resize-none"
-              maxLength={500}
-            />
-            <p className="text-xs text-gray-500 text-right">
-              {comment.length}/500
-            </p>
-          </div>
-
-          {/* Фотографии */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">
-              Фотографии результата (обязательно, до 3 шт.)
-            </Label>
-            <div className="flex flex-wrap gap-4 mt-2">
-              {photoPreviews.map((photo, index) => (
-                <div key={index} className="relative">
-                  <img
-                    src={photo || "/placeholder.svg"}
-                    alt={`Photo ${index + 1}`}
-                    className="w-20 h-20 object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={() => removePhoto(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                  >
-                    ×
-                  </button>
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+      <div className="w-full max-w-sm sm:max-w-md md:max-w-lg max-h-[95vh] flex flex-col">
+        <Card className="w-full h-full flex flex-col bg-white border border-gray-200 shadow-xl rounded-xl sm:rounded-2xl">
+          {/* Header - фиксированный */}
+          <CardHeader className="flex-shrink-0 pb-4 px-4 sm:px-6 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
-              ))}
-              {photoPreviews.length < 3 && (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    ref={fileInputRef}
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                  />
-                  <Camera className="w-6 h-6 text-gray-400" />
-                </button>
-              )}
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-base sm:text-lg font-semibold text-gray-900">
+                    Завершить задачу
+                  </CardTitle>
+                  <CardDescription className="text-sm text-gray-500">
+                    Подзаявка #{task.id}
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClose}
+                className="w-8 h-8 sm:w-10 sm:h-10 p-0 rounded-lg hover:bg-gray-100"
+              >
+                <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+              </Button>
             </div>
-            <p className="text-xs text-gray-500">
-              Добавьте фотографии, подтверждающие выполнение работы (минимум 1, максимум 3)
-            </p>
-          </div>
+          </CardHeader>
 
-          {/* Кнопки */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={handleClose}
-              className="flex-1"
-              disabled={isSubmitting}
-            >
-              Отмена
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-              disabled={isSubmitting || photos.length === 0}
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Завершение...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Завершить
-                </>
-              )}
-            </Button>
+          {/* Content - прокручиваемый */}
+          <CardContent className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-6 py-4 sm:py-6">
+
+            {/* Комментарий */}
+            <div className="space-y-2">
+              <Label htmlFor="comment" className="text-sm font-medium text-gray-700">
+                Комментарий о выполнении
+              </Label>
+              <Textarea
+                id="comment"
+                placeholder="Опишите, что было выполнено..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className="min-h-[80px] sm:min-h-[100px] resize-none border border-gray-300 rounded-lg"
+                maxLength={500}
+              />
+              <p className="text-xs text-gray-500 text-right">
+                {comment.length}/500
+              </p>
+            </div>
+
+            {/* Фотографии */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-gray-700">
+                Фотографии результата (обязательно, до 3 шт.)
+              </Label>
+              <div className="flex flex-wrap gap-3 mt-2">
+                {photoPreviews.map((photo, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={photo || "/placeholder.svg"}
+                      alt={`Photo ${index + 1}`}
+                      className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-gray-200"
+                    />
+                    <button
+                      onClick={() => removePhoto(index)}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {photoPreviews.length < 3 && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-16 h-16 sm:w-20 sm:h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-green-500 transition-colors"
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      ref={fileInputRef}
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                    />
+                    <Camera className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+
+          {/* Footer - фиксированный с кнопками */}
+          <div className="flex-shrink-0 px-4 sm:px-6 pb-4 sm:pb-6 pt-4 border-t border-gray-100">
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={handleClose}
+                className="flex-1 h-10 sm:h-12 bg-white border-gray-300 hover:border-gray-400 hover:bg-gray-50 rounded-lg font-medium transition-colors"
+                disabled={isSubmitting}
+              >
+                Отмена
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                className="flex-1 h-10 sm:h-12 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSubmitting || photos.length === 0}
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm">Завершение...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span className="text-sm">Завершить</span>
+                  </div>
+                )}
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };

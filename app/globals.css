@@ -178,3 +178,72 @@ html {
   backdrop-filter: blur(4px);
   background-color: rgba(0, 0, 0, 0.1);
 }
+
+/* Threads-style modal improvements */
+.threads-modal {
+  backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.threads-modal-backdrop {
+  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Smooth animations for modal content */
+.modal-content-enter {
+  animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Improved button hover effects */
+.btn-threads {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-threads:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Card hover effects */
+.card-threads {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-threads:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Nokia compatibility - ensure minimum touch targets */
+.nokia-touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Ultra-small screen support */
+@media (max-width: 320px) {
+  .ultra-small-text {
+    font-size: 0.75rem;
+  }
+  
+  .ultra-small-padding {
+    padding: 0.5rem;
+  }
+  
+  .ultra-small-gap {
+    gap: 0.25rem;
+  }
+}

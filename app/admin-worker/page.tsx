@@ -1439,34 +1439,32 @@ export default function AdminWorkerDashboard() {
                                 </div>
 
                                 {/* Кнопка раскрытия */}
-                                {subRequest.status !== 'in_progress' && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className={`w-full justify-center ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
-                                        onClick={() => {
-                                          const newExpanded = new Set(expandedSubRequests);
-                                          if (isExpanded) {
-                                            newExpanded.delete(subRequest.id);
-                                          } else {
-                                            newExpanded.add(subRequest.id);
-                                          }
-                                          setExpandedSubRequests(newExpanded);
-                                        }}
-                                    >
-                                      {isExpanded ? (
-                                          <>
-                                            <ChevronUp className="w-4 h-4 mr-2" />
-                                            Свернуть
-                                          </>
-                                      ) : (
-                                          <>
-                                            <ChevronDown className="w-4 h-4 mr-2" />
-                                            Подробнее
-                                          </>
-                                      )}
-                                    </Button>
-                                )}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={`w-full justify-center ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
+                                    onClick={() => {
+                                      const newExpanded = new Set(expandedSubRequests);
+                                      if (isExpanded) {
+                                        newExpanded.delete(subRequest.id);
+                                      } else {
+                                        newExpanded.add(subRequest.id);
+                                      }
+                                      setExpandedSubRequests(newExpanded);
+                                    }}
+                                >
+                                  {isExpanded ? (
+                                      <>
+                                        <ChevronUp className="w-4 h-4 mr-2" />
+                                        Свернуть
+                                      </>
+                                  ) : (
+                                      <>
+                                        <ChevronDown className="w-4 h-4 mr-2" />
+                                        Подробнее
+                                      </>
+                                  )}
+                                </Button>
                     </div>
 
                               {/* Раскрытая информация */}

@@ -871,9 +871,9 @@ export default function ExecutorDashboard() {
       fetchRequests();
       
       // Показываем ошибку пользователю
-      successModal.showSuccess({
+      rejectModal.showReject({
         title: "Ошибка",
-        message: error.response?.data?.message || "Не удалось начать выполнение задачи"
+        message: "Не удалось начать выполнение задачи"
       });
     }
   }
@@ -996,7 +996,7 @@ export default function ExecutorDashboard() {
       // Откатываем оптимистичное обновление при ошибке
       fetchRequests();
       
-      successModal.showSuccess({
+      rejectModal.showReject({
         title: "Ошибка",
         message: "Не удалось завершить задачу"
       });

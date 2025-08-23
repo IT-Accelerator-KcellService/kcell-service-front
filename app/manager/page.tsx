@@ -166,6 +166,7 @@ export default function ManagerDashboard() {
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
@@ -849,29 +850,30 @@ export default function ManagerDashboard() {
 
   const handleDeleteRequest = (request: Request) => {
     setRequestToDelete(request)
-    closeModalWithHistory()
     setShowDeleteRequestModal(true);
     openModal('deleteRequest');
   }
 
   const confirmDeleteRequest = async () => {
     if (requestToDelete) {
+      setIsDeleteLoading(true);
       try {
         await api.delete(`/request-groups/${requestToDelete.id}`)
-        fetchRequests()
         setShowDeleteRequestModal(false);
-        closeModalWithHistory();
-        setRequestToDelete(null)
         successModal.showSuccess({
           title: "Заявка удалена",
           message: "Заявка была успешно удалена."
         })
+        fetchRequests()
+        setRequestToDelete(null)
       } catch (error) {
         rejectModal.showReject({
           title: "Ошибка",
           message: "Не удалось удалить под заявку."
         })
         console.error("Failed to delete request:", error)
+      } finally {
+        setIsDeleteLoading(false);
       }
     }
   }
@@ -1386,7 +1388,6 @@ export default function ManagerDashboard() {
                   }}
                   onDelete={(request) => {
                     handleDeleteRequest(request);
-                    setShowDeleteRequestModal(true);
                   }}
               />
             </div>
@@ -2536,10 +2537,11 @@ export default function ManagerDashboard() {
       <DeleteConfirmationModal
         isOpen={showDeleteRequestModal && !!requestToDelete}
         onClose={() => {
-                        setShowDeleteRequestModal(false);
+          setShowDeleteRequestModal(false);
           closeModalWithHistory();
           setRequestToDelete(null);
         }}
+        isLoading={isDeleteLoading}
         onConfirm={confirmDeleteRequest}
         title={`Удалить заявку #${requestToDelete?.id}?`}
         description={`Вы уверены, что хотите удалить заявку? Это действие необратимо.`}

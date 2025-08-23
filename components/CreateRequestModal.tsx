@@ -377,31 +377,23 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       }
     }
 
-    // Проверяем, что все под заявки заполнены
-    const validSubRequests = subRequests.filter(sub =>
-      sub.title.trim() && sub.description.trim() && sub.category_id > 0
-    );
-
-    if (validSubRequests.length === 0) {
-      basicFieldErrors.push('хотя бы одну подзаявку');
-    }
-
     // Проверяем обязательные поля в подзаявках
     const subRequestErrors: string[] = [];
     subRequests.forEach((subRequest, index) => {
-      if (subRequest.title.trim() && subRequest.description.trim() && subRequest.category_id > 0) {
-        // Если подзаявка заполнена, проверяем обязательные поля
-        if (!subRequest.title.trim()) {
-          subRequestErrors.push(`название подзаявки #${index + 1}`);
-        }
-        if (!subRequest.description.trim()) {
-          subRequestErrors.push(`описание подзаявки #${index + 1}`);
-        }
-        if (!subRequest.category_id || subRequest.category_id === 0) {
-          subRequestErrors.push(`категорию подзаявки #${index + 1}`);
-        }
+      if (!subRequest.title.trim()) {
+        subRequestErrors.push(`название подзаявки #${index + 1}`);
+      }
+      if (!subRequest.description.trim()) {
+        subRequestErrors.push(`описание подзаявки #${index + 1}`);
+      }
+      if (!subRequest.category_id || subRequest.category_id === 0) {
+        subRequestErrors.push(`категорию подзаявки #${index + 1}`);
       }
     });
+
+    if (subRequests.length === 0) {
+      basicFieldErrors.push('хотя бы одну подзаявку');
+    }
 
     if (basicFieldErrors.length > 0 || subRequestErrors.length > 0) {
       const allErrors = [...basicFieldErrors, ...subRequestErrors];
@@ -411,27 +403,17 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     // Валидация SLA и complexity для admin-worker и department-head
     if (userRole === 'admin-worker' || userRole === 'department-head') {
-      const invalidSubRequests = validSubRequests.filter(sub => 
-        !sub.complexity || !sub.sla
-      );
-      
+      const invalidSubRequests = subRequests.filter(sub => !sub.complexity || !sub.sla);
       if (invalidSubRequests.length > 0) {
-        // Показываем ошибку валидации
-        const invalidIndices = invalidSubRequests.map((_, index) => {
-          const originalIndex = subRequests.findIndex(sub => 
-            sub.title === validSubRequests[index].title && 
-            sub.description === validSubRequests[index].description
-          );
-          return originalIndex + 1;
+        const invalidIndices = invalidSubRequests.map(sub => {
+          return subRequests.indexOf(sub) + 1;
         });
-        
         // Автоматически разворачиваем подзаявки с ошибками валидации
         const newExpandedSubRequests = new Set(expandedSubRequests);
         invalidIndices.forEach(index => {
           newExpandedSubRequests.add(index - 1); // index - 1 потому что индексы начинаются с 1
         });
         setExpandedSubRequests(newExpandedSubRequests);
-        
         const errorMessage = `Пожалуйста, заполните сложность и SLA для всех подзаявок.\n\nНе заполнено для подзаявок: ${invalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
         return;
       }
@@ -439,30 +421,23 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     // Валидация лидера для department-head
     if (userRole === 'department-head') {
-      const subRequestsWithoutLeader = validSubRequests.filter(sub => {
-        if (userServiceCategoryId && sub.category_id === userServiceCategoryId && 
+      const subRequestsWithoutLeader = subRequests.filter(sub => {
+        if (userServiceCategoryId && sub.category_id === userServiceCategoryId &&
             sub.executors && sub.executors.length > 0) {
           return !sub.executors.some(e => e.role === 'leader');
         }
         return false;
       });
-      
       if (subRequestsWithoutLeader.length > 0) {
-        const leaderInvalidIndices = subRequestsWithoutLeader.map((_, index) => {
-          const originalIndex = subRequests.findIndex(sub => 
-            sub.title === validSubRequests[index].title && 
-            sub.description === validSubRequests[index].description
-          );
-          return originalIndex + 1;
+        const leaderInvalidIndices = subRequestsWithoutLeader.map(sub => {
+          return subRequests.indexOf(sub) + 1;
         });
-        
         // Автоматически разворачиваем подзаявки без лидера
         const newExpandedSubRequests = new Set(expandedSubRequests);
         leaderInvalidIndices.forEach(index => {
           newExpandedSubRequests.add(index - 1);
         });
         setExpandedSubRequests(newExpandedSubRequests);
-        
         const errorMessage = `Пожалуйста, назначьте лидера для всех подзаявок с исполнителями.\n\nНе назначен лидер для подзаявок: ${leaderInvalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
         return;
       }
@@ -478,7 +453,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       groupStatus = createMode === 'createAndComplete' ? 'completed' : 'in_progress';
     } else if (userRole === 'department-head') {
       // Если хотя бы одна подзаявка имеет исполнителей, то статус execution
-      const hasExecutors = validSubRequests.some(sub => 
+      const hasExecutors = subRequests.some(sub =>
         sub.executors && sub.executors.length > 0
       );
       groupStatus = hasExecutors ? 'execution' : 'awaiting_assignment';
@@ -495,9 +470,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     // Под заявки с их SLA и сложностью
-    const subRequestsData = validSubRequests.map(sub => {
+    const subRequestsData = subRequests.map(sub => {
       let subStatus = 'awaiting_assignment';
-      
       if (userRole === 'client') {
         subStatus = 'in_progress';
       } else if (userRole === 'executor') {
@@ -508,7 +482,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           subStatus = 'assigned';
         }
       }
-
       return {
         title: sub.title,
         description: sub.description,
@@ -519,7 +492,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         executors: sub.executors || []
       };
     });
-
     formData.append('sub_requests', JSON.stringify(subRequestsData));
 
     // Фото
@@ -1152,11 +1124,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                             <span className="font-medium text-sm">
                                               {executor.user.full_name}
                                             </span>
-                                            {executorData.role === 'leader' && (
-                                              <Badge variant="secondary" className="text-xs">
-                                                Лидер
-                                              </Badge>
-                                            )}
                                           </div>
                                           <p className="text-sm text-gray-600 mt-1">
                                             {executor.specialty} • Загрузка: {executor.workload}
