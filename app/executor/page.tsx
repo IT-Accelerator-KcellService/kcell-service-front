@@ -451,6 +451,9 @@ export default function ExecutorDashboard() {
           case 'taskDetails':
             setSelectedRequest(null);
             break;
+          case 'requestDetails':
+            setSelectedRequest(null);
+            break;
           case 'mapModal':
             setShowMapModal(false);
             break;
@@ -529,6 +532,9 @@ export default function ExecutorDashboard() {
       setSelectedRequest(null);
     }
     if (modalName !== 'taskDetails') {
+      setSelectedRequest(null);
+    }
+    if (modalName !== 'requestDetails') {
       setSelectedRequest(null);
     }
     if (modalName !== 'mapModal') {
@@ -1590,20 +1596,20 @@ export default function ExecutorDashboard() {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
                                       <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>{subRequest.title}</h4>
-                                    </div>
+                    </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
                                         <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                                         {subRequest.category?.name || 'Без категории'}
                                       </span>
-                                    </div>
+                  </div>
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {renderStatusWithTooltip(subRequest.status)}
                                     {renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                     {/* Кнопка комментариев */}
-                                   <Button
+                    <Button
                                         variant="ghost"
                                         size="sm"
                                         className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
@@ -1616,7 +1622,7 @@ export default function ExecutorDashboard() {
                                         }}
                                     >
                                       <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
-                                    </Button>
+                    </Button>
 
                                     <RoleBasedActionMenu
                                         request={subRequest}

@@ -110,7 +110,7 @@ interface Stats {
     [date: string]: {
       totalRequests: number;
       completedRequests: number;
-      overdueUrgentRequests: number;
+      overdueRequests: number;
       normalRequests: number,
       urgentRequests: number,
       plannedRequests: number
@@ -420,8 +420,8 @@ export default function ManagerDashboard() {
         if (entryDate >= startDate) {
           total += data.totalRequests;
           completed += data.completedRequests;
-          overdue += data.totalRequests - data.completedRequests;
-          emergency += data.overdueUrgentRequests;
+          overdue += data.overdueRequests;
+          emergency += data.overdueRequests;
         }
       });
     });
@@ -2303,7 +2303,7 @@ export default function ManagerDashboard() {
                                 ) : (
                                     <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
                                 )}
-                            </div>
+                </div>
 
                               {/* Кнопка раскрытия */}
                               {subRequest.status !== 'in_progress' && (
@@ -2325,16 +2325,16 @@ export default function ManagerDashboard() {
                                         <>
                                           <ChevronUp className="w-4 h-4 mr-2" />
                                           Свернуть
-                                        </>
-                                    ) : (
+                        </>
+                    ) : (
                                         <>
                                           <ChevronDown className="w-4 h-4 mr-2" />
                                           Подробнее
                                         </>
-                                    )}
-                                  </Button>
+                    )}
+                  </Button>
                               )}
-                            </div>
+                </div>
 
                             {/* Раскрытая информация */}
                             {isExpanded && (
