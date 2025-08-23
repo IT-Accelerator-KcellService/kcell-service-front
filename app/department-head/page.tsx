@@ -1527,32 +1527,34 @@ export default function DepartmentHeadDashboard() {
                     </div>
 
                                 {/* Кнопка раскрытия */}
-                          <Button
-                                    variant="outline"
-                              size="sm"
-                                    className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
-                              onClick={() => {
-                                      const newExpanded = new Set(expandedSubRequests);
-                                      if (isExpanded) {
-                                        newExpanded.delete(subRequest.id);
-                                      } else {
-                                        newExpanded.add(subRequest.id);
-                                      }
-                                      setExpandedSubRequests(newExpanded);
-                                    }}
-                                >
-                                  {isExpanded ? (
-                                      <>
-                                        <ChevronUp className="w-4 h-4 mr-2" />
-                                        Свернуть
-                                      </>
-                                  ) : (
-                                      <>
-                                        <ChevronDown className="w-4 h-4 mr-2" />
-                                        Подробнее
-                                      </>
-                                  )}
-                          </Button>
+                                {subRequest.status !== 'in_progress' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
+                                        onClick={() => {
+                                          const newExpanded = new Set(expandedSubRequests);
+                                          if (isExpanded) {
+                                            newExpanded.delete(subRequest.id);
+                                          } else {
+                                            newExpanded.add(subRequest.id);
+                                          }
+                                          setExpandedSubRequests(newExpanded);
+                                        }}
+                                    >
+                                      {isExpanded ? (
+                                          <>
+                                            <ChevronUp className="w-4 h-4 mr-2" />
+                                            Свернуть
+                                          </>
+                                      ) : (
+                                          <>
+                                            <ChevronDown className="w-4 h-4 mr-2" />
+                                            Подробнее
+                                          </>
+                                      )}
+                                    </Button>
+                                )}
                         </div>
 
                               {/* Раскрытая информация */}

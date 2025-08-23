@@ -709,16 +709,14 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 onChange={(e) => setLocation(e.target.value)}
                 readOnly={['client', 'executor'].includes(userRole)}
               />
-              {(userRole === 'admin-worker' || userRole === 'department-head') && (
-                <Button
+              <Button
                   variant="outline"
                   className="whitespace-nowrap"
                   onClick={handleGetLocation}
-                >
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Определить местоположение
-                </Button>
-              )}
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                Определить местоположение
+              </Button>
             </div>
             {hasAttemptedSubmit && basicFieldErrors.has('location') && (
               <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
