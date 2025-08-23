@@ -310,13 +310,15 @@ export default function ManagerDashboard() {
     const create = searchParams.get("createRequest")
 
     if (create === "true") {
-      closeAllModalsExcept('createRequest');
+      // Всегда добавляем createRequest в стек и историю
+      setModalStack(['createRequest']);
+      window.history.pushState({ modal: 'createRequest' }, '', window.location.pathname);
       setShowCreateRequestModal(true)
-      openModal('createRequest');
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModalWithHistory()
+      // Просто обновляем стек модальных окон
+      setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
   }, [searchParams])
 
@@ -562,7 +564,8 @@ export default function ManagerDashboard() {
             break;
         }
 
-        closeModalWithHistory();
+        // Просто обновляем стек модальных окон без вызова closeModalWithHistory
+        setModalStack(prev => prev.slice(0, -1));
       }
     };
 
@@ -601,7 +604,8 @@ export default function ManagerDashboard() {
       setRequestToDelete(null);
     }
     setModalStack([modalName]);
-    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+    // Используем pushState вместо replaceState для правильной работы истории
+    window.history.pushState({ modal: modalName }, '', window.location.pathname);
   };
 
 
@@ -1007,8 +1011,7 @@ export default function ManagerDashboard() {
       setRequestLocation("Ваш браузер не поддерживает геолокацию");
     }
 
-    setShowCreateRequestModal(true);
-    openModal('createRequest');
+    router.push('/create-request');
   };
 
   useEffect(() => {
@@ -1292,14 +1295,14 @@ export default function ManagerDashboard() {
           </TooltipProvider>
       );
     } else {
-      return (
-          <div
+    return (
+      <div
               className="flex items-center gap-1 cursor-pointer p-1 rounded"
               onClick={() => setShowIconInfo({type: 'status', value: text})}
           >
             {icon}
-          </div>
-      );
+      </div>
+    );
     }
   };
 
@@ -1497,32 +1500,30 @@ export default function ManagerDashboard() {
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
             {isDesktop && (
                 <>
-                  <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center justify-center min-w-[150px] h-10 px-4"
-                      onClick={() => handleExport("xlsx")}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Excel
-                  </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center min-w-[150px] h-10 px-4"
+                onClick={() => handleExport("xlsx")}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Excel
+            </Button>
 
-                  <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center justify-center min-w-[150px] h-10 px-4"
-                      onClick={() => handleExport("pbix")}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Power BI
-                  </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center justify-center min-w-[150px] h-10 px-4"
+                onClick={() => handleExport("pbix")}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Power BI
+            </Button>
                 </>
             )}
             {isDesktop ? (
                 <Button
-                    onClick={() => {
-                      handleOpenCreateRequest()
-                    }}
+                    onClick={() => router.push('/create-request')}
                     className="flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white min-w-[150px] h-10 px-4"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -1590,12 +1591,12 @@ export default function ManagerDashboard() {
           <TabsContent value="requests">
             {/* График для десктопа */}
             {isDesktop && (
-                <Card className="mb-4">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg sm:text-xl">Динамика заявок</CardTitle>
-                    <CardDescription className="text-sm">Количество заявок по дням</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+            <Card className="mb-4">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg sm:text-xl">Динамика заявок</CardTitle>
+                <CardDescription className="text-sm">Количество заявок по дням</CardDescription>
+              </CardHeader>
+              <CardContent>
                     {/* Селектор интервала дат для десктопа */}
                     <div className="mb-4 space-y-3">
                       <div className="flex items-center gap-2">
@@ -1661,37 +1662,37 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
 
-                    <div className="h-48 sm:h-64">
-                      {chartData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
-                              <defs>
-                                <linearGradient id="kcellGradient" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#8E24AA" stopOpacity={1} />
-                                  <stop offset="100%" stopColor="#6A1B9A" stopOpacity={0.8} />
-                                </linearGradient>
-                              </defs>
+                <div className="h-48 sm:h-64">
+                  {chartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData}>
+                          <defs>
+                            <linearGradient id="kcellGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#8E24AA" stopOpacity={1} />
+                              <stop offset="100%" stopColor="#6A1B9A" stopOpacity={0.8} />
+                            </linearGradient>
+                          </defs>
 
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="date" />
-                              <YAxis allowDecimals={false} />
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis allowDecimals={false} />
                               <TooltipForTabs />
-                              <Line
-                                  type="monotone"
-                                  dataKey="count"
-                                  stroke="url(#kcellGradient)"
-                                  strokeWidth={2.5}
-                                  dot={{ r: 4, stroke: '#6A1B9A', strokeWidth: 1.5, fill: '#fff' }}
-                                  activeDot={{ r: 6 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                      ) : (
-                          <div className="text-gray-500 text-center py-16">Нет данных для отображения</div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                          <Line
+                              type="monotone"
+                              dataKey="count"
+                              stroke="url(#kcellGradient)"
+                              strokeWidth={2.5}
+                              dot={{ r: 4, stroke: '#6A1B9A', strokeWidth: 1.5, fill: '#fff' }}
+                              activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                  ) : (
+                      <div className="text-gray-500 text-center py-16">Нет данных для отображения</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
             )}
             <div className="space-y-4">
               <div className="flex items-center space-x-4 mb-4">
@@ -1907,17 +1908,17 @@ export default function ManagerDashboard() {
                                         >
                                           ✎
                                         </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
                                             onClick={() => {
                                               setOfficeToDelete(officeItem);
                                               setShowDeleteOfficeModal(true);
                                             }}
-                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full sm:w-auto"
-                                        >
-                                          <Trash2 className="w-4 h-4" />
-                                        </Button>
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full sm:w-auto"
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </Button>
                                       </div>
                                     </>
                                 )}
@@ -2100,17 +2101,17 @@ export default function ManagerDashboard() {
                                     ✎
                                   </Button>
 
-                                  <Button
-                                      size="icon"
-                                      variant="ghost"
+                                      <Button
+                                          size="icon"
+                                          variant="ghost"
                                       onClick={() => {
                                         setUserToDelete(user);
                                         setShowDeleteUserModal(true);
                                       }}
-                                      className="text-red-500 hover:text-red-700"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
+                                          className="text-red-500 hover:text-red-700"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
                                 </div>
                               </div>
                           ))}
@@ -2170,16 +2171,16 @@ export default function ManagerDashboard() {
                           {categories.map((category) => (
                               <li key={category.id} className="text-sm text-gray-700 flex justify-between items-center">
                                 {category.name}
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setCategoryToDelete(category);
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setCategoryToDelete(category);
                                       setShowDeleteCategoryModal(true);
-                                    }}
-                                >
-                                  <Trash2 className="w-4 h-4 text-red-500" />
-                                </Button>
+                                        }}
+                                    >
+                                      <Trash2 className="w-4 h-4 text-red-500" />
+                                    </Button>
 
                               </li>
                           ))}
@@ -2193,7 +2194,7 @@ export default function ManagerDashboard() {
 
           <TabsContent value="logs">
             <div className="w-full pb-20">
-              <LogsViewer userRole="manager" isDesktop={isDesktop} />
+            <LogsViewer userRole="manager" isDesktop={isDesktop} />
             </div>
           </TabsContent>
         </Tabs>
@@ -2250,11 +2251,11 @@ export default function ManagerDashboard() {
               </CardHeader>
               <CardContent className="space-y-4 pb-16">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Тип заявки</Label>
+                <div>
+                  <Label>Тип заявки</Label>
                     <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
-                  </div>
-                  <div>
+                </div>
+                <div>
                     <Label>Статус</Label>
                     <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                   </div>
@@ -2264,7 +2265,7 @@ export default function ManagerDashboard() {
                 {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
                     <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <CalendarLucid className="w-4 h-4 text-blue-600" />
-                      <div>
+                <div>
                         <Label className="text-sm font-medium text-blue-800">Запланировано на: </Label>
                         <span className="text-sm text-blue-700">
                           {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
@@ -2273,8 +2274,8 @@ export default function ManagerDashboard() {
                             day: 'numeric'
                           })}
                         </span>
-                      </div>
-                    </div>
+                </div>
+                </div>
                 )}
 
                 {/* Под заявки */}
@@ -2293,20 +2294,20 @@ export default function ManagerDashboard() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-2">
                                     <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
-                                  </div>
+                  </div>
                                   <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
                                         <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                                         {subRequest.category?.name || 'Без категории'}
                                       </span>
-                                  </div>
-                                </div>
+                  </div>
+                </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                   {renderStatusWithTooltip(subRequest.status)}
                                   {renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                   {/* Кнопка комментариев */}
-                                  <Button
+                            <Button
                                       variant="ghost"
                                       size="sm"
                                       className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
@@ -2319,7 +2320,7 @@ export default function ManagerDashboard() {
                                       }}
                                   >
                                     <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
-                                  </Button>
+                            </Button>
 
                                   <RoleBasedActionMenu
                                       request={subRequest}
@@ -2331,8 +2332,8 @@ export default function ManagerDashboard() {
                                         handleDeleteSubRequest(subReq);
                                       }}
                                   />
-                                </div>
-                              </div>
+                      </div>
+                    </div>
 
                               {/* Краткое описание */}
                               <div className={`text-gray-600 mb-3 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
@@ -2341,7 +2342,7 @@ export default function ManagerDashboard() {
                                 ) : (
                                     <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
                                 )}
-                              </div>
+                </div>
 
                               {/* Кнопка раскрытия */}
                               <Button
@@ -2362,15 +2363,15 @@ export default function ManagerDashboard() {
                                     <>
                                       <ChevronUp className="w-4 h-4 mr-2" />
                                       Свернуть
-                                    </>
-                                ) : (
+                        </>
+                    ) : (
                                     <>
                                       <ChevronDown className="w-4 h-4 mr-2" />
                                       Подробнее
                                     </>
-                                )}
-                              </Button>
-                            </div>
+                    )}
+                  </Button>
+                </div>
 
                             {/* Раскрытая информация */}
                             {isExpanded && (
@@ -2383,8 +2384,8 @@ export default function ManagerDashboard() {
                                           <Badge className={getComplexityColor(subRequest.complexity)}>
                                             {translateComplexity(subRequest.complexity)}
                                           </Badge>
-                                        </div>
-                                    )}
+          </div>
+      )}
                                     {subRequest.sla && (
                                         <div className="flex items-center gap-2 text-gray-600">
                                           <span className="font-medium">SLA:</span>
@@ -2415,7 +2416,7 @@ export default function ManagerDashboard() {
                                                   <div className="flex items-center gap-2">
                                                     <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                                                       <User className="w-4 h-4 text-purple-600" />
-                                                    </div>
+              </div>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-sm font-medium text-gray-800">
                                                           {executor.user.full_name}
@@ -2423,12 +2424,12 @@ export default function ManagerDashboard() {
                                                       {executor?.RequestExecutor?.role === "leader" && (
                                                           <LeaderIndicator isDesktop={isDesktop} size="sm" />
                                                       )}
-                                                    </div>
+            </div>
                                                     {executor.user.phone && (
                                                         <div className="text-xs text-gray-500 mt-1">
                                                           {executor.user.phone}
-                                                        </div>
-                                                    )}
+          </div>
+      )}
                                                   </div>
                                                   {userRatings[subRequest.id]?.rating && (
                                                       <div className="flex items-center gap-2">
@@ -2454,47 +2455,47 @@ export default function ManagerDashboard() {
                                           }}
                                       />
                                   )}
-                                </div>
+                  </div>
                             )}
-                          </div>
+                  </div>
                       );
                     })}
                   </div>
                 </div>
 
-                <div>
+                  <div>
                   <Label>Локация</Label>
                   <p className="text-sm">{selectedRequest.location_detail}</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const locText = selectedRequest.location;
-                          const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
-                          const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
-                          const accMatch = locText.match(/±(\d+) м/);
-
-                          if (latMatch && lonMatch && accMatch) {
-                            setMapLocation({
-                              lat: parseFloat(latMatch[1]),
-                              lon: parseFloat(lonMatch[1]),
-                              accuracy: parseInt(accMatch[1])
-                            });
-                            setShowMapModal(true);
-                            openModal('mapModal');
-                          } else {
-                            alert("Не удалось определить координаты из локации");
-                          }
-                        }}
-                    >
-                      <MapPin className="w-4 h-4 mr-1" />
-                      Показать на карте
-                    </Button>
                   </div>
-                </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                          const locText = selectedRequest.location;
+                              const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
+                              const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
+                              const accMatch = locText.match(/±(\d+) м/);
+
+                              if (latMatch && lonMatch && accMatch) {
+                                setMapLocation({
+                                  lat: parseFloat(latMatch[1]),
+                                  lon: parseFloat(lonMatch[1]),
+                                  accuracy: parseInt(accMatch[1])
+                                });
+                                setShowMapModal(true);
+                                openModal('mapModal');
+                              } else {
+                                alert("Не удалось определить координаты из локации");
+                              }
+                            }}
+                        >
+                          <MapPin className="w-4 h-4 mr-1" />
+                          Показать на карте
+                        </Button>
+                      </div>
+                    </div>
 
                 <div className="flex items-center">
                   <Clock className="w-4 h-4 mr-1" />
@@ -2505,7 +2506,7 @@ export default function ManagerDashboard() {
                     hour: "2-digit",
                     minute: "2-digit"
                   })}
-                </div>
+                  </div>
 
                 {/* Фотографии группы заявок (только before) */}
                 {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
@@ -2515,9 +2516,9 @@ export default function ManagerDashboard() {
                         {selectedRequest.photos
                             .filter((photo: any) => photo.type === 'before')
                             .map((photo: any, index: number) => (
-                                <img
-                                    key={index}
-                                    src={photo.photo_url || "/placeholder.svg"}
+                                          <img
+                                              key={index}
+                                              src={photo.photo_url || "/placeholder.svg"}
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {
@@ -2527,11 +2528,11 @@ export default function ManagerDashboard() {
                                     onError={(e) => {
                                       e.currentTarget.src = "/placeholder.svg";
                                     }}
-                                />
-                            ))}
-                      </div>
-                    </div>
-                )}
+                                          />
+                                      ))}
+                                    </div>
+                                  </div>
+                              )}
 
                 {/* Фотографии группы заявок (только before) */}
                 {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'after').length > 0 && (
@@ -2541,9 +2542,9 @@ export default function ManagerDashboard() {
                         {selectedRequest.photos
                             .filter((photo: any) => photo.type === 'after')
                             .map((photo: any, index: number) => (
-                                <img
-                                    key={index}
-                                    src={photo.photo_url || "/placeholder.svg"}
+                                          <img
+                                              key={index}
+                                              src={photo.photo_url || "/placeholder.svg"}
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {
@@ -2553,24 +2554,24 @@ export default function ManagerDashboard() {
                                     onError={(e) => {
                                       e.currentTarget.src = "/placeholder.svg";
                                     }}
-                                />
-                            ))}
-                      </div>
-                    </div>
+                                          />
+                                      ))}
+                                    </div>
+                              </div>
                 )}
 
-                {/* Модальное окно */}
-                {selectedPhoto && (
-                    <div
-                        className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+                      {/* Модальное окно */}
+                      {selectedPhoto && (
+                          <div
+                              className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
                         onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
-                    >
-                      <img
-                          src={selectedPhoto}
-                          alt="Увеличенное фото"
-                          className="max-w-full max-h-full rounded-lg"
-                          onClick={(e) => e.stopPropagation()}
-                      />
+                          >
+                            <img
+                                src={selectedPhoto}
+                                alt="Увеличенное фото"
+                                className="max-w-full max-h-full rounded-lg"
+                                onClick={(e) => e.stopPropagation()}
+                            />
                     </div>
                 )}
 
@@ -2605,7 +2606,8 @@ export default function ManagerDashboard() {
           isOpen={showCreateRequestModal}
           onClose={() => {
             setShowCreateRequestModal(false);
-            closeModalWithHistory();
+            // Удаляем createRequest из стека модальных окон
+            setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
           }}
           userRole="manager"
           categories={categories}
@@ -2631,7 +2633,7 @@ export default function ManagerDashboard() {
       <DeleteConfirmationModal
         isOpen={showDeleteRequestModal && !!requestToDelete}
         onClose={() => {
-          setShowDeleteRequestModal(false);
+                        setShowDeleteRequestModal(false);
           closeModalWithHistory();
           setRequestToDelete(null);
         }}
@@ -2723,7 +2725,7 @@ export default function ManagerDashboard() {
       />
 
       <BottomNav
-          onCreateRequest={handleOpenCreateRequest}
+
           activeTab="history"
           hidden={showCreateRequestModal || showMapModal || showDeleteRequestModal || showProfile || isModalOpen || !!selectedPhoto || !!selectedRequest}
       />

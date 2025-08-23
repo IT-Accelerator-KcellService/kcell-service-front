@@ -250,7 +250,8 @@ export default function AdminWorkerDashboard() {
             break;
         }
 
-        closeModalWithHistory();
+        // Просто обновляем стек модальных окон без вызова closeModalWithHistory
+        setModalStack(prev => prev.slice(0, -1));
       }
     };
 
@@ -292,7 +293,8 @@ export default function AdminWorkerDashboard() {
 
 
     setModalStack([modalName]);
-    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+    // Используем pushState вместо replaceState для правильной работы истории
+    window.history.pushState({ modal: modalName }, '', window.location.pathname);
   };
 
   const fetchStats = async () => {
@@ -346,13 +348,15 @@ export default function AdminWorkerDashboard() {
     const create = searchParams.get("createRequest")
 
     if (create === "true") {
-      closeAllModalsExcept("createRequest");
+      // Всегда добавляем createRequest в стек и историю
+      setModalStack(['createRequest']);
+      window.history.pushState({ modal: 'createRequest' }, '', window.location.pathname);
       setShowCreateRequestModal(true)
-      openModal('createRequest');
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModalWithHistory()
+      // Просто обновляем стек модальных окон
+      setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
   }, [searchParams])
 
@@ -591,10 +595,10 @@ export default function AdminWorkerDashboard() {
     try {
       if (!rejectionReason.trim()) {
         setFormErrors("Пожалуйста, укажите причину отклонения");
-        return;
-      }
+      return;
+    }
 
-      setIsSubmitting(true);
+    setIsSubmitting(true);
 
       // Отправляем запрос на отклонение группы заявок
       await api.patch(`/request-groups/${selectedRequest.id}`, {
@@ -931,7 +935,7 @@ export default function AdminWorkerDashboard() {
   const renderCardHeader = (requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     const totalSubRequests = requestGroup.requests.length;
-    
+
     return (
       <CardHeader className={`pb-3 px-5 pt-5`}>
         <div className="flex items-start justify-between gap-3">
@@ -1091,7 +1095,7 @@ export default function AdminWorkerDashboard() {
                 <div className="flex flex-col sm:flex-row-reverse sm:justify-between sm:items-center mb-6 space-y-2 sm:space-y-0">
                   {isDesktop ? (
                       <Button
-                          onClick={() => {setShowCreateRequestModal(true); openModal('createRequest'); }}
+                          onClick={() => router.push('/create-request')}
                           className="bg-violet-600 hover:bg-violet-700 w-auto"
                       >
                         <Plus className="w-4 h-4 mr-2" />
@@ -1266,7 +1270,7 @@ export default function AdminWorkerDashboard() {
 
                 <TabsContent value="logs">
                   <div className="w-full pb-20">
-                    <LogsViewer userRole="admin-worker" isDesktop={isDesktop} />
+                  <LogsViewer userRole="admin-worker" isDesktop={isDesktop} />
                   </div>
                 </TabsContent>
               </Tabs>
@@ -1341,12 +1345,12 @@ export default function AdminWorkerDashboard() {
                       <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                     </div>
                   </div>
-                  
+
                   {/* Показываем запланированное время для плановых заявок */}
                   {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
                     <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <CalendarLucid className="w-4 h-4 text-blue-600" />
-                      <div>
+                  <div>
                         <Label className="text-sm font-medium text-blue-800">Запланировано на: </Label>
                         <span className="text-sm text-blue-700">
                           {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
@@ -1355,12 +1359,12 @@ export default function AdminWorkerDashboard() {
                             day: 'numeric'
                           })}
                         </span>
+                  </div>
                       </div>
-                    </div>
                   )}
 
                   {/* Под заявки */}
-                  <div>
+                      <div>
                     <Label className={isDesktop ? '' : 'text-base font-semibold'}>Под заявки</Label>
                     <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
                       {selectedRequest.requests.map((subRequest: SubRequest) => {
@@ -1375,7 +1379,7 @@ export default function AdminWorkerDashboard() {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
                                       <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
-                                    </div>
+                      </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
                                         <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
@@ -1421,7 +1425,7 @@ export default function AdminWorkerDashboard() {
                                         }}
                                         onToggleLongTerm={handleToggleLongTerm}
                                     />
-                                  </div>
+                  </div>
                                 </div>
 
                                 {/* Краткое описание */}
@@ -1434,15 +1438,15 @@ export default function AdminWorkerDashboard() {
                                 </div>
 
                                 {/* Кнопка раскрытия */}
-                                <Button
-                                    variant="outline"
-                                    size="sm"
+                      <Button
+                          variant="outline"
+                          size="sm"
                                     className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
-                                    onClick={() => {
+                          onClick={() => {
                                       const newExpanded = new Set(expandedSubRequests);
                                       if (isExpanded) {
                                         newExpanded.delete(subRequest.id);
-                                      } else {
+                            } else {
                                         newExpanded.add(subRequest.id);
                                       }
                                       setExpandedSubRequests(newExpanded);
@@ -1459,8 +1463,8 @@ export default function AdminWorkerDashboard() {
                                       Подробнее
                                     </>
                                   )}
-                                </Button>
-                              </div>
+                      </Button>
+                    </div>
 
                               {/* Раскрытая информация */}
                               {isExpanded && (
@@ -1473,7 +1477,7 @@ export default function AdminWorkerDashboard() {
                                             <Badge className={getComplexityColor(subRequest.complexity)}>
                                               {translateComplexity(subRequest.complexity)}
                                             </Badge>
-                                          </div>
+                  </div>
                                       )}
                                       {subRequest.sla && (
                                           <div className="flex items-center gap-2 text-gray-600">
@@ -1481,7 +1485,7 @@ export default function AdminWorkerDashboard() {
                                             <Badge className="bg-blue-100 text-blue-800 border-blue-200">
                                               {subRequest.sla}
                                             </Badge>
-                                          </div>
+                  </div>
                                       )}
                                     </div>
 
@@ -1550,9 +1554,9 @@ export default function AdminWorkerDashboard() {
                                         <div className="border-t border-gray-200 pt-3 mt-3">
                                           <h5 className="font-medium text-sm mb-3 text-gray-700">Настройки для принятия</h5>
                                           <div className={`grid gap-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                                            <div>
+                  <div>
                                               <Label className="text-xs font-medium text-gray-600">SLA</Label>
-                                              <Select
+                        <Select
                                                   value={subRequestSettings[subRequest.id]?.sla || ''}
                                                   onValueChange={(value) => setSubRequestSettings(prev => ({
                                                     ...prev,
@@ -1561,20 +1565,20 @@ export default function AdminWorkerDashboard() {
                                               >
                                                 <SelectTrigger className="h-8 text-xs">
                                                   <SelectValue placeholder="Выберите SLA" />
-                                                </SelectTrigger>
-                                                <SelectContent>
+                          </SelectTrigger>
+                          <SelectContent>
                                                   <SelectItem value="1h">1 час</SelectItem>
                                                   <SelectItem value="4h">4 часа</SelectItem>
                                                   <SelectItem value="8h">8 часов</SelectItem>
                                                   <SelectItem value="1d">1 день</SelectItem>
                                                   <SelectItem value="3d">3 дня</SelectItem>
                                                   <SelectItem value="1w">1 неделя</SelectItem>
-                                                </SelectContent>
-                                              </Select>
-                                            </div>
-                                            <div>
+                          </SelectContent>
+                        </Select>
+                  </div>
+                    <div>
                                               <Label className="text-xs font-medium text-gray-600">Сложность</Label>
-                                              <Select
+                          <Select
                                                   value={subRequestSettings[subRequest.id]?.complexity || ''}
                                                   onValueChange={(value) => setSubRequestSettings(prev => ({
                                                     ...prev,
@@ -1582,14 +1586,14 @@ export default function AdminWorkerDashboard() {
                                                   }))}
                                               >
                                                 <SelectTrigger className="h-8 text-xs">
-                                                  <SelectValue placeholder="Выберите сложность" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="simple">Простая</SelectItem>
-                                                  <SelectItem value="medium">Средняя</SelectItem>
-                                                  <SelectItem value="complex">Сложная</SelectItem>
-                                                </SelectContent>
-                                              </Select>
+                              <SelectValue placeholder="Выберите сложность" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="simple">Простая</SelectItem>
+                              <SelectItem value="medium">Средняя</SelectItem>
+                              <SelectItem value="complex">Сложная</SelectItem>
+                            </SelectContent>
+                          </Select>
                                             </div>
                                           </div>
                                         </div>
@@ -1600,9 +1604,9 @@ export default function AdminWorkerDashboard() {
                         );
                       })}
                     </div>
-                  </div>
+                    </div>
 
-                  <div>
+                    <div>
                     <Label>Локация</Label>
                     <p className="text-sm">{selectedRequest.location_detail}</p>
                   </div>
@@ -1645,19 +1649,19 @@ export default function AdminWorkerDashboard() {
                       hour: "2-digit",
                       minute: "2-digit"
                     })}
-                  </div>
+                        </div>
 
                   {/* Фотографии группы заявок (только before) */}
                   {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
-                      <div className="mt-4">
+                        <div className="mt-4">
                         <Label className="font-bold block">Фотографии заявки (до выполнения)</Label>
-                        <div className="flex space-x-2 mt-2 flex-wrap">
+                                <div className="flex space-x-2 mt-2 flex-wrap">
                           {selectedRequest.photos
                               .filter((photo: any) => photo.type === 'before')
                               .map((photo: any, index: number) => (
-                                  <img
-                                      key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
+                                      <img
+                                          key={index}
+                                          src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                       onClick={() => {
@@ -1667,9 +1671,9 @@ export default function AdminWorkerDashboard() {
                                       onError={(e) => {
                                         e.currentTarget.src = "/placeholder.svg";
                                       }}
-                                  />
-                              ))}
-                        </div>
+                                      />
+                                  ))}
+                                </div>
                       </div>
                   )}
 
@@ -1677,13 +1681,13 @@ export default function AdminWorkerDashboard() {
                   {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'after').length > 0 && (
                       <div className="mt-4">
                         <Label className="font-bold block">Фотографии заявки (после выполнения)</Label>
-                        <div className="flex space-x-2 mt-2 flex-wrap">
+                              <div className="flex space-x-2 mt-2 flex-wrap">
                           {selectedRequest.photos
                               .filter((photo: any) => photo.type === 'after')
                               .map((photo: any, index: number) => (
-                                  <img
-                                      key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
+                                    <img
+                                        key={index}
+                                        src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                       onClick={() => {
@@ -1693,10 +1697,10 @@ export default function AdminWorkerDashboard() {
                                       onError={(e) => {
                                         e.currentTarget.src = "/placeholder.svg";
                                       }}
-                                  />
-                              ))}
+                                    />
+                                ))}
+                              </div>
                         </div>
-                      </div>
                   )}
 
                   {/* Модальное окно */}
@@ -1728,9 +1732,9 @@ export default function AdminWorkerDashboard() {
                           />
                         </div>
 
-                        {/* Кнопки принятия/отклонения */}
+                  {/* Кнопки принятия/отклонения */}
                         <div className={`flex gap-4 pt-4 border-t border-gray-100 ${isDesktop ? 'flex-row' : 'flex-col'}`}>
-                          <Button
+                        <Button
                               onClick={handleAcceptRequestGroup}
                               className={`${isDesktop ? 'flex-1' : 'w-full'} bg-green-600 hover:bg-green-700`}
                               disabled={isSubmitting}
@@ -1742,13 +1746,13 @@ export default function AdminWorkerDashboard() {
                                 </>
                             ) : (
                                 <>
-                                  <CheckCircle className="w-4 h-4 mr-2" />
+                          <CheckCircle className="w-4 h-4 mr-2" />
                                   Принять заявку
                                 </>
                             )}
-                          </Button>
-                          <Button
-                              variant="outline"
+                        </Button>
+                        <Button
+                            variant="outline"
                               onClick={handleRejectRequestGroup}
                               className={`${isDesktop ? 'flex-1' : 'w-full'} text-red-600 hover:text-red-700`}
                               disabled={isSubmitting}
@@ -1760,12 +1764,12 @@ export default function AdminWorkerDashboard() {
                                 </>
                             ) : (
                                 <>
-                                  <XCircle className="w-4 h-4 mr-2" />
+                          <XCircle className="w-4 h-4 mr-2" />
                                   Отклонить заявку
                                 </>
                             )}
-                          </Button>
-                        </div>
+                        </Button>
+                      </div>
                       </>
                   )}
 
@@ -1775,13 +1779,13 @@ export default function AdminWorkerDashboard() {
                   {formErrors && (
                       <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-200">
                         {formErrors}
-                      </div>
-                  )}
+                            </div>
+                        )}
 
 
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => {
-                      setSelectedRequest(null);
+                          setSelectedRequest(null);
                       closeModalWithHistory();
                       setFormErrors(null);
                     }}>
@@ -1810,7 +1814,8 @@ export default function AdminWorkerDashboard() {
            isOpen={showCreateRequestModal}
            onClose={() => {
              setShowCreateRequestModal(false);
-             closeModalWithHistory();
+             // Удаляем createRequest из стека модальных окон
+             setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
            }}
            userRole="admin-worker"
            categories={categories}
@@ -1824,11 +1829,11 @@ export default function AdminWorkerDashboard() {
         <RatingModal
           isOpen={showRatingModal && !!requestToRate}
           onClose={() => {
-            setShowRatingModal(false);
+                        setShowRatingModal(false);
             closeModalWithHistory()
-            setRatingValue(0);
-            setRequestToRate(null);
-          }}
+                        setRatingValue(0);
+                        setRequestToRate(null);
+                      }}
           ratingValue={ratingValue}
           onRatingChange={setRatingValue}
           onSubmit={handleRateExecutor}
@@ -1886,7 +1891,7 @@ export default function AdminWorkerDashboard() {
 
 
         <BottomNav
-            onCreateRequest={() => {setShowCreateRequestModal(true); openModal('createRequest'); }}
+
             activeTab="history"
             hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto}
         />

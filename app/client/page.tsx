@@ -128,7 +128,7 @@ export default function ClientDashboard() {
 
   const filteredRequests = requests
       .filter((request) => {
-        const statusMatch = filterStatus === "all" ||
+        const statusMatch = filterStatus === "all" || 
           (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterStatus)
         const requestType = request.request_type
         const typeMatch = filterType === "all" || requestType === filterType
@@ -246,7 +246,8 @@ export default function ClientDashboard() {
             break;
         }
 
-        closeModalWithHistory();
+        // Просто обновляем стек модальных окон без вызова closeModalWithHistory
+        setModalStack(prev => prev.slice(0, -1));
       }
     };
 
@@ -279,7 +280,8 @@ export default function ClientDashboard() {
 
 
     setModalStack([modalName]);
-    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+    // Используем pushState вместо replaceState для правильной работы истории
+    window.history.pushState({ modal: modalName }, '', window.location.pathname);
   };
 
   useEffect(() => {
@@ -314,13 +316,15 @@ export default function ClientDashboard() {
     const create = searchParams.get("createRequest")
 
     if (create === "true") {
-      closeAllModalsExcept('createRequest')
+      // Всегда добавляем createRequest в стек и историю
+      setModalStack(['createRequest']);
+      window.history.pushState({ modal: 'createRequest' }, '', window.location.pathname);
       setShowCreateRequest(true);
-      openModal('createRequest');
     }
     if(create === "false") {
       setShowCreateRequest(false)
-      closeModalWithHistory()
+      // Просто обновляем стек модальных окон
+      setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
   }, [searchParams])
 
@@ -406,16 +410,16 @@ export default function ClientDashboard() {
     if (requestToDelete) {
       try {
         await api.delete(`/request-groups/${requestToDelete.id}`)
-
+        
         // Удаляем заявку из локального состояния сразу
         removeRequest(requestToDelete.id);
-
+        
         // Закрываем все модальные окна
         setShowDeleteRequestModal(false);
         setSelectedRequest(null);
         closeModalWithHistory();
         setRequestToDelete(null);
-
+        
         successModal.showSuccess({
           title: "Заявка удалена",
           message: "Заявка была успешно удалена."
@@ -947,7 +951,7 @@ export default function ClientDashboard() {
                 <div className="flex flex-col sm:hidden gap-3 mb-4">
                   {isDesktop ? (
                       <Button
-                          onClick={handleOpenCreateRequest}
+                          onClick={() => router.push('/create-request')}
                           className="bg-violet-600 hover:bg-violet-700 w-full"
                       >
                         <Plus className="w-4 h-4 mr-2" />
@@ -967,7 +971,7 @@ export default function ClientDashboard() {
                     <TabsTrigger value="statistics">Статистика</TabsTrigger>
                   </TabsList>
                   <Button
-                      onClick={handleOpenCreateRequest}
+                      onClick={() => router.push('/create-request')}
                       className="bg-violet-600 hover:bg-violet-700"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -1070,7 +1074,7 @@ export default function ClientDashboard() {
     </div>
       </PullToRefresh>
   <BottomNav
-      onCreateRequest={handleOpenCreateRequest}
+
       activeTab ="history"
       hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showDeleteRequestModal}
   />
@@ -1101,7 +1105,7 @@ export default function ClientDashboard() {
                   {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
                       <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <CalendarLucid className="w-4 h-4 text-blue-600" />
-                        <div>
+                  <div>
                           <Label className="text-sm font-medium text-blue-800">Запланировано на: </Label>
                           <span className="text-sm text-blue-700">
                           {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
@@ -1110,7 +1114,7 @@ export default function ClientDashboard() {
                             day: 'numeric'
                           })}
                         </span>
-                        </div>
+                  </div>
                       </div>
                   )}
 
@@ -1353,15 +1357,15 @@ export default function ClientDashboard() {
 
                   {/* Фотографии группы заявок (только before) */}
                   {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
-                      <div className="mt-4">
+                        <div className="mt-4">
                         <Label className="font-bold block">Фотографии заявки (до выполнения)</Label>
-                        <div className="flex space-x-2 mt-2 flex-wrap">
+                                <div className="flex space-x-2 mt-2 flex-wrap">
                           {selectedRequest.photos
                               .filter((photo: any) => photo.type === 'before')
                               .map((photo: any, index: number) => (
-                                  <img
-                                      key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
+                                      <img
+                                          key={index}
+                                          src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                       onClick={() => {
@@ -1371,9 +1375,9 @@ export default function ClientDashboard() {
                                       onError={(e) => {
                                         e.currentTarget.src = "/placeholder.svg";
                                       }}
-                                  />
-                              ))}
-                        </div>
+                                      />
+                                  ))}
+                                </div>
                       </div>
                   )}
 
@@ -1381,13 +1385,13 @@ export default function ClientDashboard() {
                   {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'after').length > 0 && (
                       <div className="mt-4">
                         <Label className="font-bold block">Фотографии заявки (после выполнения)</Label>
-                        <div className="flex space-x-2 mt-2 flex-wrap">
+                              <div className="flex space-x-2 mt-2 flex-wrap">
                           {selectedRequest.photos
                               .filter((photo: any) => photo.type === 'after')
                               .map((photo: any, index: number) => (
-                                  <img
-                                      key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
+                                    <img
+                                        key={index}
+                                        src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                       onClick={() => {
@@ -1397,10 +1401,10 @@ export default function ClientDashboard() {
                                       onError={(e) => {
                                         e.currentTarget.src = "/placeholder.svg";
                                       }}
-                                  />
-                              ))}
+                                    />
+                                ))}
+                              </div>
                         </div>
-                      </div>
                   )}
 
                   {/* Модальное окно */}
@@ -1498,7 +1502,8 @@ export default function ClientDashboard() {
           isOpen={showCreateRequest}
           onClose={() => {
             setShowCreateRequest(false);
-            closeModalWithHistory();
+            // Удаляем createRequest из стека модальных окон
+            setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
           }}
           userRole="client"
           categories={categories}
@@ -1512,7 +1517,7 @@ export default function ClientDashboard() {
         <DeleteConfirmationModal
           isOpen={showDeleteRequestModal && !!requestToDelete}
           onClose={() => {
-            setShowDeleteRequestModal(false);
+                          setShowDeleteRequestModal(false);
             closeModalWithHistory();
             setRequestToDelete(null);
           }}

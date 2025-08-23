@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Camera, MapPin, Plus, Trash2, ChevronUp, ChevronDown, Loader2, Calendar as CalendarLucid, CheckCircle, AlertTriangle } from "lucide-react";
+import { Camera, MapPin, Plus, Trash2, ChevronUp, ChevronDown, Loader2, Calendar as CalendarLucid, CheckCircle, AlertTriangle, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 
@@ -65,6 +65,7 @@ interface CreateRequestModalProps {
   createMode?: 'create' | 'createAndComplete'; // Режим создания для executor
   onModeChange?: (mode: 'create' | 'createAndComplete') => void; // Функция изменения режима
   offices?: Office[]; // Список офисов для manager
+  isFullScreen?: boolean; // Полноэкранный режим для мобильных устройств
 }
 
 export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
@@ -82,6 +83,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   createMode = 'create',
   onModeChange,
   offices = [],
+  isFullScreen = false,
 }) => {
   const [requestType, setRequestType] = useState("normal");
   const [location, setLocation] = useState(clientLocation);
@@ -537,16 +539,45 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" 
-      onClick={() => {
+      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${
+        isFullScreen ? 'p-0' : 'p-4'
+      }`}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
         onClose();
         resetForm();
       }}
     >
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <Card className={`w-full overflow-y-auto ${
+        isFullScreen 
+          ? 'max-w-none max-h-none h-full rounded-none' 
+          : 'max-w-2xl max-h-[90vh]'
+      }`} onClick={(e) => e.stopPropagation()}>
         <CardHeader>
-          <CardTitle>Создать заявку</CardTitle>
-          <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {isFullScreen && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onClose();
+                    resetForm();
+                  }}
+                  className="p-2 hover:bg-gray-100"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+              )}
+              <div>
+                <CardTitle>Создать заявку</CardTitle>
+                <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-6 pb-16">
           {/* Выбор режима создания для executor */}
@@ -1282,7 +1313,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </Button>
             <Button
               variant="outline"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 onClose();
                 resetForm();
               }}

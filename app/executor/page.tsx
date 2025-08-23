@@ -326,7 +326,7 @@ export default function ExecutorDashboard() {
         });
       } else {
         // Если нет других подзаявок с нашей категорией, удаляем заявку из UI
-        setMyRequests(prev =>
+      setMyRequests(prev => 
             prev.filter(req => req.id !== requestGroup.id)
         );
         setCompletedRequests(prev =>
@@ -335,8 +335,8 @@ export default function ExecutorDashboard() {
         setAssignedRequests(prev =>
             prev.filter(req => req.id !== requestGroup.id)
         );
-        successModal.showSuccess({
-          title: "Заявка перенаправлена",
+      successModal.showSuccess({
+        title: "Заявка перенаправлена",
           message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
         });
       }
@@ -403,9 +403,9 @@ export default function ExecutorDashboard() {
       // Показываем сообщение об успехе
       successModal.showSuccess({
         title: currentStatus ? "Задача снята с долгосрочных" : "Задача помечена как долгосрочная",
-        message: currentStatus
-            ? "Задача больше не отображается как долгосрочная"
-            : "Задача помечена как долгосрочная и будет выделена синим цветом"
+        message: currentStatus 
+          ? "Задача больше не отображается как долгосрочная" 
+          : "Задача помечена как долгосрочная и будет выделена синим цветом"
       });
 
     } catch (error: any) {
@@ -560,7 +560,8 @@ export default function ExecutorDashboard() {
 
     // Очищаем стек и добавляем только текущую модалку
     setModalStack([modalName]);
-    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+    // Используем pushState вместо replaceState для правильной работы истории
+    window.history.pushState({ modal: modalName }, '', window.location.pathname);
   };
 
   useEffect(() => {
@@ -592,10 +593,10 @@ export default function ExecutorDashboard() {
 
              // Если есть after_photos, загружаем их отдельным запросом
        let uploadedPhotos;
-       if (afterPhotos.length > 0) {
-         const afterFormData = new FormData();
+      if (afterPhotos.length > 0) {
+        const afterFormData = new FormData();
          afterPhotos.forEach(photo => afterFormData.append('photos', photo));
-         afterFormData.append('type', 'after');
+        afterFormData.append('type', 'after');
          try {
            response = await api.post(`/request-photos/${newRequestGroup.id}/photos`, afterFormData, {
              headers: { 'Content-Type': 'multipart/form-data' }
@@ -623,10 +624,10 @@ export default function ExecutorDashboard() {
               // Обновляем состояние в зависимости от режима
         if (createMode === 'createAndComplete') {
           setMyRequests(prev => [updatedRequestGroup, ...prev]);
-          successModal.showSuccess({
-            title: "Заявка создана и завершена!",
-            message: "Заявка успешно создана, выполнена и закрыта с отчётом."
-          });
+      successModal.showSuccess({
+        title: "Заявка создана и завершена!",
+        message: "Заявка успешно создана, выполнена и закрыта с отчётом."
+      });
         } else {
           setMyRequests(prev => [updatedRequestGroup, ...prev]);
           successModal.showSuccess({
@@ -669,13 +670,15 @@ export default function ExecutorDashboard() {
   useEffect(() => {
     const create = searchParams.get("createRequest")
     if (create === "true") {
-      closeAllModalsExcept('createRequest');
+      // Всегда добавляем createRequest в стек и историю
+      setModalStack(['createRequest']);
+      window.history.pushState({ modal: 'createRequest' }, '', window.location.pathname);
       setShowCreateRequestModal(true)
-      openModal('createRequest');
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModalWithHistory()
+      // Просто обновляем стек модальных окон
+      setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
   }, [searchParams])
 
@@ -932,11 +935,11 @@ export default function ExecutorDashboard() {
             }
           });
           uploadedPhotos = photoResponse.data.photos || [];
-                  } catch (photoUploadError) {
+        } catch (photoUploadError) {
             console.error("Ошибка при загрузке фотографий:", photoUploadError);
             // Откатываем создание заявки при ошибке загрузки фото
             try {
-              await api.delete(`/requests/${response.data.id}`);
+          await api.delete(`/requests/${response.data.id}`);
             } catch (deleteError) {
               console.error("Ошибка при откате заявки:", deleteError);
             }
@@ -945,8 +948,8 @@ export default function ExecutorDashboard() {
               message: "Не удалось загрузить фотографии. Заявка не была завершена."
             });
             setIsSubmitting(false);
-            return;
-          }
+          return;
+        }
       }
 
       console.log(uploadedPhotos);
@@ -1116,7 +1119,7 @@ export default function ExecutorDashboard() {
     if (!isLongTerm) return null;
 
     if (isDesktop) {
-      return (
+    return (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -1148,38 +1151,38 @@ export default function ExecutorDashboard() {
 
     return (
         <CardHeader className={`pb-3 px-5 pt-5`}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
                 <h3 className={`font-bold text-base leading-tight line-clamp-2 text-gray-900`}>
                   Заявка #{requestGroup.id}
-                </h3>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50`}>
                 {totalSubRequests} под заявок
               </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
-              </div>
             </div>
-            <div className="flex gap-1 items-center">
+          </div>
+          <div className="flex gap-1 items-center">
               {renderStatusWithTooltip(requestGroup.status)}
               {isLongTerm && renderLongTermWithTooltip(true)}
-              <RoleBasedActionMenu
+            <RoleBasedActionMenu
                   request={requestGroup}
-                  isDesktop={isDesktop}
-                  userRole="executor"
+              isDesktop={isDesktop}
+              userRole="executor"
                   isSubRequest={false}
-                  onViewDetails={(request) => {
+              onViewDetails={(request) => {
                     setSelectedRequest(request);
                     openModal('requestDetails');
                   }}
-              />
-            </div>
+            />
           </div>
-        </CardHeader>
+        </div>
+      </CardHeader>
     );
   };
 
@@ -1284,7 +1287,7 @@ export default function ExecutorDashboard() {
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-2">
                   {isDesktop && (
                       <Button
-                          onClick={handleOpenCreateRequest}
+                          onClick={() => router.push('/create-request')}
                           className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
                       >
                         <Plus className="w-4 h-4 mr-2" />
@@ -1559,21 +1562,21 @@ export default function ExecutorDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-4 pb-16">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                  <div>
                       <Label>Тип заявки</Label>
                       <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
-                    </div>
-                    <div>
+                  </div>
+                  <div>
                       <Label>Статус</Label>
                       <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
-                    </div>
+                  </div>
                   </div>
 
                   {/* Показываем запланированное время для плановых заявок */}
                   {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
                       <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <CalendarLucid className="w-4 h-4 text-blue-600" />
-                        <div>
+                  <div>
                           <Label className="text-sm font-medium text-blue-800">Запланировано на: </Label>
                           <span className="text-sm text-blue-700">
                           {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
@@ -1582,7 +1585,7 @@ export default function ExecutorDashboard() {
                             day: 'numeric'
                           })}
                         </span>
-                        </div>
+                          </div>
                       </div>
                   )}
 
@@ -1602,20 +1605,20 @@ export default function ExecutorDashboard() {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
                                       <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
-                                    </div>
+                    </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
                                         <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
                                         {subRequest.category?.name || 'Без категории'}
                                       </span>
-                                    </div>
+                  </div>
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {renderStatusWithTooltip(subRequest.status)}
                                     {renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                     {/* Кнопка комментариев */}
-                                    <Button
+                    <Button
                                         variant="ghost"
                                         size="sm"
                                         className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
@@ -1628,7 +1631,7 @@ export default function ExecutorDashboard() {
                                         }}
                                     >
                                       <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
-                                    </Button>
+                    </Button>
 
                                     <RoleBasedActionMenu
                                         request={subRequest}
@@ -1655,8 +1658,8 @@ export default function ExecutorDashboard() {
                                 </div>
 
                                 {/* Кнопка раскрытия */}
-                                <Button
-                                    variant="outline"
+                    <Button
+                        variant="outline"
                                     size="sm"
                                     className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
                                     onClick={() => {
@@ -1680,8 +1683,8 @@ export default function ExecutorDashboard() {
                                         Подробнее
                                       </>
                                   )}
-                                </Button>
-                              </div>
+                    </Button>
+                  </div>
 
                               {/* Раскрытая информация */}
                               {isExpanded && (
@@ -1694,17 +1697,17 @@ export default function ExecutorDashboard() {
                                             <Badge className={getComplexityColor(subRequest.complexity)}>
                                               {translateComplexity(subRequest.complexity)}
                                             </Badge>
-                                          </div>
-                                      )}
+            </div>
+        )}
                                       {subRequest.sla && (
                                           <div className="flex items-center gap-2 text-gray-600">
                                             <span className="font-medium">SLA:</span>
                                             <Badge className="bg-blue-100 text-blue-800 border-blue-200">
                                               {subRequest.sla}
                                             </Badge>
-                                          </div>
+                  </div>
                                       )}
-                                    </div>
+                  </div>
 
                                     {/* Исполнители */}
                                     {(() => {
@@ -1726,7 +1729,7 @@ export default function ExecutorDashboard() {
                                                     <div className="flex items-center gap-2">
                                                       <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                                                         <User className="w-4 h-4 text-purple-600" />
-                                                      </div>
+                  </div>
                                                       <div className="flex items-center gap-2">
                                                         <span className="text-sm font-medium text-gray-800">
                                                           {executor.user.full_name}
@@ -1734,23 +1737,23 @@ export default function ExecutorDashboard() {
                                                         {executor?.RequestExecutor?.role === "leader" && (
                                                           <LeaderIndicator isDesktop={isDesktop} size="sm" />
                                                         )}
-                                                      </div>
+                  </div>
                                                       {executor.user.phone && (
                                                         <div className="text-xs text-gray-500 mt-1">
                                                           {executor.user.phone}
-                                                        </div>
+                  </div>
                                                       )}
-                                                    </div>
+                  </div>
                                                     {userRatings[subRequest.id]?.rating && (
                                                         <div className="flex items-center gap-2">
                                                           <span className="text-xs text-gray-500">Оценка:</span>
                                                           <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
-                                                        </div>
-                                                    )}
-                                                  </div>
-                                              ))}
-                                            </div>
-                                          </div>
+                    </div>
+                  )}
+                          </div>
+                      ))}
+                    </div>
+                  </div>
                                       ) : null;
                                     })()}
 
@@ -1765,47 +1768,47 @@ export default function ExecutorDashboard() {
                                             }}
                                         />
                                     )}
-                                  </div>
-                              )}
-                            </div>
+                    </div>
+                  )}
+                  </div>
                         );
                       })}
-                    </div>
+            </div>
                   </div>
 
-                  <div>
+                    <div>
                     <Label>Локация</Label>
                     <p className="text-sm">{selectedRequest.location_detail}</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const locText = selectedRequest.location;
-                            const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
-                            const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
-                            const accMatch = locText.match(/±(\d+) м/);
-
-                            if (latMatch && lonMatch && accMatch) {
-                              setMapLocation({
-                                lat: parseFloat(latMatch[1]),
-                                lon: parseFloat(lonMatch[1]),
-                                accuracy: parseInt(accMatch[1])
-                              });
-                              setShowMapModal(true);
-                              openModal('mapModal');
-                            } else {
-                              alert("Не удалось определить координаты из локации");
-                            }
-                          }}
-                      >
-                        <MapPin className="w-4 h-4 mr-1" />
-                        Показать на карте
-                      </Button>
                     </div>
-                  </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                            const locText = selectedRequest.location;
+                              const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
+                              const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
+                              const accMatch = locText.match(/±(\d+) м/);
+
+                              if (latMatch && lonMatch && accMatch) {
+                                setMapLocation({
+                                  lat: parseFloat(latMatch[1]),
+                                  lon: parseFloat(lonMatch[1]),
+                                  accuracy: parseInt(accMatch[1])
+                                });
+                                setShowMapModal(true);
+                              openModal('mapModal');
+                              } else {
+                                alert("Не удалось определить координаты из локации");
+                              }
+                            }}
+                        >
+                          <MapPin className="w-4 h-4 mr-1" />
+                          Показать на карте
+                        </Button>
+                      </div>
+                    </div>
 
                   <div className="flex items-center">
                     <Clock className="w-4 h-4 mr-1" />
@@ -1816,7 +1819,7 @@ export default function ExecutorDashboard() {
                       hour: "2-digit",
                       minute: "2-digit"
                     })}
-                  </div>
+                    </div>
 
                   {/* Фотографии группы заявок (только before) */}
                   {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
@@ -1840,9 +1843,9 @@ export default function ExecutorDashboard() {
                                   }}
                               />
                           ))}
+                    </div>
                         </div>
-                      </div>
-                  )}
+                    )}
 
                   {/* Фотографии группы заявок (только before) */}
                   {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'after').length > 0 && (
@@ -1852,9 +1855,9 @@ export default function ExecutorDashboard() {
                           {selectedRequest.photos
                               .filter((photo: any) => photo.type === 'after')
                               .map((photo: any, index: number) => (
-                                  <img
-                                      key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
+                                <img
+                                    key={index}
+                                    src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                       onClick={() => {
@@ -1864,24 +1867,24 @@ export default function ExecutorDashboard() {
                                       onError={(e) => {
                                         e.currentTarget.src = "/placeholder.svg";
                                       }}
-                                  />
-                              ))}
+                                />
+                            ))}
+                          </div>
                         </div>
-                      </div>
                   )}
 
                   {/* Модальное окно */}
-                  {selectedPhoto && (
-                      <div
+                        {selectedPhoto && (
+                            <div
                           className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
                           onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
-                      >
-                        <img
-                            src={selectedPhoto}
-                            alt="Увеличенное фото"
-                            className="max-w-full max-h-full rounded-lg"
-                            onClick={(e) => e.stopPropagation()}
-                        />
+                            >
+                              <img
+                                  src={selectedPhoto}
+                                  alt="Увеличенное фото"
+                                  className="max-w-full max-h-full rounded-lg"
+                                  onClick={(e) => e.stopPropagation()}
+                              />
                       </div>
                   )}
 
@@ -1892,8 +1895,8 @@ export default function ExecutorDashboard() {
                       closeModalWithHistory();
                     }}>
                       Закрыть
-                    </Button>
-                  </div>
+                          </Button>
+                      </div>
                 </CardContent>
               </Card>
             </div>
@@ -1932,7 +1935,7 @@ export default function ExecutorDashboard() {
             onReject={handleRejectSubRequestSubmit}
             request={selectedSubRequestForReject}
             isSubmitting={isRejecting}
-            error={rejectError}
+          error={rejectError}
         />
 
         {/* Create Request Modal */}
@@ -1940,7 +1943,8 @@ export default function ExecutorDashboard() {
             isOpen={showCreateRequestModal}
             onClose={() => {
               setShowCreateRequestModal(false);
-              closeModalWithHistory();
+              // Удаляем createRequest из стека модальных окон
+              setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
             }}
             userRole="executor"
             categories={categories}
@@ -1964,35 +1968,35 @@ export default function ExecutorDashboard() {
 
         {/* Redirect Modal */}
         {showRedirectModal && selectedRequestForRedirect && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <Card className="w-full max-w-md">
-                <CardHeader>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md">
+              <CardHeader>
                   <CardTitle>Перенаправить подзаявку #{selectedRequestForRedirect.id}</CardTitle>
-                  <CardDescription>
+                <CardDescription>
                     Выберите категорию, к которой нужно перенаправить подзаявку
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
                     <Label htmlFor="category">Категория</Label>
-                    <Select
+                  <Select
                         value={selectedCategoryId?.toString() || ""}
                         onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
-                    >
-                      <SelectTrigger>
+                  >
+                    <SelectTrigger>
                         <SelectValue placeholder="Выберите категорию" />
-                      </SelectTrigger>
-                      <SelectContent>
+                    </SelectTrigger>
+                    <SelectContent>
                         {categories
                             .filter(category => category.id !== selectedRequestForRedirect.category_id)
                             .map((category) => (
                                 <SelectItem key={category.id} value={category.id.toString()}>
                                   {category.name}
-                                </SelectItem>
-                            ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-5 h-5 text-blue-600" />
@@ -2000,27 +2004,27 @@ export default function ExecutorDashboard() {
                       Подзаявка будет перенаправлена всем руководителям с категорией "{categories.find(c => c.id === selectedCategoryId)?.name || 'выбранная категория'}"
                     </span>
                     </div>
-                  </div>
-                  {redirectError && (
-                      <p className="text-sm text-red-500">{redirectError}</p>
-                  )}
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                        variant="outline"
-                        onClick={handleCloseRedirectModal}
-                    >
-                      Отмена
-                    </Button>
-                    <Button
-                        onClick={handleRedirectRequest}
+                </div>
+                {redirectError && (
+                  <p className="text-sm text-red-500">{redirectError}</p>
+                )}
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseRedirectModal}
+                  >
+                    Отмена
+                  </Button>
+                  <Button 
+                    onClick={handleRedirectRequest} 
                         disabled={!selectedCategoryId || isRedirecting}
-                    >
-                      {isRedirecting ? "Перенаправление..." : "Перенаправить"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  >
+                    {isRedirecting ? "Перенаправление..." : "Перенаправить"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         <RejectRequestModal
@@ -2049,7 +2053,7 @@ export default function ExecutorDashboard() {
         />
 
         <BottomNav
-            onCreateRequest={handleOpenCreateRequest}
+
             activeTab="history"
             hidden={showCreateRequestModal || !! selectedRequest || showMapModal || !!selectedPhoto || showProfile || isModalOpen || showRejectModal || showRedirectModal}
         />

@@ -6,11 +6,10 @@ import {useAuthStore} from "@/stores/useAuthStore";
 
 interface BottomNavProps {
     activeTab?: 'home' | 'history' | 'chat' | 'profile';
-    onCreateRequest?: () => void;
     hidden?: boolean; // Новый пропс для скрытия навигации
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest, hidden = false }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false }) => {
     const {role} = useAuthStore()
 
     // Скрываем навигацию если hidden = true
@@ -53,10 +52,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onCreateRequest
             </Link>
 
             {/* Центральная кнопка */}
-            <Link href={`/${role}?createRequest=true`} className="flex-1 flex justify-center">
+            <Link href="/create-request" className="flex-1 flex justify-center">
             <div className="flex-1 flex justify-center relative">
                 <Button
-                    onClick={onCreateRequest}
                     variant="ghost"
                     size="sm"
                     className="absolute -top-6 bg-purple-600 text-white rounded-full w-12 h-12 hover:bg-purple-700 shadow-lg"

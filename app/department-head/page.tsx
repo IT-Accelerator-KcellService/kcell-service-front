@@ -232,7 +232,8 @@ export default function DepartmentHeadDashboard() {
             break;
         }
 
-        closeModalWithHistory();
+        // Просто обновляем стек модальных окон без вызова closeModalWithHistory
+        setModalStack(prev => prev.slice(0, -1));
       }
     };
 
@@ -276,7 +277,8 @@ export default function DepartmentHeadDashboard() {
       handleCloseRedirectModal();
     }
     setModalStack([modalName]);
-    window.history.replaceState({ modal: modalName }, '', window.location.pathname);
+    // Используем pushState вместо replaceState для правильной работы истории
+    window.history.pushState({ modal: modalName }, '', window.location.pathname);
   };
 
   const fetchStats = async () => {
@@ -311,13 +313,15 @@ export default function DepartmentHeadDashboard() {
     const create = searchParams.get("createRequest")
 
     if (create === "true") {
-      closeAllModalsExcept('createRequest')
+      // Всегда добавляем createRequest в стек и историю
+      setModalStack(['createRequest']);
+      window.history.pushState({ modal: 'createRequest' }, '', window.location.pathname);
       setShowCreateRequestModal(true)
-      openModal('createRequest');
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModalWithHistory()
+      // Просто обновляем стек модальных окон
+      setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
   }, [searchParams])
   const fetchNotifications = async () => {
@@ -776,9 +780,9 @@ export default function DepartmentHeadDashboard() {
       // Показываем сообщение об успехе
       successModal.showSuccess({
         title: currentStatus ? "Задача снята с долгосрочных" : "Задача помечена как долгосрочная",
-        message: currentStatus
-            ? "Задача больше не отображается как долгосрочная"
-            : "Задача помечена как долгосрочная и будет выделена синим цветом"
+        message: currentStatus 
+          ? "Задача больше не отображается как долгосрочная" 
+          : "Задача помечена как долгосрочная и будет выделена синим цветом"
       });
 
     } catch (error: any) {
@@ -825,7 +829,7 @@ export default function DepartmentHeadDashboard() {
     if (!isLongTerm) return null;
 
     if (isDesktop) {
-      return (
+    return (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -857,38 +861,38 @@ export default function DepartmentHeadDashboard() {
 
     return (
         <CardHeader className={`pb-3 px-5 pt-5`}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
                 <h3 className={`font-bold text-base leading-tight line-clamp-2 text-gray-900`}>
                   Заявка #{requestGroup.id}
-                </h3>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
+              </h3>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50`}>
                 {totalSubRequests} под заявок
               </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
-              </div>
-            </div>
-            <div className="flex gap-1 items-center">
-              {renderStatusWithTooltip(requestGroup.status)}
-              {isLongTerm && renderLongTermWithTooltip(true)}
-              <RoleBasedActionMenu
-                  request={requestGroup}
-                  isDesktop={isDesktop}
-                  userRole="department-head"
-                  isSubRequest={false}
-                  onViewDetails={(request) => {
-                    setSelectedRequest(request);
-                    openModal('requestDetails');
-                  }}
-              />
             </div>
           </div>
-        </CardHeader>
+          <div className="flex gap-1 items-center">
+              {renderStatusWithTooltip(requestGroup.status)}
+              {isLongTerm && renderLongTermWithTooltip(true)}
+            <RoleBasedActionMenu
+                  request={requestGroup}
+              isDesktop={isDesktop}
+              userRole="department-head"
+                  isSubRequest={false}
+              onViewDetails={(request) => {
+                setSelectedRequest(request);
+                    openModal('requestDetails');
+                  }}
+            />
+          </div>
+        </div>
+      </CardHeader>
     );
   };
 
@@ -969,11 +973,11 @@ export default function DepartmentHeadDashboard() {
         setMyRequests(prev => 
           prev.filter(req => req.id !== requestGroup.id)
         );
-        setIncomingRequests(prev =>
+      setIncomingRequests(prev =>
           prev.filter(req => req.id !== requestGroup.id)
-        );
-        successModal.showSuccess({
-          title: "Заявка перенаправлена",
+      );
+      successModal.showSuccess({
+        title: "Заявка перенаправлена",
           message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
         });
       }
@@ -1100,8 +1104,7 @@ export default function DepartmentHeadDashboard() {
                   {isDesktop ? (
                       <div className="order-1 sm:order-2 w-full sm:w-auto">
                         <Button
-                            onClick={() => {setShowCreateRequestModal(true)
-                              openModal('createRequest')}}
+                            onClick={() => router.push('/create-request')}
                             className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
                         >
                           <Plus className="w-4 h-4 mr-2" />
@@ -1128,7 +1131,7 @@ export default function DepartmentHeadDashboard() {
                           key={index}
                           request={request}
                           onCardClick={(request) => {
-                            setSelectedRequest(request);
+                              setSelectedRequest(request);
                             openModal('requestDetails');
                           }}
                           renderCardHeader={renderCardHeader}
@@ -1339,17 +1342,17 @@ export default function DepartmentHeadDashboard() {
                                         {executor.workload} задач
                                       </div>
 
-                                      <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setExecutorToDelete(executor);
+                                          <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => {
+                                                setExecutorToDelete(executor);
                                             setShowDeleteExecutorModal(true);
-                                          }}
-                                          className="text-red-500 hover:text-red-700"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
+                                              }}
+                                              className="text-red-500 hover:text-red-700"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
                                     </div>
                                   </div>
                               ))
@@ -1437,7 +1440,7 @@ export default function DepartmentHeadDashboard() {
                   {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
                       <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <CalendarLucid className="w-4 h-4 text-blue-600" />
-                        <div>
+                  <div>
                           <Label className="text-sm font-medium text-blue-800">Запланировано на: </Label>
                           <span className="text-sm text-blue-700">
                           {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
@@ -1446,12 +1449,12 @@ export default function DepartmentHeadDashboard() {
                             day: 'numeric'
                           })}
                         </span>
-                        </div>
+                  </div>
                       </div>
                   )}
 
                   {/* Под заявки */}
-                  <div>
+                      <div>
                     <Label className={isDesktop ? '' : 'text-base font-semibold'}>Под заявки</Label>
                     <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
                       {selectedRequest.requests.map((subRequest: SubRequest) => {
@@ -1466,7 +1469,7 @@ export default function DepartmentHeadDashboard() {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
                                       <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
-                                    </div>
+                  </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
                                         <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
@@ -1479,20 +1482,20 @@ export default function DepartmentHeadDashboard() {
                                     {renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                     {/* Кнопка комментариев */}
-                                    <Button
+                      <Button
                                         variant="ghost"
-                                        size="sm"
+                          size="sm"
                                         className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
-                                        onClick={() => {
+                          onClick={() => {
                                           if (hasComments) {
                                             setShowComments(null);
-                                          } else {
+                            } else {
                                             setShowComments(subRequest.id);
-                                          }
-                                        }}
-                                    >
+                            }
+                          }}
+                      >
                                       <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
-                                    </Button>
+                      </Button>
 
                                     <RoleBasedActionMenu
                                         request={subRequest}
@@ -1512,7 +1515,7 @@ export default function DepartmentHeadDashboard() {
                                         onToggleLongTerm={handleToggleLongTerm}
                                     />
                                   </div>
-                                </div>
+                    </div>
 
                                 {/* Краткое описание */}
                                 <div className={`text-gray-600 mb-3 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
@@ -1520,15 +1523,15 @@ export default function DepartmentHeadDashboard() {
                                       <p className="line-clamp-2">{subRequest.description}</p>
                                   ) : (
                                       <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
-                                  )}
-                                </div>
+                      )}
+                    </div>
 
                                 {/* Кнопка раскрытия */}
-                                <Button
+                          <Button
                                     variant="outline"
-                                    size="sm"
+                              size="sm"
                                     className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
-                                    onClick={() => {
+                              onClick={() => {
                                       const newExpanded = new Set(expandedSubRequests);
                                       if (isExpanded) {
                                         newExpanded.delete(subRequest.id);
@@ -1549,8 +1552,8 @@ export default function DepartmentHeadDashboard() {
                                         Подробнее
                                       </>
                                   )}
-                                </Button>
-                              </div>
+                          </Button>
+                        </div>
 
                               {/* Раскрытая информация */}
                               {isExpanded && (
@@ -1563,8 +1566,8 @@ export default function DepartmentHeadDashboard() {
                                             <Badge className={getComplexityColor(subRequest.complexity)}>
                                               {translateComplexity(subRequest.complexity)}
                                             </Badge>
-                                          </div>
-                                      )}
+                      </div>
+                  )}
                                       {subRequest.sla && (
                                           <div className="flex items-center gap-2 text-gray-600">
                                             <span className="font-medium">SLA:</span>
@@ -1595,7 +1598,7 @@ export default function DepartmentHeadDashboard() {
                                                     <div className="flex items-center gap-2">
                                                       <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                                                         <User className="w-4 h-4 text-purple-600" />
-                                                      </div>
+                        </div>
                                                       <div className="flex items-center gap-2">
                                                         <span className="text-sm font-medium text-gray-800">
                                                           {executor.user.full_name}
@@ -1607,8 +1610,8 @@ export default function DepartmentHeadDashboard() {
                                                       {executor.user.phone && (
                                                           <div className="text-xs text-gray-500 mt-1">
                                                             {executor.user.phone}
-                                                          </div>
-                                                      )}
+                      </div>
+                  )}
                                                     </div>
                                                     {userRatings[subRequest.id]?.rating && (
                                                         <div className="flex items-center gap-2">
@@ -1630,12 +1633,12 @@ export default function DepartmentHeadDashboard() {
                                             isDesktop={isDesktop}
                                             onPhotoClick={(photoUrl) => {
                                               setSelectedPhoto(photoUrl);
-                                              openModal('photoPreview');
-                                            }}
-                                        />
+                                    openModal('photoPreview');
+                                  }}
+                              />
                                     )}
-                                  </div>
-                              )}
+                      </div>
+                  )}
                             </div>
                         );
                       })}
@@ -1648,10 +1651,10 @@ export default function DepartmentHeadDashboard() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <Button
-                          variant="outline"
+                          <Button
+                              variant="outline"
                           size="sm"
-                          onClick={() => {
+                              onClick={() => {
                             const locText = selectedRequest.location;
                             const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
                             const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
@@ -1672,7 +1675,7 @@ export default function DepartmentHeadDashboard() {
                       >
                         <MapPin className="w-4 h-4 mr-1" />
                         Показать на карте
-                      </Button>
+                          </Button>
                     </div>
                   </div>
 
@@ -1685,7 +1688,7 @@ export default function DepartmentHeadDashboard() {
                       hour: "2-digit",
                       minute: "2-digit"
                     })}
-                  </div>
+                      </div>
 
                   {/* Фотографии группы заявок (только before) */}
                   {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
@@ -1700,7 +1703,7 @@ export default function DepartmentHeadDashboard() {
                                       src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
-                                      onClick={() => {
+                                  onClick={() => {
                                         setSelectedPhoto(photo.photo_url);
                                         openModal('photoPreview');
                                       }}
@@ -1726,7 +1729,7 @@ export default function DepartmentHeadDashboard() {
                                       src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
-                                      onClick={() => {
+                            onClick={() => {
                                         setSelectedPhoto(photo.photo_url);
                                         openModal('photoPreview');
                                       }}
@@ -1735,24 +1738,24 @@ export default function DepartmentHeadDashboard() {
                                       }}
                                   />
                               ))}
-                        </div>
-                      </div>
-                  )}
+                  </div>
+            </div>
+        )}
 
-                  {/* Модальное окно */}
-                  {selectedPhoto && (
-                      <div
-                          className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+        {/* Модальное окно */}
+        {selectedPhoto && (
+            <div
+                className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
                           onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
-                      >
-                        <img
-                            src={selectedPhoto}
-                            alt="Увеличенное фото"
-                            className="max-w-full max-h-full rounded-lg"
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                  )}
+            >
+              <img
+                  src={selectedPhoto}
+                  alt="Увеличенное фото"
+                  className="max-w-full max-h-full rounded-lg"
+                  onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+        )}
 
 
                   <div className="flex justify-end space-x-2">
@@ -1761,12 +1764,12 @@ export default function DepartmentHeadDashboard() {
                       closeModalWithHistory();
                     }}>
                       Закрыть
-                    </Button>
-                  </div>
+                      </Button>
+                    </div>
                 </CardContent>
               </Card>
-            </div>
-        )}
+                      </div>
+                    )}
 
         {/* Comments Modal */}
         <CommentsModal
@@ -1784,7 +1787,8 @@ export default function DepartmentHeadDashboard() {
           isOpen={showCreateRequestModal}
           onClose={() => {
             setShowCreateRequestModal(false);
-            closeModalWithHistory();
+            // Удаляем createRequest из стека модальных окон
+            setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
           }}
           userRole="department-head"
           categories={categories}
@@ -1799,7 +1803,7 @@ export default function DepartmentHeadDashboard() {
         <RatingModal
             isOpen={showRatingModal && !!requestToRate}
             onClose={() => {
-              setShowRatingModal(false);
+                        setShowRatingModal(false);
               closeModalWithHistory();
               setRatingValue(0);
               setRequestToRate(null);
@@ -1846,8 +1850,8 @@ export default function DepartmentHeadDashboard() {
                         .map((category) => (
                           <SelectItem key={category.id} value={category.id.toString()}>
                             {category.name}
-                          </SelectItem>
-                        ))}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1916,7 +1920,7 @@ export default function DepartmentHeadDashboard() {
         />
 
         <BottomNav
-            onCreateRequest={() => setShowCreateRequestModal(true)}
+
             activeTab="history"
             hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal}
         />
