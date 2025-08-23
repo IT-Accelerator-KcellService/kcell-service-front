@@ -62,6 +62,7 @@ import { MapModal } from "@/components/MapModal";
 import { CreateRequestModal } from "@/components/CreateRequestModal";
 import { CommentsModal } from "@/components/CommentsModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
+import SubRequestInfo from "@/components/SubRequestInfo";
 
 interface User {
   id: number;
@@ -1471,24 +1472,7 @@ export default function AdminWorkerDashboard() {
                               {isExpanded && (
                                   <div className={`border-t bg-gradient-to-br from-gray-50 to-gray-100 ${isDesktop ? 'p-4' : 'p-5'}`}>
                                     {/* Основная информация */}
-                                    <div className={`grid gap-3 text-sm mb-4 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                                      {subRequest.complexity && (
-                                          <div className="flex items-center gap-2 text-gray-600">
-                                            <span className="font-medium">Сложность:</span>
-                                            <Badge className={getComplexityColor(subRequest.complexity)}>
-                                              {translateComplexity(subRequest.complexity)}
-                                            </Badge>
-                  </div>
-                                      )}
-                                      {subRequest.sla && (
-                                          <div className="flex items-center gap-2 text-gray-600">
-                                            <span className="font-medium">SLA:</span>
-                                            <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                                              {subRequest.sla}
-                                            </Badge>
-                  </div>
-                                      )}
-                                    </div>
+                                    <SubRequestInfo subRequest={subRequest} />
 
                                     {/* Исполнители */}
                                     {(() => {
