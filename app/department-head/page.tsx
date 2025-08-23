@@ -98,7 +98,7 @@ interface Stats {
 }
 
 export default function DepartmentHeadDashboard() {
-  const {role, token, clearAuth, user} = useAuthStore()
+  const {token, clearAuth, user} = useAuthStore()
   const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
@@ -148,14 +148,20 @@ export default function DepartmentHeadDashboard() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
+  const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
     window.history.pushState({ modal: name }, '', window.location.pathname);
   };
 
-  const closeModal = () => {
-    setModalStack(prev => prev.slice(0, -1));
+  const closeModalWithHistory = () => {
+    setIsClosingProgrammatically(true);
+    const newStack = modalStack.slice(0, -1);
+    setModalStack(newStack);
+
+    // Откатываем историю браузера назад
+    window.history.back();
   };
 
   const [hydrated, setHydrated] = useState(false);
@@ -185,6 +191,12 @@ export default function DepartmentHeadDashboard() {
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      // Если закрытие происходит программно, сбрасываем флаг и не обрабатываем событие
+      if (isClosingProgrammatically) {
+        setIsClosingProgrammatically(false);
+        return;
+      }
+
       if (modalStack.length > 0) {
         e.preventDefault();
         const lastModal = modalStack[modalStack.length - 1];
@@ -220,7 +232,7 @@ export default function DepartmentHeadDashboard() {
             break;
         }
 
-        closeModal();
+        closeModalWithHistory();
       }
     };
 
@@ -233,7 +245,7 @@ export default function DepartmentHeadDashboard() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [modalStack]);
+  }, [modalStack, isClosingProgrammatically]);
 
 
   const closeAllModalsExcept = (modalName: string) => {
@@ -302,12 +314,10 @@ export default function DepartmentHeadDashboard() {
       closeAllModalsExcept('createRequest')
       setShowCreateRequestModal(true)
       openModal('createRequest');
-      router.replace(`/${role}`, { scroll: false })
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModal()
-      router.replace(`/${role}`, { scroll: false })
+      closeModalWithHistory()
     }
   }, [searchParams])
   const fetchNotifications = async () => {
@@ -539,7 +549,7 @@ export default function DepartmentHeadDashboard() {
       }
       
       setShowCreateRequestModal(false);
-      closeModal();
+      closeModalWithHistory();
     } catch (error: any) {
       console.error("Ошибка при создании заявки:", error);
       setFormErrors(error.response?.data?.error || "Не удалось создать заявку.");
@@ -576,7 +586,7 @@ export default function DepartmentHeadDashboard() {
           [requestToRate.id]: response.data
         }))
         setShowRatingModal(false);
-        closeModal();
+        closeModalWithHistory();
         setRatingValue(0)
         setRequestToRate(null)
       } catch (error) {
@@ -586,7 +596,7 @@ export default function DepartmentHeadDashboard() {
         })
         console.error("Failed to rate executor:", error);
         setShowRatingModal(false);
-        closeModal();
+        closeModalWithHistory();
         setRatingValue(0)
         setRequestToRate(null)
       }
@@ -921,7 +931,7 @@ export default function DepartmentHeadDashboard() {
     setSelectedRequestForRedirect(null);
     setSelectedCategoryId(null);
     setRedirectError(null);
-    closeModal();
+    closeModalWithHistory();
   };
 
   const handleRedirectRequest = async () => {
@@ -972,7 +982,7 @@ export default function DepartmentHeadDashboard() {
       handleCloseRedirectModal();
       if (selectedRequest) {
         setSelectedRequest(null);
-        closeModal();
+        closeModalWithHistory();
       }
 
     } catch (error: any) {
@@ -992,7 +1002,7 @@ export default function DepartmentHeadDashboard() {
   const handleCloseAssignExecutorsModal = () => {
     setShowAssignExecutorsModal(false);
     setSelectedSubRequestForAssignment(null);
-    closeModal();
+    closeModalWithHistory();
   };
 
   const handleAssignExecutorsSuccess = () => {
@@ -1370,7 +1380,7 @@ export default function DepartmentHeadDashboard() {
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
                 onClick={() => {
                   setIsModalOpen(false);
-                  closeModal();
+                  closeModalWithHistory();
                 }}
             >
               <div
@@ -1383,7 +1393,7 @@ export default function DepartmentHeadDashboard() {
                       className="text-gray-500 hover:text-black text-2xl focus:outline-none"
                       onClick={() => {
                         setIsModalOpen(false);
-                        closeModal();
+                        closeModalWithHistory();
                       }}
                       aria-label="Закрыть модальное окно"
                   >
@@ -1495,7 +1505,7 @@ export default function DepartmentHeadDashboard() {
                                           setShowRatingModal(true)
                                           openModal('ratingModal')
                                           setSelectedRequest(null);
-                                          closeModal()
+                                          closeModalWithHistory()
                                         }}
                                         onRedirectToOtherDepartment={handleOpenRedirectModal}
                                         onAssignExecutor={handleAssignExecutors}
@@ -1733,7 +1743,7 @@ export default function DepartmentHeadDashboard() {
                   {selectedPhoto && (
                       <div
                           className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                          onClick={() => {setSelectedPhoto(null); closeModal(); }}
+                          onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
                       >
                         <img
                             src={selectedPhoto}
@@ -1748,7 +1758,7 @@ export default function DepartmentHeadDashboard() {
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => {
                       setSelectedRequest(null);
-                      closeModal();
+                      closeModalWithHistory();
                     }}>
                       Закрыть
                     </Button>
@@ -1774,7 +1784,7 @@ export default function DepartmentHeadDashboard() {
           isOpen={showCreateRequestModal}
           onClose={() => {
             setShowCreateRequestModal(false);
-            closeModal();
+            closeModalWithHistory();
           }}
           userRole="department-head"
           categories={categories}
@@ -1790,7 +1800,7 @@ export default function DepartmentHeadDashboard() {
             isOpen={showRatingModal && !!requestToRate}
             onClose={() => {
               setShowRatingModal(false);
-              closeModal();
+              closeModalWithHistory();
               setRatingValue(0);
               setRequestToRate(null);
             }}
@@ -1806,7 +1816,7 @@ export default function DepartmentHeadDashboard() {
             isOpen={showMapModal}
             onClose={() => {
               setShowMapModal(false);
-              closeModal();
+              closeModalWithHistory();
             }}
             mapLocation={mapLocation}
         />

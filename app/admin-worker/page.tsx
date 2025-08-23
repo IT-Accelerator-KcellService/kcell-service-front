@@ -92,7 +92,7 @@ interface Stats {
 }
 
 export default function AdminWorkerDashboard() {
-  const {role, token, clearAuth, user} = useAuthStore()
+  const {token, clearAuth, user} = useAuthStore()
   const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
@@ -141,6 +141,7 @@ export default function AdminWorkerDashboard() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
+  const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
 
   const lastRequestRef = useCallback((node: HTMLDivElement) => {
@@ -172,19 +173,15 @@ export default function AdminWorkerDashboard() {
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
     window.history.pushState({ modal: name }, '', window.location.pathname);
-    
-    // Устанавливаем соответствующие состояния для модулы
-    switch (name) {
-      case 'deleteRequestModal':
-        setShowDeleteRequestModal(true);
-        break;
-      default:
-        break;
-    }
   };
 
-  const closeModal = () => {
-    setModalStack(prev => prev.slice(0, -1));
+  const closeModalWithHistory = () => {
+    setIsClosingProgrammatically(true);
+    const newStack = modalStack.slice(0, -1);
+    setModalStack(newStack);
+
+    // Откатываем историю браузера назад
+    window.history.back();
   };
 
   const [hydrated, setHydrated] = useState(false);
@@ -214,6 +211,12 @@ export default function AdminWorkerDashboard() {
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      // Если закрытие происходит программно, сбрасываем флаг и не обрабатываем событие
+      if (isClosingProgrammatically) {
+        setIsClosingProgrammatically(false);
+        return;
+      }
+
       if (modalStack.length > 0) {
         e.preventDefault();
         const lastModal = modalStack[modalStack.length - 1];
@@ -247,7 +250,7 @@ export default function AdminWorkerDashboard() {
             break;
         }
 
-        closeModal();
+        closeModalWithHistory();
       }
     };
 
@@ -260,7 +263,7 @@ export default function AdminWorkerDashboard() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [modalStack]);
+  }, [modalStack, isClosingProgrammatically]);
 
   const closeAllModalsExcept = (modalName: string) => {
     if (modalName !== 'createRequest') {
@@ -344,14 +347,12 @@ export default function AdminWorkerDashboard() {
 
     if (create === "true") {
       closeAllModalsExcept("createRequest");
-      setShowCreateRequestModal(true);
+      setShowCreateRequestModal(true)
       openModal('createRequest');
-      router.replace(`/${role}`, { scroll: false })
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModal()
-      router.replace(`/${role}`, { scroll: false })
+      closeModalWithHistory()
     }
   }, [searchParams])
 
@@ -520,7 +521,7 @@ export default function AdminWorkerDashboard() {
 
   const resetForm = () => {
     setShowCreateRequestModal(false);
-    closeModal();
+    closeModalWithHistory();
     setExpandedSubRequests(new Set());
   };
 
@@ -576,7 +577,7 @@ export default function AdminWorkerDashboard() {
         message: "Все под заявки успешно приняты"
       });
       setSelectedRequest(null);
-      closeModal();
+      closeModalWithHistory();
       fetchRequests();
     } catch (error) {
       console.error("Ошибка при принятии заявки:", error);
@@ -607,7 +608,7 @@ export default function AdminWorkerDashboard() {
       });
       setSelectedRequest(null);
       setRejectionReason("");
-      closeModal();
+      closeModalWithHistory();
       fetchRequests();
     } catch (error) {
       console.error("Ошибка при отклонении заявки:", error);
@@ -640,7 +641,7 @@ export default function AdminWorkerDashboard() {
         // Если это была последняя под заявка в группе, закрываем модальное окно
         if (updatedRequests.length === 0) {
           setSelectedRequest(null);
-          closeModal();
+          closeModalWithHistory();
         }
       }
 
@@ -669,7 +670,7 @@ export default function AdminWorkerDashboard() {
           [requestToRate.id]: response.data
         }));
         setShowRatingModal(false);
-        closeModal();
+        closeModalWithHistory();
         setRatingValue(0)
         setRequestToRate(null)
       } catch (error) {
@@ -679,7 +680,7 @@ export default function AdminWorkerDashboard() {
         })
         console.error("Failed to rate executor:", error);
         setShowRatingModal(false);
-        closeModal();
+        closeModalWithHistory();
         setRatingValue(0)
         setRequestToRate(null)
       }
@@ -966,7 +967,7 @@ export default function AdminWorkerDashboard() {
                 setShowRatingModal(true);
                 openModal('ratingModal');
                 setSelectedRequest(null);
-                closeModal()
+                closeModalWithHistory();
               }}
               onDelete={(requestGroup) => {
                 setSelectedRequest(requestGroup);
@@ -1287,7 +1288,7 @@ export default function AdminWorkerDashboard() {
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
                 onClick={() => {
                   setIsModalOpen(false);
-                  closeModal();
+                  closeModalWithHistory();
                 }}
             >
               <div
@@ -1300,7 +1301,7 @@ export default function AdminWorkerDashboard() {
                       className="text-gray-500 hover:text-black text-2xl focus:outline-none"
                       onClick={() => {
                         setIsModalOpen(false);
-                        closeModal();
+                        closeModalWithHistory();
                       }}
                       aria-label="Закрыть модальное окно"
                   >
@@ -1413,7 +1414,7 @@ export default function AdminWorkerDashboard() {
                                           setShowRatingModal(true)
                                           openModal('ratingModal')
                                           setSelectedRequest(null);
-                                          closeModal()
+                                          closeModalWithHistory();
                                         }}
                                         onDelete={(subReq) => {
                                           handleDeleteSubRequest(subReq);
@@ -1702,7 +1703,7 @@ export default function AdminWorkerDashboard() {
                   {selectedPhoto && (
                       <div
                           className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                          onClick={() => {setSelectedPhoto(null); closeModal(); }}
+                          onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
                       >
                         <img
                             src={selectedPhoto}
@@ -1781,7 +1782,7 @@ export default function AdminWorkerDashboard() {
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => {
                       setSelectedRequest(null);
-                      closeModal();
+                      closeModalWithHistory();
                       setFormErrors(null);
                     }}>
                       Закрыть
@@ -1809,7 +1810,7 @@ export default function AdminWorkerDashboard() {
            isOpen={showCreateRequestModal}
            onClose={() => {
              setShowCreateRequestModal(false);
-             closeModal();
+             closeModalWithHistory();
            }}
            userRole="admin-worker"
            categories={categories}
@@ -1824,7 +1825,7 @@ export default function AdminWorkerDashboard() {
           isOpen={showRatingModal && !!requestToRate}
           onClose={() => {
             setShowRatingModal(false);
-            closeModal();
+            closeModalWithHistory()
             setRatingValue(0);
             setRequestToRate(null);
           }}
@@ -1837,7 +1838,7 @@ export default function AdminWorkerDashboard() {
           isOpen={showMapModal}
           onClose={() => {
             setShowMapModal(false);
-            closeModal();
+            closeModalWithHistory();
           }}
           mapLocation={mapLocation}
         />
@@ -1876,7 +1877,7 @@ export default function AdminWorkerDashboard() {
               handleDeleteRequest(selectedRequest);
               setSelectedRequest(null);
               setShowDeleteRequestModal(false);
-              closeModal();
+              closeModalWithHistory();
             }
           }}
           title="Удалить заявку?"

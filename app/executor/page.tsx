@@ -79,7 +79,7 @@ interface Stats {
 }
 
 export default function ExecutorDashboard() {
-  const {role, token, clearAuth, user} = useAuthStore()
+  const {token, clearAuth, user} = useAuthStore()
   const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
@@ -117,6 +117,7 @@ export default function ExecutorDashboard() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
+  const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedRequestForReject, setSelectedRequestForReject] = useState<any>(null);
@@ -136,15 +137,20 @@ export default function ExecutorDashboard() {
     window.history.pushState({ modal: name }, '', window.location.pathname);
   };
 
-  const closeModal = () => {
-    setModalStack(prev => prev.slice(0, -1));
+  const closeModalWithHistory = () => {
+    setIsClosingProgrammatically(true);
+    const newStack = modalStack.slice(0, -1);
+    setModalStack(newStack);
+
+    // Откатываем историю браузера назад
+    window.history.back();
   };
 
   const handleCloseRejectModal = () => {
     setShowRejectModal(false);
     setSelectedRequestForReject(null);
     setRejectError(null);
-    closeModal();
+    closeModalWithHistory();
   };
 
   const checkUserRating = async (requestId: number) => {
@@ -285,7 +291,7 @@ export default function ExecutorDashboard() {
     setShowRedirectModal(false);
     setSelectedRequestForRedirect(null);
     setRedirectError(null);
-    closeModal();
+    closeModalWithHistory();
   };
 
   const handleRedirectRequest = async () => {
@@ -339,7 +345,7 @@ export default function ExecutorDashboard() {
       handleCloseRedirectModal();
       if (selectedRequest) {
         setSelectedRequest(null);
-        closeModal();
+        closeModalWithHistory();
       }
 
     } catch (error: any) {
@@ -439,6 +445,12 @@ export default function ExecutorDashboard() {
   // ✅ ОБНОВЛЁННЫЙ handleBackButton
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      // Если закрытие происходит программно, сбрасываем флаг и не обрабатываем событие
+      if (isClosingProgrammatically) {
+        setIsClosingProgrammatically(false);
+        return;
+      }
+
       if (modalStack.length > 0) {
         e.preventDefault();
         const lastModal = modalStack[modalStack.length - 1];
@@ -487,7 +499,7 @@ export default function ExecutorDashboard() {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [modalStack]);
+  }, [modalStack, isClosingProgrammatically]);
 
   const fetchStats = async () => {
     try {
@@ -660,12 +672,10 @@ export default function ExecutorDashboard() {
       closeAllModalsExcept('createRequest');
       setShowCreateRequestModal(true)
       openModal('createRequest');
-      router.replace(`/${role}`, { scroll: false })
     }
     if(create === "false") {
       setShowCreateRequestModal(false)
-      closeModal()
-      router.replace(`/${role}`, { scroll: false })
+      closeModalWithHistory()
     }
   }, [searchParams])
 
@@ -1506,7 +1516,7 @@ export default function ExecutorDashboard() {
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
                 onClick={() => {
                   setIsModalOpen(false);
-                  closeModal();
+                  closeModalWithHistory();
                 }}
             >
               <div
@@ -1519,7 +1529,7 @@ export default function ExecutorDashboard() {
                       className="text-gray-500 hover:text-black text-2xl focus:outline-none"
                       onClick={() => {
                         setIsModalOpen(false);
-                        closeModal();
+                        closeModalWithHistory();
                       }}
                       aria-label="Закрыть модальное окно"
                   >
@@ -1864,7 +1874,7 @@ export default function ExecutorDashboard() {
                   {selectedPhoto && (
                       <div
                           className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                          onClick={() => {setSelectedPhoto(null); closeModal(); }}
+                          onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
                       >
                         <img
                             src={selectedPhoto}
@@ -1879,7 +1889,7 @@ export default function ExecutorDashboard() {
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => {
                       setSelectedRequest(null);
-                      closeModal();
+                      closeModalWithHistory();
                     }}>
                       Закрыть
                     </Button>
@@ -1930,7 +1940,7 @@ export default function ExecutorDashboard() {
             isOpen={showCreateRequestModal}
             onClose={() => {
               setShowCreateRequestModal(false);
-              closeModal();
+              closeModalWithHistory();
             }}
             userRole="executor"
             categories={categories}
@@ -1947,7 +1957,7 @@ export default function ExecutorDashboard() {
             isOpen={showMapModal}
             onClose={() => {
               setShowMapModal(false);
-              closeModal();
+              closeModalWithHistory();
             }}
             mapLocation={mapLocation}
         />
