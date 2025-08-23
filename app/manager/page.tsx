@@ -860,8 +860,15 @@ export default function ManagerDashboard() {
         closeModal()
         closeModal();
         setRequestToDelete(null)
-        approveModal.showAccept()
+        successModal.showSuccess({
+          title: "Заявка удалена",
+          message: "Заявка была успешно удалена."
+        })
       } catch (error) {
+        rejectModal.showReject({
+          title: "Ошибка",
+          message: "Не удалось удалить под заявку."
+        })
         console.error("Failed to delete request:", error)
       }
     }
