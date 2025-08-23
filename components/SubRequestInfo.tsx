@@ -51,11 +51,11 @@ const translateComplexity = (complexity: string) => {
 
 export default function SubRequestInfo({ subRequest}: SubRequestInfoProps) {
     return (
-        <div className="w-full max-w-2xl mx-auto px-4 sm:px-0 m-4">
+        <div className="w-full max-w-2xl mx-auto sm:px-0 pb-2">
             <div className={`flex flex-row gap-3 text-sm sm:gap-8 md:gap-12`}>
                 {subRequest.complexity && (
                     <div className="flex flex-row items-center gap-2 sm:gap-3">
-                        <span className="text-foreground font-medium text-xs uppercase tracking-wide min-w-fit">Сложность</span>
+                        <span className="font-medium text-sm sm:text-base text-gray-900">Сложность</span>
                         <Badge variant="secondary" className="bg-muted text-muted-foreground border-0 text-xs font-normal w-fit">
                             {translateComplexity(subRequest.complexity)}
                         </Badge>
@@ -64,7 +64,7 @@ export default function SubRequestInfo({ subRequest}: SubRequestInfoProps) {
 
                 {subRequest.sla && (
                     <div className="flex flex-row items-center gap-2 sm:gap-3">
-                        <span className="text-foreground font-medium text-xs uppercase tracking-wide min-w-fit">SLA</span>
+                        <span className="font-medium text-sm sm:text-base text-gray-900">SLA</span>
                         <Badge variant="secondary" className="bg-muted text-muted-foreground border-0 text-xs font-normal w-fit">
                             {translateSLA(subRequest.sla)}
                         </Badge>

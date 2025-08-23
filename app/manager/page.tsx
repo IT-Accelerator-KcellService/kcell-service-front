@@ -70,6 +70,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover
 import {Calendar} from "@/components/ui/calendar";
 import {ru} from "date-fns/locale";
 import SubRequestInfo from "@/components/SubRequestInfo";
+import Executors from "@/components/Executors";
 
 declare global {
   interface Window {
@@ -2344,58 +2345,7 @@ export default function ManagerDashboard() {
                                   <SubRequestInfo subRequest={subRequest} />
 
                                   {/* Исполнители */}
-                                  {(() => {
-                                    const executors = subRequest.executors && subRequest.executors.length > 0
-                                        ? subRequest.executors
-                                        : subRequest.executor
-                                            ? [subRequest.executor]
-                                            : [];
-
-                                    return executors.length > 0 ? (
-                                        <div className="mb-4">
-                                          <h5 className="font-medium text-sm mb-3 text-gray-700 flex items-center gap-2">
-                                            <Users className="w-4 h-4 text-purple-500" />
-                                            Исполнители
-                                          </h5>
-                                          <div className="space-y-2">
-                                            {executors.map((executor, index) => (
-                                                <div
-                                                    key={index}
-                                                    className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow w-full"
-                                                >
-                                                  <div className="flex flex-wrap items-center gap-2 w-full">
-                                                    <div className="w-5 h-5 bg-purple-100 rounded-full flex items-center justify-center">
-                                                      <User className="w-3 h-3 text-purple-600" />
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                      <div className="flex items-center gap-2">
-                                                        <span className="text-sm font-medium text-gray-800">
-                                                          {executor.user.full_name
-                                                              .split(" ")
-                                                              .map((word: string, idx: number) =>
-                                                                  idx === 0 ? word : `${word.charAt(0)}.`
-                                                              )
-                                                              .join(" ")}
-                                                        </span>
-                                                        {executor?.RequestExecutor?.role === "leader" && (
-                                                            <div className="ml-auto">
-                                                              <LeaderIndicator isDesktop={isDesktop} size="sm" />
-                                                            </div>
-                                                        )}
-                                                      </div>
-                                                      {executor.user.phone && (
-                                                          <div className="text-xs text-gray-500">
-                                                            {executor.user.phone}
-                                                          </div>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                    ) : null;
-                                  })()}
+                                  <Executors subRequest={subRequest} />
 
                                   {/* Отчет о выполнении для завершенных подзаявок */}
                                   {subRequest.status === "completed" && (
