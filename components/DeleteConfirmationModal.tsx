@@ -15,7 +15,7 @@ import {
 interface DeleteConfirmationModalProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: (() => void) | ((arg: any) => Promise<void>)
   title: string
   description: string
   confirmText?: string

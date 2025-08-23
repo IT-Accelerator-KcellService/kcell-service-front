@@ -17,6 +17,13 @@ interface ServiceCategory {
   name: string;
 }
 
+interface Office {
+  id: number;
+  name: string;
+  city: string;
+  address: string;
+}
+
 interface Executor {
   id: number;
   executor_id: number;
@@ -57,6 +64,7 @@ interface CreateRequestModalProps {
   userServiceCategoryId?: number; // ID категории пользователя для department-head
   createMode?: 'create' | 'createAndComplete'; // Режим создания для executor
   onModeChange?: (mode: 'create' | 'createAndComplete') => void; // Функция изменения режима
+  offices?: Office[]; // Список офисов для manager
 }
 
 export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
@@ -73,6 +81,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   userServiceCategoryId,
   createMode = 'create',
   onModeChange,
+  offices = [],
 }) => {
   const [requestType, setRequestType] = useState("normal");
   const [location, setLocation] = useState(clientLocation);
@@ -92,6 +101,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [afterPhotoPreviews, setAfterPhotoPreviews] = useState<string[]>([]);
   const [completionComment, setCompletionComment] = useState("");
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
+  const [selectedOfficeId, setSelectedOfficeId] = useState<number | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -129,6 +139,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setAfterPhotoPreviews([]);
     setCompletionComment("");
     setCompletionDate(new Date());
+    setSelectedOfficeId(null);
     setSubRequests([{ title: "", description: "", category_id: 0, executors: [] }]);
     setExpandedSubRequests(new Set([0]));
     setValidationErrors(new Set());
@@ -277,6 +288,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       newBasicFieldErrors.add('photos');
     }
 
+    // Валидация офиса для manager
+    if (userRole === 'manager' && !selectedOfficeId) {
+      newBasicFieldErrors.add('office');
+    }
+
     // Валидация для режима создания с завершением
     if (userRole === 'executor' && createMode === 'createAndComplete') {
       if (afterPhotos.length === 0) {
@@ -288,7 +304,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
     
     setBasicFieldErrors(newBasicFieldErrors);
-  }, [requestType, location, locationDetails, photos, afterPhotos, completionComment, userRole, createMode, hasAttemptedSubmit]);
+  }, [requestType, location, locationDetails, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit]);
 
   const toggleSubRequestExpansion = (index: number) => {
     setExpandedSubRequests(prev => {
@@ -342,6 +358,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     
     if (photos.length === 0) {
       basicFieldErrors.push('фотографии (минимум 1)');
+    }
+
+    // Валидация офиса для manager
+    if (userRole === 'manager' && !selectedOfficeId) {
+      basicFieldErrors.push('офис');
     }
 
     // Валидация для режима создания с завершением
@@ -467,6 +488,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     formData.append('location_detail', locationDetails);
     formData.append('status', groupStatus);
     if (plannedDate) formData.append('planned_date', plannedDate);
+    if (userRole === 'manager' && selectedOfficeId) {
+      formData.append('office_id', String(selectedOfficeId));
+    }
 
     // Под заявки с их SLA и сложностью
     const subRequestsData = validSubRequests.map(sub => {
@@ -557,6 +581,33 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <p className="text-xs text-gray-600 mt-2">
                   Создайте заявку для уже выполненной работы с отчетом и фотографиями результата
                 </p>
+              )}
+            </div>
+          )}
+
+          {/* Выбор офиса для manager */}
+          {userRole === 'manager' && offices.length > 0 && (
+            <div>
+              <Label className="flex items-center gap-1">
+                Офис *
+              </Label>
+              <Select
+                value={selectedOfficeId?.toString() || ""}
+                onValueChange={(value) => setSelectedOfficeId(parseInt(value))}
+              >
+                <SelectTrigger className={hasAttemptedSubmit && !selectedOfficeId ? 'border-red-300 focus:border-red-500' : ''}>
+                  <SelectValue placeholder="Выберите офис" />
+                </SelectTrigger>
+                <SelectContent>
+                  {offices.map((office) => (
+                    <SelectItem key={office.id} value={office.id.toString()}>
+                      {office.name} - {office.city}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hasAttemptedSubmit && !selectedOfficeId && (
+                <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
               )}
             </div>
           )}

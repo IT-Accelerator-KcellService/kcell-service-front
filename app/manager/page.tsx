@@ -8,59 +8,66 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Input} from "@/components/ui/input"
 import {Label} from "@/components/ui/label"
-import {Textarea} from "@/components/ui/textarea"
 import {useRouter, useSearchParams} from "next/navigation"
 
 
 import {
-  AlertCircle,
   AlertTriangle,
   BarChart3,
   Calendar as CalendarLucid,
-  Camera,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Download,
-  ImageIcon,
+  Hourglass,
   Loader2,
-  MapPin, MessageCircle,
-  Plus, Send,
+  MapPin,
+  MessageCircle,
+  Plus,
   Star,
   Trash2,
   TrendingDown,
   TrendingUp,
   User,
+  Users,
   XCircle,
   Zap,
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
-import dynamic from "next/dynamic";
 import api from "@/lib/api";
-import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
-import {format, isAfter, subDays, subMonths, subYears} from "date-fns";
+import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as TooltipForTabs, XAxis, YAxis} from "recharts";
+import {isAfter, subDays, subMonths, subYears} from "date-fns";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {SuccessModal} from "@/components/success-model";
 import {useSuccessModal} from "@/hooks/use-success-modal";
-import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
-import {ru} from "date-fns/locale";
-import {Calendar} from "@/components/ui/calendar";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {AcceptRequestModal} from "@/components/AcceptRequestModal";
 import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
-import { ProfileModal } from "@/components/ProfileModal"
+import {ProfileModal} from "@/components/ProfileModal"
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
-import {CommentList} from "@/components/comment/Comment";
-import {useRequestStore, Request} from "@/stores/useRequestStore";
+import {Request, RequestGroup, SubRequest, useRequestStore} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
 import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
-import { RoleBasedActionMenu } from "@/components/action-menu";
-import { LogsViewer } from "@/components/logs-viewer";
-import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import {RoleBasedActionMenu} from "@/components/action-menu";
+import {LogsViewer} from "@/components/logs-viewer";
+import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
+import {IconInfoModal} from "@/components/IconInfoModal";
+import {RejectRequestModal} from "@/components/RejectRequestModal";
+import {CommentsModal} from "@/components/CommentsModal";
+import {CreateRequestModal} from "@/components/CreateRequestModal";
+import {MapModal} from "@/components/MapModal";
+import {LeaderIndicator} from "@/components/ui/leader-indicator";
+import {CompletedTaskReport} from "@/components/CompletedTaskReport";
+import {RequestCard} from "@/components/RequestCard";
+import {useRejectRequestModal} from "@/hooks/use-reject-modal";
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
+
 declare global {
   interface Window {
     androidApp?: {
@@ -70,9 +77,6 @@ declare global {
     };
   }
 }
-const MapView = dynamic(() => import('@/app/map/MapView'), {
-  ssr: false,
-})
 const roleTranslations: Record<string, string> = {
   client: "Клиент",
   "admin-worker": "Администратор офиса",
@@ -96,14 +100,6 @@ type User = {
   office_id: number;
   role: string;
   service_category_id: number
-}
-
-interface Comment {
-  id: number,
-  request_id: number,
-  sender_id: number,
-  comment: string,
-  timestamp: Date
 }
 
 interface Stats {
@@ -130,9 +126,12 @@ interface Category {
   name: string
 }
 
-const parseLocalDate = (dateString: string) => {
-  return new Date(dateString + "T00:00:00");
-};
+interface Rating {
+  id: number;
+  rating: number;
+  request_id: number;
+  created_at: string;
+}
 
 export default function ManagerDashboard() {
   const {role, token, clearAuth, user} = useAuthStore()
@@ -143,9 +142,14 @@ export default function ManagerDashboard() {
   const successModal = useSuccessModal()
   const approveModal = useAcceptRequestModal()
   const router = useRouter()
+  const [showIconInfo, setShowIconInfo] = useState<{type: 'status' | 'longTerm', value: string} | null>(null);
+  const rejectModal = useRejectRequestModal()
+  const [showComments, setShowComments] = useState<number | null>(null);
+  const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
+  const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
+
   const [period, setPeriod] = useState("month")
   const [office, setOffice] = useState("all")
-  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
   const [tab, setTab] = useState("requests")
   const [offices, setOffices] = useState<any[]>([])
   const [newOfficeName, setNewOfficeName] = useState("")
@@ -165,30 +169,23 @@ export default function ManagerDashboard() {
   const [description, setDescription] = useState("");
   const [requestLocation, setRequestLocation] = useState("")
   const [photos, setPhotos] = useState<File[]>([]);
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [selectedTaskDetails, setSelectedTaskDetails] = useState<any>(null)
+  const [selectedRequest, setSelectedRequest] = useState<RequestGroup | null>(null)
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [showMapModal, setShowMapModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [comment, setComment] = useState("");
-  const [comments, setComments] = useState<any[]>([]);
   const {requests, setRequests, clearRequests} = useRequestStore()
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
-  const [editCommentId, setEditCommentId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [officeToDelete, setOfficeToDelete] = useState<OfficeType | null>(null)
-  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [showDeleteOfficeModal, setShowDeleteOfficeModal] = useState(false)
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false)
   const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false)
   const [userToDelete, setUserToDelete] = useState<User | null>(null)
-  const [deleteReason, setDeleteReason] = useState("")
   const [newRequestPlannedDate, setNewRequestPlannedDate] = useState("")
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -197,9 +194,6 @@ export default function ManagerDashboard() {
   });
 
   const isDesktop = useMediaQuery("(min-width: 768px)");
-  const date = newRequestPlannedDate
-      ? parseLocalDate(newRequestPlannedDate)
-      : undefined;
   const [newRequestSLA, setNewRequestSLA] = useState("1h");
   const [newRequestComplexity, setNewRequestComplexity] = useState<'simple' | 'medium' | 'complex'>('simple');
   const [newUser, setNewUser] = useState({
@@ -241,7 +235,7 @@ export default function ManagerDashboard() {
 
   const filteredRequests = requests.filter((request) => {
     const now = new Date();
-    let periodStartDate: Date | null = null;
+    let periodStartDate: Date | null;
 
     switch (period) {
       case 'week':
@@ -517,8 +511,7 @@ export default function ManagerDashboard() {
             setShowCreateRequestModal(false);
             break;
           case 'taskDetails':
-            setSelectedTaskDetails(null);
-            setComments([]);
+            setSelectedRequest(null);
             break;
           case 'mapModal':
             setShowMapModal(false);
@@ -529,13 +522,9 @@ export default function ManagerDashboard() {
           case 'notification':
             setIsModalOpen(false);
             break;
-          case 'commentDelete':
-            setCommentToDelete(null);
-            break;
           case 'deleteRequest':
             setShowDeleteRequestModal(false);
             setRequestToDelete(null);
-            setDeleteReason("");
             break;
           case 'categoryDelete':
             setCategoryToDelete(null);
@@ -564,7 +553,7 @@ export default function ManagerDashboard() {
       setShowCreateRequestModal(false);
     }
     if (modalName !== 'taskDetails') {
-      setSelectedTaskDetails(null);
+      setSelectedRequest(null);
     }
     if (modalName !== 'mapModal') {
       setShowMapModal(false);
@@ -578,13 +567,9 @@ export default function ManagerDashboard() {
     if (modalName !== 'categoryDelete') {
       setCategoryToDelete(null);
     }
-    if (modalName !== 'commentDelete') {
-      setCommentToDelete(null);
-    }
     if (modalName !== 'deleteRequest') {
       setShowDeleteRequestModal(false);
       setRequestToDelete(null);
-      setDeleteReason("");
     }
     setModalStack([modalName]);
     window.history.replaceState({ modal: modalName }, '', window.location.pathname);
@@ -602,7 +587,7 @@ export default function ManagerDashboard() {
   const handleExport = async (format: "xlsx" | "pbix") => {
     try {
       const now = new Date();
-      let periodStartDate: Date | null = null;
+      let periodStartDate: Date | null;
 
       switch (period) {
         case 'week':
@@ -669,6 +654,20 @@ export default function ManagerDashboard() {
     } catch (error) {
       console.error("Ошибка при экспорте файла:", error);
       alert("Не удалось экспортировать файл");
+    }
+  };
+
+  const checkUserRating = async (requestId: number) => {
+    try {
+      const response = await api.get(`/ratings/user/${requestId}`);
+      if (response.data) {
+        setUserRatings(prev => ({
+          ...prev,
+          [requestId]: response.data[0]
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to check user rating:", error);
     }
   };
 
@@ -804,7 +803,7 @@ export default function ManagerDashboard() {
   const fetchRequests = async (pageToLoad = 1) => {
     try {
       setLoading(true);
-      const response = await api.get(`/requests?page=${pageToLoad}&pageSize=10`);
+      const response = await api.get(`/request-groups?page=${pageToLoad}&pageSize=10`);
       const newRequests = response.data.data;
       if (pageToLoad === 1) {
         setRequests(newRequests);
@@ -813,6 +812,15 @@ export default function ManagerDashboard() {
       }
       setHasMore(pageToLoad < response.data.totalPages);
       setPage(pageToLoad);
+
+      // Проверка оценки для каждой под заявки
+      newRequests.forEach((requestGroup: RequestGroup) => {
+        requestGroup.requests.forEach((subRequest: SubRequest) => {
+          if (subRequest.status === "completed") {
+            checkUserRating(subRequest.id);
+          }
+        });
+      });
     } catch (error) {
       console.error("Failed to fetch requests:", error);
     } finally {
@@ -846,13 +854,12 @@ export default function ManagerDashboard() {
   const confirmDeleteRequest = async () => {
     if (requestToDelete) {
       try {
-        await api.delete(`/requests/${requestToDelete.id}`)
+        await api.delete(`/request-groups/${requestToDelete.id}`)
         fetchRequests()
         setShowDeleteRequestModal(false);
         closeModal()
         closeModal();
         setRequestToDelete(null)
-        setDeleteReason("")
         approveModal.showAccept()
       } catch (error) {
         console.error("Failed to delete request:", error)
@@ -860,48 +867,23 @@ export default function ManagerDashboard() {
     }
   }
 
-  const handleCreateRequest = async () => {
-    if (
-        !newRequestTitle ||
-        !description ||
-        !newRequestOfficeId ||
-        !newRequestType ||
-        !requestLocation ||
-        !newRequestLocation ||
-        !selectedCategoryId ||
-        (newRequestType === "planned" && !newRequestPlannedDate && !newRequestSLA && !newRequestComplexity) ||
-        photos.length === 0
-    ) {
-      setFormErrors("Заполните все обязательные поля.");
-      return;
-    }
-
+  const handleCreateRequest = async (formData: FormData) => {
     setIsSubmitting(true);
     setFormErrors(null);
 
     try {
-      const formData = new FormData();
-      formData.append('title', newRequestTitle);
-      formData.append('description', description);
-      formData.append('request_type', newRequestType);
-      formData.append('location', requestLocation);
-      formData.append('location_detail', newRequestLocation);
-      formData.append('category_id', String(selectedCategoryId));
-      formData.append('office_id', newRequestOfficeId);
-      formData.append('status', 'in_progress');
-      if (newRequestComplexity) formData.append('complexity', newRequestComplexity);
-      if (newRequestSLA) formData.append('sla', newRequestSLA);
-      if (newRequestPlannedDate) formData.append('planned_date', newRequestPlannedDate);
-      photos.forEach(photo => formData.append('photos', photo));
-      formData.append('type', 'before');
-
-      const response = await api.post('/requests/with-photos', formData, {
+      const response = await api.post('/request-groups', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      const newRequest = response.data;
-      setRequests(prev => [newRequest, ...prev]);
-      successModal.showSuccess();
+      const newRequestGroup = response.data;
+      setRequests(prev => [newRequestGroup, ...prev]);
+      
+      successModal.showSuccess({
+        title: "Заявка создана!",
+        message: "Заявка успешно создана."
+      });
+      
       resetForm();
     } catch (error: any) {
       console.error("Ошибка при создании заявки:", error);
@@ -911,130 +893,49 @@ export default function ManagerDashboard() {
     }
   };
 
+  const handleDeleteSubRequest = async (subRequest: SubRequest) => {
+    try {
+      await api.delete(`/requests/${subRequest.id}`)
+      // Обновляем состояние - удаляем под заявку из группы
+      if (selectedRequest) {
+        const updatedRequests = selectedRequest.requests.filter(req => req.id !== subRequest.id)
+        const updatedRequestGroup = {
+          ...selectedRequest,
+          requests: updatedRequests
+        }
+        setSelectedRequest(updatedRequestGroup)
+
+        // Обновляем в store
+        const currentRequests = useRequestStore.getState().requests
+        const updatedStoreRequests = currentRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        )
+        useRequestStore.getState().setRequests(updatedStoreRequests)
+
+        // Если это была последняя под заявка в группе, закрываем модальное окно
+        if (updatedRequests.length === 0) {
+          setSelectedRequest(null);
+          closeModal();
+        }
+      }
+
+      successModal.showSuccess({
+        title: "Под заявка удалена",
+        message: "Под заявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Error deleting sub-request:", error)
+      rejectModal.showReject({
+        title: "Ошибка",
+        message: "Не удалось удалить под заявку."
+      })
+    }
+  }
+
   const resetForm = () => {
     setShowCreateRequestModal(false);
     closeModal();
-    setNewRequestType("");
-    setNewRequestTitle("");
-    setRequestLocation("");
-    setNewRequestLocation("");
-    setDescription("");
-    setNewRequestPlannedDate("");
-    setNewRequestSLA("1h");
-    setNewRequestComplexity("simple");
-    setPhotos([]);
-    setPhotoPreviews([]);
   };
-
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-
-    const fileArray = Array.from(files);
-    const remainingSlots = 3 - photoPreviews.length;
-
-    const selectedFiles = fileArray.slice(0, remainingSlots);
-
-    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
-
-    setPhotos((prev) => [...prev, ...selectedFiles]);
-    setPhotoPreviews((prev) => [...prev, ...previewUrls]);
-
-    event.target.value = '';
-  };
-
-  const fetchComments = async () => {
-    if (!selectedTaskDetails?.id) return;
-    try {
-      const res = await api.get(`/comments/request/${selectedTaskDetails.id}`);
-      setComments(res.data);
-    } catch (err) {
-      console.error("Ошибка при загрузке комментариев", err);
-    }
-  };
-
-  const handleDelete = (id: number) => {
-    // Убираем из UI сразу
-    const oldComments = comments;
-    setComments(prev => prev.filter(c => c.id !== id));
-
-    api.delete(`/comments/${id}`).catch(err => {
-      console.error("Ошибка при удалении", err);
-      setComments(oldComments); // Восстанавливаем при ошибке
-    });
-  };
-
-  const handleSend = () => {
-    if (comment.trim() === "") return;
-
-    if (editCommentId) {
-      // Оптимистично обновляем UI
-      setComments(prev =>
-          prev.map(c => c.id === editCommentId ? { ...c, comment: comment.trim() } : c)
-      );
-
-      const currentEditId = editCommentId;
-      const currentComment = comment.trim();
-
-      setComment("");
-      setEditCommentId(null);
-
-      api.put(`/comments/${currentEditId}`, {
-        comment: currentComment,
-        request_id: selectedTaskDetails.id,
-      }).catch(err => {
-        console.error("Ошибка при обновлении", err);
-        fetchComments(); // Откатываем, если ошибка
-      });
-
-    } else {
-      // Создаём временный ID для UI
-      const tempId = -(comments.length + 111);
-      const newComment = {
-        id: tempId,
-        comment: comment.trim(),
-        request_id: selectedTaskDetails.id,
-        isTemp: true,
-        timestamp: new Date(),
-        sender_id: user?.id!,
-        user: {
-          id: user?.id!,
-          full_name: user?.full_name!,
-          role: role!,
-        }
-      };
-
-      setComments(prev => [...prev, newComment]);
-
-      const currentComment = comment.trim();
-      setComment("");
-
-      api.post(`/comments`, {
-        comment: currentComment,
-        request_id: selectedTaskDetails.id,
-      })
-          .then(() => fetchComments()) // Обновляем ID с сервера
-          .catch(err => {
-            console.error("Ошибка при добавлении", err);
-            fetchComments(); // Откат
-          });
-    }
-  };
-
-  const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);       // заполняем поле ввода
-    setEditCommentId(id);         // запоминаем какой комментарий редактируем
-  };
-
-  useEffect(() => {
-    if (selectedTaskDetails?.id) {
-      fetchComments();
-    }
-  }, [selectedTaskDetails]);
 
   const handleUpdateOffice = async (id:any) => {
     try {
@@ -1330,71 +1231,73 @@ export default function ManagerDashboard() {
     }
   }
 
-  const getRequestTypeColor = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-500"
-      case "planned":
-        return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
-      case "normal":
-        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
-      default:
-        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
-    }
-  }
-
-  const getRequestTypeIcon = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return <AlertCircle className="w-3 h-3" />
-      case "planned":
-        return <CalendarLucid className="w-3 h-3" />
-      case "normal":
-        return <Clock className="w-3 h-3" />
-      default:
-        return null
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("ru-RU", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
-  }
-
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
         <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
     ))
   }
 
-  const renderLongTermIndicator = (request: any) => {
-    if (!request.is_long_term) {
-      return null;
+  const renderStatusWithTooltip = (status: string) => {
+    const icon = getStatusIcon(status);
+    const text = translateStatus(status);
+
+    if (isDesktop) {
+      return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 cursor-help">
+                  {icon}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{text}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+      );
+    } else {
+      return (
+          <div
+              className="flex items-center gap-1 cursor-pointer p-1 rounded"
+              onClick={() => setShowIconInfo({type: 'status', value: text})}
+          >
+            {icon}
+          </div>
+      );
     }
-
-    return (
-      <div
-        title="Долгосрочная задача"
-        className="group relative p-2 rounded-xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 text-white shadow-xl shadow-blue-500/40"
-      >
-        <span className="text-base font-medium animate-pulse drop-shadow-sm">
-          ⏳
-        </span>
-        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping shadow-lg"></span>
-        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-pulse"></span>
-      </div>
-    );
   };
 
-  const formatDateToString = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+  const renderLongTermWithTooltip = (isLongTerm: boolean) => {
+    if (!isLongTerm) return null;
+
+    if (isDesktop) {
+      return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 cursor-help">
+                  <Hourglass className="w-3 h-3 text-blue-600" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Долгосрочная задача</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+      );
+    } else {
+      return (
+          <div
+              className="flex items-center gap-1 cursor-pointer p-1 rounded"
+              onClick={() => setShowIconInfo({type: 'longTerm', value: 'Долгосрочная задача'})}
+          >
+            <Hourglass className="w-3 h-3 text-blue-600" />
+          </div>
+      );
+    }
   };
+
 
   const handleRefresh = async () => {
     try {
@@ -1403,12 +1306,8 @@ export default function ManagerDashboard() {
       setDescription("")
       setSelectedCategoryId(null)
       setNewRequestLocation("")
-      setPhotoPreviews([])
-      setComment("")
-      setComments([])
       setFormErrors("")
       setPhotos([])
-      setEditCommentId(null)
       setStats([])
       setChartData([])
       setPeriod("month")
@@ -1448,6 +1347,51 @@ export default function ManagerDashboard() {
     } catch (error) {
       console.error("Ошибка при обновлении:", error);
     }
+  };
+
+  const renderCardHeader = (requestGroup: RequestGroup) => {
+    const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
+    const totalSubRequests = requestGroup.requests.length;
+
+    return (
+        <CardHeader className={`pb-3 px-5 pt-5`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className={`font-bold text-base leading-tight line-clamp-2 text-gray-900`}>
+                  Заявка #{requestGroup.id}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50`}>
+                {totalSubRequests} под заявок
+              </span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
+                {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
+              </span>
+              </div>
+            </div>
+            <div className="flex gap-1 items-center">
+              {renderStatusWithTooltip(requestGroup.status)}
+              {isLongTerm && renderLongTermWithTooltip(true)}
+              <RoleBasedActionMenu
+                  request={requestGroup}
+                  isDesktop={isDesktop}
+                  userRole="manager"
+                  isSubRequest={false}
+                  onViewDetails={(request) => {
+                    setSelectedRequest(request);
+                    openModal('requestDetails');
+                  }}
+                  onDelete={(request) => {
+                    handleDeleteRequest(request);
+                    setShowDeleteRequestModal(true);
+                  }}
+              />
+            </div>
+          </div>
+        </CardHeader>
+    );
   };
 
   const handleAddCategory = async () => {
@@ -1605,7 +1549,7 @@ export default function ManagerDashboard() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="requests">
+          <TabsContent value="requests" className="mb-20">
             <Card className="mb-4">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg sm:text-xl">Динамика заявок</CardTitle>
@@ -1626,7 +1570,7 @@ export default function ManagerDashboard() {
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="date" />
                           <YAxis allowDecimals={false} />
-                          <Tooltip />
+                          <TooltipForTabs />
                           <Line
                               type="monotone"
                               dataKey="count"
@@ -1672,164 +1616,20 @@ export default function ManagerDashboard() {
                 </Select>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredRequests.map((request, index) => {
+                {filteredRequests.map((requestGroup, index) => {
                   const isLast = index === filteredRequests.length - 1;
                   return (
-                      <Card
-                          key={request.id}
-                          ref={isLast ? lastRequestRef : null}
-                          className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
-                            request.is_long_term 
-                              ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
-                              : 'bg-white hover:shadow-purple-400/20'
-                          }`}
-                          onClick={() => {setSelectedTaskDetails(request); openModal('taskDetails'); }}
-                      >
-                        {/* Заголовок с ID и статусами */}
-                        <CardHeader className={`pb-3 px-5 pt-5 ${request.is_long_term ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-l-4 border-blue-500' : ''}`}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className={`font-bold text-base leading-tight line-clamp-2 ${request.is_long_term ? 'text-blue-900' : 'text-gray-900'}`}>
-                                  {request.title}
-                                </h3>
-                                {request.is_long_term && (
-                                  <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-semibold rounded-full shadow-lg">
-                                    <span className="animate-pulse">⏳</span>
-                                    <span>Долгосрочная</span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 mt-1">
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-blue-700 bg-blue-100' : 'text-purple-600 bg-purple-50'}`}>
-                #{request.id}
-              </span>
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${request.is_long_term ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
-                {request?.category?.name}
-              </span>
-                              </div>
-                            </div>
-                            <div className="flex gap-1 items-center">
-                              <Badge
-                                  variant="outline"
-                                  className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
-                              >
-                                {getStatusIcon(request.status)}
-                                {translateStatus(request.status)}
-                              </Badge>
-                              <RoleBasedActionMenu
-                                request={request}
-                                isDesktop={isDesktop}
-                                userRole="manager"
-                                onViewDetails={(request) => {
-                                  setSelectedTaskDetails(request);
-                                  openModal('taskDetails');
-                                }}
-                                onDelete={(request) => {
-                                  handleDeleteRequest(request);
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </CardHeader>
-
-                        <CardContent className="px-5 pb-5 pt-0 space-y-3">
-                          {/* Описание */}
-                          <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
-
-                          {/* Основная информация в сетке */}
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                              <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                              <span className="truncate font-medium">{request.location_detail}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                              <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                              <span className="truncate font-medium">{formatDate(request.created_date)}</span>
-                            </div>
-
-                            {request.executor && request.executor.user.full_name ? (
-                                <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                  <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                  <div className="flex flex-col">
-                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
-                                    {request.executor.user.phone && (
-                                      <span className="text-xs text-gray-500">{request.executor.user.phone}</span>
-                                    )}
-                                  </div>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                  <User className="w-4 h-4 flex-shrink-0" />
-                                  <span className="truncate font-medium">Не назначен</span>
-                                </div>
-                            )}
-
-                            {request.rating ? (
-                                <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                  {renderStars(request.rating)}
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                  <span className="text-sm font-medium">Без оценки</span>
-                                </div>
-                            )}
-                          </div>
-
-                          {/* Фотографии */}
-                          {request.photos && request.photos.length > 0 && (
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <ImageIcon className="w-4 h-4 text-purple-500" />
-                                  <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
-                                </div>
-                                <div className="flex gap-2 overflow-x-auto">
-                                  {request.photos.slice(0, 4).map((photo, index) => (
-                                      <div key={index} className="flex-shrink-0">
-                                        <img
-                                            src={photo.photo_url || "/placeholder.svg"}
-                                            alt={`Фото ${index + 1}`}
-                                            className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
-                                            onError={(e) => {
-                                              e.currentTarget.src = `/placeholder.svg?height=48&width=48`;
-                                            }}
-                                        />
-                                      </div>
-                                  ))}
-                                  {request.photos.length > 4 && (
-                                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                                        <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
-                                      </div>
-                                  )}
-                                </div>
-                              </div>
-                          )}
-
-                          {/* Нижняя панель */}
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                            <div className="flex gap-2">
-                              <Badge
-                                  variant="outline"
-                                  className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
-                              >
-                                {getRequestTypeIcon(request.request_type)}
-                                {translateType(request.request_type)}
-                              </Badge>
-                              {request.complexity && request.complexity !== "" && (
-                                  <Badge
-                                      variant="outline"
-                                      className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
-                                  >
-                                    {translateComplexity(request.complexity)}
-                                  </Badge>
-                              )}
-                            </div>
-
-                            <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <RequestCard
+                          key={`incoming-${requestGroup.id}`}
+                          request={requestGroup}
+                          onCardClick={(request) => {
+                            setSelectedRequest(request);
+                            openModal('requestDetails');
+                          }}
+                          renderCardHeader={renderCardHeader}
+                          isLast={isLast}
+                          lastElementRef={lastRequestRef}
+                      />
                   );
                 })}
               </div>
@@ -2295,222 +2095,6 @@ export default function ManagerDashboard() {
     </div>
     </PullToRefresh>
 
-      {/* Create Request Modal */}
-      {showCreateRequestModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
-            setShowCreateRequestModal(false)
-            closeModal()
-          }}>
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <CardHeader>
-                <CardTitle>Создать заявку</CardTitle>
-                <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6 pb-16">
-                <div>
-                  <Label>Офис</Label>
-                  <Select value={newRequestOfficeId} onValueChange={setNewRequestOfficeId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите офис" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {offices.map((officeItem:any, index: number) => (
-                          <SelectItem key={index} value={String(officeItem.id)}>{officeItem.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Тип заявки</Label>
-                  <Select value={newRequestType} onValueChange={setNewRequestType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите тип заявки" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="normal">Обычная</SelectItem>
-                      <SelectItem value="urgent">Экстренная</SelectItem>
-                      <SelectItem value="planned">Плановый</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Название заявки</Label>
-                  <Input placeholder="Введите название заявки" value={newRequestTitle} onChange={e => setNewRequestTitle(e.target.value)} />
-                </div>
-
-                <div>
-                  <Label>Локация</Label>
-                  <Input
-                      placeholder="Определение вашего местоположения..."
-                      value={requestLocation}
-                      readOnly
-                      className="bg-gray-100 cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <Label>Расположение в офисе</Label>
-                  <Input placeholder="Введите расположение" value={newRequestLocation} onChange={e => setNewRequestLocation(e.target.value)} />
-                </div>
-
-                <div>
-                  <Label>Категория услуги</Label>
-                  <Select
-                      value={selectedCategoryId?.toString() || ""}
-                      onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите категорию" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
-                            {category.name}
-                          </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Сложность</Label>
-                    <Select
-                        value={newRequestComplexity}
-                        onValueChange={(value: 'simple' | 'medium' | 'complex') => setNewRequestComplexity(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите сложность" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="simple">Простая</SelectItem>
-                        <SelectItem value="medium">Средняя</SelectItem>
-                        <SelectItem value="complex">Сложная</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>SLA (Срок выполнения)</Label>
-                    <Select
-                        value={newRequestSLA}
-                        onValueChange={setNewRequestSLA}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите срок" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1h">1 час</SelectItem>
-                        <SelectItem value="4h">4 часа</SelectItem>
-                        <SelectItem value="8h">8 часов</SelectItem>
-                        <SelectItem value="1d">1 день</SelectItem>
-                        <SelectItem value="3d">3 дня</SelectItem>
-                        <SelectItem value="1w">1 неделя</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {newRequestType === "planned" && (
-                    <div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="newRequestPlannedDate">Плановая дата выполнения</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                className="w-full justify-start text-left font-normal"
-                            >
-                              {date ? format(date, "dd MMMM yyyy", { locale: ru }) : <span>Выберите дату</span>}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={(selectedDate) => {
-                                  if (selectedDate) {
-                                    setNewRequestPlannedDate(formatDateToString(selectedDate))
-                                  }
-                                }}
-                                initialFocus
-                                locale={ru}
-                                fromDate={new Date()}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                )}
-
-                <div>
-                  <Label>Описание проблемы</Label>
-                  <Textarea
-                      placeholder="Опишите проблему подробно..."
-                      className="min-h-[100px]"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <Label>Фотографии (до 3 шт.)</Label>
-                  <div className="flex flex-wrap gap-4 mt-2">
-                    {photoPreviews.map((photo, index) => (
-                        <div key={index} className="relative">
-                          <img
-                              src={photo || "/placeholder.svg"}
-                              alt={`Photo ${index + 1}`}
-                              className="w-20 h-20 object-cover rounded-lg"
-                          />
-                          <button
-                              onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                          >
-                            ×
-                          </button>
-                        </div>
-                    ))}
-                    {photoPreviews.length < 3 && (
-                        <button
-                            type="button"
-                            onClick={handleButtonClick}
-                            className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                        >
-                          <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              ref={fileInputRef}
-                              onChange={handleFileChange}
-                              className="hidden"
-                          />
-                          <Camera className="w-6 h-6 text-gray-400" />
-                        </button>
-                    )}
-                  </div>
-                </div>
-                {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
-                <div className="flex space-x-4">
-                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Отправка...
-                        </>
-                    ) : (
-                        "Отправить заявку"
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={() => {setShowCreateRequestModal(false); closeModal(); }} className="flex-1">
-                    Отмена
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-      )}
-
       {/* Модалка */}
       {isModalOpen && selectedNotification && (
           <div
@@ -2547,257 +2131,350 @@ export default function ManagerDashboard() {
           </div>
       )}
 
-      {/* Task Details Modal */}
-      {selectedTaskDetails && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
-            setSelectedTaskDetails(null);
-            closeModal();
-            setComments([])
+      {/* Request Details Modal */}
+      {selectedRequest && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+            setSelectedRequest(null)
+            setShowComments(null)
           }}>
-            <Card className="w-full max-w-2xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <CardHeader>
-                <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
-                <CardDescription>{selectedTaskDetails.title}</CardDescription>
+            <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+              <CardHeader className={isDesktop ? '' : 'sticky top-0 bg-white z-10 border-b'}>
+                <CardTitle className={isDesktop ? '' : 'text-lg'}>Детали заявки #{selectedRequest.id}</CardTitle>
+                <CardDescription className={isDesktop ? '' : 'text-sm'}>Подробная информация о вашей заявке</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pb-16">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Тип:</p>
-                    <Badge className={getTypeColor(selectedTaskDetails.request_type)}>{translateType(selectedTaskDetails.request_type)}</Badge>
+                    <Label>Тип заявки</Label>
+                    <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Статус:</p>
-                    <Badge variant="outline" className={getStatusColor(selectedTaskDetails.status)}>
-                      {translateStatus(selectedTaskDetails.status)}
-                    </Badge>
+                    <Label>Статус</Label>
+                    <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Клиент:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails?.client?.full_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Локация:</p>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const locText = selectedTaskDetails.location;
-                              const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
-                              const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
-                              const accMatch = locText.match(/±(\d+) м/);
-
-                              if (latMatch && lonMatch && accMatch) {
-                                setMapLocation({
-                                  lat: parseFloat(latMatch[1]),
-                                  lon: parseFloat(lonMatch[1]),
-                                  accuracy: parseInt(accMatch[1])
-                                });
-                                setShowMapModal(true);
-                                openModal('mapModal');
-                              } else {
-                                alert("Не удалось определить координаты из локации");
-                              }
-                            }}
-                        >
-                          <MapPin className="w-4 h-4 mr-1" />
-                          Показать на карте
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Создано:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.created_date}</p>
-                  </div>
-                  {selectedTaskDetails && selectedTaskDetails.request_type === "planned" ? (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Запланированная время:</p>
-                        <p className="text-base text-gray-800">{selectedTaskDetails.planned_date}</p>
-                      </div>
-                  ): null}
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Деталь локаций:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.location_detail}</p>
-                  </div>
-                  {selectedTaskDetails.category && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Категория:</p>
-                        <p className="text-base text-gray-800">{selectedTaskDetails.category.name}</p>
-                      </div>
-                  )}
-                  {selectedTaskDetails.complexity && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Сложность:</p>
-                        <p className="text-base text-gray-800">{translateComplexity(selectedTaskDetails.complexity)}</p>
-                      </div>
-                  )}
-                  {selectedTaskDetails.sla && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">SLA:</p>
-                        <p className="text-base text-gray-800">
-                          {selectedTaskDetails.sla === '1h' && '1 час'}
-                          {selectedTaskDetails.sla === '4h' && '4 часа'}
-                          {selectedTaskDetails.sla === '8h' && '8 часов'}
-                          {selectedTaskDetails.sla === '1d' && '1 день'}
-                          {selectedTaskDetails.sla === '3d' && '3 дня'}
-                          {selectedTaskDetails.sla === '1w' && '1 неделя'}
-                        </p>
-                      </div>
-                  )}
-                  {selectedTaskDetails.plannedDate && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Плановая дата:</p>
-                        <p className="text-base text-gray-800">{selectedTaskDetails.plannedDate}</p>
-                      </div>
-                  )}
                 </div>
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-600">Описание:</p>
-                  <p className="text-base text-gray-800">{selectedTaskDetails.description}</p>
-                </div>
-                {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (
-                    <div>
-                      {selectedTaskDetails.photos && selectedTaskDetails.photos.length > 0 && (() => {
-                        const clientPhotos = selectedTaskDetails.photos.filter((photo: any) => photo.type === "before");
-                        const contractorPhotos = selectedTaskDetails.photos.filter((photo: any) => photo.type === "after");
 
-                        return (
-                            <div className="mt-4 space-y-4">
-                              {/* Фотографии ДО */}
-                              {clientPhotos.length > 0 && (
-                                  <div>
-                                    <Label className="font-bold">Фотографии «До» (загружены пользователем)</Label>
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                      {clientPhotos.map((photo: any, index: number) => (
-                                          <img
-                                              key={index}
-                                              src={photo.photo_url || "/placeholder.svg"}
-                                              alt={`До ${index + 1}`}
-                                              className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                              onClick={() => {setSelectedPhoto(photo.photo_url); openModal('photoPreview'); }}
-                                          />
-                                      ))}
-                                    </div>
-                                  </div>
-                              )}
-
-                              {/* Фотографии ПОСЛЕ */}
-                              <div>
-                                <Label className="font-bold">Фотографии «После» (загружены подрядчиком)</Label>
-                                {contractorPhotos.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                      {contractorPhotos.map((photo: any, index: number) => (
-                                          <img
-                                              key={index}
-                                              src={photo.photo_url || "/placeholder.svg"}
-                                              alt={`После ${index + 1}`}
-                                              className="w-24 h-24 object-cover rounded-lg cursor-pointer"
-                                              onClick={() => {setSelectedPhoto(photo.photo_url); openModal('photoPreview'); }}
-                                          />
-                                      ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-xs text-gray-400 mt-2">Нет загруженных фотографий</div>
-                                )}
-                              </div>
-                            </div>
-                        );
-                      })()}
-
-                      {/* Комментарий исполнителя */}
-                      <div className="mt-4">
-                        <Label className="font-bold block">Комментарий исполнителя</Label>
-                        <p className="text-sm mt-1">
-                          {selectedTaskDetails.comment && selectedTaskDetails.comment.trim() !== ""
-                              ? selectedTaskDetails.comment
-                              : "Исполнитель ничего не написал"}
-                        </p>
+                {/* Показываем запланированное время для плановых заявок */}
+                {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
+                    <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <CalendarLucid className="w-4 h-4 text-blue-600" />
+                      <div>
+                        <Label className="text-sm font-medium text-blue-800">Запланировано на: </Label>
+                        <span className="text-sm text-blue-700">
+                          {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </span>
                       </div>
-
-
-                      {/* Модальное окно */}
-                      {selectedPhoto && (
-                          <div
-                              className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                              onClick={() => {setSelectedPhoto(null); closeModal(); }}
-                          >
-                            <img
-                                src={selectedPhoto}
-                                alt="Увеличенное фото"
-                                className="max-w-full max-h-full rounded-lg"
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                      )}
                     </div>
                 )}
 
-                {/* Секция для комментариев */}
-                <Card className="mt-2 border-t border-gray-100">
-                  <CardContent className="p-4">
-                    <CommentList
-                        comments={comments}
-                        currentUserId={currentUserId}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                    />
+                {/* Под заявки */}
+                <div>
+                  <Label className={isDesktop ? '' : 'text-base font-semibold'}>Под заявки</Label>
+                  <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
+                    {selectedRequest.requests.map((subRequest: SubRequest) => {
+                      const isExpanded = expandedSubRequests.has(subRequest.id);
+                      const hasComments = showComments === subRequest.id;
 
-                    {/* Поле ввода */}
-                    <div className="mt-4 flex flex-col space-y-2">
-                      {editCommentId && (
-                          <div className="text-xs text-gray-500">
-                            Редактируется комментарий
-                            <button
-                                className="ml-2 text-red-500 hover:underline"
-                                onClick={() => {
-                                  setEditCommentId(null);
-                                  setComment("");
-                                }}
-                            >
-                              Отменить
-                            </button>
+                      return (
+                          <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                            {/* Заголовок под заявки */}
+                            <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-lg'}`}>{subRequest.title}</h4>
+                                  </div>
+                                  <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
+                                      <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
+                                        <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                        {subRequest.category?.name || 'Без категории'}
+                                      </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {renderStatusWithTooltip(subRequest.status)}
+                                  {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+
+                                  {/* Кнопка комментариев */}
+                                  <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
+                                      onClick={() => {
+                                        if (hasComments) {
+                                          setShowComments(null);
+                                        } else {
+                                          setShowComments(subRequest.id);
+                                        }
+                                      }}
+                                  >
+                                    <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
+                                  </Button>
+
+                                  <RoleBasedActionMenu
+                                      request={subRequest}
+                                      requestGroup={selectedRequest}
+                                      isDesktop={isDesktop}
+                                      userRole="manager"
+                                      isSubRequest={true}
+                                      onDelete={(subReq) => {
+                                        handleDeleteSubRequest(subReq);
+                                      }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Краткое описание */}
+                              <div className={`text-gray-600 mb-3 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
+                                {isDesktop ? (
+                                    <p className="line-clamp-2">{subRequest.description}</p>
+                                ) : (
+                                    <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
+                                )}
+                              </div>
+
+                              {/* Кнопка раскрытия */}
+                              <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
+                                  onClick={() => {
+                                    const newExpanded = new Set(expandedSubRequests);
+                                    if (isExpanded) {
+                                      newExpanded.delete(subRequest.id);
+                                    } else {
+                                      newExpanded.add(subRequest.id);
+                                    }
+                                    setExpandedSubRequests(newExpanded);
+                                  }}
+                              >
+                                {isExpanded ? (
+                                    <>
+                                      <ChevronUp className="w-4 h-4 mr-2" />
+                                      Свернуть
+                                    </>
+                                ) : (
+                                    <>
+                                      <ChevronDown className="w-4 h-4 mr-2" />
+                                      Подробнее
+                                    </>
+                                )}
+                              </Button>
+                            </div>
+
+                            {/* Раскрытая информация */}
+                            {isExpanded && (
+                                <div className={`border-t bg-gradient-to-br from-gray-50 to-gray-100 ${isDesktop ? 'p-4' : 'p-5'}`}>
+                                  {/* Основная информация */}
+                                  <div className={`grid gap-3 text-sm mb-4 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                    {subRequest.complexity && (
+                                        <div className="flex items-center gap-2 text-gray-600">
+                                          <span className="font-medium">Сложность:</span>
+                                          <Badge className={getComplexityColor(subRequest.complexity)}>
+                                            {translateComplexity(subRequest.complexity)}
+                                          </Badge>
+                                        </div>
+                                    )}
+                                    {subRequest.sla && (
+                                        <div className="flex items-center gap-2 text-gray-600">
+                                          <span className="font-medium">SLA:</span>
+                                          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                                            {subRequest.sla}
+                                          </Badge>
+                                        </div>
+                                    )}
+                                  </div>
+
+                                  {/* Исполнители */}
+                                  {(() => {
+                                    const executors = subRequest.executors && subRequest.executors.length > 0
+                                        ? subRequest.executors
+                                        : subRequest.executor
+                                            ? [subRequest.executor]
+                                            : [];
+
+                                    return executors.length > 0 ? (
+                                        <div className="mb-4">
+                                          <h5 className="font-medium text-sm mb-3 text-gray-700 flex items-center gap-2">
+                                            <Users className="w-4 h-4 text-purple-500" />
+                                            Исполнители
+                                          </h5>
+                                          <div className="space-y-2">
+                                            {executors.map((executor, index) => (
+                                                <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                                  <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                                      <User className="w-4 h-4 text-purple-600" />
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium text-gray-800">
+                                                          {executor.user.full_name}
+                                                        </span>
+                                                      {executor?.RequestExecutor?.role === "leader" && (
+                                                          <LeaderIndicator isDesktop={isDesktop} size="sm" />
+                                                      )}
+                                                    </div>
+                                                    {executor.user.phone && (
+                                                        <div className="text-xs text-gray-500 mt-1">
+                                                          {executor.user.phone}
+                                                        </div>
+                                                    )}
+                                                  </div>
+                                                  {userRatings[subRequest.id]?.rating && (
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-gray-500">Оценка:</span>
+                                                        <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
+                                                      </div>
+                                                  )}
+                                                </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                    ) : null;
+                                  })()}
+
+                                  {/* Отчет о выполнении для завершенных подзаявок */}
+                                  {subRequest.status === "completed" && (
+                                      <CompletedTaskReport
+                                          subRequest={subRequest}
+                                          isDesktop={isDesktop}
+                                          onPhotoClick={(photoUrl) => {
+                                            setSelectedPhoto(photoUrl);
+                                            openModal('photoPreview');
+                                          }}
+                                      />
+                                  )}
+                                </div>
+                            )}
                           </div>
-                      )}
-                      <div className="flex items-center gap-2 w-full">
-                        <input
-                            type="text"
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            placeholder="Написать комментарий..."
-                            className="flex-1 min-w-0 p-2.5 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                        />
-                        <Button
-                            size="sm"
-                            onClick={handleSend}
-                            className="bg-violet-600 hover:bg-violet-700 p-2.5 flex-shrink-0"
-                            aria-label="Отправить комментарий"
-                        >
-                          <Send className="w-4 h-4" />
-                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Локация</Label>
+                  <p className="text-sm">{selectedRequest.location_detail}</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const locText = selectedRequest.location;
+                          const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
+                          const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
+                          const accMatch = locText.match(/±(\d+) м/);
+
+                          if (latMatch && lonMatch && accMatch) {
+                            setMapLocation({
+                              lat: parseFloat(latMatch[1]),
+                              lon: parseFloat(lonMatch[1]),
+                              accuracy: parseInt(accMatch[1])
+                            });
+                            setShowMapModal(true);
+                            openModal('mapModal');
+                          } else {
+                            alert("Не удалось определить координаты из локации");
+                          }
+                        }}
+                    >
+                      <MapPin className="w-4 h-4 mr-1" />
+                      Показать на карте
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex items-center">
+                  <Clock className="w-4 h-4 mr-1" />
+                  {new Date(selectedRequest.created_date).toLocaleString("ru-RU", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                </div>
+
+                {/* Фотографии группы заявок (только before) */}
+                {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
+                    <div className="mt-4">
+                      <Label className="font-bold block">Фотографии заявки (до выполнения)</Label>
+                      <div className="flex space-x-2 mt-2 flex-wrap">
+                        {selectedRequest.photos
+                            .filter((photo: any) => photo.type === 'before')
+                            .map((photo: any, index: number) => (
+                                <img
+                                    key={index}
+                                    src={photo.photo_url || "/placeholder.svg"}
+                                    alt={`Фото ${index + 1}`}
+                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                    onClick={() => {
+                                      setSelectedPhoto(photo.photo_url);
+                                      openModal('photoPreview');
+                                    }}
+                                    onError={(e) => {
+                                      e.currentTarget.src = "/placeholder.svg";
+                                    }}
+                                />
+                            ))}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                )}
 
-                <div className="flex justify-end sm:justify-start mt-6">
-                  <Button
-                      variant="destructive"
-                      className="w-full sm:w-auto flex justify-center items-center gap-2"
-                      onClick={() => {
-                        setRequestToDelete(selectedTaskDetails);
-                        setShowDeleteRequestModal(true);
-                      }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Удалить
-                  </Button>
+                {/* Фотографии группы заявок (только before) */}
+                {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'after').length > 0 && (
+                    <div className="mt-4">
+                      <Label className="font-bold block">Фотографии заявки (после выполнения)</Label>
+                      <div className="flex space-x-2 mt-2 flex-wrap">
+                        {selectedRequest.photos
+                            .filter((photo: any) => photo.type === 'after')
+                            .map((photo: any, index: number) => (
+                                <img
+                                    key={index}
+                                    src={photo.photo_url || "/placeholder.svg"}
+                                    alt={`Фото ${index + 1}`}
+                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                    onClick={() => {
+                                      setSelectedPhoto(photo.photo_url);
+                                      openModal('photoPreview');
+                                    }}
+                                    onError={(e) => {
+                                      e.currentTarget.src = "/placeholder.svg";
+                                    }}
+                                />
+                            ))}
+                      </div>
+                    </div>
+                )}
 
-                  <Button className="w-full sm:w-auto flex justify-center items-center gap-2 ml-2" variant="outline" onClick={() => {
-                    setSelectedTaskDetails(null)
-                    closeModal()
-                    setComments([])
+                {/* Модальное окно */}
+                {selectedPhoto && (
+                    <div
+                        className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+                        onClick={() => {setSelectedPhoto(null); closeModal(); }}
+                    >
+                      <img
+                          src={selectedPhoto}
+                          alt="Увеличенное фото"
+                          className="max-w-full max-h-full rounded-lg"
+                          onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                )}
+
+
+
+
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => {
+                    setSelectedRequest(null);
+                    closeModal();
                   }}>
                     Закрыть
                   </Button>
@@ -2808,36 +2485,41 @@ export default function ManagerDashboard() {
       )}
 
       {/* Map Modal */}
-      {showMapModal && (
-          <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-              onClick={() => {setShowMapModal(false); closeModal(); }}
-          >
-            <Card
-                className="w-full max-w-4xl h-[80vh] max-h-[80vh] flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-            >
-              <CardHeader>
-                <CardTitle>Локация заявки</CardTitle>
-                <CardDescription>Точное местоположение проблемы</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-hidden">
-                <React.Suspense fallback={
-                  <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">
-                    Загрузка карты...
-                  </div>
-                }>
-                  <MapView lat={mapLocation.lat} lon={mapLocation.lon} accuracy={mapLocation.accuracy} />
-                </React.Suspense>
-              </CardContent>
-              <div className="p-4 flex justify-end border-t">
-                <Button onClick={() => {setShowMapModal(false); closeModal(); }}>
-                  Закрыть
-                </Button>
-              </div>
-            </Card>
-          </div>
-      )}
+      <MapModal
+          isOpen={showMapModal}
+          onClose={() => {
+            setShowMapModal(false);
+            closeModal();
+          }}
+          mapLocation={mapLocation}
+      />
+
+      {/* Create Request Modal */}
+      <CreateRequestModal
+          isOpen={showCreateRequestModal}
+          onClose={() => {
+            setShowCreateRequestModal(false);
+            closeModal();
+          }}
+          userRole="manager"
+          categories={categories}
+          onSubmit={handleCreateRequest}
+          isSubmitting={isSubmitting}
+          formErrors={formErrors}
+          clientLocation={requestLocation}
+          offices={offices}
+      />
+
+      {/* Comments Modal */}
+      <CommentsModal
+          isOpen={!!showComments}
+          onClose={() => {
+            setShowComments(null);
+          }}
+          requestId={showComments}
+          currentUserId={currentUserId}
+          isDesktop={isDesktop}
+      />
 
       {/* Delete Request Confirmation Modal */}
       <DeleteConfirmationModal
@@ -2846,11 +2528,18 @@ export default function ManagerDashboard() {
           setShowDeleteRequestModal(false);
           closeModal();
           setRequestToDelete(null);
-          setDeleteReason("");
         }}
         onConfirm={confirmDeleteRequest}
         title={`Удалить заявку #${requestToDelete?.id}?`}
-        description={`Вы уверены, что хотите удалить заявку "${requestToDelete?.title}"? Это действие необратимо.`}
+        description={`Вы уверены, что хотите удалить заявку? Это действие необратимо.`}
+      />
+
+      <RejectRequestModal
+          isOpen={rejectModal.isOpen}
+          onClose={rejectModal.hideReject}
+          title={rejectModal.title}
+          message={rejectModal.message}
+          duration={rejectModal.duration}
       />
       <SuccessModal
           isOpen={successModal.isOpen}
@@ -2919,10 +2608,18 @@ export default function ManagerDashboard() {
         description={`Это действие нельзя отменить. Вы действительно хотите удалить категорию ${categoryToDelete?.name}?`}
       />
 
+      {/* Модальное окно информации об иконках */}
+      <IconInfoModal
+          isOpen={!!showIconInfo}
+          onClose={() => setShowIconInfo(null)}
+          iconInfo={showIconInfo}
+          isDesktop={isDesktop}
+      />
+
       <BottomNav
           onCreateRequest={handleOpenCreateRequest}
           activeTab="history"
-          hidden={showCreateRequestModal || showMapModal || showDeleteRequestModal || showProfile || isModalOpen || !!selectedPhoto || !!selectedTaskDetails}
+          hidden={showCreateRequestModal || showMapModal || showDeleteRequestModal || showProfile || isModalOpen || !!selectedPhoto || !!selectedRequest}
       />
 
       {isDesktop && <Link
@@ -2935,3 +2632,4 @@ export default function ManagerDashboard() {
      </>
   )
 }
+
