@@ -1258,34 +1258,47 @@ export default function ClientDashboard() {
                                             <h5 className="font-medium text-sm mb-3 text-gray-700 flex items-center gap-2">
                                               <Users className="w-4 h-4 text-purple-500" />
                                               Исполнители
+                                              <span>
+                                              {subRequest?.rating && (
+                                                  <div className="flex items-center gap-1">
+                                                    <div className="flex">{renderStars(subRequest?.rating)}</div>
+                                                  </div>
+                                              )}
+                                            </span>
                                             </h5>
                                             <div className="space-y-2">
                                               {executors.map((executor, index) => (
-                                                  <div key={index} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                                                    <div className="flex items-center gap-2">
-                                                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                                                        <User className="w-4 h-4 text-purple-600" />
+                                                  <div
+                                                      key={index}
+                                                      className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow w-full"
+                                                  >
+                                                    <div className="flex flex-wrap items-center gap-2 w-full">
+                                                      <div className="w-5 h-5 bg-purple-100 rounded-full flex items-center justify-center">
+                                                        <User className="w-3 h-3 text-purple-600" />
                                                       </div>
-                                                      <div className="flex items-center gap-2">
+                                                      <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
                                                         <span className="text-sm font-medium text-gray-800">
-                                                          {executor.user.full_name}
+                                                          {executor.user.full_name
+                                                              .split(" ")
+                                                              .map((word: string, idx: number) =>
+                                                                  idx === 0 ? word : `${word.charAt(0)}.`
+                                                              )
+                                                              .join(" ")}
                                                         </span>
-                                                        {executor?.RequestExecutor?.role === "leader" && (
-                                                            <LeaderIndicator isDesktop={isDesktop} size="sm" />
+                                                          {executor?.RequestExecutor?.role === "leader" && (
+                                                              <div className="ml-auto">
+                                                                <LeaderIndicator isDesktop={isDesktop} size="sm" />
+                                                              </div>
+                                                          )}
+                                                        </div>
+                                                        {executor.user.phone && (
+                                                            <div className="text-xs text-gray-500">
+                                                              {executor.user.phone}
+                                                            </div>
                                                         )}
                                                       </div>
-                                                      {executor.user.phone && (
-                                                          <div className="text-xs text-gray-500 mt-1">
-                                                            {executor.user.phone}
-                                                          </div>
-                                                      )}
                                                     </div>
-                                                    {userRatings[subRequest.id]?.rating && (
-                                                        <div className="flex items-center gap-2">
-                                                          <span className="text-xs text-gray-500">Оценка:</span>
-                                                          <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
-                                                        </div>
-                                                    )}
                                                   </div>
                                               ))}
                                             </div>
