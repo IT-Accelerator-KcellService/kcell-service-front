@@ -232,7 +232,8 @@ export default function HomePage() {
                 if (d >= start) {
                     total += data.totalRequests
                     completed += data.completedRequests
-                    overdue += data.totalRequests - data.completedRequests
+                    // Используем overdueRequests из API (рассчитанные на основе SLA)
+                    overdue += data.overdueRequests || 0;
                     dayCounts.add(date)
                 }
             })

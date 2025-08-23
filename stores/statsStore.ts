@@ -61,6 +61,7 @@ export interface ManagerStats {
             normalRequests: number;
             urgentRequests: number;
             plannedRequests: number;
+            overdueRequests: number;
         };
     };
 }
