@@ -1197,17 +1197,17 @@ export default function ClientDashboard() {
                                 {/* Кнопка раскрытия */}
                                 {subRequest.status !== 'in_progress' && (
                                   <Button
-                                      variant="outline"
+                                      variant="ghost"
                                       size="sm"
-                                      className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
+                                      className={`w-full justify-center ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
                                       onClick={() => {
                                         const newExpanded = new Set(expandedSubRequests);
-                                      if (isExpanded) {
-                                        newExpanded.delete(subRequest.id);
-                                      } else {
-                                        newExpanded.add(subRequest.id);
-                                      }
-                                      setExpandedSubRequests(newExpanded);
+                                        if (isExpanded) {
+                                          newExpanded.delete(subRequest.id);
+                                        } else {
+                                          newExpanded.add(subRequest.id);
+                                        }
+                                        setExpandedSubRequests(newExpanded);
                                       }}
                                   >
                                       {isExpanded ? (
@@ -1216,12 +1216,12 @@ export default function ClientDashboard() {
                                             Свернуть
                                           </>
                                       ) : (
-                                    <>
-                                      <ChevronDown className="w-4 h-4 mr-2" />
-                                      Подробнее
-                                    </>
-                                )}
-                              </Button>
+                                          <>
+                                            <ChevronDown className="w-4 h-4 mr-2" />
+                                            Подробнее
+                                          </>
+                                      )}
+                                  </Button>
                                 )}
 
                               </div>

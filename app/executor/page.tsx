@@ -1653,9 +1653,9 @@ export default function ExecutorDashboard() {
                                 {/* Кнопка раскрытия */}
                                 {subRequest.status !== 'in_progress' && (
                                     <Button
-                                        variant="outline"
+                                        variant="ghost"
                                         size="sm"
-                                        className={`w-full text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
+                                        className={`w-full justify-center ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
                                         onClick={() => {
                                           const newExpanded = new Set(expandedSubRequests);
                                           if (isExpanded) {
