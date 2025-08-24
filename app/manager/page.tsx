@@ -268,16 +268,16 @@ export default function ManagerDashboard() {
     if (lastElementRef.current) {
       observer.current.observe(lastElementRef.current);
     }
-  }, [loading, hasMore, page, filteredRequests]); // добавил filteredRequests
+  }, [loading, hasMore, page]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await api.get("/analytics/stats/manager");
       setStats(res.data);
     } catch (error) {
       console.error(error);
     }
-  }
+  }, []);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
@@ -502,7 +502,7 @@ export default function ManagerDashboard() {
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
-  const fetchUsers = async (page: number = 1) => {
+  const fetchUsers = useCallback(async (page: number = 1) => {
     try {
       setLoading(true);
       const response = await api.get(`/users?page=${page}&limit=${pagination.itemsPerPage}`);
@@ -516,7 +516,7 @@ export default function ManagerDashboard() {
       setLoading(false);
       console.error('Ошибка при загрузке пользователей:', error);
     }
-  };
+  }, [pagination.itemsPerPage]);
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
@@ -801,18 +801,13 @@ export default function ManagerDashboard() {
   };
 
   useEffect(() => {
-    if (requests.length === 0) {
-      fetchRequests(1)
-    }
-    if (notifications.length === 0) {
-      fetchNotifications()
-    }
-    if (offices.length === 0) {
-      fetchOffices()
-    }
-  }, [offices, notifications, requests]);
+    // Инициализация данных при первом рендере
+    fetchRequests(1);
+    fetchNotifications();
+    fetchOffices();
+  }, []);
 
-  const fetchRequests = async (pageToLoad = 1) => {
+  const fetchRequests = useCallback(async (pageToLoad = 1) => {
     try {
       setLoading(true);
       const response = await api.get(`/request-groups?page=${pageToLoad}&pageSize=10`);
@@ -830,7 +825,7 @@ export default function ManagerDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -998,7 +993,7 @@ export default function ManagerDashboard() {
     }
   }, [isLoggedIn])
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get('/notifications/me?page=1&pageSize=5')
       setNotifications(res.data.notifications)
@@ -1007,7 +1002,7 @@ export default function ManagerDashboard() {
     } finally {
       setNotificationLoading(false)
     }
-  }
+  }, []);
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification)
@@ -1139,14 +1134,14 @@ export default function ManagerDashboard() {
     }
   };
 
-  const fetchOffices = async () => {
+  const fetchOffices = useCallback(async () => {
     try {
       const response = await api.get('/offices')
       setOffices(response.data)
     } catch (error) {
       console.error("Failed to fetch categories:", error)
     }
-  }
+  }, []);
 
   const handleAddOffice = async () => {
     const city = newOfficeCity.trim();

@@ -172,7 +172,7 @@ export default function AdminWorkerDashboard() {
     if (lastElementRef.current) {
       observer.current.observe(lastElementRef.current);
     }
-  }, [loading, hasMore, incomingRequests, myRequests]);
+  }, [loading, hasMore]);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
@@ -301,14 +301,14 @@ export default function AdminWorkerDashboard() {
     window.history.pushState({ modal: modalName }, '', window.location.pathname);
   };
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await api.get("/analytics/stats/admin-worker");
       setStats(res.data);
     } catch (error) {
       console.error(error);
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (!stats) {
@@ -365,7 +365,7 @@ export default function AdminWorkerDashboard() {
     }
   }, [searchParams])
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get('/notifications/me?page=1&pageSize=5')
       setNotifications(res.data.notifications)
@@ -374,7 +374,7 @@ export default function AdminWorkerDashboard() {
     } finally {
       setNotificationLoading(false)
     }
-  }
+  }, []);
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification)
@@ -398,7 +398,7 @@ export default function AdminWorkerDashboard() {
     }
   }
 
-  const fetchRequests = async (currentPage = 1, pageSize = 10) => {
+  const fetchRequests = useCallback(async (currentPage = 1, pageSize = 10) => {
     if (loading && currentPage !== 1) return;
     setLoading(true);
 
@@ -447,7 +447,7 @@ export default function AdminWorkerDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading]);
 
 
 
@@ -469,11 +469,12 @@ export default function AdminWorkerDashboard() {
   }
 
   useEffect(() => {
-    if (myRequests.length === 0 || incomingRequests.length === 0) {
-      setPage(1);
-      setHasMore(true);
-      fetchRequests();
-    }
+    // Сбрасываем состояние при изменении фильтров
+    setPage(1);
+    setHasMore(true);
+    setIncomingRequests([]);
+    setMyRequests([]);
+    fetchRequests();
   }, [filterMyStatus, filterMyType, filterIncomingStatus, filterIncomingType]);
 
 
@@ -563,7 +564,7 @@ export default function AdminWorkerDashboard() {
     setExpandedSubRequests(new Set());
   };
 
-  const checkUserRating = async (requestId: number) => {
+  const checkUserRating = useCallback(async (requestId: number) => {
     try {
       const response = await api.get(`/ratings/user/${requestId}`);
       if (response.data) {
@@ -575,7 +576,7 @@ export default function AdminWorkerDashboard() {
     } catch (error) {
       console.error("Failed to check user rating:", error);
     }
-  };
+  }, []);
 
   const handleAcceptRequestGroup = async () => {
     try {

@@ -161,7 +161,7 @@ export default function ClientDashboard() {
     if (lastElementRef.current) {
       observer.current.observe(lastElementRef.current);
     }
-  }, [loading, hasMore, page, filteredRequests]); // добавил filteredRequests
+  }, [loading, hasMore, page]);
 
 // При заходе на страницу сбросим пагинацию
   useEffect(() => {
@@ -437,7 +437,21 @@ export default function ClientDashboard() {
     }
   }
 
-  const fetchRequests = async (pageToFetch = page) => {
+  const checkUserRating = useCallback(async (requestId: number) => {
+    try {
+      const response = await api.get(`/ratings/user/${requestId}`);
+      if (response.data) {
+        setUserRatings(prev => ({
+          ...prev,
+          [requestId]: response.data[0]
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to check user rating:", error);
+    }
+  }, []);
+
+  const fetchRequests = useCallback(async (pageToFetch = page) => {
     try {
       setLoading(true);
       const response = await api.get(`/request-groups?page=${pageToFetch}&pageSize=${pageSize}`);
@@ -466,21 +480,7 @@ export default function ClientDashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const checkUserRating = async (requestId: number) => {
-    try {
-      const response = await api.get(`/ratings/user/${requestId}`);
-      if (response.data) {
-        setUserRatings(prev => ({
-          ...prev,
-          [requestId]: response.data[0]
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to check user rating:", error);
-    }
-  };
+  }, [page, pageSize, addRequests, checkUserRating]);
 
   useEffect(() => {
     if (requests.length === 0) {
