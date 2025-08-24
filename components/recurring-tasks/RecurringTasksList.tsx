@@ -57,16 +57,21 @@ export const RecurringTasksList: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'recurring_active':
-        return <Badge className="bg-green-100 text-green-800">Активна</Badge>;
-      case 'recurring_paused':
+  const getStatusBadge = (task: RecurringTask) => {
+    // Используем recurring_status для отображения
+    switch (task.recurring_status) {
+      case 'pending_assignment':
+        return <Badge className="bg-orange-100 text-orange-800">Ожидает назначения</Badge>;
+      case 'assigned':
+        return <Badge className="bg-blue-100 text-blue-800">Назначена</Badge>;
+      case 'in_progress':
+        return <Badge className="bg-green-100 text-green-800">В работе</Badge>;
+      case 'completed':
+        return <Badge className="bg-gray-100 text-gray-800">Завершена</Badge>;
+      case 'paused':
         return <Badge className="bg-yellow-100 text-yellow-800">Приостановлена</Badge>;
-      case 'recurring_completed':
-        return <Badge className="bg-blue-100 text-blue-800">Завершена</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary">{task.recurring_status}</Badge>;
     }
   };
 
@@ -122,7 +127,7 @@ export const RecurringTasksList: React.FC = () => {
                 <div className="flex justify-between items-start gap-2">
                   <CardTitle className="text-base sm:text-lg break-words flex-1">{task.location}</CardTitle>
                   <div className="flex-shrink-0">
-                    {getStatusBadge(task.status)}
+                    {getStatusBadge(task)}
                   </div>
                 </div>
                 {task.location_detail && (

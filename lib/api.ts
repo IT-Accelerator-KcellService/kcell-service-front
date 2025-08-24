@@ -119,6 +119,7 @@ export interface RecurringTask {
     next_due_date: string;
     last_completed_date?: string;
     status: string;
+    recurring_status: 'pending_assignment' | 'assigned' | 'in_progress' | 'completed' | 'paused';
     created_date: string;
     planned_date?: string;
     client?: {
@@ -190,6 +191,10 @@ export const deleteRecurringTask = (id: number) =>
 // Приостановить/возобновить задачу
 export const toggleRecurringTask = (id: number, action: 'pause' | 'resume') =>
     api.patch<RecurringTask>(`/recurring-tasks/${id}/toggle`, { action });
+
+// Обновить статус повторяющейся задачи
+export const updateRecurringTaskStatus = (id: number, recurringStatus: 'pending_assignment' | 'assigned' | 'in_progress' | 'completed' | 'paused') =>
+    api.patch<RecurringTask>(`/recurring-tasks/${id}/status`, { recurring_status: recurringStatus });
 
 // Получить статистику задачи
 export const getTaskStats = (id: number) =>
