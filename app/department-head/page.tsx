@@ -487,8 +487,8 @@ export default function DepartmentHeadDashboard() {
 
   // Фильтрация входящих заявок
   const filteredIncomingRequests = incomingRequests.filter((request) => {
-    const statusMatch = filterIncomingStatus === "all" || 
-      (filterIncomingStatus === "long_term" ? request.is_long_term : request.status === filterIncomingStatus);
+    const statusMatch = filterIncomingStatus === "all"   ||
+        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterIncomingStatus);
     const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
     return statusMatch && typeMatch;
   });
@@ -601,13 +601,11 @@ export default function DepartmentHeadDashboard() {
 
   const handleLogout = async () => {
     try {
-      Promise.all([
-        clearNotifications,
-        clearAuth,
-        useStatsStore.getState().resetStats,
-        clearRequests,
-        clearCategories,
-      ]);
+      clearNotifications()
+      clearAuth()
+      useStatsStore.getState().resetStats()
+      clearRequests()
+      clearCategories()
 
       setIsLoggedIn(false)
       router.push("/login")

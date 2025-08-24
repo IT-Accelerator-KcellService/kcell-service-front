@@ -240,8 +240,8 @@ export default function ManagerDashboard() {
       default:
         periodStartDate = null;
     }
-    const statusMatch = filterStatus === "all" || 
-      (filterStatus === "long_term" ? request.is_long_term : request.status === filterStatus);
+    const statusMatch = filterStatus === "all" ||
+        (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterStatus);
     const requestType = request.request_type;
     const typeMatch = filterType === "all" || requestType === filterType;
     const officeMatch = office === "all" || office == String(request.office_id);
@@ -834,15 +834,14 @@ export default function ManagerDashboard() {
 
   const handleLogout = async () => {
     try {
+      clearNotifications()
+      clearAuth()
+      useStatsStore.getState().resetStats()
+      clearRequests()
+      clearCategories()
+
       setIsLoggedIn(false)
       router.push("/login")
-      Promise.all([
-        clearNotifications,
-        clearAuth,
-        useStatsStore.getState().resetStats,
-        clearRequests,
-        clearCategories,
-      ])
     } catch (error) {
       console.error("Logout failed:", error)
     }

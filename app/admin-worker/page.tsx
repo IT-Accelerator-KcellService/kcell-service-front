@@ -317,7 +317,8 @@ export default function AdminWorkerDashboard() {
 
   const filteredMyRequests = sortRequests(
       myRequests.filter((request) => {
-        const statusMatch = filterMyStatus === "all" || request.status === filterMyStatus;
+        const statusMatch = filterMyStatus === "all"  ||
+            (filterMyStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterMyStatus);
         const requestType = request.request_type;
         const typeMatch = filterMyType === "all" || requestType === filterMyType;
         return statusMatch && typeMatch;
@@ -326,8 +327,8 @@ export default function AdminWorkerDashboard() {
 
   const filteredIncomingRequests = sortRequests(
       incomingRequests.filter((request) => {
-        const statusMatch = filterIncomingStatus === "all" || 
-          (filterIncomingStatus === "long_term" ? request.is_long_term : request.status === filterIncomingStatus);
+        const statusMatch = filterIncomingStatus === "all"  ||
+            (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterIncomingStatus);
         const requestType = request.request_type;
         const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType;
         return statusMatch && typeMatch;
@@ -718,13 +719,11 @@ export default function AdminWorkerDashboard() {
 
   const handleLogout = async () => {
     try {
-      Promise.all([
-        clearNotifications,
-        clearAuth,
-        useStatsStore.getState().resetStats,
-        clearRequests,
-        clearCategories,
-      ]);
+      clearNotifications()
+      clearAuth()
+      useStatsStore.getState().resetStats()
+      clearRequests()
+      clearCategories()
 
       setIsLoggedIn(false)
       router.push("/login")
