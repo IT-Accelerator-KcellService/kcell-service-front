@@ -124,6 +124,7 @@ export default function AdminWorkerDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [editableRequestType, setEditableRequestType] = useState<string>('');
 
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true)
@@ -497,6 +498,13 @@ export default function AdminWorkerDashboard() {
     }
   }, [selectedRequest]);
 
+  // Инициализация редактируемого типа заявки при открытии модалки
+  useEffect(() => {
+    if (selectedRequest) {
+      setEditableRequestType(selectedRequest.request_type);
+    }
+  }, [selectedRequest]);
+
   const handleCreateNewRequest = async (formData: FormData) => {
     setIsSubmitting(true);
     setFormErrors(null);
@@ -573,15 +581,17 @@ export default function AdminWorkerDashboard() {
     try {
       setIsSubmitting(true);
       
-      // Проверяем, что все под заявки имеют SLA и complexity
-      const allSubRequestsHaveSettings = selectedRequest?.requests.every((subReq: SubRequest) => {
-        const settings = subRequestSettings[subReq.id];
-        return settings && settings.sla && settings.complexity;
-      });
+      // Проверяем, что все под заявки имеют SLA и complexity (кроме плановых)
+      if (editableRequestType !== 'planned') {
+        const allSubRequestsHaveSettings = selectedRequest?.requests.every((subReq: SubRequest) => {
+          const settings = subRequestSettings[subReq.id];
+          return settings && settings.sla && settings.complexity;
+        });
 
-      if (!allSubRequestsHaveSettings) {
-        setFormErrors("Пожалуйста, укажите SLA и сложность для всех под заявок");
-        return;
+        if (!allSubRequestsHaveSettings) {
+          setFormErrors("Пожалуйста, укажите SLA и сложность для всех под заявок");
+          return;
+        }
       }
 
       // Подготавливаем данные для отправки
@@ -589,8 +599,8 @@ export default function AdminWorkerDashboard() {
         const settings = subRequestSettings[subReq.id];
         return {
           id: subReq.id,
-          sla: settings.sla,
-          complexity: settings.complexity,
+          sla: editableRequestType === 'planned' ? null : settings?.sla,
+          complexity: editableRequestType === 'planned' ? null : settings?.complexity,
           category_id: subReq.category_id
         };
       });
@@ -599,7 +609,7 @@ export default function AdminWorkerDashboard() {
       await api.patch(`/request-groups/${selectedRequest.id}`, {
         patch_code: 1,
         sub_requests: sub_requests,
-        request_type: selectedRequest.request_type
+        request_type: editableRequestType
       });
 
       successModal.showSuccess({
@@ -608,6 +618,7 @@ export default function AdminWorkerDashboard() {
       });
       setSelectedRequest(null);
       closeModalWithHistory();
+      setEditableRequestType('');
       fetchRequests();
     } catch (error) {
       console.error("Ошибка при принятии заявки:", error);
@@ -638,6 +649,7 @@ export default function AdminWorkerDashboard() {
       });
       setSelectedRequest(null);
       setRejectionReason("");
+      setEditableRequestType('');
       closeModalWithHistory();
       fetchRequests();
     } catch (error) {
@@ -1381,7 +1393,19 @@ export default function AdminWorkerDashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Тип заявки</Label>
-                      <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
+                      {selectedRequest.status === 'in_progress' && selectedRequest.request_type !== "planned" ? (
+                        <Select value={editableRequestType} onValueChange={setEditableRequestType}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="normal">Обычная</SelectItem>
+                            <SelectItem value="urgent">Экстренная</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
+                      )}
                     </div>
                     <div>
                       <Label>Статус</Label>
@@ -1531,7 +1555,7 @@ export default function AdminWorkerDashboard() {
                                     )}
                                     
                                     {/* Настройки SLA и сложности для админа */}
-                                    {selectedRequest?.status === 'in_progress' && (
+                                    {selectedRequest?.status === 'in_progress' && editableRequestType !== 'planned' && (
                                         <div className="border-t border-gray-200 pt-3 mt-3">
                                           <h5 className="font-medium text-sm mb-3 text-gray-700">Настройки для принятия</h5>
                                           <div className={`grid gap-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -1769,6 +1793,7 @@ export default function AdminWorkerDashboard() {
                           setSelectedRequest(null);
                       closeModalWithHistory();
                       setFormErrors(null);
+                      setEditableRequestType('');
                     }}>
                       Закрыть
                     </Button>
