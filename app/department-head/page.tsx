@@ -60,6 +60,7 @@ import {AssignExecutorsModal} from "@/components/AssignExecutorsModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
+import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
 
 interface User {
   id: number
@@ -497,56 +498,77 @@ export default function DepartmentHeadDashboard() {
     setFormErrors(null);
 
     try {
-      // Получаем данные из FormData
-      const requestType = formData.get('request_type') as string;
-      const location = formData.get('location') as string;
-      const locationDetail = formData.get('location_detail') as string;
-      const status = formData.get('status') as string;
-      const subRequestsJson = formData.get('sub_requests') as string;
-      const photos = formData.getAll('photos') as File[];
+      // Проверяем, является ли это повторяющейся задачей
+      const isRecurring = formData.get('is_recurring') === 'true';
       
-      // Парсим подзаявки
-      const subRequests = JSON.parse(subRequestsJson);
-      
-      // Создаем новую FormData для API
-      const apiFormData = new FormData();
-      apiFormData.append('request_type', requestType);
-      apiFormData.append('location', location);
-      apiFormData.append('location_detail', locationDetail);
-      apiFormData.append('status', status);
-      
-      // Добавляем подзаявки с исполнителями (статусы уже установлены в компоненте)
-      apiFormData.append('sub_requests', JSON.stringify(subRequests));
-      
-      // Добавляем фото
-      photos.forEach(photo => apiFormData.append('photos', photo));
-
-      const response = await api.post('/request-groups', apiFormData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      const newRequestGroup = response.data;
-      setMyRequests(prev => [newRequestGroup, ...prev]);
-      
-      // Показываем соответствующее сообщение об успехе
-      const hasExecutors = subRequests.some((subReq: any) => subReq.executors && subReq.executors.length > 0);
-      if (hasExecutors) {
+      if (isRecurring) {
+        // Создаем повторяющуюся задачу
+        const recurringData = {
+          location: formData.get('location'),
+          location_detail: formData.get('location_detail'),
+          recurrence_type: formData.get('recurrence_type'),
+          recurrence_interval: parseInt(formData.get('recurrence_interval') as string),
+          start_date: formData.get('start_date'),
+        };
+        
+        await api.post('/recurring-tasks', recurringData);
+        
         successModal.showSuccess({
-          title: "Заявка создана и исполнители назначены!",
-          message: "Заявка успешно создана и передана исполнителям."
+          title: "Повторяющаяся задача создана!",
+          message: "Задача будет автоматически создавать экземпляры согласно расписанию."
         });
       } else {
-        successModal.showSuccess({
-          title: "Заявка создана!",
-          message: "Заявка отправлена на рассмотрение администратора."
+        // Получаем данные из FormData
+        const requestType = formData.get('request_type') as string;
+        const location = formData.get('location') as string;
+        const locationDetail = formData.get('location_detail') as string;
+        const status = formData.get('status') as string;
+        const subRequestsJson = formData.get('sub_requests') as string;
+        const photos = formData.getAll('photos') as File[];
+        
+        // Парсим подзаявки
+        const subRequests = JSON.parse(subRequestsJson);
+        
+        // Создаем новую FormData для API
+        const apiFormData = new FormData();
+        apiFormData.append('request_type', requestType);
+        apiFormData.append('location', location);
+        apiFormData.append('location_detail', locationDetail);
+        apiFormData.append('status', status);
+        
+        // Добавляем подзаявки с исполнителями (статусы уже установлены в компоненте)
+        apiFormData.append('sub_requests', JSON.stringify(subRequests));
+        
+        // Добавляем фото
+        photos.forEach(photo => apiFormData.append('photos', photo));
+
+        const response = await api.post('/request-groups', apiFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
+
+        const newRequestGroup = response.data;
+        setMyRequests(prev => [newRequestGroup, ...prev]);
+        
+        // Показываем соответствующее сообщение об успехе
+        const hasExecutors = subRequests.some((subReq: any) => subReq.executors && subReq.executors.length > 0);
+        if (hasExecutors) {
+          successModal.showSuccess({
+            title: "Заявка создана и исполнители назначены!",
+            message: "Заявка успешно создана и передана исполнителям."
+          });
+        } else {
+          successModal.showSuccess({
+            title: "Заявка создана!",
+            message: "Заявка отправлена на рассмотрение администратора."
+          });
+        }
       }
       
       setShowCreateRequestModal(false);
       closeModalWithHistory();
     } catch (error: any) {
-      console.error("Ошибка при создании заявки:", error);
-      setFormErrors(error.response?.data?.error || "Не удалось создать заявку.");
+      console.error("Ошибка при создании:", error);
+      setFormErrors(error.response?.data?.error || "Не удалось создать.");
     } finally {
       setIsSubmitting(false);
     }
@@ -1076,12 +1098,27 @@ export default function DepartmentHeadDashboard() {
                       </div>
                   ): null}
                   {/* табы */}
-                  <div className="order-2 sm:order-1 w-full sm:w-auto">
-                    <TabsList className="flex flex-wrap gap-2 w-full sm:w-auto">
-                      <TabsTrigger value="incoming">Входящие заявки</TabsTrigger>
-                      <TabsTrigger value="my-requests">Мои заявки</TabsTrigger>
-                      <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                      <TabsTrigger value="management">Управление</TabsTrigger>
+                  <div className="order-2 sm:order-1 w-full sm:w-auto flex justify-center sm:justify-start">
+                    <TabsList className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
+                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="hidden sm:inline">Входящие заявки</span>
+                        <span className="sm:hidden">Входящие</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="hidden sm:inline">Мои заявки</span>
+                        <span className="sm:hidden">Мои</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="hidden sm:inline">Повторяющиеся</span>
+                        <span className="sm:hidden">Повторяющиеся</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Статистика
+                      </TabsTrigger>
+                      <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="hidden sm:inline">Управление</span>
+                        <span className="sm:hidden">Управление</span>
+                      </TabsTrigger>
                     </TabsList>
                   </div>
                 </div>
@@ -1101,6 +1138,10 @@ export default function DepartmentHeadDashboard() {
                       />
                   ))}
             </div>
+                </TabsContent>
+
+                <TabsContent value="recurring-tasks">
+                  <RecurringTasksList />
                 </TabsContent>
 
                 <TabsContent value="incoming" className="pt-6 sm:pt-0">
@@ -1328,6 +1369,7 @@ export default function DepartmentHeadDashboard() {
             </div>
 
             <div className="space-y-6 mb-20">
+              <UpcomingTasksWidget />
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
                   <NotificationsSidebar onNotificationClick={handleNotificationClick} />
@@ -1698,6 +1740,7 @@ export default function DepartmentHeadDashboard() {
           formErrors={formErrors}
           executors={executors}
           userServiceCategoryId={user?.service_category_id}
+          
         />
 
         {/* Rating Modal */}

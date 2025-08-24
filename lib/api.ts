@@ -49,19 +49,19 @@ export const getServiceCategories = () => api.get('/service-categories');
 
 // Получить категорию по ID
 export const getServiceCategoryById = (id: number) =>
-  api.get(`/service-categories/${id}`);
+    api.get(`/service-categories/${id}`);
 
 // Создать новую категорию
 export const createServiceCategory = (data: { name: string }) =>
-  api.post('/service-categories', data);
+    api.post('/service-categories', data);
 
 // Обновить категорию
 export const updateServiceCategory = (id: number, data: { name: string }) =>
-  api.put(`/service-categories/${id}`, data);
+    api.put(`/service-categories/${id}`, data);
 
 // Удалить категорию
 export const deleteServiceCategory = (id: number) =>
-  api.delete(`/service-categories/${id}`);
+    api.delete(`/service-categories/${id}`);
 
 
 // ==================== Offices ====================
@@ -74,11 +74,11 @@ export const getOfficeById = (id: number) => api.get(`/offices/${id}`);
 
 // Создать офис
 export const createOffice = (data: { name: string; address: string; city: string }) =>
-  api.post('/offices', data);
+    api.post('/offices', data);
 
 // Обновить офис
 export const updateOffice = (id: number, data: { name: string; address: string; city: string }) =>
-  api.put(`/offices/${id}`, data);
+    api.put(`/offices/${id}`, data);
 
 // Удалить офис
 export const deleteOffice = (id: number) => api.delete(`/offices/${id}`);
@@ -88,8 +88,8 @@ export const deleteOffice = (id: number) => api.delete(`/offices/${id}`);
 
 // Обновить пользователя
 export const updateUser = (
-  id: number,
-  data: { email: string; password: string; full_name: string; office_id: number }
+    id: number,
+    data: { email: string; password: string; full_name: string; office_id: number }
 ) => api.put(`/users/${id}`, data);
 
 // Удалить пользователя
@@ -98,6 +98,119 @@ export const deleteUser = (id: number) => api.delete(`/users/${id}`);
 
 // ==================== Chat Messages ====================
 
+
+
 // Получить сообщения чата по requestId
 export const getChatMessagesByRequestId = (requestId: number) =>
-  api.get(`/chat-messages/request/${requestId}`);
+    api.get(`/chat-messages/request/${requestId}`);
+
+
+// ==================== Recurring Tasks ====================
+
+// Типы для повторяющихся задач
+export interface RecurringTask {
+    id: number;
+    location: string;
+    location_detail?: string;
+    description?: string;
+    is_recurring: boolean;
+    recurrence_type: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    recurrence_interval: number;
+    next_due_date: string;
+    last_completed_date?: string;
+    status: string;
+    created_date: string;
+    planned_date?: string;
+    client?: {
+        id: number;
+        name: string;
+        email: string;
+    };
+    office?: {
+        id: number;
+        name: string;
+    };
+    taskInstances?: TaskInstance[];
+}
+
+export interface TaskInstance {
+    id: number;
+    due_date: string;
+    completed_date?: string;
+    status: 'pending' | 'completed' | 'overdue' | 'skipped';
+    notes?: string;
+    taskCompletedByUser?: {
+        id: number;
+        name: string;
+        email: string;
+    };
+    recurringTaskGroup?: {
+        id: number;
+        location: string;
+        location_detail?: string;
+        recurrence_type: 'daily' | 'weekly' | 'monthly' | 'yearly';
+        recurrence_interval: number;
+    };
+}
+
+export interface TaskStats {
+    total_instances: number;
+    completed_instances: number;
+    pending_instances: number;
+    overdue_instances: number;
+    completion_rate: number;
+}
+
+// Создать повторяющуюся задачу
+export const createRecurringTask = (data: {
+    location: string;
+    location_detail?: string;
+    recurrence_type: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    recurrence_interval: number;
+    start_date: string;
+    request_type?: string;
+}) => api.post<RecurringTask>('/recurring-tasks', data);
+
+// Получить все повторяющиеся задачи
+export const getRecurringTasks = (page = 1, pageSize = 10) =>
+    api.get<{ tasks: RecurringTask[]; pagination: any }>(`/recurring-tasks?page=${page}&pageSize=${pageSize}`);
+
+// Получить повторяющуюся задачу по ID
+export const getRecurringTaskById = (id: number) =>
+    api.get<RecurringTask>(`/recurring-tasks/${id}`);
+
+// Обновить повторяющуюся задачу
+export const updateRecurringTask = (id: number, data: Partial<RecurringTask>) =>
+    api.put<RecurringTask>(`/recurring-tasks/${id}`, data);
+
+// Удалить повторяющуюся задачу
+export const deleteRecurringTask = (id: number) =>
+    api.delete(`/recurring-tasks/${id}`);
+
+// Приостановить/возобновить задачу
+export const toggleRecurringTask = (id: number, action: 'pause' | 'resume') =>
+    api.patch<RecurringTask>(`/recurring-tasks/${id}/toggle`, { action });
+
+// Получить статистику задачи
+export const getTaskStats = (id: number) =>
+    api.get<TaskStats>(`/recurring-tasks/${id}/stats`);
+
+// Получить экземпляры задачи
+export const getTaskInstances = (requestGroupId: number, page = 1, pageSize = 10) =>
+    api.get<{ instances: TaskInstance[]; pagination: any }>(`/recurring-tasks/${requestGroupId}/instances?page=${page}&pageSize=${pageSize}`);
+
+// Отметить экземпляр как выполненный
+export const completeTaskInstance = (instanceId: number, notes?: string) =>
+    api.patch<TaskInstance>(`/recurring-tasks/instances/${instanceId}/complete`, { notes });
+
+// Пропустить экземпляр
+export const skipTaskInstance = (instanceId: number, notes?: string) =>
+    api.patch<TaskInstance>(`/recurring-tasks/instances/${instanceId}/skip`, { notes });
+
+// Получить предстоящие задачи
+export const getUpcomingTasks = (limit = 10) =>
+    api.get<{ data: TaskInstance[] }>(`/recurring-tasks/upcoming?limit=${limit}`);
+
+// Получить календарь задач
+export const getTaskCalendar = (startDate: string, endDate: string) =>
+    api.get<{ data: TaskInstance[] }>(`/recurring-tasks/calendar?start_date=${startDate}&end_date=${endDate}`);

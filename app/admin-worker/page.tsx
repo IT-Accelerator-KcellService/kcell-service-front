@@ -64,6 +64,7 @@ import { CommentsModal } from "@/components/CommentsModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
+import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
 
 interface User {
   id: number;
@@ -500,25 +501,47 @@ export default function AdminWorkerDashboard() {
     setFormErrors(null);
 
     try {
-      const response = await api.post('/request-groups', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      // Проверяем, является ли это повторяющейся задачей
+      const isRecurring = formData.get('is_recurring') === 'true';
+      
+      let response;
+      if (isRecurring) {
+        // Создаем повторяющуюся задачу
+        const recurringData = {
+          location: formData.get('location'),
+          location_detail: formData.get('location_detail'),
+          recurrence_type: formData.get('recurrence_type'),
+          recurrence_interval: parseInt(formData.get('recurrence_interval') as string),
+          start_date: formData.get('start_date'),
+        };
+        
+        response = await api.post('/recurring-tasks', recurringData);
+        
+        successModal.showSuccess({
+          title: "Повторяющаяся задача создана!",
+          message: "Задача будет автоматически создавать экземпляры согласно расписанию."
+        });
+      } else {
+        // Создаем обычную заявку
+        response = await api.post('/request-groups', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
 
-      const newRequestGroup = response.data;
-
-      // Обновляем состояние
-      setMyRequests(prev => [newRequestGroup, ...prev]);
-      successModal.showSuccess({
-        title: "Заявка создана!",
-        message: "Заявка отправлена на назначение исполнителей."
-      });
+        const newRequestGroup = response.data;
+        setMyRequests(prev => [newRequestGroup, ...prev]);
+        
+        successModal.showSuccess({
+          title: "Заявка создана!",
+          message: "Заявка отправлена на назначение исполнителей."
+        });
+      }
 
       // Сброс формы
       resetForm();
     } catch (error: any) {
-      console.error("Ошибка при создании группы заявок:", error);
+      console.error("Ошибка при создании:", error);
       setFormErrors(
-          error.response?.data?.error || "Не удалось создать заявку. Повторите попытку."
+          error.response?.data?.error || "Не удалось создать. Повторите попытку."
       );
     } finally {
       setIsSubmitting(false);
@@ -1104,12 +1127,28 @@ export default function AdminWorkerDashboard() {
                         Создать заявку
                       </Button>
                   ): null}
-                  <TabsList className="flex flex-wrap gap-2 w-full sm:w-auto sm:flex-nowrap mb-6">
-                    <TabsTrigger value="incoming">Входящие заявки</TabsTrigger>
-                    <TabsTrigger value="my-requests">Мои заявки</TabsTrigger>
-                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                    <TabsTrigger value="logs">Логи</TabsTrigger>
+                  <div className="flex justify-center sm:justify-start w-full">
+                    <TabsList className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto mb-6">
+                    <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
+                      <span className="hidden sm:inline">Входящие заявки</span>
+                      <span className="sm:hidden">Входящие</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                      <span className="hidden sm:inline">Мои заявки</span>
+                      <span className="sm:hidden">Мои</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                      <span className="hidden sm:inline">Повторяющиеся</span>
+                      <span className="sm:hidden">Повторяющиеся</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                      Статистика
+                    </TabsTrigger>
+                    <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
+                      Логи
+                    </TabsTrigger>
                   </TabsList>
+                  </div>
                 </div>
                 <TabsContent value="my-requests">
                   <div className="space-y-4">
@@ -1153,6 +1192,10 @@ export default function AdminWorkerDashboard() {
                       ))}
                     </div>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="recurring-tasks">
+                  <RecurringTasksList />
                 </TabsContent>
 
                 <TabsContent value="incoming">
@@ -1277,6 +1320,7 @@ export default function AdminWorkerDashboard() {
               </Tabs>
             </div>
             <div className="space-y-6 mb-20">
+              <UpcomingTasksWidget />
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
                   <NotificationsSidebar onNotificationClick={handleNotificationClick} />
@@ -1761,6 +1805,7 @@ export default function AdminWorkerDashboard() {
            isSubmitting={isSubmitting}
            formErrors={formErrors}
            translateType={translateType}
+
          />
 
         {/* Rating Modal */}

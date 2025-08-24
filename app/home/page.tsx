@@ -93,6 +93,13 @@ export default function HomePage() {
         fetchOffices()
     }, [offices.length, role])
 
+    // Загрузка статистики при инициализации
+    useEffect(() => {
+        if (role && token) {
+            fetchStats(role);
+        }
+    }, [role, token, fetchStats]);
+
     const chartData: ChartData[] = useMemo(() => {
         if (role !== 'manager') return [];
         const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
@@ -232,8 +239,7 @@ export default function HomePage() {
                 if (d >= start) {
                     total += data.totalRequests
                     completed += data.completedRequests
-                    // Используем overdueUrgentRequests из API (рассчитанные на основе SLA)
-                    overdue += data.overdueUrgentRequests || 0;
+                    overdue += data.overdueRequests || 0;
                     dayCounts.add(date)
                 }
             })

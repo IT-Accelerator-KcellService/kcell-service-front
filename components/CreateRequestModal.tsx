@@ -66,6 +66,7 @@ interface CreateRequestModalProps {
   onModeChange?: (mode: 'create' | 'createAndComplete') => void; // Функция изменения режима
   offices?: Office[]; // Список офисов для manager
   isFullScreen?: boolean; // Полноэкранный режим для мобильных устройств
+  onCreateRecurringTask?: () => void; // Функция для создания повторяющейся задачи
 }
 
 export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
@@ -84,6 +85,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   onModeChange,
   offices = [],
   isFullScreen = false,
+  onCreateRecurringTask,
 }) => {
   const [requestType, setRequestType] = useState("normal");
   const [location, setLocation] = useState(clientLocation);
@@ -98,12 +100,21 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set([0]));
   const [validationErrors, setValidationErrors] = useState<Set<number>>(new Set());
   const [basicFieldErrors, setBasicFieldErrors] = useState<Set<string>>(new Set());
+  const [isRecurringTask, setIsRecurringTask] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [afterPhotos, setAfterPhotos] = useState<File[]>([]);
   const [afterPhotoPreviews, setAfterPhotoPreviews] = useState<string[]>([]);
   const [completionComment, setCompletionComment] = useState("");
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | null>(null);
+  
+  // Состояния для повторяющихся задач
+  const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState<Date>(new Date());
+  
+  // Состояние для геолокации
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -147,6 +158,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setValidationErrors(new Set());
     setBasicFieldErrors(new Set());
     setHasAttemptedSubmit(false);
+    setIsRecurringTask(false);
+    setRecurrenceType('weekly');
+    setRecurrenceInterval(1);
+    setRecurrenceStartDate(new Date());
+    setIsGettingLocation(false);
   };
 
   const handleButtonClick = () => {
@@ -322,20 +338,52 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
   const handleGetLocation = () => {
     if (navigator.geolocation) {
+      // Показываем индикатор загрузки
+      setIsGettingLocation(true);
+      setLocation("Определение местоположения...");
+      
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 10000, // 10 секунд
+        maximumAge: 60000 // 1 минута кэша
+      };
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude, accuracy } = position.coords;
           setLocation(
             `Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`
           );
+          setIsGettingLocation(false);
         },
         (error) => {
           console.error("Ошибка геолокации:", error);
-          setLocation("Не удалось определить местоположение");
-        }
+          setIsGettingLocation(false);
+          
+          // Детальная обработка ошибок
+          let errorMessage = "Не удалось определить местоположение";
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = "Доступ к геолокации запрещен. Разрешите доступ в настройках браузера.";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = "Информация о местоположении недоступна. Проверьте подключение к интернету.";
+              break;
+            case error.TIMEOUT:
+              errorMessage = "Превышено время ожидания. Попробуйте еще раз.";
+              break;
+            default:
+              errorMessage = "Ошибка определения местоположения. Попробуйте ввести адрес вручную.";
+              break;
+          }
+          
+          setLocation(errorMessage);
+        },
+        options
       );
     } else {
-      setLocation("Геолокация не поддерживается вашим браузером");
+      setLocation("Геолокация не поддерживается вашим браузером. Введите адрес вручную.");
     }
   };
 
@@ -504,6 +552,14 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       afterPhotos.forEach(photo => formData.append('after_photos', photo));
     }
 
+    // Данные для повторяющихся задач
+    if (isRecurringTask) {
+      formData.append('is_recurring', 'true');
+      formData.append('recurrence_type', recurrenceType);
+      formData.append('recurrence_interval', String(recurrenceInterval));
+      formData.append('start_date', format(recurrenceStartDate, 'yyyy-MM-dd'));
+    }
+
     await onSubmit(formData);
   };
 
@@ -619,7 +675,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             <Label className="flex items-center gap-1">
               Тип заявки
             </Label>
-            <Select value={requestType} onValueChange={setRequestType}>
+            <Select value={requestType} onValueChange={(value) => {
+              setRequestType(value);
+              setIsRecurringTask(value === 'recurring');
+            }}>
               <SelectTrigger className={hasAttemptedSubmit && basicFieldErrors.has('requestType') ? 'border-red-300 focus:border-red-500' : ''}>
                 <SelectValue placeholder="Выберите тип заявки" />
               </SelectTrigger>
@@ -628,6 +687,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <SelectItem value="urgent">Экстренная</SelectItem>
                 {(userRole === 'admin-worker' || userRole === 'department-head') && (
                   <SelectItem value="planned">Плановая</SelectItem>
+                )}
+                {(userRole === 'admin-worker' || userRole === 'department-head') && (
+                  <SelectItem value="recurring">Повторяющаяся задача</SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -667,6 +729,82 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
           )}
 
+          {/* Поля для повторяющихся задач */}
+          {isRecurringTask && (
+            <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CalendarLucid className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-blue-800">Настройки повторения</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="recurrence_type">Тип повторения</Label>
+                  <Select
+                    value={recurrenceType}
+                    onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'yearly') => setRecurrenceType(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Ежедневно</SelectItem>
+                      <SelectItem value="weekly">Еженедельно</SelectItem>
+                      <SelectItem value="monthly">Ежемесячно</SelectItem>
+                      <SelectItem value="yearly">Ежегодно</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="recurrence_interval">Интервал</Label>
+                  <Input
+                    id="recurrence_interval"
+                    type="number"
+                    min="1"
+                    value={recurrenceInterval}
+                    onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                    placeholder="1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Дата начала повторения</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarLucid className="mr-2 h-4 w-4" />
+                      {format(recurrenceStartDate, "PPP", { locale: ru })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={recurrenceStartDate}
+                      onSelect={(newDate) => {
+                        if (newDate) {
+                          setRecurrenceStartDate(newDate);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded-md">
+                <p><strong>Пример:</strong> {recurrenceType === 'daily' && `Каждые ${recurrenceInterval} ${recurrenceInterval === 1 ? 'день' : 'дней'}`}</p>
+                <p>{recurrenceType === 'weekly' && `Каждые ${recurrenceInterval} ${recurrenceInterval === 1 ? 'неделя' : 'недель'}`}</p>
+                <p>{recurrenceType === 'monthly' && `Каждые ${recurrenceInterval} ${recurrenceInterval === 1 ? 'месяц' : 'месяцев'}`}</p>
+                <p>{recurrenceType === 'yearly' && `Каждые ${recurrenceInterval} ${recurrenceInterval === 1 ? 'год' : 'лет'}`}</p>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label className="flex items-center gap-1">
               Локация
@@ -685,9 +823,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   variant="outline"
                   className="whitespace-nowrap"
                   onClick={handleGetLocation}
+                  disabled={isGettingLocation}
               >
-                <MapPin className="w-4 h-4 mr-2" />
-                Определить местоположение
+                {isGettingLocation ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-violet-600 mr-2"></div>
+                    Определение...
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Определить местоположение
+                  </>
+                )}
               </Button>
             </div>
             {hasAttemptedSubmit && basicFieldErrors.has('location') && (
