@@ -519,7 +519,8 @@ export default function ExecutorDashboard() {
   }, []);
 
   const filteredRequests = myRequests.filter((request:any) => {
-    const statusMatch = filterStatus === "all" || request.status === filterStatus
+    const statusMatch = filterStatus === "all"   ||
+        (filterStatus === "long_term" ? request.requests.some((req: { is_long_term: any }) => req.is_long_term) : request.status === filterStatus);
     const requestType = request.request_type
     const typeMatch = filterType === "all" || requestType === filterType
     return statusMatch && typeMatch
@@ -1006,16 +1007,14 @@ export default function ExecutorDashboard() {
 
   const handleLogout = async () => {
     try {
+      clearNotifications()
+      clearAuth()
+      useStatsStore.getState().resetStats()
+      clearRequests()
+      clearCategories()
+
       setIsLoggedIn(false)
       router.push("/login")
-
-      Promise.all([
-        clearNotifications,
-        clearAuth,
-        useStatsStore.getState().resetStats,
-        clearRequests,
-        clearCategories,
-      ])
     } catch (error) {
       console.error("Logout failed:", error)
     }
@@ -1309,6 +1308,7 @@ export default function ExecutorDashboard() {
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={filterType} onValueChange={setFilterType}>
@@ -1320,7 +1320,6 @@ export default function ExecutorDashboard() {
                           <SelectItem value="normal">Обычная</SelectItem>
                           <SelectItem value="urgent">Экстренная</SelectItem>
                           <SelectItem value="planed">Плановая</SelectItem>
-                          <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
 
@@ -1329,8 +1328,8 @@ export default function ExecutorDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {assignedRequests
                           ?.filter((task: any) => {
-                            const statusOk = filterStatus === "all" || 
-                              (filterStatus === "long_term" ? task.is_long_term : task.status === filterStatus);
+                            const statusOk = filterStatus === "all"   ||
+                                (filterStatus === "long_term" ? task.requests.some((req: { is_long_term: any }) => req.is_long_term) : task.status === filterStatus);
                             const typeOk = filterType === "all" || task.request_type === filterType;
                             return statusOk && typeOk;
                           })
@@ -1403,6 +1402,7 @@ export default function ExecutorDashboard() {
                           <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={filterType} onValueChange={setFilterType}>

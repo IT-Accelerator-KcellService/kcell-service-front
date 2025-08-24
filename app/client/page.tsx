@@ -648,16 +648,14 @@ export default function ClientDashboard() {
 
   const handleLogout = async () => {
     try {
+      clearNotifications()
+      clearAuth()
+      useStatsStore.getState().resetStats
+      clearRequests()
+      clearCategories()
+
       setIsLoggedIn(false)
       router.push("/login")
-
-      Promise.all([
-        clearNotifications,
-        clearAuth,
-        useStatsStore.getState().resetStats,
-        clearRequests,
-        clearCategories,
-      ])
     } catch (error) {
       console.error("Logout failed:", error)
     }
