@@ -508,7 +508,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     // Поля группы заявок
-    formData.append('request_type', requestType);
+    // Для повторяющихся задач не отправляем request_type, так как они создаются через другой endpoint
+    if (!isRecurringTask) {
+      formData.append('request_type', requestType);
+    }
     formData.append('location', location);
     formData.append('location_detail', locationDetails);
     formData.append('status', groupStatus);
