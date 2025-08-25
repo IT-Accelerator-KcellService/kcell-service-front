@@ -470,6 +470,45 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                                <span className="font-medium">{subRequest.is_long_term ? 'Да' : 'Нет'}</span>
                              </div>
                            </div>
+
+                           {/* Исполнители */}
+                           {subRequest.requestExecutors && subRequest.requestExecutors.length > 0 && (
+                             <div className="mt-4">
+                               <h5 className="font-medium text-sm mb-3 text-gray-900">Исполнители</h5>
+                               <div className="space-y-1">
+                                 {subRequest.requestExecutors.map((requestExecutor: any, index: number) => (
+                                   <div
+                                     key={index}
+                                     className="flex items-start sm:items-center justify-between py-2 sm:py-3 px-0 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors duration-200"
+                                   >
+                                     <div className="flex items-start sm:items-center gap-2 sm:gap-3 w-full">
+                                       <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 sm:mt-0">
+                                         <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+                                       </div>
+                                       <div className="flex-1 min-w-0">
+                                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                           <span className="text-sm sm:text-sm font-medium text-gray-900 truncate">
+                                             {requestExecutor.executor?.user?.full_name
+                                               .split(" ")
+                                               .map((word: string, idx: number) => (idx === 0 ? word : `${word.charAt(0)}.`))
+                                               .join(" ")}
+                                             {requestExecutor.role === "leader" && (
+                                               <span className="text-xs text-gray-500 bg-gray-100 px-1.5 sm:px-2 py-0.5 rounded-full self-start sm:self-auto ml-1">
+                                                 Ответственный
+                                               </span>
+                                             )}
+                                           </span>
+                                         </div>
+                                         {requestExecutor.executor?.user?.email && (
+                                           <div className="text-xs text-gray-500 mt-1 sm:mt-0.5">{requestExecutor.executor.user.email}</div>
+                                         )}
+                                       </div>
+                                     </div>
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                           )}
                          </div>
                        )}
                     </div>

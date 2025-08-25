@@ -156,7 +156,15 @@ export interface RecurringTask {
             name: string;
         };
         requestExecutors?: Array<{
+            id: number;
+            request_id: number;
+            executor_id: number;
+            role: string;
             executor?: {
+                id: number;
+                user_id: number;
+                department_id: number;
+                specialty: string;
                 user?: {
                     id: number;
                     full_name: string;

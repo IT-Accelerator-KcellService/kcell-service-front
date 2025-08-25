@@ -14,7 +14,8 @@ import {
   Trash2,
   UserPlus,
   XCircle,
-  ArrowRight
+  ArrowRight,
+  SkipForward
 } from "lucide-react"
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu"
 import {useAuthStore} from "@/stores/useAuthStore";
@@ -23,7 +24,7 @@ interface ActionItem {
   icon: any
   label: string
   onClick: () => void
-  variant: "default" | "destructive"
+  variant: "default" | "destructive" | "outline"
   showForRoles: string[]
   primary?: boolean
   longTerm?: boolean
@@ -37,6 +38,7 @@ interface RoleBasedActionMenuProps {
   isSubRequest?: boolean // Новый параметр для определения типа заявки
   onStartTask?: (id: string) => void
   onCompleteTask?: (request: any) => void
+  onSkipTask?: (request: any) => void
   onViewDetails?: (request: any) => void
   onReject?: (request: any) => void
   onEdit?: (request: any) => void
@@ -63,6 +65,7 @@ export function RoleBasedActionMenu({
   isSubRequest = false,
   onStartTask,
   onCompleteTask,
+  onSkipTask,
   onViewDetails,
   onReject,
   onDelete,
@@ -135,6 +138,16 @@ export function RoleBasedActionMenu({
                 },
                 variant: "default" as const,
                 primary: true,
+                showForRoles: ["executor"],
+              },
+              {
+                icon: SkipForward,
+                label: "Пропустить",
+                onClick: () => {
+                  onSkipTask?.(request)
+                  setOpen(false)
+                },
+                variant: "outline" as const,
                 showForRoles: ["executor"],
               },
             ]

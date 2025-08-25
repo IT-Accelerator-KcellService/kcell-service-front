@@ -18,6 +18,7 @@ import {
   Hourglass,
   MapPin,
   MessageCircle,
+  Pause,
   Plus,
   Star,
   User,
@@ -768,16 +769,12 @@ export default function ExecutorDashboard() {
       case "rejected": return "Отклонено";
       case "awaiting_assignment": return "Ожидание назначения";
       case "assigned": return "назначенный";
+      case "pending": return "Ожидает";
+      case "overdue": return "Просрочено";
+      case "skipped": return "Пропущено";
+      case "active": return "Активна";
+      case "paused": return "Приостановлена";
       default: return status;
-    }
-  };
-
-  const translateComplexity = (complexity: string) => {
-    switch (complexity) {
-      case "complex": return "комплексный";
-      case "simple": return "простой";
-      case "medium": return "средний";
-      default: return complexity;
     }
   };
 
@@ -786,9 +783,22 @@ export default function ExecutorDashboard() {
       case "urgent": return "Экстренная"
       case "normal": return "Обычная"
       case "planned": return "Плановая"
+      case "recurring": return "Повторяющаяся"
       default: return type
     }
   }
+
+  const translateRecurringStatus = (status: string) => {
+    switch (status) {
+      case "active": return "Активна";
+      case "paused": return "Приостановлена";
+      case "completed": return "Завершена";
+      case "pending": return "Ожидает";
+      case "overdue": return "Просрочено";
+      case "skipped": return "Пропущено";
+      default: return status;
+    }
+  };
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -1034,6 +1044,16 @@ export default function ExecutorDashboard() {
         return "bg-violet-500 text-white border-violet-500"
       case "rejected":
         return "bg-red-500 text-white border-red-500"
+      case "pending":
+        return "bg-blue-500 text-white border-blue-500"
+      case "overdue":
+        return "bg-orange-500 text-white border-orange-500"
+      case "skipped":
+        return "bg-gray-500 text-white border-gray-500"
+      case "active":
+        return "bg-green-500 text-white border-green-500"
+      case "paused":
+        return "bg-yellow-500 text-gray-900 border-yellow-500"
       default:
         return "bg-gray-400 text-white border-gray-400"
     }
@@ -1053,6 +1073,16 @@ export default function ExecutorDashboard() {
         return <User className="w-3 h-3" />
       case "rejected":
         return <XCircle className="w-3 h-3" />
+      case "pending":
+        return <Clock className="w-3 h-3" />
+      case "overdue":
+        return <AlertTriangle className="w-3 h-3" />
+      case "skipped":
+        return <XCircle className="w-3 h-3" />
+      case "active":
+        return <CheckCircle className="w-3 h-3" />
+      case "paused":
+        return <Pause className="w-3 h-3" />
       default:
         return null
     }
@@ -1150,7 +1180,7 @@ export default function ExecutorDashboard() {
                 {totalSubRequests} под заявок
               </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
-                {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
+                {translateType(requestGroup.request_type)}
               </span>
             </div>
           </div>
