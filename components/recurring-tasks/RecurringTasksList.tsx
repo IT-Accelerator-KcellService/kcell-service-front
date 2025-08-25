@@ -21,6 +21,7 @@ interface RecurringTasksListProps {
   onRedirectToOtherDepartment?: (request: any) => void;
   onAssignExecutor?: (request: any) => void;
   onToggleLongTerm?: (requestId: number, requestGroupId: number, currentStatus: boolean) => void;
+  onShowMap?: (location: { lat: number; lon: number; accuracy: number }) => void;
 }
 
 export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ 
@@ -30,13 +31,16 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
   onRateRequest,
   onRedirectToOtherDepartment,
   onAssignExecutor,
-  onToggleLongTerm
+  onToggleLongTerm,
+  onShowMap
 }) => {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInstances, setShowInstances] = useState(false);
   const [selectedTask, setSelectedTask] = useState<RecurringTask | null>(null);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
+  const [showComments, setShowComments] = useState<number | null>(null);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchTasks = async () => {
@@ -201,7 +205,6 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
                     size="sm"
                     onClick={() => {
                       setSelectedTask(task);
-                      setShowTaskDetails(true);
                     }}
                     className="w-full"
                   >
@@ -267,23 +270,27 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Модальное окно с деталями задачи */}
-      {selectedTask && showTaskDetails && (
-        <RecurringTaskDetails
-          task={selectedTask}
-          userRole={userRole || ''}
-          isDesktop={isDesktop}
-          onClose={() => {
-            setShowTaskDetails(false);
-            setSelectedTask(null);
-          }}
-          onRateRequest={onRateRequest}
-          onRedirectToOtherDepartment={onRedirectToOtherDepartment}
-          onAssignExecutor={onAssignExecutor}
-          onToggleLongTerm={onToggleLongTerm}
-        />
-      )}
-
+    {/* Модальное окно с деталями задачи - рендерится поверх всех элементов */}
+    {selectedTask && (
+      <RecurringTaskDetails
+        task={selectedTask}
+        userRole={userRole || ''}
+        isDesktop={isDesktop}
+        onClose={() => {
+          setSelectedTask(null);
+          setShowComments(null);
+          setFormErrors(null);
+        }}
+        onRateRequest={onRateRequest}
+        onRedirectToOtherDepartment={onRedirectToOtherDepartment}
+        onAssignExecutor={onAssignExecutor}
+        onToggleLongTerm={onToggleLongTerm}
+        showComments={showComments}
+        setShowComments={setShowComments}
+        formErrors={formErrors}
+        onShowMap={onShowMap}
+      />
+    )}
     </div>
   );
 };

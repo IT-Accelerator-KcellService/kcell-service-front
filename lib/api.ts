@@ -165,6 +165,11 @@ export interface RecurringTask {
             };
         }>;
     }>;
+    photos?: Array<{
+        id: number;
+        photo_url: string;
+        type: 'before' | 'after';
+    }>;
 }
 
 export interface TaskInstance {

@@ -511,6 +511,13 @@ export default function DepartmentHeadDashboard() {
           category_id: user?.service_category_id || 1, // Добавляем категорию department-head
         };
         
+        console.log('Department head - FormData contents:');
+        for (let [key, value] of formData.entries()) {
+          console.log(`${key}: ${value}`);
+        }
+        
+        console.log('Department head - recurringData:', recurringData);
+        
         const response = await api.post('/recurring-tasks', recurringData);
         
         // Добавляем новую повторяющуюся задачу в список
