@@ -142,6 +142,17 @@ export default function AdminWorkerDashboard() {
   const [page, setPage] = useState(1);
   const observer = useRef<IntersectionObserver | null>(null);
 
+  // Состояния для перенаправления заявок
+  const [selectedRequestForRedirect, setSelectedRequestForRedirect] = useState<any>(null);
+  const [showRedirectModal, setShowRedirectModal] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [redirectError, setRedirectError] = useState<string | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  // Состояния для назначения исполнителей
+  const [selectedSubRequestForAssignment, setSelectedSubRequestForAssignment] = useState<any>(null);
+  const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
+
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
@@ -982,6 +993,76 @@ export default function AdminWorkerDashboard() {
     }
   };
 
+  const handleOpenRedirectModal = async (request: any) => {
+    setSelectedRequestForRedirect(request);
+    setRedirectError(null);
+    setShowRedirectModal(true);
+    openModal('redirectModal');
+  };
+
+  const handleCloseRedirectModal = () => {
+    setShowRedirectModal(false);
+    setSelectedRequestForRedirect(null);
+    setSelectedCategoryId(null);
+    setRedirectError(null);
+    closeModalWithHistory();
+  };
+
+  const handleRedirectRequest = async () => {
+    if (!selectedRequestForRedirect || !selectedCategoryId) return;
+
+    setIsRedirecting(true);
+    setRedirectError(null);
+
+    try {
+      await api.patch(`/requests/${selectedRequestForRedirect.id}`, {
+        status: "awaiting_assignment",
+        executor_id: null,
+        actual_completion_date: null,
+        category_id: selectedCategoryId,
+        patch_code: 1
+      });
+
+      fetchRequests();
+      successModal.showSuccess({
+        title: "Заявка перенаправлена",
+        message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+      });
+
+      handleCloseRedirectModal();
+      if (selectedRequest) {
+        setSelectedRequest(null);
+        closeModalWithHistory();
+      }
+
+    } catch (error: any) {
+      console.error("Ошибка при перенаправлении заявки:", error);
+      setRedirectError(error.response?.data?.error || "Не удалось перенаправить заявку");
+    } finally {
+      setIsRedirecting(false);
+    }
+  };
+
+  const handleAssignExecutors = (subRequest: any) => {
+    setSelectedSubRequestForAssignment(subRequest);
+    setShowAssignExecutorsModal(true);
+    openModal('assignExecutorsModal');
+  };
+
+  const handleCloseAssignExecutorsModal = () => {
+    setShowAssignExecutorsModal(false);
+    setSelectedSubRequestForAssignment(null);
+    closeModalWithHistory();
+  };
+
+  const handleAssignExecutorsSuccess = () => {
+    fetchRequests();
+    successModal.showSuccess({
+      title: "Исполнители назначены",
+      message: "Исполнители успешно назначены на подзаявку"
+    });
+  };
+
   const renderCardHeader = (requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     const totalSubRequests = requestGroup.requests.length;
@@ -1222,40 +1303,17 @@ export default function AdminWorkerDashboard() {
                 <TabsContent value="recurring-tasks">
                   <RecurringTasksList 
                     userRole="admin-worker" 
-                    onShowDetails={(task) => {
-                      // Преобразуем RecurringTask в формат RequestGroup для selectedRequest
-                      const requestGroup = {
-                        ...task,
-                        client_id: task.client?.id || 0,
-                        office_id: task.office?.id || 0,
-                        location_detail: task.location_detail || '',
-                        date_submitted: task.created_date,
-                        rejection_reason: undefined,
-                        planned_date: undefined,
-                        is_long_term: false,
-                        client: task.client ? {
-                          full_name: task.client.name,
-                          email: task.client.email
-                        } : undefined,
-                        office: task.office ? {
-                          id: task.office.id,
-                          name: task.office.name,
-                          city: 'Не указан'
-                        } : undefined,
-                        requests: (task as any).requests || [], // Используем реальные подзаявки если есть
-                        photos: [], // Пустой массив фото для повторяющихся задач
-                        // Добавляем информацию о повторяющейся задаче
-                        recurrence_type: task.recurrence_type,
-                        recurrence_interval: task.recurrence_interval,
-                        next_due_date: task.next_due_date,
-                        last_completed_date: task.last_completed_date,
-                        recurring_status: task.recurring_status,
-                        taskInstances: task.taskInstances || []
-                      };
-                      console.log('Transformed recurring task for details:', requestGroup);
-                      setSelectedRequest(requestGroup);
-                      openModal('requestDetails');
+                    isDesktop={isDesktop}
+                    onRateRequest={(subReq) => {
+                      setRequestToRate(subReq)
+                      setShowRatingModal(true)
+                      openModal('ratingModal')
+                      setSelectedRequest(null);
+                      closeModalWithHistory()
                     }}
+                    onRedirectToOtherDepartment={handleOpenRedirectModal}
+                    onAssignExecutor={handleAssignExecutors}
+                    onToggleLongTerm={handleToggleLongTerm}
                   />
                 </TabsContent>
 

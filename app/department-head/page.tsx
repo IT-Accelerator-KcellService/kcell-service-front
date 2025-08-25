@@ -1145,40 +1145,17 @@ export default function DepartmentHeadDashboard() {
                 <TabsContent value="recurring-tasks">
                   <RecurringTasksList 
                     userRole="department-head" 
-                    onShowDetails={(task) => {
-                      // Преобразуем RecurringTask в формат RequestGroup для selectedRequest
-                      const requestGroup = {
-                        ...task,
-                        client_id: task.client?.id || 0,
-                        office_id: task.office?.id || 0,
-                        location_detail: task.location_detail || '',
-                        date_submitted: task.created_date,
-                        rejection_reason: undefined,
-                        planned_date: undefined,
-                        is_long_term: false,
-                        client: task.client ? {
-                          full_name: task.client.name,
-                          email: task.client.email
-                        } : undefined,
-                        office: task.office ? {
-                          id: task.office.id,
-                          name: task.office.name,
-                          city: 'Не указан'
-                        } : undefined,
-                        requests: (task as any).requests || [], // Используем реальные подзаявки если есть
-                        photos: [], // Пустой массив фото для повторяющихся задач
-                        // Добавляем информацию о повторяющейся задаче
-                        recurrence_type: task.recurrence_type,
-                        recurrence_interval: task.recurrence_interval,
-                        next_due_date: task.next_due_date,
-                        last_completed_date: task.last_completed_date,
-                        recurring_status: task.recurring_status,
-                        taskInstances: task.taskInstances || []
-                      };
-                      console.log('Transformed recurring task for details:', requestGroup);
-                      setSelectedRequest(requestGroup);
-                      openModal('requestDetails');
+                    isDesktop={isDesktop}
+                    onRateRequest={(subReq) => {
+                      setRequestToRate(subReq)
+                      setShowRatingModal(true)
+                      openModal('ratingModal')
+                      setSelectedRequest(null);
+                      closeModalWithHistory()
                     }}
+                    onRedirectToOtherDepartment={handleOpenRedirectModal}
+                    onAssignExecutor={handleAssignExecutors}
+                    onToggleLongTerm={handleToggleLongTerm}
                   />
                 </TabsContent>
 
