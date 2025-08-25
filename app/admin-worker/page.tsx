@@ -444,7 +444,13 @@ export default function AdminWorkerDashboard() {
       await Promise.all(
           allRequests
               .filter((r) => r.status === "completed")
-              .map((r) => checkUserRating(r.id))
+              .map((r) => {
+                r.requests.forEach((subRequest) => {
+                  if (subRequest.status === "completed") {
+                    checkUserRating(subRequest.id)
+                  }
+                })
+              })
       );
 
       // Обновляем флаг hasMore
@@ -1648,7 +1654,7 @@ export default function AdminWorkerDashboard() {
                                     <SubRequestInfo subRequest={subRequest} />
 
                                     {/* Исполнители */}
-                                    <Executors subRequest={subRequest} />
+                                    <Executors subRequest={subRequest} userRatings={userRatings} />
 
                                     {/* Отчет о выполнении для завершенных подзаявок */}
                                     {subRequest.status === "completed" && (

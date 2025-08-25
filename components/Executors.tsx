@@ -1,14 +1,15 @@
 import type React from "react"
-import { User } from "lucide-react"
+import {Star, User} from "lucide-react"
 import {SubRequest} from "@/stores/useRequestStore";
 import {LeaderIndicator} from "@/components/ui/leader-indicator";
 import {useMediaQuery} from "@/hooks/use-media-query";
 
 interface ExecutorsProps {
     subRequest: SubRequest;
+    userRatings?: any;
 }
 
-const Executors: React.FC<ExecutorsProps> = ({ subRequest }) => {
+const Executors: React.FC<ExecutorsProps> = ({ subRequest, userRatings }) => {
     const executors =
         subRequest.executors && subRequest.executors.length > 0
             ? subRequest.executors
@@ -17,6 +18,12 @@ const Executors: React.FC<ExecutorsProps> = ({ subRequest }) => {
                 : []
 
     const isDesktop = useMediaQuery("(min-width: 768px)");
+
+    const renderStars = (rating: number) => {
+        return Array.from({ length: 5 }, (_, i) => (
+            <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
+        ))
+    }
 
     return executors.length > 0 ? (
         <div className="mb-6">
@@ -47,6 +54,18 @@ const Executors: React.FC<ExecutorsProps> = ({ subRequest }) => {
                                 </div>
                                 {executor.user.phone && (
                                     <div className="text-xs text-gray-500 mt-1 sm:mt-0.5">{executor.user.phone}</div>
+                                )}
+                                {userRatings && userRatings[subRequest.id] && userRatings[subRequest.id]?.rating && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500">Оценка:</span>
+                                        <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
+                                    </div>
+                                )}
+                                {subRequest && subRequest?.rating && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500">Оценка:</span>
+                                        <div className="flex">{renderStars(subRequest.rating)}</div>
+                                    </div>
                                 )}
                             </div>
                         </div>

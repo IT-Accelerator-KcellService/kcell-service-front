@@ -1071,12 +1071,6 @@ export default function ExecutorDashboard() {
     }
   }
 
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-        <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
-    ))
-  }
-
   const renderStatusWithTooltip = (status: string) => {
     const icon = getStatusIcon(status);
     const text = translateStatus(status);
@@ -1689,7 +1683,7 @@ export default function ExecutorDashboard() {
                                     <SubRequestInfo subRequest={subRequest} />
 
                                     {/* Исполнители */}
-                                    <Executors subRequest={subRequest} />
+                                    <Executors subRequest={subRequest} userRatings={userRatings} />
 
                                     {/* Отчет о выполнении для завершенных подзаявок */}
                                     {subRequest.status === "completed" && (
