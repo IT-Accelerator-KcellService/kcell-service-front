@@ -529,6 +529,10 @@ export default function AdminWorkerDashboard() {
         
         response = await api.post('/recurring-tasks', recurringData);
         
+        // Добавляем новую повторяющуюся задачу в список
+        const newRecurringTask = response.data;
+        setMyRequests(prev => [newRecurringTask, ...prev]);
+        
         successModal.showSuccess({
           title: "Повторяющаяся задача создана!",
           message: "Задача будет автоматически создавать экземпляры согласно расписанию."
