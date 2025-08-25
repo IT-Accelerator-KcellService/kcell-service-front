@@ -14,6 +14,7 @@ import { RecurringTask, getExecutors } from '@/lib/api';
 import { RoleBasedActionMenu } from '@/components/action-menu';
 import { TaskInstancesList } from './TaskInstancesList';
 import { AssignExecutorsModal } from '@/components/AssignExecutorsModal';
+import { useToast } from '@/hooks/use-toast';
 
 
 interface RecurringTaskDetailsProps {
@@ -29,6 +30,7 @@ interface RecurringTaskDetailsProps {
   setShowComments?: (id: number | null) => void;
   formErrors?: string | null;
   onShowMap?: (location: { lat: number; lon: number; accuracy: number }) => void;
+  onRefreshTask?: () => void; // Функция для обновления данных задачи
 }
 
 export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
@@ -43,7 +45,8 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   showComments: externalShowComments,
   setShowComments: externalSetShowComments,
   formErrors,
-  onShowMap
+  onShowMap,
+  onRefreshTask
 }) => {
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
   const [internalShowComments, setInternalShowComments] = useState<number | null>(null);
@@ -52,6 +55,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
   const [selectedSubRequest, setSelectedSubRequest] = useState<any>(null);
   const [executors, setExecutors] = useState<any[]>([]);
+  const { toast } = useToast();
   
   // Используем внешние состояния, если они переданы, иначе внутренние
   const showComments = externalShowComments !== undefined ? externalShowComments : internalShowComments;
@@ -204,18 +208,28 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   const handleExecutorsAssigned = () => {
     setShowAssignExecutorsModal(false);
     setSelectedSubRequest(null);
-    // Здесь можно добавить обновление данных задачи
+    
+    // Обновляем данные задачи после назначения исполнителей
+    if (onRefreshTask) {
+      onRefreshTask();
+    }
+    
+    // Показываем уведомление об успехе
+    toast({
+      title: 'Успешно',
+      description: 'Исполнители успешно назначены',
+    });
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
-      onClose();
-    }}>
-      <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
-        <CardHeader>
-          <CardTitle className="font-medium text-gray-900">Повторяющаяся задача #{task.id}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 pb-16">
+      return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-0 sm:p-4 z-50" onClick={() => {
+        onClose();
+      }}>
+        <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} ${isDesktop ? 'max-h-[90vh]' : 'h-full'} overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+                  <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="font-medium text-gray-900 text-base sm:text-lg">Повторяющаяся задача #{task.id}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 pb-2 p-4 sm:p-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Тип заявки</Label>
@@ -568,7 +582,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
           
 
           {/* Кнопки действий */}
-          <div className="flex flex-col gap-2 pt-4">
+          <div className="flex flex-col gap-2 pt-1 pb-1">
             {task.recurring_status === 'active' ? (
               <Button
                 variant="outline"
@@ -594,7 +608,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
               variant="outline"
               size="sm"
               onClick={onClose}
-              className="w-full mt-2"
+              className="w-full mt-1"
             >
               Закрыть
             </Button>

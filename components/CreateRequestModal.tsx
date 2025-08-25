@@ -67,6 +67,7 @@ interface CreateRequestModalProps {
   onModeChange?: (mode: 'create' | 'createAndComplete') => void; // Функция изменения режима
   offices?: Office[]; // Список офисов для manager
   isFullScreen?: boolean; // Полноэкранный режим для мобильных устройств
+  onCreateRecurringTask?: () => void; // Функция для создания повторяющейся задачи
 }
 
 export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
@@ -85,6 +86,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   onModeChange,
   offices = [],
   isFullScreen = false,
+  onCreateRecurringTask,
 }) => {
   const [requestType, setRequestType] = useState("normal");
   const [location, setLocation] = useState(clientLocation);
@@ -99,14 +101,22 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set([0]));
   const [validationErrors, setValidationErrors] = useState<Set<number>>(new Set());
   const [basicFieldErrors, setBasicFieldErrors] = useState<Set<string>>(new Set());
+  const [isRecurringTask, setIsRecurringTask] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [afterPhotos, setAfterPhotos] = useState<File[]>([]);
   const [afterPhotoPreviews, setAfterPhotoPreviews] = useState<string[]>([]);
   const [completionComment, setCompletionComment] = useState("");
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | null>(null);
+
+  // Состояния для повторяющихся задач
+  const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState<Date>(new Date());
+
+  // Состояние для геолокации
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Сброс формы при закрытии
@@ -149,6 +159,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setValidationErrors(new Set());
     setBasicFieldErrors(new Set());
     setHasAttemptedSubmit(false);
+    setIsRecurringTask(false);
+    setRecurrenceType('weekly');
+    setRecurrenceInterval(1);
+    setRecurrenceStartDate(new Date());
+    setIsGettingLocation(false);
   };
 
   const handleButtonClick = () => {
@@ -158,7 +173,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const validFiles = files.filter(file => file.type.startsWith('image/'));
-    
+
     if (photos.length + validFiles.length > 3) {
       return;
     }
@@ -184,7 +199,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const handleAfterPhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     const validFiles = files.filter(file => file.type.startsWith('image/'));
-    
+
     if (afterPhotos.length + validFiles.length > 3) {
       return;
     }
@@ -251,10 +266,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           if (!subRequest.complexity || !subRequest.sla) {
             newValidationErrors.add(index);
           }
-          
+
           // Для department-head проверяем наличие лидера в исполнителях
-          if (userRole === 'department-head' && userServiceCategoryId && 
-              subRequest.category_id === userServiceCategoryId && 
+          if (userRole === 'department-head' && userServiceCategoryId &&
+              subRequest.category_id === userServiceCategoryId &&
               subRequest.executors && subRequest.executors.length > 0) {
             const hasLeader = subRequest.executors.some(e => e.role === 'leader');
             if (!hasLeader) {
@@ -275,19 +290,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     const newBasicFieldErrors = new Set<string>();
-    
+
     if (!requestType) {
       newBasicFieldErrors.add('requestType');
     }
-    
+
     if (!location.trim()) {
       newBasicFieldErrors.add('location');
     }
-    
+
     if (!locationDetails.trim()) {
       newBasicFieldErrors.add('locationDetails');
     }
-    
+
     if (photos.length === 0) {
       newBasicFieldErrors.add('photos');
     }
@@ -306,7 +321,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         newBasicFieldErrors.add('комментарий о выполненной работе');
       }
     }
-    
+
     setBasicFieldErrors(newBasicFieldErrors);
   }, [requestType, location, locationDetails, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit]);
 
@@ -324,20 +339,52 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
   const handleGetLocation = () => {
     if (navigator.geolocation) {
+      // Показываем индикатор загрузки
+      setIsGettingLocation(true);
+      setLocation("Определение местоположения...");
+
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 10000, // 10 секунд
+        maximumAge: 60000 // 1 минута кэша
+      };
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude, accuracy } = position.coords;
           setLocation(
             `Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`
           );
+          setIsGettingLocation(false);
         },
         (error) => {
           console.error("Ошибка геолокации:", error);
-          setLocation("Не удалось определить местоположение");
-        }
+          setIsGettingLocation(false);
+
+          // Детальная обработка ошибок
+          let errorMessage = "Не удалось определить местоположение";
+
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = "Доступ к геолокации запрещен. Разрешите доступ в настройках браузера.";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = "Информация о местоположении недоступна. Проверьте подключение к интернету.";
+              break;
+            case error.TIMEOUT:
+              errorMessage = "Превышено время ожидания. Попробуйте еще раз.";
+              break;
+            default:
+              errorMessage = "Ошибка определения местоположения. Попробуйте ввести адрес вручную.";
+              break;
+          }
+
+          setLocation(errorMessage);
+        },
+        options
       );
     } else {
-      setLocation("Геолокация не поддерживается вашим браузером");
+      setLocation("Геолокация не поддерживается вашим браузером. Введите адрес вручную.");
     }
   };
 
@@ -347,19 +394,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     // Проверяем основные поля формы
     const basicFieldErrors = [];
-    
+
     if (!requestType) {
       basicFieldErrors.push('тип заявки');
     }
-    
+
     if (!location.trim()) {
       basicFieldErrors.push('локацию');
     }
-    
+
     if (!locationDetails.trim()) {
       basicFieldErrors.push('расположение в офисе');
     }
-    
+
     if (photos.length === 0) {
       basicFieldErrors.push('фотографии (минимум 1)');
     }
@@ -379,31 +426,23 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       }
     }
 
-    // Проверяем, что все под заявки заполнены
-    const validSubRequests = subRequests.filter(sub =>
-      sub.title.trim() && sub.description.trim() && sub.category_id > 0
-    );
-
-    if (validSubRequests.length === 0) {
-      basicFieldErrors.push('хотя бы одну подзаявку');
-    }
-
     // Проверяем обязательные поля в подзаявках
     const subRequestErrors: string[] = [];
     subRequests.forEach((subRequest, index) => {
-      if (subRequest.title.trim() && subRequest.description.trim() && subRequest.category_id > 0) {
-        // Если подзаявка заполнена, проверяем обязательные поля
-        if (!subRequest.title.trim()) {
-          subRequestErrors.push(`название подзаявки #${index + 1}`);
-        }
-        if (!subRequest.description.trim()) {
-          subRequestErrors.push(`описание подзаявки #${index + 1}`);
-        }
-        if (!subRequest.category_id || subRequest.category_id === 0) {
-          subRequestErrors.push(`категорию подзаявки #${index + 1}`);
-        }
+      if (!subRequest.title.trim()) {
+        subRequestErrors.push(`название подзаявки #${index + 1}`);
+      }
+      if (!subRequest.description.trim()) {
+        subRequestErrors.push(`описание подзаявки #${index + 1}`);
+      }
+      if (!subRequest.category_id || subRequest.category_id === 0) {
+        subRequestErrors.push(`категорию подзаявки #${index + 1}`);
       }
     });
+
+    if (subRequests.length === 0) {
+      basicFieldErrors.push('хотя бы одну подзаявку');
+    }
 
     if (basicFieldErrors.length > 0 || subRequestErrors.length > 0) {
       const allErrors = [...basicFieldErrors, ...subRequestErrors];
@@ -413,27 +452,17 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     // Валидация SLA и complexity для admin-worker и department-head
     if (userRole === 'admin-worker' || userRole === 'department-head') {
-      const invalidSubRequests = validSubRequests.filter(sub => 
-        !sub.complexity || !sub.sla
-      );
-      
+      const invalidSubRequests = subRequests.filter(sub => !sub.complexity || !sub.sla);
       if (invalidSubRequests.length > 0) {
-        // Показываем ошибку валидации
-        const invalidIndices = invalidSubRequests.map((_, index) => {
-          const originalIndex = subRequests.findIndex(sub => 
-            sub.title === validSubRequests[index].title && 
-            sub.description === validSubRequests[index].description
-          );
-          return originalIndex + 1;
+        const invalidIndices = invalidSubRequests.map(sub => {
+          return subRequests.indexOf(sub) + 1;
         });
-        
         // Автоматически разворачиваем подзаявки с ошибками валидации
         const newExpandedSubRequests = new Set(expandedSubRequests);
         invalidIndices.forEach(index => {
           newExpandedSubRequests.add(index - 1); // index - 1 потому что индексы начинаются с 1
         });
         setExpandedSubRequests(newExpandedSubRequests);
-        
         const errorMessage = `Пожалуйста, заполните сложность и SLA для всех подзаявок.\n\nНе заполнено для подзаявок: ${invalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
         return;
       }
@@ -441,30 +470,23 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     // Валидация лидера для department-head
     if (userRole === 'department-head') {
-      const subRequestsWithoutLeader = validSubRequests.filter(sub => {
-        if (userServiceCategoryId && sub.category_id === userServiceCategoryId && 
+      const subRequestsWithoutLeader = subRequests.filter(sub => {
+        if (userServiceCategoryId && sub.category_id === userServiceCategoryId &&
             sub.executors && sub.executors.length > 0) {
           return !sub.executors.some(e => e.role === 'leader');
         }
         return false;
       });
-      
       if (subRequestsWithoutLeader.length > 0) {
-        const leaderInvalidIndices = subRequestsWithoutLeader.map((_, index) => {
-          const originalIndex = subRequests.findIndex(sub => 
-            sub.title === validSubRequests[index].title && 
-            sub.description === validSubRequests[index].description
-          );
-          return originalIndex + 1;
+        const leaderInvalidIndices = subRequestsWithoutLeader.map(sub => {
+          return subRequests.indexOf(sub) + 1;
         });
-        
         // Автоматически разворачиваем подзаявки без лидера
         const newExpandedSubRequests = new Set(expandedSubRequests);
         leaderInvalidIndices.forEach(index => {
           newExpandedSubRequests.add(index - 1);
         });
         setExpandedSubRequests(newExpandedSubRequests);
-        
         const errorMessage = `Пожалуйста, назначьте лидера для всех подзаявок с исполнителями.\n\nНе назначен лидер для подзаявок: ${leaderInvalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
         return;
       }
@@ -480,7 +502,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       groupStatus = createMode === 'createAndComplete' ? 'completed' : 'in_progress';
     } else if (userRole === 'department-head') {
       // Если хотя бы одна подзаявка имеет исполнителей, то статус execution
-      const hasExecutors = validSubRequests.some(sub => 
+      const hasExecutors = subRequests.some(sub =>
         sub.executors && sub.executors.length > 0
       );
       groupStatus = hasExecutors ? 'execution' : 'awaiting_assignment';
@@ -497,9 +519,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     // Под заявки с их SLA и сложностью
-    const subRequestsData = validSubRequests.map(sub => {
+    const subRequestsData = subRequests.map(sub => {
       let subStatus = 'awaiting_assignment';
-      
       if (userRole === 'client') {
         subStatus = 'in_progress';
       } else if (userRole === 'executor') {
@@ -510,7 +531,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           subStatus = 'assigned';
         }
       }
-
       return {
         title: sub.title,
         description: sub.description,
@@ -521,7 +541,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         executors: sub.executors || []
       };
     });
-
     formData.append('sub_requests', JSON.stringify(subRequestsData));
 
     // Фото
@@ -534,13 +553,35 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       afterPhotos.forEach(photo => formData.append('after_photos', photo));
     }
 
+    // Данные для повторяющихся задач
+    if (isRecurringTask) {
+      console.log('Creating recurring task with:', {
+        isRecurringTask,
+        requestType,
+        recurrenceType,
+        recurrenceInterval,
+        startDate: format(recurrenceStartDate, 'yyyy-MM-dd')
+      });
+      formData.append('request_type', 'recurring');
+      formData.append('recurrence_type', recurrenceType);
+      formData.append('recurrence_interval', String(recurrenceInterval));
+      formData.append('start_date', format(recurrenceStartDate, 'yyyy-MM-dd'));
+
+      console.log('FormData for recurring task:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+      }
+    } else {
+      console.log('Creating normal task with requestType:', requestType);
+    }
+
     await onSubmit(formData);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${
         isFullScreen ? 'p-0' : 'p-4'
       }`}
@@ -649,7 +690,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             <Label className="flex items-center gap-1">
               Тип заявки
             </Label>
-            <Select value={requestType} onValueChange={setRequestType}>
+            <Select value={requestType} onValueChange={(value) => {
+              setRequestType(value);
+              setIsRecurringTask(value === 'recurring');
+            }}>
               <SelectTrigger className={hasAttemptedSubmit && basicFieldErrors.has('requestType') ? 'border-red-300 focus:border-red-500' : ''}>
                 <SelectValue placeholder="Выберите тип заявки" />
               </SelectTrigger>
@@ -658,6 +702,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <SelectItem value="urgent">Экстренная</SelectItem>
                 {(userRole === 'admin-worker' || userRole === 'department-head') && (
                   <SelectItem value="planned">Плановая</SelectItem>
+                )}
+                {(userRole === 'admin-worker' || userRole === 'department-head') && (
+                  <SelectItem value="recurring">Повторяющаяся задача</SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -697,6 +744,99 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
           )}
 
+          {/* Поля для повторяющихся задач */}
+          {isRecurringTask && (
+            <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CalendarLucid className="w-5 h-5 text-blue-600" />
+                <h3 className="font-semibold text-blue-800">Настройки повторения</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="recurrence_type">Тип повторения</Label>
+                  <Select
+                    value={recurrenceType}
+                    onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'yearly') => setRecurrenceType(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">Ежедневно</SelectItem>
+                      <SelectItem value="weekly">Еженедельно</SelectItem>
+                      <SelectItem value="monthly">Ежемесячно</SelectItem>
+                      <SelectItem value="yearly">Ежегодно</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="recurrence_interval">Интервал</Label>
+                  <Select
+                    value={String(recurrenceInterval)}
+                    onValueChange={(value) => setRecurrenceInterval(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Каждые 1</SelectItem>
+                      <SelectItem value="2">Каждые 2</SelectItem>
+                      <SelectItem value="3">Каждые 3</SelectItem>
+                      <SelectItem value="4">Каждые 4</SelectItem>
+                      <SelectItem value="6">Каждые 6</SelectItem>
+                      <SelectItem value="12">Каждые 12</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label>Дата начала повторения</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarLucid className="mr-2 h-4 w-4" />
+                      {format(recurrenceStartDate, "PPP", { locale: ru })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={recurrenceStartDate}
+                      onSelect={(newDate) => {
+                        if (newDate) {
+                          setRecurrenceStartDate(newDate);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded-md">
+                <p><strong>Пример:</strong></p>
+                {recurrenceType === 'daily' && (
+                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'день' : 'дней'}</p>
+                )}
+                {recurrenceType === 'weekly' && (
+                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'неделю' : 'недель'}</p>
+                )}
+                {recurrenceType === 'monthly' && (
+                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'месяц' : 'месяцев'}</p>
+                )}
+                {recurrenceType === 'yearly' && (
+                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'год' : 'лет'}</p>
+                )}
+              </div>
+            </div>
+          )}
+
           <div>
             <Label className="flex items-center gap-1">
               Локация
@@ -711,16 +851,24 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 onChange={(e) => setLocation(e.target.value)}
                 readOnly={['client', 'executor'].includes(userRole)}
               />
-              {(userRole === 'admin-worker' || userRole === 'department-head') && (
-                <Button
+              <Button
                   variant="outline"
                   className="whitespace-nowrap"
                   onClick={handleGetLocation}
-                >
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Определить местоположение
-                </Button>
-              )}
+                  disabled={isGettingLocation}
+              >
+                {isGettingLocation ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-violet-600 mr-2"></div>
+                    Определение...
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Определить местоположение
+                  </>
+                )}
+              </Button>
             </div>
             {hasAttemptedSubmit && basicFieldErrors.has('location') && (
               <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
@@ -913,7 +1061,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 </Button>
               )}
             </div>
-            
+
             <div className="space-y-3">
               {subRequests.map((subRequest, index) => (
                 <div key={index} className="relative group">
@@ -932,7 +1080,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                       ? 'border-red-200 bg-red-50/30' 
                       : 'border-gray-200 bg-white hover:border-violet-300 hover:shadow-md'
                   }`}>
-                    
+
                     {/* Градиентная полоса слева */}
                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${
                       hasAttemptedSubmit && (
@@ -948,7 +1096,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         ? 'bg-gradient-to-b from-red-400 to-red-600' 
                         : 'bg-gradient-to-b from-violet-400 to-violet-600'
                     }`} />
-                    
+
                     {/* Заголовок подзаявки */}
                     <div className="pl-6 pr-4 py-4">
                       <div className="flex items-center justify-between">
@@ -970,19 +1118,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                           }`}>
                             {index + 1}
                           </div>
-                          
+
                           {/* Информация о подзаявке */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-1">
                               <h4 className="font-semibold text-lg text-gray-900">Под заявка #{index + 1}</h4>
                             </div>
-                            
+
                             {/* Сообщения об ошибках */}
                             {hasAttemptedSubmit && validationErrors.has(index) && (
                               <div className="flex items-center gap-2 text-red-600 text-sm">
                                 <AlertTriangle className="w-4 h-4" />
                                 <span>
-                                  {userRole === 'admin-worker' 
+                                  {userRole === 'admin-worker'
                                     ? 'Требуется заполнить сложность и SLA'
                                     : userRole === 'department-head'
                                       ? (() => {
@@ -990,7 +1138,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                           const hasComplexityAndSLA = subRequest.complexity && subRequest.sla;
                                           const hasExecutors = subRequest.executors && subRequest.executors.length > 0;
                                           const hasLeader = hasExecutors && subRequest.executors!.some(e => e.role === 'leader');
-                                          
+
                                           if (!hasComplexityAndSLA && !hasLeader) {
                                             return 'Требуется заполнить сложность, SLA и назначить лидера';
                                           } else if (!hasComplexityAndSLA) {
@@ -1013,7 +1161,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                             )}
                           </div>
                         </div>
-                        
+
                         {/* Кнопки управления */}
                         <div className="flex items-center gap-1">
                           <Button
@@ -1074,7 +1222,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                               updateSubRequest(index, 'category_id', category?.id || 0);
                             }}
                           >
-                            <SelectTrigger 
+                            <SelectTrigger
                               id={`subRequestCategory-${index}`}
                               className={hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) ? 'border-red-300 focus:border-red-500' : ''}
                             >
@@ -1110,7 +1258,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         </div>
 
                         {/* Выбор исполнителей для department-head */}
-                        {userRole === 'department-head' && userServiceCategoryId && 
+                        {userRole === 'department-head' && userServiceCategoryId &&
                          subRequest.category_id === userServiceCategoryId && executors.length > 0 && (
                           <div className="space-y-4">
                             {/* Выбор исполнителей через Select */}
@@ -1124,7 +1272,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                       const executorId = parseInt(value);
                                       const currentExecutors = subRequest.executors || [];
                                       const executor = executors.find(e => e.id === executorId);
-                                      
+
                                       if (executor && !currentExecutors.some(e => e.id === executorId)) {
                                         // Добавляем исполнителя как обычного исполнителя
                                         const newExecutors = [...currentExecutors, { id: executorId, role: 'executor' as const }];
@@ -1152,7 +1300,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   </SelectContent>
                                 </Select>
                               </div>
-                              
+
                               {/* Список выбранных исполнителей */}
                               {subRequest.executors && subRequest.executors.length > 0 && (
                                 <div className="space-y-2">
@@ -1160,9 +1308,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   {subRequest.executors.map(executorData => {
                                     const executor = executors.find(e => e.id === executorData.id);
                                     if (!executor) return null;
-                                    
+
                                     return (
-                                      <div 
+                                      <div
                                         key={executorData.id}
                                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
                                       >
@@ -1186,15 +1334,15 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                             </p>
                                           )}
                                         </div>
-                                        
+
                                         <div className="flex items-center gap-2">
                                           <Select
                                             value={executorData.role}
                                             onValueChange={(role: 'executor' | 'leader') => {
                                               const currentExecutors = subRequest.executors || [];
-                                              const updatedExecutors = currentExecutors.map(e => 
+                                              const updatedExecutors = currentExecutors.map(e =>
                                                 e.id === executorData.id
-                                                  ? { ...e, role } 
+                                                  ? { ...e, role }
                                                   : e
                                               );
                                               updateSubRequestExecutors(index, updatedExecutors);
@@ -1208,7 +1356,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                               <SelectItem value="leader">Лидер</SelectItem>
                                             </SelectContent>
                                           </Select>
-                                          
+
                                           <Button
                                             type="button"
                                             variant="ghost"
@@ -1216,7 +1364,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                             onClick={() => {
                                               const currentExecutors = subRequest.executors || [];
                                               updateSubRequestExecutors(
-                                                index, 
+                                                index,
                                                 currentExecutors.filter(e => e.id !== executorData.id)
                                               );
                                             }}
@@ -1231,7 +1379,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                 </div>
                               )}
                             </div>
-                            
+
                             {/* Индикатор статуса */}
                             {subRequest.executors && subRequest.executors.length > 0 && (
                               <div className={`p-3 rounded-lg border ${
@@ -1271,11 +1419,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                 </Label>
                                 <Select
                                   value={subRequest.complexity || ''}
-                                  onValueChange={(value: 'simple' | 'medium' | 'complex') => 
+                                  onValueChange={(value: 'simple' | 'medium' | 'complex') =>
                                     updateSubRequest(index, 'complexity', value)
                                   }
                                 >
-                                  <SelectTrigger 
+                                  <SelectTrigger
                                     id={`subRequestComplexity-${index}`}
                                     className={hasAttemptedSubmit && !subRequest.complexity ? 'border-red-300 focus:border-red-500' : ''}
                                   >
@@ -1300,7 +1448,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   value={subRequest.sla || ''}
                                   onValueChange={(value: string) => updateSubRequest(index, 'sla', value)}
                                 >
-                                  <SelectTrigger 
+                                  <SelectTrigger
                                     id={`subRequestSLA-${index}`}
                                     className={hasAttemptedSubmit && !subRequest.sla ? 'border-red-300 focus:border-red-500' : ''}
                                   >
@@ -1320,7 +1468,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                 )}
                               </div>
                             </div>
-                            
+
                             {/* Индикатор заполненности обязательных полей */}
                             {hasAttemptedSubmit && (
                               <div className={`p-3 rounded-lg border ${
@@ -1368,7 +1516,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {userRole === 'executor' && createMode === 'createAndComplete' ? 'Создание с завершением...' : 
+                  {userRole === 'executor' && createMode === 'createAndComplete' ? 'Создание с завершением...' :
                    ['client', 'executor'].includes(userRole) ? 'Отправка...' : 'Создание...'}
                 </>
               ) : (

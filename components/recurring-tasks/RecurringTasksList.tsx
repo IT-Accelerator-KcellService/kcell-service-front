@@ -289,6 +289,7 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
         setShowComments={setShowComments}
         formErrors={formErrors}
         onShowMap={onShowMap}
+        onRefreshTask={fetchTasks}
       />
     )}
     </div>

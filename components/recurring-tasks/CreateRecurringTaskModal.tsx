@@ -34,15 +34,33 @@ export function CreateRecurringTaskModal({ onTaskCreated }: CreateRecurringTaskM
     request_type: 'planned'
   });
 
+  console.log('Инициализация formData:', formData);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      await createRecurringTask({
-        ...formData,
-        start_date: format(formData.start_date, 'yyyy-MM-dd')
+    const submitData = {
+      ...formData,
+      start_date: format(formData.start_date, 'yyyy-MM-dd')
+    };
+
+    console.log('Отправляемые данные:', submitData);
+    console.log('recurrence_type:', submitData.recurrence_type);
+
+    // Проверяем, что recurrence_type не пустой
+    if (!submitData.recurrence_type) {
+      toast({
+        title: "Ошибка",
+        description: "Тип повторения не может быть пустым",
+        variant: "destructive",
       });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await createRecurringTask(submitData);
 
       toast({
         title: "Успешно!",
@@ -50,14 +68,17 @@ export function CreateRecurringTaskModal({ onTaskCreated }: CreateRecurringTaskM
       });
 
       setOpen(false);
-      setFormData({
+      const resetData = {
         location: '',
         location_detail: '',
-        recurrence_type: 'weekly',
+        recurrence_type: 'weekly' as 'daily' | 'weekly' | 'monthly' | 'yearly',
         recurrence_interval: 1,
         start_date: new Date(),
         request_type: 'planned'
-      });
+      };
+      
+      console.log('Сброс формы с данными:', resetData);
+      setFormData(resetData);
 
       onTaskCreated?.();
     } catch (error) {
@@ -91,6 +112,12 @@ export function CreateRecurringTaskModal({ onTaskCreated }: CreateRecurringTaskM
           <DialogTitle>Создать повторяющуюся задачу</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Отладочная информация */}
+          <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
+            <div>Текущий recurrence_type: {formData.recurrence_type}</div>
+            <div>Тип значения: {typeof formData.recurrence_type}</div>
+            <div>Все данные формы: {JSON.stringify(formData, null, 2)}</div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="location">Местоположение *</Label>
             <Input
@@ -117,12 +144,13 @@ export function CreateRecurringTaskModal({ onTaskCreated }: CreateRecurringTaskM
               <Label htmlFor="recurrence_type">Тип повторения</Label>
               <Select
                 value={formData.recurrence_type}
-                onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'yearly') =>
-                  setFormData({ ...formData, recurrence_type: value })
-                }
+                onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'yearly') => {
+                  console.log('Изменение recurrence_type на:', value);
+                  setFormData({ ...formData, recurrence_type: value });
+                }}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Выберите тип повторения" />
                 </SelectTrigger>
                 <SelectContent>
                   {recurrenceOptions.map((option) => (

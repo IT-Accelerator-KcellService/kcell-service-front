@@ -166,7 +166,7 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-        ...(onToggleLongTerm && (request.status === "assigned" || request.status === 'execution')
+        ...(onToggleLongTerm && (request.status === "assigned" || request.status === 'execution') && request.request_type !== 'recurring'
           ? [
               {
                 icon: Clock,
@@ -331,7 +331,7 @@ export function RoleBasedActionMenu({
                 },
               ]
               : []),
-          ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned")
+          ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned") && request.request_type !== 'recurring'
               ? [
                 {
                   icon: Clock,
@@ -369,7 +369,7 @@ export function RoleBasedActionMenu({
                   },
                 ]
                 : []),
-            ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned")
+            ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned") && request.request_type !== 'recurring'
                 ? [
                   {
                     icon: Clock,
