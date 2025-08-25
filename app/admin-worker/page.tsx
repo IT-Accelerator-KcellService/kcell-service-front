@@ -516,6 +516,12 @@ export default function AdminWorkerDashboard() {
       const isRecurring = requestType === 'recurring';
       console.log('Admin worker - request_type:', requestType, 'isRecurring:', isRecurring);
       
+      // Отладочная информация
+      console.log('All formData entries:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+      }
+      
       let response;
       if (isRecurring) {
         // Создаем повторяющуюся задачу
@@ -1213,7 +1219,35 @@ export default function AdminWorkerDashboard() {
                 </TabsContent>
 
                 <TabsContent value="recurring-tasks">
-                  <RecurringTasksList />
+                  <RecurringTasksList 
+                    userRole="admin-worker" 
+                    onShowDetails={(task) => {
+                      // Преобразуем RecurringTask в формат RequestGroup для selectedRequest
+                      const requestGroup = {
+                        ...task,
+                        client_id: task.client?.id || 0,
+                        office_id: task.office?.id || 0,
+                        location_detail: task.location_detail || '',
+                        date_submitted: task.created_date,
+                        rejection_reason: undefined,
+                        planned_date: undefined,
+                        is_long_term: false,
+                        client: task.client ? {
+                          full_name: task.client.name,
+                          email: task.client.email
+                        } : undefined,
+                        office: task.office ? {
+                          id: task.office.id,
+                          name: task.office.name,
+                          city: 'Не указан'
+                        } : undefined,
+                        requests: [], // Пустой массив подзаявок для повторяющихся задач
+                        photos: [] // Пустой массив фото для повторяющихся задач
+                      };
+                      setSelectedRequest(requestGroup);
+                      openModal('requestDetails');
+                    }}
+                  />
                 </TabsContent>
 
                 <TabsContent value="incoming">

@@ -1142,7 +1142,35 @@ export default function DepartmentHeadDashboard() {
                 </TabsContent>
 
                 <TabsContent value="recurring-tasks">
-                  <RecurringTasksList />
+                  <RecurringTasksList 
+                    userRole="department-head" 
+                    onShowDetails={(task) => {
+                      // Преобразуем RecurringTask в формат RequestGroup для selectedRequest
+                      const requestGroup = {
+                        ...task,
+                        client_id: task.client?.id || 0,
+                        office_id: task.office?.id || 0,
+                        location_detail: task.location_detail || '',
+                        date_submitted: task.created_date,
+                        rejection_reason: undefined,
+                        planned_date: undefined,
+                        is_long_term: false,
+                        client: task.client ? {
+                          full_name: task.client.name,
+                          email: task.client.email
+                        } : undefined,
+                        office: task.office ? {
+                          id: task.office.id,
+                          name: task.office.name,
+                          city: 'Не указан'
+                        } : undefined,
+                        requests: [], // Пустой массив подзаявок для повторяющихся задач
+                        photos: [] // Пустой массив фото для повторяющихся задач
+                      };
+                      setSelectedRequest(requestGroup);
+                      openModal('requestDetails');
+                    }}
+                  />
                 </TabsContent>
 
                 <TabsContent value="incoming" className="pt-6 sm:pt-0">

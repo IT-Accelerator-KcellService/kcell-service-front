@@ -568,6 +568,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       formData.append('recurrence_type', recurrenceType);
       formData.append('recurrence_interval', String(recurrenceInterval));
       formData.append('start_date', format(recurrenceStartDate, 'yyyy-MM-dd'));
+      
+      console.log('FormData for recurring task:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+      }
     } else {
       console.log('Creating normal task with requestType:', requestType);
     }

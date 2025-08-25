@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Clock, Calendar, User, CheckCircle, Pause, Play, History, UserPlus, UserCog } from 'lucide-react';
+import { Clock, Calendar, User, CheckCircle, Pause, Play, History, UserPlus, UserCog, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { getRecurringTasks, toggleRecurringTask, RecurringTask } from '@/lib/api';
@@ -13,7 +13,12 @@ import { useToast } from '@/hooks/use-toast';
 import { TaskInstancesList } from './TaskInstancesList';
 import { AssignExecutorModal } from './AssignExecutorModal';
 
-export const RecurringTasksList: React.FC = () => {
+interface RecurringTasksListProps {
+  userRole?: string;
+  onShowDetails?: (task: RecurringTask) => void;
+}
+
+export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ userRole, onShowDetails }) => {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInstances, setShowInstances] = useState(false);
@@ -106,6 +111,16 @@ export const RecurringTasksList: React.FC = () => {
     return format(new Date(task.next_due_date), 'dd.MM.yyyy', { locale: ru });
   };
 
+  const getCleanLocation = (location: string) => {
+    // Убираем координаты из локации, оставляем только описание места
+    if (location.includes('Широта:') && location.includes('Долгота:')) {
+      // Ищем текст до координат
+      const beforeCoords = location.split('Широта:')[0].trim();
+      return beforeCoords || 'Локация не указана';
+    }
+    return location;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-32">
@@ -136,14 +151,17 @@ export const RecurringTasksList: React.FC = () => {
             <Card key={task.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start gap-2">
-                  <CardTitle className="text-base sm:text-lg break-words flex-1">{task.location}</CardTitle>
+                  <CardTitle className="text-base sm:text-lg break-words flex-1">
+                    {task.recurrence_type === 'weekly' && 'Еженедельная задача'}
+                    {task.recurrence_type === 'daily' && 'Ежедневная задача'}
+                    {task.recurrence_type === 'monthly' && 'Ежемесячная задача'}
+                    {task.recurrence_type === 'yearly' && 'Ежегодная задача'}
+                  </CardTitle>
                   <div className="flex-shrink-0">
                     {getStatusBadge(task)}
                   </div>
                 </div>
-                {task.location_detail && (
-                  <p className="text-sm text-muted-foreground break-words">{task.location_detail}</p>
-                )}
+
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
@@ -173,6 +191,18 @@ export const RecurringTasksList: React.FC = () => {
                 )}
 
                 <div className="flex flex-col gap-2 pt-2">
+                  {onShowDetails && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onShowDetails(task)}
+                      className="w-full"
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      Подробнее
+                    </Button>
+                  )}
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -185,8 +215,9 @@ export const RecurringTasksList: React.FC = () => {
                     История
                   </Button>
 
-                  {/* Кнопки для назначения исполнителей (только для руководителей) */}
-                  {task.recurring_status === 'active' && task.status === 'awaiting_assignment' && (
+                  {/* Кнопки для назначения исполнителей (для админов и руководителей) */}
+                  {userRole && [ 'department-head'].includes(userRole) &&
+                   task.recurring_status === 'active' && task.status === 'awaiting_assignment' && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -198,7 +229,8 @@ export const RecurringTasksList: React.FC = () => {
                     </Button>
                   )}
 
-                  {task.recurring_status === 'active' && task.status === 'assigned' && task.executors && task.executors.length > 0 && (
+                  {userRole && [ 'department-head'].includes(userRole) &&
+                   task.recurring_status === 'active' && task.status === 'assigned' && task.executors && task.executors.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
