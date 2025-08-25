@@ -114,6 +114,8 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
         return 'В обработке';
       case 'awaiting_assignment':
         return 'Ожидает назначения';
+      case 'assigned':
+        return 'Назначена';
       case 'execution':
         return 'Исполнение';
       case 'completed':
@@ -586,19 +588,29 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                 Возобновить задачу
               </Button>
             )}
+            
+            {/* Кнопка закрытия */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="w-full mt-2"
+            >
+              Закрыть
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Модальное окно с историей экземпляров */}
       <Dialog open={showInstances} onOpenChange={setShowInstances}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="text-lg sm:text-xl">
-              История выполнения:
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-2 sm:p-4 md:p-6">
+          <DialogHeader className="pb-3 sm:pb-4">
+            <DialogTitle className="text-base sm:text-lg md:text-xl">
+              История выполнения
             </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[70vh] overflow-y-auto">
+          <div className="max-h-[75vh] sm:max-h-[70vh] overflow-y-auto">
             <TaskInstancesList taskId={task.id} />
           </div>
         </DialogContent>
