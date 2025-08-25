@@ -107,7 +107,19 @@ export function RoleBasedActionMenu({
     const roleSpecificActions: ActionItem[] = []
 
     // Действия для исполнителя
-    if (userRole === "executor" && isSubRequest && isExecutorLeader) {
+    if (userRole === "executor" && isSubRequest) {
+      // Проверяем, назначен ли текущий пользователь на эту задачу
+      const isAssignedToTask = request?.executors?.some((executor: any) => 
+        executor?.user?.id === user?.id
+      );
+      
+      // Для повторяющихся задач показываем кнопки всем назначенным исполнителям
+      // Для обычных задач - только лидерам
+      const shouldShowActions = isAssignedToTask && (
+        requestGroup?.request_type === 'recurring' || isExecutorLeader
+      );
+      
+      if (shouldShowActions) {
       roleSpecificActions.push(
         ...(request.status === "assigned"
           ? [
@@ -183,6 +195,7 @@ export function RoleBasedActionMenu({
               ]
               : []),
       )
+      }
     }
 
     // Действия для клиента

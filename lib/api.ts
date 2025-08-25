@@ -105,6 +105,11 @@ export const getChatMessagesByRequestId = (requestId: number) =>
     api.get(`/chat-messages/request/${requestId}`);
 
 
+// ==================== Executors ====================
+
+// Получить всех исполнителей
+export const getExecutors = () => api.get('/executors');
+
 // ==================== Recurring Tasks ====================
 
 // Типы для повторяющихся задач

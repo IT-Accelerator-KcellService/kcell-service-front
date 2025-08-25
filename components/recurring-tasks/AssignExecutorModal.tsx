@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { User, Users } from 'lucide-react';
-import { getUsers, assignRecurringTaskExecutor, changeRecurringTaskExecutor } from '@/lib/api';
+import { getExecutors, assignRecurringTaskExecutor, changeRecurringTaskExecutor } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface AssignExecutorModalProps {
@@ -33,10 +33,8 @@ export const AssignExecutorModal: React.FC<AssignExecutorModalProps> = ({
 
   const fetchExecutors = async () => {
     try {
-      const response = await getUsers();
-      // Фильтруем только исполнителей (executor role)
-      const executorUsers = response.data.filter((user: any) => user.role === 'executor');
-      setExecutors(executorUsers);
+      const response = await getExecutors();
+      setExecutors(response.data);
     } catch (error) {
       console.error('Ошибка загрузки исполнителей:', error);
       toast({
@@ -126,7 +124,7 @@ export const AssignExecutorModal: React.FC<AssignExecutorModalProps> = ({
                   <SelectItem key={executor.id} value={executor.id.toString()}>
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4" />
-                      {executor.full_name}
+                      {executor.user.full_name}
                     </div>
                   </SelectItem>
                 ))}

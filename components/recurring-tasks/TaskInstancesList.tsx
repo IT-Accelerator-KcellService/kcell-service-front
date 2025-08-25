@@ -103,6 +103,8 @@ export const TaskInstancesList: React.FC<TaskInstancesListProps> = ({ taskId }) 
         return <Badge className="bg-green-100 text-green-800">Выполнено</Badge>;
       case 'pending':
         return <Badge className="bg-yellow-100 text-yellow-800">Ожидает</Badge>;
+      case 'overdue':
+        return <Badge className="bg-red-100 text-red-800">Просрочено</Badge>;
       case 'skipped':
         return <Badge className="bg-gray-100 text-gray-800">Пропущено</Badge>;
       default:
@@ -116,6 +118,8 @@ export const TaskInstancesList: React.FC<TaskInstancesListProps> = ({ taskId }) 
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'pending':
         return <Clock className="h-5 w-5 text-yellow-500" />;
+      case 'overdue':
+        return <AlertTriangle className="h-5 w-5 text-red-500" />;
       case 'skipped':
         return <XCircle className="h-5 w-5 text-gray-500" />;
       default:
@@ -145,32 +149,35 @@ export const TaskInstancesList: React.FC<TaskInstancesListProps> = ({ taskId }) 
           {instances.map((instance) => (
             <Card key={instance.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     {getStatusIcon(instance.status)}
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                        <span className="font-medium text-sm sm:text-base">
                           {format(new Date(instance.due_date), 'dd.MM.yyyy', { locale: ru })}
                         </span>
-                        {getStatusBadge(instance.status)}
+                        <div className="flex-shrink-0">
+                          {getStatusBadge(instance.status)}
+                        </div>
                       </div>
                       {instance.completed_date && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                           Выполнено: {format(new Date(instance.completed_date), 'dd.MM.yyyy', { locale: ru })}
                         </p>
                       )}
                       {instance.taskCompletedByUser && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <User className="h-3 w-3" />
-                          <span>{instance.taskCompletedByUser.name}</span>
+                        <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground mt-1">
+                          <User className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{instance.taskCompletedByUser.name}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    {instance.status === 'pending' && (
+                  <div className="flex flex-col gap-2 w-full sm:w-auto">
+                    {/* Показываем кнопки только для активных экземпляров (pending, overdue) */}
+                    {(instance.status === 'pending' || instance.status === 'overdue') && (
                       <>
                         <Button
                           size="sm"
@@ -178,9 +185,9 @@ export const TaskInstancesList: React.FC<TaskInstancesListProps> = ({ taskId }) 
                             setSelectedInstance(instance);
                             setShowCompleteDialog(true);
                           }}
-                          className="w-full sm:w-auto"
+                          className="w-full"
                         >
-                          <CheckCircle className="h-4 w-4 mr-1" />
+                          <CheckCircle className="h-4 w-4 mr-2" />
                           Выполнено
                         </Button>
                         <Button
@@ -190,12 +197,24 @@ export const TaskInstancesList: React.FC<TaskInstancesListProps> = ({ taskId }) 
                             setSelectedInstance(instance);
                             setShowSkipDialog(true);
                           }}
-                          className="w-full sm:w-auto"
+                          className="w-full"
                         >
-                          <XCircle className="h-4 w-4 mr-1" />
+                          <XCircle className="h-4 w-4 mr-2" />
                           Пропустить
                         </Button>
                       </>
+                    )}
+                    {/* Для выполненных экземпляров показываем информацию о выполнении */}
+                    {instance.status === 'completed' && (
+                      <div className="text-sm text-green-600 font-medium text-center py-2">
+                        ✓ Задача выполнена
+                      </div>
+                    )}
+                    {/* Для пропущенных экземпляров показываем информацию */}
+                    {instance.status === 'skipped' && (
+                      <div className="text-sm text-gray-600 font-medium text-center py-2">
+                        ⏭ Пропущено
+                      </div>
                     )}
                     {instance.notes && (
                       <Button
@@ -206,9 +225,10 @@ export const TaskInstancesList: React.FC<TaskInstancesListProps> = ({ taskId }) 
                           setNotes(instance.notes || '');
                           setShowCompleteDialog(true);
                         }}
-                        className="w-full sm:w-auto"
+                        className="w-full"
                       >
-                        <MessageSquare className="h-4 w-4" />
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Показать заметки
                       </Button>
                     )}
                   </div>
@@ -216,7 +236,7 @@ export const TaskInstancesList: React.FC<TaskInstancesListProps> = ({ taskId }) 
 
                 {instance.notes && (
                   <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                    <p className="text-sm text-gray-700">{instance.notes}</p>
+                    <p className="text-sm text-gray-700 break-words">{instance.notes}</p>
                   </div>
                 )}
               </CardContent>
