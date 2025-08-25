@@ -215,7 +215,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
   }
 
   return (
-    <div className="space-y-6 w-full max-w-full overflow-hidden pb-20">
+    <div className="space-y-6 w-full max-w-full overflow-hidden">
       {/* Статистика */}
       {loading && !statistics ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full">

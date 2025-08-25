@@ -5,18 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Clock, Calendar, User, CheckCircle, Pause, Play, History } from 'lucide-react';
+import { Clock, Calendar, User, CheckCircle, Pause, Play, History, UserPlus, UserCog } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { getRecurringTasks, toggleRecurringTask, RecurringTask } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { TaskInstancesList } from './TaskInstancesList';
+import { AssignExecutorModal } from './AssignExecutorModal';
 
 export const RecurringTasksList: React.FC = () => {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInstances, setShowInstances] = useState(false);
   const [selectedTask, setSelectedTask] = useState<RecurringTask | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignModalMode, setAssignModalMode] = useState<'assign' | 'change'>('assign');
+  const [currentExecutorId, setCurrentExecutorId] = useState<number | undefined>();
   const { toast } = useToast();
 
   const fetchTasks = async () => {
@@ -57,19 +61,26 @@ export const RecurringTasksList: React.FC = () => {
     }
   };
 
+  const handleAssignExecutor = (task: RecurringTask, mode: 'assign' | 'change') => {
+    setSelectedTask(task);
+    setAssignModalMode(mode);
+    setCurrentExecutorId(task.executors?.[0]?.id);
+    setShowAssignModal(true);
+  };
+
+  const handleExecutorAssigned = () => {
+    fetchTasks();
+  };
+
   const getStatusBadge = (task: RecurringTask) => {
     // Используем recurring_status для отображения
     switch (task.recurring_status) {
-      case 'pending_assignment':
-        return <Badge className="bg-orange-100 text-orange-800">Ожидает назначения</Badge>;
-      case 'assigned':
-        return <Badge className="bg-blue-100 text-blue-800">Назначена</Badge>;
-      case 'in_progress':
-        return <Badge className="bg-green-100 text-green-800">В работе</Badge>;
-      case 'completed':
-        return <Badge className="bg-gray-100 text-gray-800">Завершена</Badge>;
+      case 'active':
+        return <Badge className="bg-green-100 text-green-800">Активна</Badge>;
       case 'paused':
         return <Badge className="bg-yellow-100 text-yellow-800">Приостановлена</Badge>;
+      case 'completed':
+        return <Badge className="bg-gray-100 text-gray-800">Завершена</Badge>;
       default:
         return <Badge variant="secondary">{task.recurring_status}</Badge>;
     }
@@ -174,7 +185,32 @@ export const RecurringTasksList: React.FC = () => {
                     История
                   </Button>
 
-                  {task.status === 'recurring_active' ? (
+                  {/* Кнопки для назначения исполнителей (только для руководителей) */}
+                  {task.recurring_status === 'active' && task.status === 'awaiting_assignment' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAssignExecutor(task, 'assign')}
+                      className="w-full"
+                    >
+                      <UserPlus className="h-4 w-4 mr-1" />
+                      Назначить исполнителя
+                    </Button>
+                  )}
+
+                  {task.recurring_status === 'active' && task.status === 'assigned' && task.executors && task.executors.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAssignExecutor(task, 'change')}
+                      className="w-full"
+                    >
+                      <UserCog className="h-4 w-4 mr-1" />
+                      Изменить исполнителя
+                    </Button>
+                  )}
+
+                  {task.recurring_status === 'active' ? (
                     <Button
                       variant="outline"
                       size="sm"
@@ -215,6 +251,18 @@ export const RecurringTasksList: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Модальное окно для назначения исполнителей */}
+      {selectedTask && (
+        <AssignExecutorModal
+          open={showAssignModal}
+          onOpenChange={setShowAssignModal}
+          taskId={selectedTask.id}
+          currentExecutorId={currentExecutorId}
+          onExecutorAssigned={handleExecutorAssigned}
+          mode={assignModalMode}
+        />
+      )}
     </div>
   );
 };

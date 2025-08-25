@@ -7,9 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Plus, CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { createRecurringTask } from '@/lib/api';
@@ -17,21 +17,22 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 interface CreateRecurringTaskModalProps {
-  onTaskCreated: () => void;
+  onTaskCreated?: () => void;
 }
 
-export const CreateRecurringTaskModal: React.FC<CreateRecurringTaskModalProps> = ({ onTaskCreated }) => {
+export function CreateRecurringTaskModal({ onTaskCreated }: CreateRecurringTaskModalProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
   const [formData, setFormData] = useState({
     location: '',
     location_detail: '',
     recurrence_type: 'weekly' as 'daily' | 'weekly' | 'monthly' | 'yearly',
     recurrence_interval: 1,
-    start_date: new Date()
+    start_date: new Date(),
+    request_type: 'planned'
   });
-
-  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,8 +45,8 @@ export const CreateRecurringTaskModal: React.FC<CreateRecurringTaskModalProps> =
       });
 
       toast({
-        title: 'Успешно',
-        description: 'Повторяющаяся задача создана',
+        title: "Успешно!",
+        description: "Повторяющаяся задача создана",
       });
 
       setOpen(false);
@@ -54,15 +55,16 @@ export const CreateRecurringTaskModal: React.FC<CreateRecurringTaskModalProps> =
         location_detail: '',
         recurrence_type: 'weekly',
         recurrence_interval: 1,
-        start_date: new Date()
+        start_date: new Date(),
+        request_type: 'planned'
       });
-      onTaskCreated();
+
+      onTaskCreated?.();
     } catch (error) {
-      console.error('Ошибка создания задачи:', error);
       toast({
-        title: 'Ошибка',
-        description: 'Не удалось создать повторяющуюся задачу',
-        variant: 'destructive',
+        title: "Ошибка",
+        description: "Не удалось создать задачу",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -134,14 +136,22 @@ export const CreateRecurringTaskModal: React.FC<CreateRecurringTaskModalProps> =
 
             <div className="space-y-2">
               <Label htmlFor="recurrence_interval">Интервал</Label>
-              <Input
-                id="recurrence_interval"
-                type="number"
-                min="1"
-                value={formData.recurrence_interval}
-                onChange={(e) => setFormData({ ...formData, recurrence_interval: parseInt(e.target.value) })}
-                placeholder="1"
-              />
+              <Select
+                value={String(formData.recurrence_interval)}
+                onValueChange={(value) => setFormData({ ...formData, recurrence_interval: parseInt(value) })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Каждые 1</SelectItem>
+                  <SelectItem value="2">Каждые 2</SelectItem>
+                  <SelectItem value="3">Каждые 3</SelectItem>
+                  <SelectItem value="4">Каждые 4</SelectItem>
+                  <SelectItem value="6">Каждые 6</SelectItem>
+                  <SelectItem value="12">Каждые 12</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -170,6 +180,7 @@ export const CreateRecurringTaskModal: React.FC<CreateRecurringTaskModalProps> =
                   selected={formData.start_date}
                   onSelect={(date) => date && setFormData({ ...formData, start_date: date })}
                   initialFocus
+                  locale={ru}
                 />
               </PopoverContent>
             </Popover>
@@ -187,6 +198,4 @@ export const CreateRecurringTaskModal: React.FC<CreateRecurringTaskModalProps> =
       </DialogContent>
     </Dialog>
   );
-};
-
-
+}

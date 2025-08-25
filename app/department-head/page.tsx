@@ -496,7 +496,9 @@ export default function DepartmentHeadDashboard() {
 
     try {
       // Проверяем, является ли это повторяющейся задачей
-      const isRecurring = formData.get('is_recurring') === 'true';
+      const requestType = formData.get('request_type');
+      const isRecurring = requestType === 'recurring';
+      console.log('Department head - request_type:', requestType, 'isRecurring:', isRecurring);
       
       if (isRecurring) {
         // Создаем повторяющуюся задачу
@@ -508,7 +510,11 @@ export default function DepartmentHeadDashboard() {
           start_date: formData.get('start_date'),
         };
         
-        await api.post('/recurring-tasks', recurringData);
+        const response = await api.post('/recurring-tasks', recurringData);
+        
+        // Добавляем новую повторяющуюся задачу в список
+        const newRecurringTask = response.data;
+        setMyRequests(prev => [newRecurringTask, ...prev]);
         
         successModal.showSuccess({
           title: "Повторяющаяся задача создана!",

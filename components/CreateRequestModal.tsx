@@ -557,10 +557,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     // Данные для повторяющихся задач
     if (isRecurringTask) {
-      formData.append('is_recurring', 'true');
+      console.log('Creating recurring task with:', {
+        isRecurringTask,
+        requestType,
+        recurrenceType,
+        recurrenceInterval,
+        startDate: format(recurrenceStartDate, 'yyyy-MM-dd')
+      });
+      formData.append('request_type', 'recurring');
       formData.append('recurrence_type', recurrenceType);
       formData.append('recurrence_interval', String(recurrenceInterval));
       formData.append('start_date', format(recurrenceStartDate, 'yyyy-MM-dd'));
+    } else {
+      console.log('Creating normal task with requestType:', requestType);
     }
 
     await onSubmit(formData);
@@ -761,14 +770,22 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
                 <div>
                   <Label htmlFor="recurrence_interval">Интервал</Label>
-                  <Input
-                    id="recurrence_interval"
-                    type="number"
-                    min="1"
-                    value={recurrenceInterval}
-                    onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
-                    placeholder="1"
-                  />
+                  <Select
+                    value={String(recurrenceInterval)}
+                    onValueChange={(value) => setRecurrenceInterval(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Каждые 1</SelectItem>
+                      <SelectItem value="2">Каждые 2</SelectItem>
+                      <SelectItem value="3">Каждые 3</SelectItem>
+                      <SelectItem value="4">Каждые 4</SelectItem>
+                      <SelectItem value="6">Каждые 6</SelectItem>
+                      <SelectItem value="12">Каждые 12</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -800,10 +817,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
 
               <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded-md">
-                <p><strong>Пример:</strong> {recurrenceType === 'daily' && `Каждые ${recurrenceInterval} ${recurrenceInterval === 1 ? 'день' : 'дней'}`}</p>
-                <p>{recurrenceType === 'weekly' && `Каждые ${recurrenceInterval} ${recurrenceInterval === 1 ? 'неделя' : 'недель'}`}</p>
-                <p>{recurrenceType === 'monthly' && `Каждые ${recurrenceInterval} ${recurrenceInterval === 1 ? 'месяц' : 'месяцев'}`}</p>
-                <p>{recurrenceType === 'yearly' && `Каждые ${recurrenceInterval} ${recurrenceInterval === 1 ? 'год' : 'лет'}`}</p>
+                <p><strong>Пример:</strong></p>
+                {recurrenceType === 'daily' && (
+                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'день' : 'дней'}</p>
+                )}
+                {recurrenceType === 'weekly' && (
+                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'неделю' : 'недель'}</p>
+                )}
+                {recurrenceType === 'monthly' && (
+                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'месяц' : 'месяцев'}</p>
+                )}
+                {recurrenceType === 'yearly' && (
+                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'год' : 'лет'}</p>
+                )}
               </div>
             </div>
           )}

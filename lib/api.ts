@@ -113,13 +113,13 @@ export interface RecurringTask {
     location: string;
     location_detail?: string;
     description?: string;
-    is_recurring: boolean;
+    request_type: 'recurring';
     recurrence_type: 'daily' | 'weekly' | 'monthly' | 'yearly';
     recurrence_interval: number;
     next_due_date: string;
     last_completed_date?: string;
     status: string;
-    recurring_status: 'pending_assignment' | 'assigned' | 'in_progress' | 'completed' | 'paused';
+    recurring_status: 'active' | 'paused' | 'completed';
     created_date: string;
     planned_date?: string;
     client?: {
@@ -131,6 +131,11 @@ export interface RecurringTask {
         id: number;
         name: string;
     };
+    executors?: {
+        id: number;
+        full_name: string;
+        email: string;
+    }[];
     taskInstances?: TaskInstance[];
 }
 
@@ -193,8 +198,16 @@ export const toggleRecurringTask = (id: number, action: 'pause' | 'resume') =>
     api.patch<RecurringTask>(`/recurring-tasks/${id}/toggle`, { action });
 
 // Обновить статус повторяющейся задачи
-export const updateRecurringTaskStatus = (id: number, recurringStatus: 'pending_assignment' | 'assigned' | 'in_progress' | 'completed' | 'paused') =>
+export const updateRecurringTaskStatus = (id: number, recurringStatus: 'active' | 'paused' | 'completed') =>
     api.patch<RecurringTask>(`/recurring-tasks/${id}/status`, { recurring_status: recurringStatus });
+
+// Назначить исполнителя для повторяющейся задачи
+export const assignRecurringTaskExecutor = (id: number, executorId: number) =>
+    api.patch<RecurringTask>(`/recurring-tasks/${id}/assign-executor`, { executor_id: executorId });
+
+// Изменить исполнителя для повторяющейся задачи
+export const changeRecurringTaskExecutor = (id: number, executorId: number) =>
+    api.patch<RecurringTask>(`/recurring-tasks/${id}/change-executor`, { executor_id: executorId });
 
 // Получить статистику задачи
 export const getTaskStats = (id: number) =>

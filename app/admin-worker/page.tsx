@@ -512,7 +512,9 @@ export default function AdminWorkerDashboard() {
 
     try {
       // Проверяем, является ли это повторяющейся задачей
-      const isRecurring = formData.get('is_recurring') === 'true';
+      const requestType = formData.get('request_type');
+      const isRecurring = requestType === 'recurring';
+      console.log('Admin worker - request_type:', requestType, 'isRecurring:', isRecurring);
       
       let response;
       if (isRecurring) {
@@ -1325,7 +1327,7 @@ export default function AdminWorkerDashboard() {
                 </TabsContent>
 
                 <TabsContent value="logs">
-                  <div className="w-full pb-20">
+                  <div className="w-full">
                   <LogsViewer userRole="admin-worker" isDesktop={isDesktop} />
                   </div>
                 </TabsContent>
