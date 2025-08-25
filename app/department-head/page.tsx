@@ -26,6 +26,7 @@ import {
   Users,
   XCircle,
   Zap,
+  FileSpreadsheet,
 } from "lucide-react"
 
 
@@ -61,6 +62,7 @@ import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
+import { ImportExcelModal } from "@/components/ImportExcelModal";
 
 interface User {
   id: number
@@ -141,6 +143,7 @@ export default function DepartmentHeadDashboard() {
   const [redirectError, setRedirectError] = useState<string | null>(null);
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
   const [selectedSubRequestForAssignment, setSelectedSubRequestForAssignment] = useState<any>(null);
+  const [showImportExcelModal, setShowImportExcelModal] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
@@ -1096,13 +1099,21 @@ export default function DepartmentHeadDashboard() {
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
                   {isDesktop ? (
-                      <div className="order-1 sm:order-2 w-full sm:w-auto">
+                      <div className="order-1 sm:order-2 w-full sm:w-auto flex gap-2">
                         <Button
                             onClick={() => router.push('/create-request')}
-                            className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                            className="bg-violet-600 hover:bg-violet-700"
                         >
                           <Plus className="w-4 h-4 mr-2" />
                           Создать заявку
+                        </Button>
+                        <Button
+                            onClick={() => setShowImportExcelModal(true)}
+                            variant="outline"
+                            className="border-violet-600 text-violet-600 hover:bg-violet-50"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          Импорт Excel
                         </Button>
                       </div>
                   ): null}
@@ -1914,6 +1925,19 @@ export default function DepartmentHeadDashboard() {
             executors={executors}
             userServiceCategoryId={user?.service_category_id}
             onSuccess={handleAssignExecutorsSuccess}
+        />
+
+        {/* Модал импорта Excel */}
+        <ImportExcelModal
+          isOpen={showImportExcelModal}
+          onClose={() => setShowImportExcelModal(false)}
+          onSuccess={() => {
+            setShowImportExcelModal(false);
+            // Обновляем список повторяющихся задач
+            fetchRequests();
+          }}
+          userRole="department-head"
+          isFullScreen={!isDesktop}
         />
       </>
   )

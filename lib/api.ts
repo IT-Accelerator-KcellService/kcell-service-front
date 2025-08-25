@@ -273,3 +273,11 @@ export const getUpcomingTasks = (limit = 10) =>
 // Получить календарь задач
 export const getTaskCalendar = (startDate: string, endDate: string) =>
     api.get<{ data: TaskInstance[] }>(`/recurring-tasks/calendar?start_date=${startDate}&end_date=${endDate}`);
+
+// Импорт повторяющихся задач через Excel
+export const importRecurringTasksFromExcel = (formData: FormData) =>
+    api.post('/recurring-tasks/import-excel', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });

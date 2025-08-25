@@ -29,6 +29,7 @@ import {
   ChevronUp,
   ChevronDown,
   Hourglass,
+  FileSpreadsheet,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import api from "@/lib/api";
@@ -65,6 +66,7 @@ import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
+import { ImportExcelModal } from "@/components/ImportExcelModal";
 
 interface User {
   id: number;
@@ -152,6 +154,7 @@ export default function AdminWorkerDashboard() {
   // Состояния для назначения исполнителей
   const [selectedSubRequestForAssignment, setSelectedSubRequestForAssignment] = useState<any>(null);
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
+  const [showImportExcelModal, setShowImportExcelModal] = useState(false);
 
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
@@ -1231,13 +1234,23 @@ export default function AdminWorkerDashboard() {
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="flex flex-col sm:flex-row-reverse sm:justify-between sm:items-center mb-6 space-y-2 sm:space-y-0">
                   {isDesktop ? (
-                      <Button
-                          onClick={() => router.push('/create-request')}
-                          className="bg-violet-600 hover:bg-violet-700 w-auto"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Создать заявку
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                            onClick={() => router.push('/create-request')}
+                            className="bg-violet-600 hover:bg-violet-700"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Создать заявку
+                        </Button>
+                        <Button
+                            onClick={() => setShowImportExcelModal(true)}
+                            variant="outline"
+                            className="border-violet-600 text-violet-600 hover:bg-violet-50"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          Импорт Excel
+                        </Button>
+                      </div>
                   ): null}
                   <div className="flex justify-center sm:justify-start w-full">
                     <TabsList className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto mb-6">
@@ -2030,6 +2043,19 @@ export default function AdminWorkerDashboard() {
           onClose={() => setShowIconInfo(null)}
           iconInfo={showIconInfo}
           isDesktop={isDesktop}
+        />
+
+        {/* Модал импорта Excel */}
+        <ImportExcelModal
+          isOpen={showImportExcelModal}
+          onClose={() => setShowImportExcelModal(false)}
+          onSuccess={() => {
+            setShowImportExcelModal(false);
+            // Обновляем список повторяющихся задач
+            fetchRequests();
+          }}
+          userRole="admin-worker"
+          isFullScreen={!isDesktop}
         />
       </>
   );
