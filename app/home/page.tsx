@@ -434,7 +434,7 @@ export default function HomePage() {
                                     <>
                                         <Stat label="Активные" value={clientStats?.activeRequests ?? 0} />
                                         <Stat label="Завершено" value={clientStats?.doneRequests ?? 0} />
-                                        <Stat label="Оценка" value={clientStats?.averageRating ?? 0} />
+                                        <Stat label="Просрочено" value={clientStats?.overdueRequests ?? 0} />
                                         <div className="rounded-lg border bg-white p-3">
                                             <div className="text-xs text-neutral-500">Рейтинг</div>
                                             <div className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
@@ -464,8 +464,8 @@ export default function HomePage() {
 
                                 {role === "executor" && (
                                     <>
-                                        <Stat label="Экстренные" value={executorStats?.urgent ?? 0} />
                                         <Stat label="В работе" value={executorStats?.inWork ?? 0} />
+                                        <Stat label="Просрочено" value={executorStats?.overdue ?? 0} />
                                         <Stat label="Завершено" value={executorStats?.completed ?? 0} />
                                         <Stat label="Мой рейтинг" value={myRating} />
                                     </>

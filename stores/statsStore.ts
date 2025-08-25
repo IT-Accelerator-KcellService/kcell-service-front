@@ -7,7 +7,7 @@ export interface ClientStats {
     totalRequests: number;
     activeRequests: number;
     doneRequests: number;
-    averageRating: string;
+    overdueRequests: number;
 }
 
 export interface AdminWorkerStats {
@@ -42,7 +42,7 @@ export interface DepHeadStats {
 
 export interface ExecutorStats {
     totalRequests: number;
-    urgent: number;
+    overdue: number;
     inWork: number;
     completed: number;
     onTime: number;
@@ -72,7 +72,7 @@ export type StatsState = {
         totalRequests: 0;
         activeRequests: 0;
         doneRequests: 0;
-        averageRating: '0';
+        overdueRequests: 0;
     };
     adminWorkerStats: AdminWorkerStats | {
         totalRequests: 0;
@@ -104,7 +104,7 @@ export type StatsState = {
     };
     executorStats: ExecutorStats | {
         totalRequests: 0;
-        urgent: 0;
+        overdue: 0;
         inWork: 0;
         completed: 0;
         onTime: 0;
@@ -138,7 +138,7 @@ export const useStatsStore = create<StatsState & StatsActions>()(
                 totalRequests: 0,
                 activeRequests: 0,
                 doneRequests: 0,
-                averageRating: '0',
+                overdueRequests: 0,
             },
             adminWorkerStats: {
                 totalRequests: 0,
@@ -170,7 +170,7 @@ export const useStatsStore = create<StatsState & StatsActions>()(
             },
             executorStats: {
                 totalRequests: 0,
-                urgent: 0,
+                overdue: 0,
                 inWork: 0,
                 completed: 0,
                 onTime: 0,
@@ -240,7 +240,7 @@ export const useStatsStore = create<StatsState & StatsActions>()(
                         totalRequests: 0,
                         activeRequests: 0,
                         doneRequests: 0,
-                        averageRating: '0',
+                        overdueRequests: 0,
                     },
                     adminWorkerStats: {
                         totalRequests: 0,
@@ -272,7 +272,7 @@ export const useStatsStore = create<StatsState & StatsActions>()(
                     },
                     executorStats: {
                         totalRequests: 0,
-                        urgent: 0,
+                        overdue: 0,
                         inWork: 0,
                         completed: 0,
                         onTime: 0,
