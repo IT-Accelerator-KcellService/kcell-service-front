@@ -71,7 +71,7 @@ interface Rating {
 
 interface Stats {
   totalRequests: number,
-  urgent: number,
+  overdue: number,
   inWork: number,
   completed: number,
   onTime: number,
@@ -513,9 +513,7 @@ export default function ExecutorDashboard() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!stats) {
-      fetchStats()
-    }
+    fetchStats()
   }, []);
 
   const filteredRequests = myRequests.filter((request:any) => {
@@ -1220,8 +1218,8 @@ export default function ExecutorDashboard() {
                         <AlertTriangle className="w-6 h-6 text-red-600" />
                       </div>
                       <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Экстренные</p>
-                        <p className="text-2xl font-bold text-gray-900">{stats?.urgent || 0}</p>
+                        <p className="text-sm font-medium text-gray-600">Просрочено</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats?.overdue || 0}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1447,7 +1445,7 @@ export default function ExecutorDashboard() {
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Просрочено</span>
-                            <span className="font-bold text-red-600">{stats && stats.late ? (stats.late): 0}</span>
+                            <span className="font-bold text-red-600">{stats && stats.overdue ? (stats.overdue): 0}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span>Средняя оценка</span>
