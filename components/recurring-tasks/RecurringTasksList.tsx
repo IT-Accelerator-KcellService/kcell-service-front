@@ -11,7 +11,6 @@ import { ru } from 'date-fns/locale';
 import { getRecurringTasks, toggleRecurringTask, RecurringTask } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { TaskInstancesList } from './TaskInstancesList';
-import { AssignExecutorModal } from './AssignExecutorModal';
 
 interface RecurringTasksListProps {
   userRole?: string;
@@ -23,9 +22,6 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ userRole
   const [loading, setLoading] = useState(true);
   const [showInstances, setShowInstances] = useState(false);
   const [selectedTask, setSelectedTask] = useState<RecurringTask | null>(null);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assignModalMode, setAssignModalMode] = useState<'assign' | 'change'>('assign');
-  const [currentExecutorId, setCurrentExecutorId] = useState<number | undefined>();
   const { toast } = useToast();
 
   const fetchTasks = async () => {
@@ -66,16 +62,7 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ userRole
     }
   };
 
-  const handleAssignExecutor = (task: RecurringTask, mode: 'assign' | 'change') => {
-    setSelectedTask(task);
-    setAssignModalMode(mode);
-    setCurrentExecutorId(task.executors?.[0]?.id);
-    setShowAssignModal(true);
-  };
 
-  const handleExecutorAssigned = () => {
-    fetchTasks();
-  };
 
   const getStatusBadge = (task: RecurringTask) => {
     // Используем recurring_status для отображения
@@ -215,32 +202,7 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ userRole
                     История
                   </Button>
 
-                  {/* Кнопки для назначения исполнителей (для админов и руководителей) */}
-                  {userRole && [ 'department-head'].includes(userRole) &&
-                   task.recurring_status === 'active' && task.status === 'awaiting_assignment' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAssignExecutor(task, 'assign')}
-                      className="w-full"
-                    >
-                      <UserPlus className="h-4 w-4 mr-1" />
-                      Назначить исполнителя
-                    </Button>
-                  )}
 
-                  {userRole && [ 'department-head'].includes(userRole) &&
-                   task.recurring_status === 'active' && task.status === 'assigned' && task.executors && task.executors.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAssignExecutor(task, 'change')}
-                      className="w-full"
-                    >
-                      <UserCog className="h-4 w-4 mr-1" />
-                      Изменить исполнителя
-                    </Button>
-                  )}
 
                   {task.recurring_status === 'active' ? (
                     <Button
@@ -286,17 +248,7 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ userRole
         </DialogContent>
       </Dialog>
 
-      {/* Модальное окно для назначения исполнителей */}
-      {selectedTask && (
-        <AssignExecutorModal
-          open={showAssignModal}
-          onOpenChange={setShowAssignModal}
-          taskId={selectedTask.id}
-          currentExecutorId={currentExecutorId}
-          onExecutorAssigned={handleExecutorAssigned}
-          mode={assignModalMode}
-        />
-      )}
+
     </div>
   );
 };

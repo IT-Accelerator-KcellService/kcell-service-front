@@ -531,6 +531,7 @@ export default function AdminWorkerDashboard() {
           recurrence_type: formData.get('recurrence_type'),
           recurrence_interval: parseInt(formData.get('recurrence_interval') as string),
           start_date: formData.get('start_date'),
+          category_id: 1, // Используем первую категорию для admin-worker
         };
         
         response = await api.post('/recurring-tasks', recurringData);

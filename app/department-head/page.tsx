@@ -508,6 +508,7 @@ export default function DepartmentHeadDashboard() {
           recurrence_type: formData.get('recurrence_type'),
           recurrence_interval: parseInt(formData.get('recurrence_interval') as string),
           start_date: formData.get('start_date'),
+          category_id: user?.service_category_id || 1, // Добавляем категорию department-head
         };
         
         const response = await api.post('/recurring-tasks', recurringData);
@@ -1164,9 +1165,17 @@ export default function DepartmentHeadDashboard() {
                           name: task.office.name,
                           city: 'Не указан'
                         } : undefined,
-                        requests: [], // Пустой массив подзаявок для повторяющихся задач
-                        photos: [] // Пустой массив фото для повторяющихся задач
+                        requests: (task as any).requests || [], // Используем реальные подзаявки если есть
+                        photos: [], // Пустой массив фото для повторяющихся задач
+                        // Добавляем информацию о повторяющейся задаче
+                        recurrence_type: task.recurrence_type,
+                        recurrence_interval: task.recurrence_interval,
+                        next_due_date: task.next_due_date,
+                        last_completed_date: task.last_completed_date,
+                        recurring_status: task.recurring_status,
+                        taskInstances: task.taskInstances || []
                       };
+                      console.log('Transformed recurring task for details:', requestGroup);
                       setSelectedRequest(requestGroup);
                       openModal('requestDetails');
                     }}
