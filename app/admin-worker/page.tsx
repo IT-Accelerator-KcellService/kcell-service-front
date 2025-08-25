@@ -124,6 +124,7 @@ export default function AdminWorkerDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [editableRequestType, setEditableRequestType] = useState<string>('');
 
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true)
@@ -171,7 +172,7 @@ export default function AdminWorkerDashboard() {
     if (lastElementRef.current) {
       observer.current.observe(lastElementRef.current);
     }
-  }, [loading, hasMore, incomingRequests, myRequests]);
+  }, [loading, hasMore]);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
@@ -300,14 +301,14 @@ export default function AdminWorkerDashboard() {
     window.history.pushState({ modal: modalName }, '', window.location.pathname);
   };
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await api.get("/analytics/stats/admin-worker");
       setStats(res.data);
     } catch (error) {
       console.error(error);
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (!stats) {
@@ -364,7 +365,7 @@ export default function AdminWorkerDashboard() {
     }
   }, [searchParams])
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get('/notifications/me?page=1&pageSize=5')
       setNotifications(res.data.notifications)
@@ -373,7 +374,7 @@ export default function AdminWorkerDashboard() {
     } finally {
       setNotificationLoading(false)
     }
-  }
+  }, []);
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification)
@@ -397,7 +398,7 @@ export default function AdminWorkerDashboard() {
     }
   }
 
-  const fetchRequests = async (currentPage = 1, pageSize = 10) => {
+  const fetchRequests = useCallback(async (currentPage = 1, pageSize = 10) => {
     if (loading && currentPage !== 1) return;
     setLoading(true);
 
@@ -446,7 +447,7 @@ export default function AdminWorkerDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading]);
 
 
 
@@ -468,11 +469,12 @@ export default function AdminWorkerDashboard() {
   }
 
   useEffect(() => {
-    if (myRequests.length === 0 || incomingRequests.length === 0) {
-      setPage(1);
-      setHasMore(true);
-      fetchRequests();
-    }
+    // Сбрасываем состояние при изменении фильтров
+    setPage(1);
+    setHasMore(true);
+    setIncomingRequests([]);
+    setMyRequests([]);
+    fetchRequests();
   }, [filterMyStatus, filterMyType, filterIncomingStatus, filterIncomingType]);
 
 
@@ -494,6 +496,13 @@ export default function AdminWorkerDashboard() {
   useEffect(() => {
     if (selectedRequest?.client_id) {
       fetchClientInfo(selectedRequest.client_id);
+    }
+  }, [selectedRequest]);
+
+  // Инициализация редактируемого типа заявки при открытии модалки
+  useEffect(() => {
+    if (selectedRequest) {
+      setEditableRequestType(selectedRequest.request_type);
     }
   }, [selectedRequest]);
 
@@ -555,7 +564,7 @@ export default function AdminWorkerDashboard() {
     setExpandedSubRequests(new Set());
   };
 
-  const checkUserRating = async (requestId: number) => {
+  const checkUserRating = useCallback(async (requestId: number) => {
     try {
       const response = await api.get(`/ratings/user/${requestId}`);
       if (response.data) {
@@ -567,21 +576,23 @@ export default function AdminWorkerDashboard() {
     } catch (error) {
       console.error("Failed to check user rating:", error);
     }
-  };
+  }, []);
 
   const handleAcceptRequestGroup = async () => {
     try {
       setIsSubmitting(true);
       
-      // Проверяем, что все под заявки имеют SLA и complexity
-      const allSubRequestsHaveSettings = selectedRequest?.requests.every((subReq: SubRequest) => {
-        const settings = subRequestSettings[subReq.id];
-        return settings && settings.sla && settings.complexity;
-      });
+      // Проверяем, что все под заявки имеют SLA и complexity (кроме плановых)
+      if (editableRequestType !== 'planned') {
+        const allSubRequestsHaveSettings = selectedRequest?.requests.every((subReq: SubRequest) => {
+          const settings = subRequestSettings[subReq.id];
+          return settings && settings.sla && settings.complexity;
+        });
 
-      if (!allSubRequestsHaveSettings) {
-        setFormErrors("Пожалуйста, укажите SLA и сложность для всех под заявок");
-        return;
+        if (!allSubRequestsHaveSettings) {
+          setFormErrors("Пожалуйста, укажите SLA и сложность для всех под заявок");
+          return;
+        }
       }
 
       // Подготавливаем данные для отправки
@@ -589,8 +600,8 @@ export default function AdminWorkerDashboard() {
         const settings = subRequestSettings[subReq.id];
         return {
           id: subReq.id,
-          sla: settings.sla,
-          complexity: settings.complexity,
+          sla: editableRequestType === 'planned' ? null : settings?.sla,
+          complexity: editableRequestType === 'planned' ? null : settings?.complexity,
           category_id: subReq.category_id
         };
       });
@@ -599,7 +610,7 @@ export default function AdminWorkerDashboard() {
       await api.patch(`/request-groups/${selectedRequest.id}`, {
         patch_code: 1,
         sub_requests: sub_requests,
-        request_type: selectedRequest.request_type
+        request_type: editableRequestType
       });
 
       successModal.showSuccess({
@@ -608,6 +619,7 @@ export default function AdminWorkerDashboard() {
       });
       setSelectedRequest(null);
       closeModalWithHistory();
+      setEditableRequestType('');
       fetchRequests();
     } catch (error) {
       console.error("Ошибка при принятии заявки:", error);
@@ -638,6 +650,7 @@ export default function AdminWorkerDashboard() {
       });
       setSelectedRequest(null);
       setRejectionReason("");
+      setEditableRequestType('');
       closeModalWithHistory();
       fetchRequests();
     } catch (error) {
@@ -1381,7 +1394,19 @@ export default function AdminWorkerDashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Тип заявки</Label>
-                      <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
+                      {selectedRequest.status === 'in_progress' && selectedRequest.request_type !== "planned" ? (
+                        <Select value={editableRequestType} onValueChange={setEditableRequestType}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="normal">Обычная</SelectItem>
+                            <SelectItem value="urgent">Экстренная</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
+                      )}
                     </div>
                     <div>
                       <Label>Статус</Label>
@@ -1531,7 +1556,7 @@ export default function AdminWorkerDashboard() {
                                     )}
                                     
                                     {/* Настройки SLA и сложности для админа */}
-                                    {selectedRequest?.status === 'in_progress' && (
+                                    {selectedRequest?.status === 'in_progress' && editableRequestType !== 'planned' && (
                                         <div className="border-t border-gray-200 pt-3 mt-3">
                                           <h5 className="font-medium text-sm mb-3 text-gray-700">Настройки для принятия</h5>
                                           <div className={`grid gap-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -1769,6 +1794,7 @@ export default function AdminWorkerDashboard() {
                           setSelectedRequest(null);
                       closeModalWithHistory();
                       setFormErrors(null);
+                      setEditableRequestType('');
                     }}>
                       Закрыть
                     </Button>

@@ -1,5 +1,5 @@
 "use client"
-import React, {useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
@@ -501,7 +501,7 @@ export default function ExecutorDashboard() {
     }
   }
 
-  const fetchExecutorId = async () => {
+  const fetchExecutorId = useCallback(async () => {
     if (!user?.id) return;
     
     try {
@@ -510,7 +510,7 @@ export default function ExecutorDashboard() {
     } catch (executorError) {
       console.error("Ошибка при получении executor_id:", executorError);
     }
-  }
+  }, [user?.id]);
 
   useEffect(() => {
     if (!stats) {
@@ -560,12 +560,11 @@ export default function ExecutorDashboard() {
   };
 
   useEffect(() => {
-    if (assignedRequests.length === 0 || myRequests.length === 0 || completedRequests.length === 0) {
-      fetchNotifications()
-      fetchRequests()
-    }
+    // Инициализация данных при первом рендере
+    fetchNotifications();
+    fetchRequests();
     if (!executorId && user?.id) {
-      fetchExecutorId()
+      fetchExecutorId();
     }
   }, [])
 
@@ -677,7 +676,7 @@ export default function ExecutorDashboard() {
     }
   }, [searchParams])
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get('notifications/me?page=1&pageSize=5')
       setNotifications(res.data.notifications)
@@ -686,7 +685,7 @@ export default function ExecutorDashboard() {
     } finally {
       setNotificationLoading(false)
     }
-  }
+  }, []);
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification)
@@ -733,7 +732,7 @@ export default function ExecutorDashboard() {
     openModal('createRequest');
   };
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const response = await api.get('request-groups')
       const responseRating = await api.get('ratings/executor')
@@ -758,7 +757,7 @@ export default function ExecutorDashboard() {
     } catch (error) {
       console.error("Failed to fetch requests:", error)
     }
-  }
+  }, []);
 
   const translateStatus = (status: string) => {
     switch (status) {

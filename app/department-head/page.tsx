@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
@@ -416,7 +416,7 @@ export default function DepartmentHeadDashboard() {
   }
 
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const response: any = await api.get('/request-groups');
 
@@ -446,23 +446,20 @@ export default function DepartmentHeadDashboard() {
     } catch (error) {
       console.error("Failed to fetch requests:", error);
     }
-  };
-  const fetchExecutors = async () => {
+  }, []);
+  const fetchExecutors = useCallback(async () => {
     try {
       const response = await api.get('/executors')
       setExecutors(response.data)
     } catch (error) {
       console.error("Failed to fetch executors:", error)
     }
-  }
+  }, []);
 
   useEffect(() => {
-    if (myRequests.length === 0 || incomingRequests.length === 0) {
-      fetchRequests()
-    }
-    if (executors.length === 0) {
-      fetchExecutors()
-    }
+    // Инициализация данных при первом рендере
+    fetchRequests();
+    fetchExecutors();
   }, [])
 
   const fetchClientInfo = async (userId: number) => {
