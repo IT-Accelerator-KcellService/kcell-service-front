@@ -176,34 +176,7 @@ export const TaskInstancesList: React.FC<TaskInstancesListProps> = ({ taskId }) 
                   </div>
 
                   <div className="flex flex-col gap-2 w-full sm:w-auto">
-                    {/* Показываем кнопки только для активных экземпляров (pending, overdue) */}
-                    {(instance.status === 'pending' || instance.status === 'overdue') && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setSelectedInstance(instance);
-                            setShowCompleteDialog(true);
-                          }}
-                          className="w-full"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Выполнено
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedInstance(instance);
-                            setShowSkipDialog(true);
-                          }}
-                          className="w-full"
-                        >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Пропустить
-                        </Button>
-                      </>
-                    )}
+                    
                     {/* Для выполненных экземпляров показываем информацию о выполнении */}
                     {instance.status === 'completed' && (
                       <div className="text-sm text-green-600 font-medium text-center py-2">

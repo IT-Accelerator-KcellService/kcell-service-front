@@ -259,7 +259,7 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
         <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader className="pb-4">
             <DialogTitle className="text-lg sm:text-xl">
-              История выполнения: {selectedTask?.location}
+              История выполнения:
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-[70vh] overflow-y-auto">

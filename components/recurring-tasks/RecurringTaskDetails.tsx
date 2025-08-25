@@ -7,13 +7,13 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Clock, Calendar, User, CheckCircle, Pause, Play, History, FileText, ChevronDown, ChevronUp, MessageCircle, Zap, XCircle, Hourglass, MapPin } from 'lucide-react';
+import { Clock, Calendar, User, CheckCircle, Pause, Play, History, FileText, ChevronDown, ChevronUp, MessageCircle, Zap, XCircle, Hourglass, MapPin, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { RecurringTask } from '@/lib/api';
+import { RecurringTask, getExecutors } from '@/lib/api';
 import { RoleBasedActionMenu } from '@/components/action-menu';
 import { TaskInstancesList } from './TaskInstancesList';
-
+import { AssignExecutorsModal } from '@/components/AssignExecutorsModal';
 
 
 interface RecurringTaskDetailsProps {
@@ -49,10 +49,15 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   const [internalShowComments, setInternalShowComments] = useState<number | null>(null);
   const [showInstances, setShowInstances] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
+  const [selectedSubRequest, setSelectedSubRequest] = useState<any>(null);
+  const [executors, setExecutors] = useState<any[]>([]);
   
   // Используем внешние состояния, если они переданы, иначе внутренние
   const showComments = externalShowComments !== undefined ? externalShowComments : internalShowComments;
   const setShowComments = externalSetShowComments || setInternalShowComments;
+
+
 
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {
@@ -176,6 +181,30 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
     return format(new Date(task.next_due_date), 'dd.MM.yyyy', { locale: ru });
   };
 
+  // Функция для загрузки исполнителей
+  const loadExecutors = async () => {
+    try {
+      const response = await getExecutors();
+      setExecutors(response.data);
+    } catch (error) {
+      console.error('Ошибка при загрузке исполнителей:', error);
+    }
+  };
+
+  // Обработчик для открытия модального окна назначения исполнителей
+  const handleEditExecutors = (subRequest: any) => {
+    setSelectedSubRequest(subRequest);
+    loadExecutors();
+    setShowAssignExecutorsModal(true);
+  };
+
+  // Обработчик успешного назначения исполнителей
+  const handleExecutorsAssigned = () => {
+    setShowAssignExecutorsModal(false);
+    setSelectedSubRequest(null);
+    // Здесь можно добавить обновление данных задачи
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
       onClose();
@@ -219,15 +248,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
               </div>
             </div>
           )}
-
-          {/* Локация */}
-          <div>
-            <Label>Локация</Label>
-            <p className="text-sm text-gray-600 mt-1">{task.location}</p>
-            {task.location_detail && (
-              <p className="text-sm text-gray-500 mt-1">{task.location_detail}</p>
-            )}
-          </div>
+          
 
           {/* Клиент */}
           {task.client && (
@@ -395,6 +416,8 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                               <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
                             </Button>
 
+                            {/* Отладочная информация для меню */}
+                        
                             <RoleBasedActionMenu
                               request={subRequest}
                               requestGroup={task}
@@ -472,9 +495,23 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                            </div>
 
                            {/* Исполнители */}
-                           {subRequest.requestExecutors && subRequest.requestExecutors.length > 0 && (
-                             <div className="mt-4">
-                               <h5 className="font-medium text-sm mb-3 text-gray-900">Исполнители</h5>
+                           <div className="mt-4">
+                             <div className="flex items-center justify-between mb-3">
+                               <h5 className="font-medium text-sm text-gray-900">Исполнители:</h5>
+                                                               {(userRole === 'manager' || userRole === 'department-head' || userRole === 'admin') &&
+                                 ( subRequest.status === 'assigned') && (
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => handleEditExecutors(subRequest)}
+                                   className="h-7 px-2 text-xs"
+                                 >
+                                   <Edit className="w-3 h-3 mr-1" />
+                                   Изменить
+                                 </Button>
+                               )}
+                             </div>
+                             {subRequest.requestExecutors && subRequest.requestExecutors.length > 0 ? (
                                <div className="space-y-1">
                                  {subRequest.requestExecutors.map((requestExecutor: any, index: number) => (
                                    <div
@@ -507,8 +544,12 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                                    </div>
                                  ))}
                                </div>
-                             </div>
-                           )}
+                             ) : (
+                               <div className="text-center py-4 text-gray-500 text-sm">
+                                 Исполнители не назначены
+                               </div>
+                             )}
+                           </div>
                          </div>
                        )}
                     </div>
@@ -554,7 +595,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
         <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader className="pb-4">
             <DialogTitle className="text-lg sm:text-xl">
-              История выполнения: {task.location}
+              История выполнения:
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-[70vh] overflow-y-auto">
@@ -562,6 +603,18 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Модальное окно назначения исполнителей */}
+      <AssignExecutorsModal
+        isOpen={showAssignExecutorsModal}
+        onClose={() => {
+          setShowAssignExecutorsModal(false);
+          setSelectedSubRequest(null);
+        }}
+        subRequest={selectedSubRequest}
+        executors={executors}
+        onSuccess={handleExecutorsAssigned}
+      />
     </div>
   );
 };
