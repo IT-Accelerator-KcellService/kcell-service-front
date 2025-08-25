@@ -113,6 +113,7 @@ export const getExecutors = () => api.get('/executors');
 // ==================== Recurring Tasks ====================
 
 // Типы для повторяющихся задач
+// Интерфейс для повторяющихся задач с подзаявками
 export interface RecurringTask {
     id: number;
     location: string;
@@ -142,6 +143,28 @@ export interface RecurringTask {
         email: string;
     }[];
     taskInstances?: TaskInstance[];
+    // Подзаявки повторяющейся задачи
+    requests?: Array<{
+        id: number;
+        title: string;
+        description: string;
+        status: string;
+        category_id: number;
+        is_long_term?: boolean;
+        category?: {
+            id: number;
+            name: string;
+        };
+        requestExecutors?: Array<{
+            executor?: {
+                user?: {
+                    id: number;
+                    full_name: string;
+                    email: string;
+                };
+            };
+        }>;
+    }>;
 }
 
 export interface TaskInstance {

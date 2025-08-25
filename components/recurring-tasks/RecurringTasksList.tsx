@@ -11,17 +11,32 @@ import { ru } from 'date-fns/locale';
 import { getRecurringTasks, toggleRecurringTask, RecurringTask } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { TaskInstancesList } from './TaskInstancesList';
+import { RecurringTaskDetails } from './RecurringTaskDetails';
 
 interface RecurringTasksListProps {
   userRole?: string;
+  isDesktop?: boolean;
   onShowDetails?: (task: RecurringTask) => void;
+  onRateRequest?: (request: any) => void;
+  onRedirectToOtherDepartment?: (request: any) => void;
+  onAssignExecutor?: (request: any) => void;
+  onToggleLongTerm?: (requestId: number, requestGroupId: number, currentStatus: boolean) => void;
 }
 
-export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ userRole, onShowDetails }) => {
+export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ 
+  userRole, 
+  isDesktop = false,
+  onShowDetails, 
+  onRateRequest,
+  onRedirectToOtherDepartment,
+  onAssignExecutor,
+  onToggleLongTerm
+}) => {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInstances, setShowInstances] = useState(false);
   const [selectedTask, setSelectedTask] = useState<RecurringTask | null>(null);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
   const { toast } = useToast();
 
   const fetchTasks = async () => {
@@ -119,6 +134,9 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ userRole
     );
   }
 
+  console.log('RecurringTasksList - Tasks state:', tasks);
+  console.log('RecurringTasksList - Tasks length:', tasks.length);
+
   return (
     <div className="space-y-6 pt-6">
 
@@ -168,27 +186,28 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ userRole
                   </div>
                 )}
 
-                {task.taskInstances && task.taskInstances.length > 0 && (
+                {task.taskInstances && Array.isArray(task.taskInstances) && task.taskInstances.length > 0 && (
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
                     <span className="break-words">
-                      {task.taskInstances.filter(i => i.status === 'completed').length} из {task.taskInstances.length} выполнено
+                      {task.taskInstances.filter((i: any) => i.status === 'completed').length} из {task.taskInstances.length} выполнено
                     </span>
                   </div>
                 )}
 
                 <div className="flex flex-col gap-2 pt-2">
-                  {onShowDetails && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onShowDetails(task)}
-                      className="w-full"
-                    >
-                      <FileText className="h-4 w-4 mr-1" />
-                      Подробнее
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setShowTaskDetails(true);
+                    }}
+                    className="w-full"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Подробнее
+                  </Button>
 
                   <Button
                     variant="outline"
@@ -248,6 +267,22 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ userRole
         </DialogContent>
       </Dialog>
 
+      {/* Модальное окно с деталями задачи */}
+      {selectedTask && showTaskDetails && (
+        <RecurringTaskDetails
+          task={selectedTask}
+          userRole={userRole || ''}
+          isDesktop={isDesktop}
+          onClose={() => {
+            setShowTaskDetails(false);
+            setSelectedTask(null);
+          }}
+          onRateRequest={onRateRequest}
+          onRedirectToOtherDepartment={onRedirectToOtherDepartment}
+          onAssignExecutor={onAssignExecutor}
+          onToggleLongTerm={onToggleLongTerm}
+        />
+      )}
 
     </div>
   );

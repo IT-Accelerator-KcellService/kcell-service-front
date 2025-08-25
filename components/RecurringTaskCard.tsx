@@ -95,11 +95,11 @@ export const RecurringTaskCard: React.FC<RecurringTaskCardProps> = ({
           </div>
         )}
 
-        {task.taskInstances && task.taskInstances.length > 0 && (
+        {task.taskInstances && Array.isArray(task.taskInstances) && task.taskInstances.length > 0 && (
           <div className="flex items-center gap-2 text-sm">
             <MapPin className="h-4 w-4 text-green-500 flex-shrink-0" />
             <span className="break-words">
-              {task.taskInstances.filter(i => i.status === 'completed').length} из {task.taskInstances.length} выполнено
+              {task.taskInstances.filter((i: any) => i.status === 'completed').length} из {task.taskInstances.length} выполнено
             </span>
           </div>
         )}
