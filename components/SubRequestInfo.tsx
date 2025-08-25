@@ -11,6 +11,8 @@ interface SubRequestInfoProps {
 }
 
 const translateSLA = (sla: string) => {
+
+
     // Парсим число и единицу времени
     const match = sla.match(/^(\d+)([hdwmy])$/)
     if (!match) return sla
@@ -41,13 +43,13 @@ const translateSLA = (sla: string) => {
 }
 
 const translateComplexity = (complexity: string) => {
-    const translations: Record<string, string> = {
-        low: "низкая",
-        medium: "средняя",
-        high: "высокая",
+    switch (complexity) {
+        case "complex": return "комплексный";
+        case "simple": return "простой";
+        case "medium": return "средний";
+        default: return complexity;
     }
-    return translations[complexity] || complexity
-}
+};
 
 export default function SubRequestInfo({ subRequest}: SubRequestInfoProps) {
     return (
