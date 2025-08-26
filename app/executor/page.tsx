@@ -1244,9 +1244,33 @@ export default function ExecutorDashboard() {
     }
   };
 
+  const getRecurrenceText = (recurrenceType: string, interval: number) => {
+    switch (recurrenceType) {
+      case 'daily':
+        return interval === 1 ? 'Ежедневно' : `Каждые ${interval} дней`;
+      case 'weekly':
+        return interval === 1 ? 'Еженедельно' : `Каждые ${interval} недель`;
+      case 'monthly':
+        return interval === 1 ? 'Ежемесячно' : `Каждые ${interval} месяцев`;
+      case 'yearly':
+        return interval === 1 ? 'Ежегодно' : `Каждые ${interval} лет`;
+      default:
+        return 'Повторяющаяся';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
   const renderCardHeader = (requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     const totalSubRequests = requestGroup.requests.length;
+    const isRecurring = requestGroup.request_type === 'recurring';
 
     return (
         <CardHeader className={`pb-3 px-5 pt-5`}>
@@ -1265,6 +1289,20 @@ export default function ExecutorDashboard() {
                 {translateType(requestGroup.request_type)}
               </span>
             </div>
+            
+            {/* Информация о повторяющейся задаче */}
+            {isRecurring && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full text-blue-600 bg-blue-50 border border-blue-200">
+                  🔄 {getRecurrenceText(requestGroup.recurrence_type || 'daily', requestGroup.recurrence_interval || 1)}
+                </span>
+                {requestGroup.next_due_date && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full text-green-600 bg-green-50 border border-green-200">
+                    📅 Следующая: {formatDate(requestGroup.next_due_date)}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex gap-1 items-center">
               {renderStatusWithTooltip(requestGroup.status)}
@@ -1686,6 +1724,26 @@ export default function ExecutorDashboard() {
                           })}
                         </span>
                           </div>
+                      </div>
+                  )}
+
+                  {/* Показываем информацию о повторяющихся задачах */}
+                  {selectedRequest.request_type === 'recurring' && (
+                      <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="w-4 h-4 text-green-600">🔄</div>
+                        <div className="flex-1">
+                          <Label className="text-sm font-medium text-green-800">Повторяющаяся задача</Label>
+                          <div className="text-sm text-green-700 space-y-1">
+                            <div>Тип повторения: {getRecurrenceText(selectedRequest.recurrence_type || 'daily', selectedRequest.recurrence_interval || 1)}</div>
+                            {selectedRequest.next_due_date && (
+                              <div>Следующая дата: {formatDate(selectedRequest.next_due_date)}</div>
+                            )}
+                            {selectedRequest.last_completed_date && (
+                              <div>Последнее выполнение: {formatDate(selectedRequest.last_completed_date)}</div>
+                            )}
+                            <div>Статус: {selectedRequest.recurring_status === 'active' ? 'Активна' : selectedRequest.recurring_status === 'paused' ? 'Приостановлена' : 'Завершена'}</div>
+                          </div>
+                        </div>
                       </div>
                   )}
 

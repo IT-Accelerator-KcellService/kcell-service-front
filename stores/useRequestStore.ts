@@ -60,6 +60,12 @@ export interface RequestGroup {
     photos?: Photo[];
     requests: SubRequest[];
     is_long_term?: boolean;
+    // Поля для повторяющихся задач
+    recurrence_type?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+    recurrence_interval?: number;
+    next_due_date?: string;
+    last_completed_date?: string;
+    recurring_status?: 'active' | 'paused' | 'completed';
 }
 
 // Для обратной совместимости

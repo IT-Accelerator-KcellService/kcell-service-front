@@ -1031,6 +1031,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           {/* Под заявки */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
+              {(!isRecurringTask) && (
               <Button
                 type="button"
                 variant="outline"
@@ -1041,7 +1042,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <Plus className="w-4 h-4" />
                 Добавить под заявку
               </Button>
-              
+              )}
               {/* Кнопка импорта Excel для admin-worker и department-head */}
               {(userRole === 'admin-worker' || userRole === 'department-head') && (
                 <Button
