@@ -60,8 +60,7 @@ const Executors: React.FC<ExecutorsProps> = ({ subRequest, userRatings }) => {
                                         <span className="text-xs text-gray-500">Оценка:</span>
                                         <div className="flex">{renderStars(userRatings[subRequest.id].rating)}</div>
                                     </div>
-                                )}
-                                {subRequest && subRequest?.rating && (
+                                ) || subRequest && subRequest?.rating && (
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs text-gray-500">Оценка:</span>
                                         <div className="flex">{renderStars(subRequest.rating)}</div>

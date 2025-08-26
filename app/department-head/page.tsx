@@ -488,7 +488,7 @@ export default function DepartmentHeadDashboard() {
   // Фильтрация входящих заявок
   const filteredIncomingRequests = incomingRequests.filter((request) => {
     const statusMatch = filterIncomingStatus === "all"   ||
-        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterIncomingStatus);
+        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterIncomingStatus);
     const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
     return statusMatch && typeMatch;
   });
@@ -500,10 +500,8 @@ export default function DepartmentHeadDashboard() {
     try {
       // Проверяем, является ли это повторяющейся задачей
       const requestType = formData.get('request_type');
-      // Обрабатываем случай, когда request_type приходит как массив
-      const finalRequestType = Array.isArray(requestType) ? requestType[0] : requestType;
-      const isRecurring = finalRequestType === 'recurring';
-
+      const isRecurring = requestType === 'recurring';
+      console.log('Department head - request_type:', requestType, 'isRecurring:', isRecurring);
       
       if (isRecurring) {
         // Создаем повторяющуюся задачу
@@ -516,7 +514,12 @@ export default function DepartmentHeadDashboard() {
           category_id: user?.service_category_id || 1, // Добавляем категорию department-head
         };
         
-
+        console.log('Department head - FormData contents:');
+        for (let [key, value] of formData.entries()) {
+          console.log(`${key}: ${value}`);
+        }
+        
+        console.log('Department head - recurringData:', recurringData);
         
         const response = await api.post('/recurring-tasks', recurringData);
         
@@ -530,7 +533,7 @@ export default function DepartmentHeadDashboard() {
         });
       } else {
         // Получаем данные из FormData
-        const requestType = finalRequestType; // Используем уже обработанное значение
+        const requestType = formData.get('request_type') as string;
         const location = formData.get('location') as string;
         const locationDetail = formData.get('location_detail') as string;
         const status = formData.get('status') as string;
@@ -588,15 +591,56 @@ export default function DepartmentHeadDashboard() {
   const handleRateExecutor = async () => {
     if (requestToRate && ratingValue > 0) {
       try {
+        // Оптимистичное обновление - сразу обновляем UI
+        const { updateSubRequestRating } = useRequestStore.getState();
+        
+        // Находим группу заявок, к которой принадлежит подзаявка
+        const allRequests = [
+          ...useRequestStore.getState().requests,
+          ...useRequestStore.getState().myRequests,
+          ...useRequestStore.getState().incomingRequests,
+          ...useRequestStore.getState().assignedRequests,
+          ...useRequestStore.getState().completedRequests
+        ];
+        
+        const requestGroup = allRequests.find(group => 
+          group.requests.some(subReq => subReq.id === requestToRate.id)
+        );
+        
+        if (requestGroup) {
+          updateSubRequestRating(requestGroup.id, requestToRate.id, ratingValue);
+        }
+        
+        // Отправляем запрос на сервер
         const response = await api.post(`/ratings`, {
           rating: ratingValue,
           request_id: requestToRate.id
         })
+        
         setShowRatingModal(false);
         closeModalWithHistory();
         setRatingValue(0)
         setRequestToRate(null)
       } catch (error) {
+        // В случае ошибки откатываем изменения
+        const { updateSubRequestRating } = useRequestStore.getState();
+        
+        const allRequests = [
+          ...useRequestStore.getState().requests,
+          ...useRequestStore.getState().myRequests,
+          ...useRequestStore.getState().incomingRequests,
+          ...useRequestStore.getState().assignedRequests,
+          ...useRequestStore.getState().completedRequests
+        ];
+        
+        const requestGroup = allRequests.find(group => 
+          group.requests.some(subReq => subReq.id === requestToRate.id)
+        );
+        
+        if (requestGroup) {
+          updateSubRequestRating(requestGroup.id, requestToRate.id, 0);
+        }
+        
         rejectModal.showReject({
           title: "Ошибка",
           message: "Недоступно для оценки"
@@ -874,7 +918,7 @@ export default function DepartmentHeadDashboard() {
           </div>
           <div className="flex gap-1 items-center">
               {renderStatusWithTooltip(requestGroup.status)}
-              {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
+              {isLongTerm && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
                   request={requestGroup}
               isDesktop={isDesktop}
@@ -1095,7 +1139,25 @@ export default function DepartmentHeadDashboard() {
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-6">
-
+                  {isDesktop ? (
+                      <div className="order-1 sm:order-2 w-full sm:w-auto flex gap-2">
+                        <Button
+                            onClick={() => router.push('/create-request')}
+                            className="bg-violet-600 hover:bg-violet-700"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Создать заявку
+                        </Button>
+                        <Button
+                            onClick={() => setShowImportExcelModal(true)}
+                            variant="outline"
+                            className="border-violet-600 text-violet-600 hover:bg-violet-50"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          Импорт Excel
+                        </Button>
+                      </div>
+                  ): null}
                   {/* табы */}
                   <div className="order-2 sm:order-1 w-full sm:w-auto flex justify-center sm:justify-start">
                     <TabsList className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
@@ -1120,25 +1182,6 @@ export default function DepartmentHeadDashboard() {
                       </TabsTrigger>
                     </TabsList>
                   </div>
-                  {isDesktop ? (
-                      <div className="flex flex-col gap-1">
-                        <Button
-                            onClick={() => router.push('/create-request')}
-                            className="bg-violet-600 hover:bg-violet-700"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Создать заявку
-                        </Button>
-                        <Button
-                            onClick={() => setShowImportExcelModal(true)}
-                            variant="outline"
-                            className="border-violet-600 text-violet-600 hover:bg-violet-50"
-                        >
-                          <FileSpreadsheet className="w-4 h-4 mr-2" />
-                          Импорт Excel
-                        </Button>
-                      </div>
-                  ): null}
                 </div>
 
 
@@ -1172,11 +1215,6 @@ export default function DepartmentHeadDashboard() {
                     onRedirectToOtherDepartment={handleOpenRedirectModal}
                     onAssignExecutor={handleAssignExecutors}
                     onToggleLongTerm={handleToggleLongTerm}
-                    onShowMap={(location) => {
-                      setMapLocation(location);
-                      setShowMapModal(true);
-                      openModal('mapModal');
-                    }}
                   />
                 </TabsContent>
 
@@ -1518,7 +1556,7 @@ export default function DepartmentHeadDashboard() {
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {renderStatusWithTooltip(subRequest.status)}
-                                    {selectedRequest.request_type !== 'recurring' && renderLongTermWithTooltip(subRequest.is_long_term || false)}
+                                    {renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                     {/* Кнопка комментариев */}
                       <Button

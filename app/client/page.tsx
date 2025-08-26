@@ -131,7 +131,7 @@ export default function ClientDashboard() {
   const filteredRequests = requests
       .filter((request) => {
         const statusMatch = filterStatus === "all" || 
-          (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterStatus)
+          (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterStatus)
         const requestType = request.request_type
         const typeMatch = filterType === "all" || requestType === filterType
         return statusMatch && typeMatch
@@ -620,19 +620,74 @@ export default function ClientDashboard() {
   const handleRateExecutor = async () => {
     if (requestToRate && ratingValue > 0) {
       try {
+        // Оптимистичное обновление - сразу обновляем UI
+        const { updateSubRequestRating } = useRequestStore.getState();
+        
+        // Находим группу заявок, к которой принадлежит подзаявка
+        const allRequests = [
+          ...useRequestStore.getState().requests,
+          ...useRequestStore.getState().myRequests,
+          ...useRequestStore.getState().incomingRequests,
+          ...useRequestStore.getState().assignedRequests,
+          ...useRequestStore.getState().completedRequests
+        ];
+        
+        const requestGroup = allRequests.find(group => 
+          group.requests.some(subReq => subReq.id === requestToRate.id)
+        );
+        
+        if (requestGroup) {
+          updateSubRequestRating(requestGroup.id, requestToRate.id, ratingValue);
+        }
+        
+        // Обновляем локальное состояние рейтингов (для совместимости с существующим кодом)
+        setUserRatings(prev => ({
+          ...prev,
+          [requestToRate.id]: { 
+            id: 0, // временный ID
+            rating: ratingValue,
+            request_id: requestToRate.id,
+            created_at: new Date().toISOString()
+          }
+        }));
+        
+        // Отправляем запрос на сервер
         const response = await api.post(`/ratings`, {
           rating: ratingValue,
           request_id: requestToRate.id
         })
-        setUserRatings(prev => ({
-          ...prev,
-          [requestToRate.id]: response.data
-        }));
+        
         setShowRatingModal(false)
         setRatingValue(0)
         setRequestToRate(null)
         closeModalWithHistory()
       } catch (error) {
+        // В случае ошибки откатываем изменения
+        const { updateSubRequestRating } = useRequestStore.getState();
+        
+        const allRequests = [
+          ...useRequestStore.getState().requests,
+          ...useRequestStore.getState().myRequests,
+          ...useRequestStore.getState().incomingRequests,
+          ...useRequestStore.getState().assignedRequests,
+          ...useRequestStore.getState().completedRequests
+        ];
+        
+        const requestGroup = allRequests.find(group => 
+          group.requests.some(subReq => subReq.id === requestToRate.id)
+        );
+        
+        if (requestGroup) {
+          updateSubRequestRating(requestGroup.id, requestToRate.id, 0);
+        }
+        
+        // Откатываем изменения в userRatings при ошибке
+        setUserRatings(prev => {
+          const newRatings = { ...prev };
+          delete newRatings[requestToRate.id];
+          return newRatings;
+        });
+        
         rejectModal.showReject({
           title: "Ошибка",
           message: "Недоступно для оценки"
@@ -822,7 +877,7 @@ export default function ClientDashboard() {
             </div>
             <div className="flex gap-1 items-center">
               {renderStatusWithTooltip(requestGroup.status)}
-              {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
+              {isLongTerm && renderLongTermWithTooltip(true)}
               <RoleBasedActionMenu
                   request={requestGroup}
                   isDesktop={isDesktop}
@@ -1137,7 +1192,7 @@ export default function ClientDashboard() {
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {renderStatusWithTooltip(subRequest.status)}
-                                    {selectedRequest.request_type !== 'recurring' && renderLongTermWithTooltip(subRequest.is_long_term || false)}
+                                    {renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                     {/* Кнопка комментариев */}
                                     <Button

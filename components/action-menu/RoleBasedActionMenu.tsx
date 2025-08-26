@@ -203,7 +203,7 @@ export function RoleBasedActionMenu({
       if (isSubRequest) {
         // Действия для подзаявок
         roleSpecificActions.push(
-          ...(request.status === "completed" && (request?.ratings && !request?.ratings[0])
+          ...(request.status === "completed" && !request?.rating && (request?.ratings && !request?.ratings[0])
             ? [
                 {
                   icon: Star,
@@ -316,7 +316,7 @@ export function RoleBasedActionMenu({
                 },
               ]
               : []),
-          ...(request.status === "completed" && request.client_id === user?.id && (request?.ratings && !request?.ratings[0])
+          ...(request.status === "completed" && request.client_id === user?.id && !request?.rating && (request?.ratings && !request?.ratings[0])
               ? [
                 {
                   icon: Star,
@@ -354,7 +354,7 @@ export function RoleBasedActionMenu({
     if (userRole === "admin-worker") {
       if (isSubRequest) {
         roleSpecificActions.push(
-            ...(request.status === "completed" && (request?.ratings && !request?.ratings[0])
+            ...(request.status === "completed" && !request?.rating && (request?.ratings && !request?.ratings[0])
                 ? [
                   {
                     icon: Star,

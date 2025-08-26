@@ -19,6 +19,7 @@ interface RequestState {
     removeMyRequest: (id: number) => void;
     removeIncomingRequest: (id: number) => void;
     removeAssignedRequests: (id: number) => void;
+    updateSubRequestRating: (requestGroupId: number, subRequestId: number, rating: number) => void;
 }
 
 export interface SubRequest {
@@ -160,5 +161,30 @@ export const useRequestStore = create<RequestState>((set, get) => ({
     removeAssignedRequests: (id) =>
         set({
             assignedRequests: get().assignedRequests.filter(req => req.id !== id),
+        }),
+
+    updateSubRequestRating: (requestGroupId, subRequestId, rating) =>
+        set((state) => {
+            const updateGroupRequests = (groups: RequestGroup[]) =>
+                groups.map(group =>
+                    group.id === requestGroupId
+                        ? {
+                            ...group,
+                            requests: group.requests.map(subReq =>
+                                subReq.id === subRequestId
+                                    ? { ...subReq, rating }
+                                    : subReq
+                            )
+                        }
+                        : group
+                );
+
+            return {
+                requests: updateGroupRequests(state.requests),
+                incomingRequests: updateGroupRequests(state.incomingRequests),
+                myRequests: updateGroupRequests(state.myRequests),
+                assignedRequests: updateGroupRequests(state.assignedRequests),
+                completedRequests: updateGroupRequests(state.completedRequests),
+            };
         }),
 }));
