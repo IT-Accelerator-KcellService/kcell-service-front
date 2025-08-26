@@ -67,6 +67,7 @@ import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
 import { ImportExcelModal } from "@/components/ImportExcelModal";
+import { deleteRecurringTask } from "@/lib/api";
 
 interface User {
   id: number;
@@ -155,6 +156,7 @@ export default function AdminWorkerDashboard() {
   const [selectedSubRequestForAssignment, setSelectedSubRequestForAssignment] = useState<any>(null);
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
+  const [upcomingTasksRefreshTrigger, setUpcomingTasksRefreshTrigger] = useState(0);
 
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
@@ -264,6 +266,9 @@ export default function AdminWorkerDashboard() {
           case 'deleteRequestModal':
             setShowDeleteRequestModal(false);
             break;
+          case 'recurringTaskDetails':
+            // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
+            break;
           default:
             break;
         }
@@ -333,7 +338,7 @@ export default function AdminWorkerDashboard() {
   const filteredMyRequests = sortRequests(
       myRequests.filter((request) => {
         const statusMatch = filterMyStatus === "all"  ||
-            (filterMyStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterMyStatus);
+            (filterMyStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterMyStatus);
         const requestType = request.request_type;
         const typeMatch = filterMyType === "all" || requestType === filterMyType;
         return statusMatch && typeMatch;
@@ -343,7 +348,7 @@ export default function AdminWorkerDashboard() {
   const filteredIncomingRequests = sortRequests(
       incomingRequests.filter((request) => {
         const statusMatch = filterIncomingStatus === "all"  ||
-            (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterIncomingStatus);
+            (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterIncomingStatus);
         const requestType = request.request_type;
         const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType;
         return statusMatch && typeMatch;
@@ -536,11 +541,7 @@ export default function AdminWorkerDashboard() {
       const isRecurring = requestType === 'recurring';
       console.log('Admin worker - request_type:', requestType, 'isRecurring:', isRecurring);
       
-      // Отладочная информация
-      console.log('All formData entries:');
-      for (let [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
-      }
+
       
       let response;
       if (isRecurring) {
@@ -739,7 +740,7 @@ export default function AdminWorkerDashboard() {
       try {
         // Оптимистичное обновление - сразу обновляем UI
         const { updateSubRequestRating } = useRequestStore.getState();
-        
+
         // Находим группу заявок, к которой принадлежит подзаявка
         const allRequests = [
           ...useRequestStore.getState().requests,
@@ -748,32 +749,32 @@ export default function AdminWorkerDashboard() {
           ...useRequestStore.getState().assignedRequests,
           ...useRequestStore.getState().completedRequests
         ];
-        
-        const requestGroup = allRequests.find(group => 
+
+        const requestGroup = allRequests.find(group =>
           group.requests.some(subReq => subReq.id === requestToRate.id)
         );
-        
+
         if (requestGroup) {
           updateSubRequestRating(requestGroup.id, requestToRate.id, ratingValue);
         }
-        
+
         // Обновляем локальное состояние рейтингов (для совместимости с существующим кодом)
         setUserRatings(prev => ({
           ...prev,
-          [requestToRate.id]: { 
+          [requestToRate.id]: {
             id: 0, // временный ID
             rating: ratingValue,
             request_id: requestToRate.id,
             created_at: new Date().toISOString()
           }
         }));
-        
+
         // Отправляем запрос на сервер
         const response = await api.post(`/ratings`, {
           rating: ratingValue,
           request_id: requestToRate.id
         })
-        
+
         setShowRatingModal(false);
         closeModalWithHistory();
         setRatingValue(0)
@@ -781,7 +782,7 @@ export default function AdminWorkerDashboard() {
       } catch (error) {
         // В случае ошибки откатываем изменения
         const { updateSubRequestRating } = useRequestStore.getState();
-        
+
         const allRequests = [
           ...useRequestStore.getState().requests,
           ...useRequestStore.getState().myRequests,
@@ -789,22 +790,22 @@ export default function AdminWorkerDashboard() {
           ...useRequestStore.getState().assignedRequests,
           ...useRequestStore.getState().completedRequests
         ];
-        
-        const requestGroup = allRequests.find(group => 
+
+        const requestGroup = allRequests.find(group =>
           group.requests.some(subReq => subReq.id === requestToRate.id)
         );
-        
+
         if (requestGroup) {
           updateSubRequestRating(requestGroup.id, requestToRate.id, 0);
         }
-        
+
         // Откатываем изменения в userRatings при ошибке
         setUserRatings(prev => {
           const newRatings = { ...prev };
           delete newRatings[requestToRate.id];
           return newRatings;
         });
-        
+
         rejectModal.showReject({
           title: "Ошибка",
           message: "Недоступно для оценки"
@@ -1057,6 +1058,26 @@ export default function AdminWorkerDashboard() {
     }
   };
 
+  const handleDeleteRecurringTask = async (taskId: number) => {
+    try {
+      await deleteRecurringTask(taskId);
+      
+      // Обновляем виджет предстоящих задач
+      setUpcomingTasksRefreshTrigger(prev => prev + 1);
+
+      successModal.showSuccess({
+        title: "Повторяющаяся задача удалена",
+        message: "Повторяющаяся задача была успешно удалена."
+      });
+    } catch (error: any) {
+      console.error("Ошибка при удалении повторяющейся задачи:", error);
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: error.response?.data?.error || "Не удалось удалить повторяющуюся задачу"
+      });
+    }
+  };
+
   const handleOpenRedirectModal = async (request: any) => {
     setSelectedRequestForRedirect(request);
     setRedirectError(null);
@@ -1151,7 +1172,7 @@ export default function AdminWorkerDashboard() {
           </div>
           <div className="flex gap-1 items-center">
             {renderStatusWithTooltip(requestGroup.status)}
-            {isLongTerm && renderLongTermWithTooltip(true)}
+                          {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
               request={requestGroup}
               isDesktop={isDesktop}
@@ -1380,6 +1401,14 @@ export default function AdminWorkerDashboard() {
                     onRedirectToOtherDepartment={handleOpenRedirectModal}
                     onAssignExecutor={handleAssignExecutors}
                     onToggleLongTerm={handleToggleLongTerm}
+                    onDeleteTask={handleDeleteRecurringTask}
+                    onShowMap={(location) => {
+                      setMapLocation(location);
+                      setShowMapModal(true);
+                      openModal('mapModal');
+                    }}
+                    openModal={openModal}
+                    closeModalWithHistory={closeModalWithHistory}
                   />
                 </TabsContent>
 
@@ -1505,7 +1534,7 @@ export default function AdminWorkerDashboard() {
               </Tabs>
             </div>
             <div className="space-y-6 mb-20">
-              <UpcomingTasksWidget />
+              <UpcomingTasksWidget refreshTrigger={upcomingTasksRefreshTrigger} />
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
                   <NotificationsSidebar onNotificationClick={handleNotificationClick} />
@@ -1630,7 +1659,7 @@ export default function AdminWorkerDashboard() {
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {renderStatusWithTooltip(subRequest.status)}
-                                    {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+                                    {selectedRequest.request_type !== 'recurring' && renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                     {/* Кнопка комментариев */}
                                     <Button

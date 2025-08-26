@@ -26,6 +26,8 @@ interface RecurringTasksListProps {
   onToggleLongTerm?: (requestId: number, requestGroupId: number, currentStatus: boolean) => void;
   onShowMap?: (location: { lat: number; lon: number; accuracy: number }) => void;
   onDeleteTask?: (taskId: number) => void;
+  openModal?: (name: string) => void;
+  closeModalWithHistory?: () => void;
 }
 
 export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ 
@@ -37,7 +39,9 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
   onAssignExecutor,
   onToggleLongTerm,
   onShowMap,
-  onDeleteTask
+  onDeleteTask,
+  openModal,
+  closeModalWithHistory
 }) => {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +60,25 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
   useEffect(() => {
     setMounted(true)
   }, []);
+
+  // Обработка закрытия модального окна через историю браузера
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      console.log('RecurringTasksList popstate event:', event.state);
+      // Если модальное окно открыто и нет информации о модальном окне в истории
+      if (selectedTask && !event.state?.modal) {
+        console.log('Closing RecurringTaskDetails via popstate');
+        setSelectedTask(null);
+        setShowComments(null);
+        setFormErrors(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [selectedTask]);
 
   const fetchTasks = async () => {
     try {
@@ -236,7 +259,11 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={() => {
+                      console.log('Opening RecurringTaskDetails for task:', task.id);
                       setSelectedTask(task);
+                      if (openModal) {
+                        openModal('recurringTaskDetails');
+                      }
                     }}
                     className="w-full"
                   >
@@ -322,9 +349,13 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
         userRole={userRole || ''}
         isDesktop={isDesktop}
         onClose={() => {
+          console.log('RecurringTaskDetails onClose called');
           setSelectedTask(null);
           setShowComments(null);
           setFormErrors(null);
+          if (closeModalWithHistory) {
+            closeModalWithHistory();
+          }
         }}
         onRateRequest={onRateRequest}
         onRedirectToOtherDepartment={onRedirectToOtherDepartment}

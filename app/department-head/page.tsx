@@ -144,6 +144,7 @@ export default function DepartmentHeadDashboard() {
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
   const [selectedSubRequestForAssignment, setSelectedSubRequestForAssignment] = useState<any>(null);
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
+  const [upcomingTasksRefreshTrigger, setUpcomingTasksRefreshTrigger] = useState(0);
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
@@ -226,6 +227,9 @@ export default function DepartmentHeadDashboard() {
             break;
           case 'redirectModal':
             handleCloseRedirectModal();
+            break;
+          case 'recurringTaskDetails':
+            // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
             break;
           default:
             break;
@@ -488,7 +492,7 @@ export default function DepartmentHeadDashboard() {
   // Фильтрация входящих заявок
   const filteredIncomingRequests = incomingRequests.filter((request) => {
     const statusMatch = filterIncomingStatus === "all"   ||
-        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterIncomingStatus);
+        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterIncomingStatus);
     const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
     return statusMatch && typeMatch;
   });
@@ -500,8 +504,10 @@ export default function DepartmentHeadDashboard() {
     try {
       // Проверяем, является ли это повторяющейся задачей
       const requestType = formData.get('request_type');
-      const isRecurring = requestType === 'recurring';
-      console.log('Department head - request_type:', requestType, 'isRecurring:', isRecurring);
+      // Обрабатываем случай, когда request_type приходит как массив
+      const finalRequestType = Array.isArray(requestType) ? requestType[0] : requestType;
+      const isRecurring = finalRequestType === 'recurring';
+
       
       if (isRecurring) {
         // Создаем повторяющуюся задачу
@@ -514,12 +520,7 @@ export default function DepartmentHeadDashboard() {
           category_id: user?.service_category_id || 1, // Добавляем категорию department-head
         };
         
-        console.log('Department head - FormData contents:');
-        for (let [key, value] of formData.entries()) {
-          console.log(`${key}: ${value}`);
-        }
-        
-        console.log('Department head - recurringData:', recurringData);
+
         
         const response = await api.post('/recurring-tasks', recurringData);
         
@@ -533,7 +534,7 @@ export default function DepartmentHeadDashboard() {
         });
       } else {
         // Получаем данные из FormData
-        const requestType = formData.get('request_type') as string;
+        const requestType = finalRequestType; // Используем уже обработанное значение
         const location = formData.get('location') as string;
         const locationDetail = formData.get('location_detail') as string;
         const status = formData.get('status') as string;
@@ -593,7 +594,7 @@ export default function DepartmentHeadDashboard() {
       try {
         // Оптимистичное обновление - сразу обновляем UI
         const { updateSubRequestRating } = useRequestStore.getState();
-        
+
         // Находим группу заявок, к которой принадлежит подзаявка
         const allRequests = [
           ...useRequestStore.getState().requests,
@@ -602,21 +603,21 @@ export default function DepartmentHeadDashboard() {
           ...useRequestStore.getState().assignedRequests,
           ...useRequestStore.getState().completedRequests
         ];
-        
-        const requestGroup = allRequests.find(group => 
+
+        const requestGroup = allRequests.find(group =>
           group.requests.some(subReq => subReq.id === requestToRate.id)
         );
-        
+
         if (requestGroup) {
           updateSubRequestRating(requestGroup.id, requestToRate.id, ratingValue);
         }
-        
+
         // Отправляем запрос на сервер
         const response = await api.post(`/ratings`, {
           rating: ratingValue,
           request_id: requestToRate.id
         })
-        
+
         setShowRatingModal(false);
         closeModalWithHistory();
         setRatingValue(0)
@@ -624,7 +625,7 @@ export default function DepartmentHeadDashboard() {
       } catch (error) {
         // В случае ошибки откатываем изменения
         const { updateSubRequestRating } = useRequestStore.getState();
-        
+
         const allRequests = [
           ...useRequestStore.getState().requests,
           ...useRequestStore.getState().myRequests,
@@ -632,15 +633,15 @@ export default function DepartmentHeadDashboard() {
           ...useRequestStore.getState().assignedRequests,
           ...useRequestStore.getState().completedRequests
         ];
-        
-        const requestGroup = allRequests.find(group => 
+
+        const requestGroup = allRequests.find(group =>
           group.requests.some(subReq => subReq.id === requestToRate.id)
         );
-        
+
         if (requestGroup) {
           updateSubRequestRating(requestGroup.id, requestToRate.id, 0);
         }
-        
+
         rejectModal.showReject({
           title: "Ошибка",
           message: "Недоступно для оценки"
@@ -833,6 +834,26 @@ export default function DepartmentHeadDashboard() {
     }
   };
 
+  const handleDeleteRecurringTask = async (taskId: number) => {
+    try {
+      await api.delete(`/recurring-tasks/${taskId}`);
+
+      // Обновляем виджет предстоящих задач
+      setUpcomingTasksRefreshTrigger(prev => prev + 1);
+
+      successModal.showSuccess({
+        title: "Успешно",
+        message: "Повторяющаяся задача удалена"
+      });
+    } catch (error) {
+      console.error("Failed to delete recurring task:", error);
+      rejectModal.showReject({
+        title: "Ошибка",
+        message: "Не удалось удалить повторяющуюся задачу"
+      });
+    }
+  };
+
   const renderStatusWithTooltip = (status: string) => {
     const icon = getStatusIcon(status);
     const text = translateStatus(status);
@@ -918,7 +939,7 @@ export default function DepartmentHeadDashboard() {
           </div>
           <div className="flex gap-1 items-center">
               {renderStatusWithTooltip(requestGroup.status)}
-              {isLongTerm && renderLongTermWithTooltip(true)}
+              {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
                   request={requestGroup}
               isDesktop={isDesktop}
@@ -1209,6 +1230,14 @@ export default function DepartmentHeadDashboard() {
                     onRedirectToOtherDepartment={handleOpenRedirectModal}
                     onAssignExecutor={handleAssignExecutors}
                     onToggleLongTerm={handleToggleLongTerm}
+                    onDeleteTask={handleDeleteRecurringTask}
+                    onShowMap={(location) => {
+                      setMapLocation(location);
+                      setShowMapModal(true);
+                      openModal('mapModal');
+                    }}
+                    openModal={openModal}
+                    closeModalWithHistory={closeModalWithHistory}
                   />
                 </TabsContent>
 
@@ -1437,7 +1466,7 @@ export default function DepartmentHeadDashboard() {
             </div>
 
             <div className="space-y-6 mb-20">
-              <UpcomingTasksWidget />
+              <UpcomingTasksWidget refreshTrigger={upcomingTasksRefreshTrigger} />
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
                   <NotificationsSidebar onNotificationClick={handleNotificationClick} />
@@ -1550,7 +1579,7 @@ export default function DepartmentHeadDashboard() {
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {renderStatusWithTooltip(subRequest.status)}
-                                    {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+                                    {selectedRequest.request_type !== 'recurring' && renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                     {/* Кнопка комментариев */}
                       <Button

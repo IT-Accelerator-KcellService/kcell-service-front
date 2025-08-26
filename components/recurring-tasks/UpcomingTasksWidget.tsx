@@ -10,7 +10,11 @@ import { ru } from 'date-fns/locale';
 import { getUpcomingTasks, TaskInstance } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
-export function UpcomingTasksWidget() {
+interface UpcomingTasksWidgetProps {
+  refreshTrigger?: number;
+}
+
+export function UpcomingTasksWidget({ refreshTrigger = 0 }: UpcomingTasksWidgetProps) {
   const [tasks, setTasks] = useState<TaskInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -32,7 +36,7 @@ export function UpcomingTasksWidget() {
 
   useEffect(() => {
     fetchUpcomingTasks();
-  }, []);
+  }, [refreshTrigger]);
 
   const getDateText = (date: string) => {
     const taskDate = new Date(date);

@@ -69,6 +69,20 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   useEffect(() => {
     setMounted(true)
   }, []);
+
+  // Обработка клавиши Escape для закрытия модального окна
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
   
   // Используем внешние состояния, если они переданы, иначе внутренние
   const showComments = externalShowComments !== undefined ? externalShowComments : internalShowComments;
@@ -242,16 +256,14 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                   <CardHeader className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <CardTitle className="font-medium text-gray-900 text-base sm:text-lg">Повторяющаяся задача #{task.id}</CardTitle>
-              {!isDesktop && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onClose}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           </CardHeader>
           <CardContent className={`space-y-3 pb-2 p-4 sm:p-6 ${isDesktop ? '' : 'flex-1 overflow-y-auto pb-6'}`}>
