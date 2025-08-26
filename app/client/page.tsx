@@ -999,15 +999,13 @@ export default function ClientDashboard() {
               <div className="mb-6">
                 {/* на телефоне кнопка сверху */}
                 <div className="flex flex-col sm:hidden gap-3 mb-4">
-                  {isDesktop ? (
-                      <Button
-                          onClick={() => router.push('/create-request')}
-                          className="bg-violet-600 hover:bg-violet-700 w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Создать заявку
-                      </Button>
-                  ): null}
+                  <Button
+                      onClick={() => router.push('/create-request')}
+                      className="bg-violet-600 hover:bg-violet-700 w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Создать заявку
+                  </Button>
                   <TabsList>
                     <TabsTrigger value="requests">Мои заявки</TabsTrigger>
                     <TabsTrigger value="statistics">Статистика</TabsTrigger>

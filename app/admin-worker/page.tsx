@@ -1311,39 +1311,61 @@ export default function AdminWorkerDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="flex flex-col sm:flex-row-reverse sm:justify-between sm:items-center mb-6 space-y-2 sm:space-y-0">
-                  {isDesktop ? (
-                      <div className="flex gap-2">
-                        <Button
-                            onClick={() => router.push('/create-request')}
-                            className="bg-violet-600 hover:bg-violet-700"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Создать заявку
-                        </Button>
-                      </div>
-                  ): null}
-                  <div className="flex justify-center sm:justify-start w-full">
-                    <TabsList className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto mb-6">
-                    <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
-                      <span className="hidden sm:inline">Входящие заявки</span>
-                      <span className="sm:hidden">Входящие</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                      <span className="hidden sm:inline">Мои заявки</span>
-                      <span className="sm:hidden">Мои</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
-                      <span className="hidden sm:inline">Повторяющиеся</span>
-                      <span className="sm:hidden">Повторяющиеся</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
-                      Статистика
-                    </TabsTrigger>
-                    <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
-                      Логи
-                    </TabsTrigger>
-                  </TabsList>
+                <div className="mb-6">
+                  {/* на телефоне кнопка сверху */}
+                  <div className="flex flex-col sm:hidden gap-3 mb-4">
+                    <Button
+                        onClick={() => router.push('/create-request')}
+                        className="bg-violet-600 hover:bg-violet-700 w-full"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Создать заявку
+                    </Button>
+                    <TabsList className="flex flex-wrap gap-2 w-full">
+                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="sm:hidden">Входящие</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="sm:hidden">Мои</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="sm:hidden">Повторяющиеся</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Статистика
+                      </TabsTrigger>
+                      <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Логи
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  {/* на больших экранах */}
+                  <div className="hidden sm:flex justify-between items-center">
+                    <TabsList className="flex flex-wrap sm:flex-nowrap gap-2">
+                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="hidden sm:inline">Входящие заявки</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="hidden sm:inline">Мои заявки</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <span className="hidden sm:inline">Повторяющиеся</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Статистика
+                      </TabsTrigger>
+                      <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Логи
+                      </TabsTrigger>
+                    </TabsList>
+                    <Button
+                        onClick={() => router.push('/create-request')}
+                        className="bg-violet-600 hover:bg-violet-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Создать заявку
+                    </Button>
                   </div>
                 </div>
                 <TabsContent value="my-requests">
