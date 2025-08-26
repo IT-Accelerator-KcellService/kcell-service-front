@@ -22,6 +22,7 @@ interface RequestState {
     updateSubRequestRating: (requestGroupId: number, subRequestId: number, rating: number) => void;
     updateSubRequestExecutors: (requestGroupId: number, subRequestId: number, executors: any[], status?: string) => void;
     updateRequestGroupStatus: (requestGroupId: number) => void;
+    updateSubRequestRedirect: (requestGroupId: number, subRequestId: number, categoryId: number) => void;
 }
 
 export interface SubRequest {
@@ -258,6 +259,31 @@ export const useRequestStore = create<RequestState>((set, get) => ({
                 myRequests: updateGroupStatus(state.myRequests),
                 assignedRequests: updateGroupStatus(state.assignedRequests),
                 completedRequests: updateGroupStatus(state.completedRequests),
+            };
+        }),
+
+    updateSubRequestRedirect: (requestGroupId, subRequestId, categoryId) =>
+        set((state) => {
+            const updateGroupRequests = (groups: RequestGroup[]) =>
+                groups.map(group =>
+                    group.id === requestGroupId
+                        ? {
+                            ...group,
+                            requests: group.requests.map(subReq =>
+                                subReq.id === subRequestId
+                                    ? { ...subReq, category_id: categoryId }
+                                    : subReq
+                            )
+                        }
+                        : group
+                );
+
+            return {
+                requests: updateGroupRequests(state.requests),
+                incomingRequests: updateGroupRequests(state.incomingRequests),
+                myRequests: updateGroupRequests(state.myRequests),
+                assignedRequests: updateGroupRequests(state.assignedRequests),
+                completedRequests: updateGroupRequests(state.completedRequests),
             };
         }),
 }));

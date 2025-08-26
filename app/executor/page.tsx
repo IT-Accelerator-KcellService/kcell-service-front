@@ -213,35 +213,55 @@ export default function ExecutorDashboard() {
     setIsRejecting(true);
     setRejectError(null);
 
+    // Находим группу заявок, к которой принадлежит подзаявка
+    const allRequests = [
+      ...useRequestStore.getState().requests,
+      ...useRequestStore.getState().myRequests,
+      ...useRequestStore.getState().incomingRequests,
+      ...useRequestStore.getState().assignedRequests,
+      ...useRequestStore.getState().completedRequests
+    ];
+    
+    const requestGroup = allRequests.find(group => 
+      group.requests.some(subReq => subReq.id === selectedSubRequestForReject.id)
+    );
+
     try {
-      // Отправляем запрос на отклонение подзаявки
+      // Оптимистичное обновление - сразу обновляем UI
+      const { updateSubRequestExecutors, updateRequestGroupStatus } = useRequestStore.getState();
+      
+      if (requestGroup) {
+        // Обновляем подзаявку: убираем исполнителей, меняем статус
+        updateSubRequestExecutors(requestGroup.id, selectedSubRequestForReject.id, [], 'awaiting_assignment');
+        
+        // Обновляем статус группы заявок
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
+      // Проверяем, есть ли в главной заявке другие подзаявки, где назначен этот исполнитель
+      const hasOtherSubRequestsWithExecutor = requestGroup?.requests?.some((subReq: any) =>
+          subReq.id !== selectedSubRequestForReject.id &&
+          subReq.executors?.some((executor: any) => executor.user.id === user?.id)
+      );
+
+      if (!hasOtherSubRequestsWithExecutor) {
+        // Если нет других подзаявок с этим исполнителем, удаляем заявку из UI
+        setMyRequests(prev => 
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        setCompletedRequests(prev =>
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        setAssignedRequests(prev =>
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+      }
+      
+      // Отправляем запрос на сервер
       await api.put(`/requests/${selectedSubRequestForReject.id}`, {
         status: "awaiting_assignment",
         patch_code: 1
       });
-
-      // Оптимистично обновляем UI
-      const updateRequestStatus = (requests: any[]) =>
-        requests.map((request: any) => {
-          if (request.requests && request.requests.length > 0) {
-            const updatedRequests = request.requests.map((subReq: any) => 
-              subReq.id === selectedSubRequestForReject.id 
-                ? { ...subReq, status: "awaiting_assignment" }
-                : subReq
-            );
-            return { ...request, requests: updatedRequests };
-          }
-          return request;
-        });
-
-      setAssignedRequests(updateRequestStatus);
-      setMyRequests(updateRequestStatus);
-      
-      // Обновляем selectedRequest если он содержит эту подзаявку
-      if (selectedRequest && selectedRequest.requests) {
-        const updatedSelectedRequest = updateRequestStatus([selectedRequest])[0];
-        setSelectedRequest(updatedSelectedRequest);
-      }
 
       // Асинхронно отправляем уведомление об отклонении (не ждем ответа)
       api.post('/notifications/reject-assigned', {
@@ -254,6 +274,8 @@ export default function ExecutorDashboard() {
       // Закрываем модальное окно
       setShowRejectSubRequestModal(false);
       setSelectedSubRequestForReject(null);
+      setSelectedRequest(null);
+      closeModalWithHistory();
 
       // Показываем сообщение об успехе
       successModal.showSuccess({
@@ -262,6 +284,15 @@ export default function ExecutorDashboard() {
       });
 
     } catch (error: any) {
+      // В случае ошибки откатываем изменения
+      if (requestGroup) {
+        const { updateSubRequestExecutors, updateRequestGroupStatus } = useRequestStore.getState();
+        
+        // Возвращаем оригинальных исполнителей и статус
+        updateSubRequestExecutors(requestGroup.id, selectedSubRequestForReject.id, selectedSubRequestForReject.executors || [], selectedSubRequestForReject.status);
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
       console.error("Ошибка при отклонении подзаявки:", error);
       setRejectError(error.response?.data?.error || "Не удалось отклонить подзаявку");
     } finally {
@@ -289,8 +320,62 @@ export default function ExecutorDashboard() {
     setIsRedirecting(true);
     setRedirectError(null);
 
+    // Находим группу заявок, к которой принадлежит подзаявка
+    const allRequests = [
+      ...useRequestStore.getState().requests,
+      ...useRequestStore.getState().myRequests,
+      ...useRequestStore.getState().incomingRequests,
+      ...useRequestStore.getState().assignedRequests,
+      ...useRequestStore.getState().completedRequests
+    ];
+    
+    const requestGroup = allRequests.find(group => 
+      group.requests.some(subReq => subReq.id === selectedRequestForRedirect.id)
+    );
+
     try {
-      // Используем выбранную категорию для перенаправления
+      // Оптимистичное обновление - сразу обновляем UI
+      const { updateSubRequestExecutors, updateSubRequestRedirect, updateRequestGroupStatus } = useRequestStore.getState();
+      
+      if (requestGroup) {
+        // Обновляем подзаявку: меняем категорию, убираем исполнителей, меняем статус
+        updateSubRequestExecutors(requestGroup.id, selectedRequestForRedirect.id, [], 'awaiting_assignment');
+        updateSubRequestRedirect(requestGroup.id, selectedRequestForRedirect.id, selectedCategoryId);
+        
+        // Обновляем статус группы заявок
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
+      // Проверяем, есть ли в главной заявке другие подзаявки, где назначен этот исполнитель
+      const hasOtherSubRequestsWithExecutor = requestGroup?.requests?.some((subReq: any) =>
+          subReq.id !== selectedRequestForRedirect.id &&
+          subReq.executors?.some((executor: any) => executor.user.id === user?.id)
+      );
+
+      if (hasOtherSubRequestsWithExecutor) {
+        // Если есть другие подзаявки с этим исполнителем, просто показываем сообщение
+        successModal.showSuccess({
+          title: "Подзаявка перенаправлена",
+          message: `Подзаявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+        });
+      } else {
+        // Если нет других подзаявок с этим исполнителем, удаляем заявку из UI
+        setMyRequests(prev => 
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        setCompletedRequests(prev =>
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        setAssignedRequests(prev =>
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        successModal.showSuccess({
+          title: "Заявка перенаправлена",
+          message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+        });
+      }
+      
+      // Отправляем запрос на сервер
       await api.patch(`/requests/${selectedRequestForRedirect.id}`, {
         status: "awaiting_assignment",
         executor_id: null,
@@ -298,37 +383,6 @@ export default function ExecutorDashboard() {
         category_id: selectedCategoryId,
         patch_code: 1
       });
-
-      // Проверяем, есть ли в главной заявке другие подзаявки с нашей категорией
-      const requestGroup = selectedRequestForRedirect.requestGroup || selectedRequestForRedirect;
-      const hasOtherSubRequestsWithOurCategory = requestGroup.requests?.some((subReq: any) =>
-          subReq.id !== selectedRequestForRedirect.id &&
-          subReq.category_id === user?.service_category_id
-      );
-
-      if (hasOtherSubRequestsWithOurCategory) {
-        // Если есть другие подзаявки с нашей категорией, просто обновляем данные
-        fetchRequests();
-        successModal.showSuccess({
-          title: "Подзаявка перенаправлена",
-          message: `Подзаявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
-        });
-      } else {
-        // Если нет других подзаявок с нашей категорией, удаляем заявку из UI
-      setMyRequests(prev => 
-            prev.filter(req => req.id !== requestGroup.id)
-        );
-        setCompletedRequests(prev =>
-            prev.filter(req => req.id !== requestGroup.id)
-        );
-        setAssignedRequests(prev =>
-            prev.filter(req => req.id !== requestGroup.id)
-        );
-      successModal.showSuccess({
-        title: "Заявка перенаправлена",
-          message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
-        });
-      }
 
       // Закрываем все модальные окна
       handleCloseRedirectModal();
@@ -338,6 +392,16 @@ export default function ExecutorDashboard() {
       }
 
     } catch (error: any) {
+      // В случае ошибки откатываем изменения
+      if (requestGroup) {
+        const { updateSubRequestExecutors, updateSubRequestRedirect, updateRequestGroupStatus } = useRequestStore.getState();
+        
+        // Возвращаем оригинальную категорию и исполнителей
+        updateSubRequestExecutors(requestGroup.id, selectedRequestForRedirect.id, selectedRequestForRedirect.executors || [], selectedRequestForRedirect.status);
+        updateSubRequestRedirect(requestGroup.id, selectedRequestForRedirect.id, selectedRequestForRedirect.category_id);
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
       console.error("Ошибка при перенаправлении заявки:", error);
       setRedirectError(error.response?.data?.error || "Не удалось перенаправить заявку");
     } finally {
