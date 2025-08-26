@@ -65,12 +65,20 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       console.log('RecurringTasksList popstate event:', event.state);
-      // Если модальное окно открыто и нет информации о модальном окне в истории
+      
+      // Если модальное окно деталей открыто и нет информации о модальном окне в истории
       if (selectedTask && !event.state?.modal) {
         console.log('Closing RecurringTaskDetails via popstate');
         setSelectedTask(null);
         setShowComments(null);
         setFormErrors(null);
+      }
+      
+      // Если модальное окно истории открыто и нет информации о модальном окне в истории
+      if (showInstances && !event.state?.modal) {
+        console.log('Closing task history modal via popstate');
+        setShowInstances(false);
+        setSelectedTask(null);
       }
     };
 
@@ -78,7 +86,7 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [selectedTask]);
+  }, [selectedTask, showInstances]);
 
   const fetchTasks = async () => {
     try {
@@ -277,6 +285,9 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
                     onClick={() => {
                       setSelectedTask(task);
                       setShowInstances(true);
+                      if (openModal) {
+                        openModal('taskHistory');
+                      }
                     }}
                     className="w-full"
                   >
@@ -327,7 +338,15 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
       )}
 
       {/* Модальное окно с историей экземпляров */}
-      <Dialog open={showInstances} onOpenChange={setShowInstances}>
+      <Dialog 
+        open={showInstances} 
+        onOpenChange={(open) => {
+          setShowInstances(open);
+          if (!open && closeModalWithHistory) {
+            closeModalWithHistory();
+          }
+        }}
+      >
         <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader className="pb-4">
             <DialogTitle className="text-lg sm:text-xl">

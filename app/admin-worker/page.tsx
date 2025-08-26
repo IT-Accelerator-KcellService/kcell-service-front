@@ -269,6 +269,9 @@ export default function AdminWorkerDashboard() {
           case 'recurringTaskDetails':
             // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
             break;
+          case 'taskHistory':
+            // Закрытие модального окна истории задач обрабатывается в RecurringTasksList
+            break;
           default:
             break;
         }

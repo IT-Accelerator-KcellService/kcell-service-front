@@ -139,17 +139,7 @@ export function RoleBasedActionMenu({
                 variant: "default" as const,
                 primary: true,
                 showForRoles: ["executor"],
-              },
-              {
-                icon: SkipForward,
-                label: "Пропустить",
-                onClick: () => {
-                  onSkipTask?.(request)
-                  setOpen(false)
-                },
-                variant: "outline" as const,
-                showForRoles: ["executor"],
-              },
+              }
             ]
           : []),
         ...(((request.status === "assigned" || request.status === 'execution') && onReject)

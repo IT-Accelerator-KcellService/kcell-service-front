@@ -231,6 +231,9 @@ export default function DepartmentHeadDashboard() {
           case 'recurringTaskDetails':
             // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
             break;
+          case 'taskHistory':
+            // Закрытие модального окна истории задач обрабатывается в RecurringTasksList
+            break;
           default:
             break;
         }
