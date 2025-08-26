@@ -1045,11 +1045,13 @@ export default function DepartmentHeadDashboard() {
     setShowAssignExecutorsModal(false);
     setSelectedSubRequestForAssignment(null);
     closeModalWithHistory();
+    setSelectedRequest(null);
+    closeModalWithHistory();
   };
 
   const handleAssignExecutorsSuccess = () => {
-    // Обновляем данные после успешного назначения
-    fetchRequests();
+    // Оптимистичное обновление уже выполнено в AssignExecutorsModal
+    // Просто показываем сообщение об успехе
     successModal.showSuccess({
       title: "Исполнители назначены",
       message: "Исполнители успешно назначены на подзаявку"
@@ -1147,14 +1149,6 @@ export default function DepartmentHeadDashboard() {
                         >
                           <Plus className="w-4 h-4 mr-2" />
                           Создать заявку
-                        </Button>
-                        <Button
-                            onClick={() => setShowImportExcelModal(true)}
-                            variant="outline"
-                            className="border-violet-600 text-violet-600 hover:bg-violet-50"
-                        >
-                          <FileSpreadsheet className="w-4 h-4 mr-2" />
-                          Импорт Excel
                         </Button>
                       </div>
                   ): null}

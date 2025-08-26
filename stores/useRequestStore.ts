@@ -20,6 +20,8 @@ interface RequestState {
     removeIncomingRequest: (id: number) => void;
     removeAssignedRequests: (id: number) => void;
     updateSubRequestRating: (requestGroupId: number, subRequestId: number, rating: number) => void;
+    updateSubRequestExecutors: (requestGroupId: number, subRequestId: number, executors: any[], status?: string) => void;
+    updateRequestGroupStatus: (requestGroupId: number) => void;
 }
 
 export interface SubRequest {
@@ -185,6 +187,77 @@ export const useRequestStore = create<RequestState>((set, get) => ({
                 myRequests: updateGroupRequests(state.myRequests),
                 assignedRequests: updateGroupRequests(state.assignedRequests),
                 completedRequests: updateGroupRequests(state.completedRequests),
+            };
+        }),
+
+    updateSubRequestExecutors: (requestGroupId, subRequestId, executors, status = 'assigned') =>
+        set((state) => {
+            const updateGroupRequests = (groups: RequestGroup[]) =>
+                groups.map(group =>
+                    group.id === requestGroupId
+                        ? {
+                            ...group,
+                            requests: group.requests.map(subReq =>
+                                subReq.id === subRequestId
+                                    ? { ...subReq, executors, status }
+                                    : subReq
+                            )
+                        }
+                        : group
+                );
+
+            return {
+                requests: updateGroupRequests(state.requests),
+                incomingRequests: updateGroupRequests(state.incomingRequests),
+                myRequests: updateGroupRequests(state.myRequests),
+                assignedRequests: updateGroupRequests(state.assignedRequests),
+                completedRequests: updateGroupRequests(state.completedRequests),
+            };
+        }),
+
+    updateRequestGroupStatus: (requestGroupId) =>
+        set((state) => {
+            const updateGroupStatus = (groups: RequestGroup[]) =>
+                groups.map(group => {
+                    if (group.id !== requestGroupId) return group;
+                    
+                    const requests = group.requests;
+                    if (requests.length === 0) return group;
+
+                    // Определяем статус группы на основе статусов подзаявок (как в бэкенде)
+                    let newStatus = 'in_progress';
+
+                    const allCompleted = requests.every(req => req.status === 'completed');
+                    const anyRejected = requests.some(req => req.status === 'rejected');
+                    const anyAwaiting = requests.some(req =>
+                        ['awaiting_assignment', 'awaiting_sla'].includes(req.status)
+                    );
+                    const anyInProgress = requests.some(req =>
+                        ['execution', 'assigned'].includes(req.status)
+                    );
+
+                    if (allCompleted) {
+                        newStatus = 'completed';
+                    } else if (anyRejected) {
+                        newStatus = 'rejected';
+                    } else if (anyInProgress) {
+                        newStatus = 'execution';
+                    } else if (anyAwaiting) {
+                        newStatus = 'awaiting_assignment';
+                    }
+
+                    return {
+                        ...group,
+                        status: newStatus
+                    };
+                });
+
+            return {
+                requests: updateGroupStatus(state.requests),
+                incomingRequests: updateGroupStatus(state.incomingRequests),
+                myRequests: updateGroupStatus(state.myRequests),
+                assignedRequests: updateGroupStatus(state.assignedRequests),
+                completedRequests: updateGroupStatus(state.completedRequests),
             };
         }),
 }));

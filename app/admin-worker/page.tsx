@@ -1297,14 +1297,6 @@ export default function AdminWorkerDashboard() {
                           <Plus className="w-4 h-4 mr-2" />
                           Создать заявку
                         </Button>
-                        <Button
-                            onClick={() => setShowImportExcelModal(true)}
-                            variant="outline"
-                            className="border-violet-600 text-violet-600 hover:bg-violet-50"
-                        >
-                          <FileSpreadsheet className="w-4 h-4 mr-2" />
-                          Импорт Excel
-                        </Button>
                       </div>
                   ): null}
                   <div className="flex justify-center sm:justify-start w-full">
