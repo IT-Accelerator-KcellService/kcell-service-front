@@ -519,7 +519,7 @@ export default function ExecutorDashboard() {
 
   const filteredRequests = myRequests.filter((request:any) => {
     const statusMatch = filterStatus === "all"   ||
-        (filterStatus === "long_term" ? request.requests.some((req: { is_long_term: any }) => req.is_long_term) : request.status === filterStatus);
+        (filterStatus === "long_term" ? request.requests.some((req: { is_long_term: any }) => req.is_long_term && request.request_type !== 'recurring') : request.status === filterStatus);
     const requestType = request.request_type
     const typeMatch = filterType === "all" || requestType === filterType
     return statusMatch && typeMatch
@@ -1184,7 +1184,7 @@ export default function ExecutorDashboard() {
           </div>
           <div className="flex gap-1 items-center">
               {renderStatusWithTooltip(requestGroup.status)}
-              {isLongTerm && renderLongTermWithTooltip(true)}
+              {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
                   request={requestGroup}
               isDesktop={isDesktop}
@@ -1351,7 +1351,7 @@ export default function ExecutorDashboard() {
                       {assignedRequests
                           ?.filter((task: any) => {
                             const statusOk = filterStatus === "all"   ||
-                                (filterStatus === "long_term" ? task.requests.some((req: { is_long_term: any }) => req.is_long_term) : task.status === filterStatus);
+                                (filterStatus === "long_term" ? task.requests.some((req: { is_long_term: any }) => req.is_long_term && task.request_type !== 'recurring') : task.status === filterStatus);
                             const typeOk = filterType === "all" || task.request_type === filterType;
                             return statusOk && typeOk;
                           })
@@ -1631,7 +1631,7 @@ export default function ExecutorDashboard() {
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {renderStatusWithTooltip(subRequest.status)}
-                                    {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+                                    {selectedRequest.request_type !== 'recurring' && renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                     {/* Кнопка комментариев */}
                     <Button

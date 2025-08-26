@@ -114,6 +114,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [recurrenceStartDate, setRecurrenceStartDate] = useState<Date>(new Date());
 
+  // Отладочная информация
+
+
   // Состояние для геолокации
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -509,7 +512,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     // Поля группы заявок
-    formData.append('request_type', requestType);
+    // Для повторяющихся задач устанавливаем request_type как 'recurring', иначе используем обычный requestType
+    const finalRequestType = isRecurringTask ? 'recurring' : requestType;
+    formData.append('request_type', finalRequestType);
     formData.append('location', location);
     formData.append('location_detail', locationDetails);
     formData.append('status', groupStatus);
@@ -555,24 +560,15 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     // Данные для повторяющихся задач
     if (isRecurringTask) {
-      console.log('Creating recurring task with:', {
-        isRecurringTask,
-        requestType,
-        recurrenceType,
-        recurrenceInterval,
-        startDate: format(recurrenceStartDate, 'yyyy-MM-dd')
-      });
-      formData.append('request_type', 'recurring');
       formData.append('recurrence_type', recurrenceType);
       formData.append('recurrence_interval', String(recurrenceInterval));
       formData.append('start_date', format(recurrenceStartDate, 'yyyy-MM-dd'));
-
-      console.log('FormData for recurring task:');
+      
+      // Отладочная информация
+      console.log('CreateRequestModal - FormData contents for recurring task:');
       for (let [key, value] of formData.entries()) {
         console.log(`${key}: ${value}`);
       }
-    } else {
-      console.log('Creating normal task with requestType:', requestType);
     }
 
     await onSubmit(formData);
@@ -703,7 +699,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 {(userRole === 'admin-worker' || userRole === 'department-head') && (
                   <SelectItem value="planned">Плановая</SelectItem>
                 )}
-                {(userRole === 'admin-worker' || userRole === 'department-head') && (
+                {(userRole === 'admin-worker') && (
                   <SelectItem value="recurring">Повторяющаяся задача</SelectItem>
                 )}
               </SelectContent>

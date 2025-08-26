@@ -165,14 +165,7 @@ export function UpcomingTasksWidget() {
             ))}
           </div>
         )}
-        
-        {tasks.length > 0 && (
-          <div className="mt-4 pt-4 border-t">
-            <Button variant="outline" size="sm" className="w-full">
-              Посмотреть все задачи
-            </Button>
-          </div>
-        )}
+
       </CardContent>
     </Card>
   );

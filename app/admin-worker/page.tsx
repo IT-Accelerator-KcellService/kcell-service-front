@@ -67,6 +67,7 @@ import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
 import { ImportExcelModal } from "@/components/ImportExcelModal";
+import { deleteRecurringTask } from "@/lib/api";
 
 interface User {
   id: number;
@@ -333,7 +334,7 @@ export default function AdminWorkerDashboard() {
   const filteredMyRequests = sortRequests(
       myRequests.filter((request) => {
         const statusMatch = filterMyStatus === "all"  ||
-            (filterMyStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterMyStatus);
+            (filterMyStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterMyStatus);
         const requestType = request.request_type;
         const typeMatch = filterMyType === "all" || requestType === filterMyType;
         return statusMatch && typeMatch;
@@ -343,7 +344,7 @@ export default function AdminWorkerDashboard() {
   const filteredIncomingRequests = sortRequests(
       incomingRequests.filter((request) => {
         const statusMatch = filterIncomingStatus === "all"  ||
-            (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterIncomingStatus);
+            (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterIncomingStatus);
         const requestType = request.request_type;
         const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType;
         return statusMatch && typeMatch;
@@ -536,11 +537,7 @@ export default function AdminWorkerDashboard() {
       const isRecurring = requestType === 'recurring';
       console.log('Admin worker - request_type:', requestType, 'isRecurring:', isRecurring);
       
-      // Отладочная информация
-      console.log('All formData entries:');
-      for (let [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
-      }
+
       
       let response;
       if (isRecurring) {
@@ -1002,6 +999,23 @@ export default function AdminWorkerDashboard() {
     }
   };
 
+  const handleDeleteRecurringTask = async (taskId: number) => {
+    try {
+      await deleteRecurringTask(taskId);
+      
+      successModal.showSuccess({
+        title: "Повторяющаяся задача удалена",
+        message: "Повторяющаяся задача была успешно удалена."
+      });
+    } catch (error: any) {
+      console.error("Ошибка при удалении повторяющейся задачи:", error);
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: error.response?.data?.error || "Не удалось удалить повторяющуюся задачу"
+      });
+    }
+  };
+
   const handleOpenRedirectModal = async (request: any) => {
     setSelectedRequestForRedirect(request);
     setRedirectError(null);
@@ -1096,7 +1110,7 @@ export default function AdminWorkerDashboard() {
           </div>
           <div className="flex gap-1 items-center">
             {renderStatusWithTooltip(requestGroup.status)}
-            {isLongTerm && renderLongTermWithTooltip(true)}
+                          {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
               request={requestGroup}
               isDesktop={isDesktop}
@@ -1234,7 +1248,7 @@ export default function AdminWorkerDashboard() {
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="flex flex-col sm:flex-row-reverse sm:justify-between sm:items-center mb-6 space-y-2 sm:space-y-0">
                   {isDesktop ? (
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-1">
                         <Button
                             onClick={() => router.push('/create-request')}
                             className="bg-violet-600 hover:bg-violet-700"
@@ -1333,6 +1347,12 @@ export default function AdminWorkerDashboard() {
                     onRedirectToOtherDepartment={handleOpenRedirectModal}
                     onAssignExecutor={handleAssignExecutors}
                     onToggleLongTerm={handleToggleLongTerm}
+                    onDeleteTask={handleDeleteRecurringTask}
+                    onShowMap={(location) => {
+                      setMapLocation(location);
+                      setShowMapModal(true);
+                      openModal('mapModal');
+                    }}
                   />
                 </TabsContent>
 
@@ -1583,7 +1603,7 @@ export default function AdminWorkerDashboard() {
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     {renderStatusWithTooltip(subRequest.status)}
-                                    {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+                                    {selectedRequest.request_type !== 'recurring' && renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                     {/* Кнопка комментариев */}
                                     <Button

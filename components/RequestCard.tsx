@@ -33,7 +33,7 @@ export function RequestCard({
     <Card
       ref={isLast ? lastElementRef : null}
       className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
-        request.is_long_term 
+        request.is_long_term && request.request_type !== 'recurring'
           ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
           : 'bg-white hover:shadow-purple-400/20'
       }`}

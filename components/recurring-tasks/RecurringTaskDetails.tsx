@@ -1,20 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Clock, Calendar, User, CheckCircle, Pause, Play, History, FileText, ChevronDown, ChevronUp, MessageCircle, Zap, XCircle, Hourglass, MapPin, Edit } from 'lucide-react';
+import { Clock, Calendar, User, CheckCircle, Pause, Play, History, FileText, ChevronDown, ChevronUp, MessageCircle, Zap, XCircle, Hourglass, MapPin, Edit, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { RecurringTask, getExecutors } from '@/lib/api';
 import { RoleBasedActionMenu } from '@/components/action-menu';
 import { TaskInstancesList } from './TaskInstancesList';
 import { AssignExecutorsModal } from '@/components/AssignExecutorsModal';
+import { CommentsModal } from '@/components/CommentsModal';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 
 interface RecurringTaskDetailsProps {
@@ -25,7 +28,8 @@ interface RecurringTaskDetailsProps {
   onRateRequest?: (request: any) => void;
   onRedirectToOtherDepartment?: (request: any) => void;
   onAssignExecutor?: (request: any) => void;
-  onToggleLongTerm?: (requestId: number, requestGroupId: number, currentStatus: boolean) => void;
+  onDeleteTask?: (taskId: number) => void;
+  // Убираем onToggleLongTerm для повторяющихся задач
   showComments?: number | null;
   setShowComments?: (id: number | null) => void;
   formErrors?: string | null;
@@ -41,7 +45,8 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   onRateRequest,
   onRedirectToOtherDepartment,
   onAssignExecutor,
-  onToggleLongTerm,
+  onDeleteTask,
+  // Убираем onToggleLongTerm для повторяющихся задач
   showComments: externalShowComments,
   setShowComments: externalSetShowComments,
   formErrors,
@@ -55,7 +60,15 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
   const [selectedSubRequest, setSelectedSubRequest] = useState<any>(null);
   const [executors, setExecutors] = useState<any[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuthStore();
+  
+  // Для Portal
+  useEffect(() => {
+    setMounted(true)
+  }, []);
   
   // Используем внешние состояния, если они переданы, иначе внутренние
   const showComments = externalShowComments !== undefined ? externalShowComments : internalShowComments;
@@ -222,14 +235,26 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   };
 
       return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-0 sm:p-4 z-50" onClick={() => {
-        onClose();
+      <div className={`${isDesktop ? 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50' : 'fixed inset-0 bg-white z-50'} ${isDesktop ? '' : 'flex flex-col'}`} onClick={() => {
+        if (isDesktop) onClose();
       }}>
-        <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} ${isDesktop ? 'max-h-[90vh]' : 'h-full'} overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+        <Card className={`${isDesktop ? 'w-full max-w-2xl max-h-[90vh] overflow-y-auto' : 'w-full h-full flex flex-col'} ${isDesktop ? '' : 'rounded-none border-0 shadow-none'}`} onClick={(e) => e.stopPropagation()}>
                   <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="font-medium text-gray-900 text-base sm:text-lg">Повторяющаяся задача #{task.id}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="font-medium text-gray-900 text-base sm:text-lg">Повторяющаяся задача #{task.id}</CardTitle>
+              {!isDesktop && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3 pb-2 p-4 sm:p-6">
+          <CardContent className={`space-y-3 pb-2 p-4 sm:p-6 ${isDesktop ? '' : 'flex-1 overflow-y-auto pb-6'}`}>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Тип заявки</Label>
@@ -237,7 +262,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
             </div>
             <div>
               <Label>Статус</Label>
-              <Badge className={getStatusColor(task.status)}>{translateStatus(task.status)}</Badge>
+              <Badge className={`${getStatusColor(task.status)} whitespace-nowrap`}>{translateStatus(task.status)}</Badge>
             </div>
           </div>
 
@@ -414,7 +439,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {renderStatusWithTooltip(subRequest.status)}
-                            {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+                            {/* Скрываем информацию о долгосрочных задачах для повторяющихся задач */}
 
                             {/* Кнопка комментариев */}
                             <Button
@@ -443,7 +468,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                               onRateRequest={onRateRequest}
                               onRedirectToOtherDepartment={onRedirectToOtherDepartment}
                               onAssignExecutor={onAssignExecutor}
-                              onToggleLongTerm={onToggleLongTerm}
+                              // Убираем onToggleLongTerm для повторяющихся задач
                             />
                           </div>
                         </div>
@@ -504,10 +529,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                                <span className="text-gray-500">Категория:</span>
                                <span className="font-medium">{subRequest.category?.name || 'Не указана'}</span>
                              </div>
-                             <div className="flex justify-between text-sm">
-                               <span className="text-gray-500">Долгосрочная:</span>
-                               <span className="font-medium">{subRequest.is_long_term ? 'Да' : 'Нет'}</span>
-                             </div>
+                             {/* Скрываем информацию о долгосрочных задачах для повторяющихся задач */}
                            </div>
 
                            {/* Исполнители */}
@@ -582,7 +604,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
           
 
           {/* Кнопки действий */}
-          <div className="flex flex-col gap-2 pt-1 pb-1">
+          <div className={`flex flex-col gap-2 pt-1 pb-1 ${isDesktop ? '' : 'mt-auto'}`}>
             {task.recurring_status === 'active' ? (
               <Button
                 variant="outline"
@@ -603,15 +625,30 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
               </Button>
             )}
             
-            {/* Кнопка закрытия */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="w-full mt-1"
-            >
-              Закрыть
-            </Button>
+            {/* Кнопка удаления для админа */}
+            {userRole === 'admin-worker' && onDeleteTask && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Удалить задачу
+              </Button>
+            )}
+            
+            {/* Кнопка закрытия - только для десктопа */}
+            {isDesktop && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onClose}
+                className="w-full mt-1"
+              >
+                Закрыть
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -641,6 +678,65 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
         executors={executors}
         onSuccess={handleExecutorsAssigned}
       />
+
+      {/* Модальное окно подтверждения удаления */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="w-[95vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle>Подтверждение удаления</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Вы уверены, что хотите удалить эту повторяющуюся задачу? Это действие нельзя отменить.</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (onDeleteTask) {
+                  onDeleteTask(task.id);
+                  onClose();
+                }
+                setShowDeleteConfirm(false);
+              }}
+            >
+              Удалить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Comments Modal */}
+      {isDesktop ? (
+        <CommentsModal
+          isOpen={!!showComments}
+          onClose={() => {
+            setShowComments(null);
+          }}
+          requestId={showComments}
+          currentUserId={user?.id || null}
+          isDesktop={isDesktop}
+        />
+      ) : (
+        // Мобильная версия через Portal
+        mounted && showComments && createPortal(
+          <CommentsModal
+            isOpen={!!showComments}
+            onClose={() => {
+              setShowComments(null);
+            }}
+            requestId={showComments}
+            currentUserId={user?.id || null}
+            isDesktop={isDesktop}
+          />,
+          document.body
+        )
+      )}
     </div>
   );
 };

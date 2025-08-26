@@ -241,7 +241,7 @@ export default function ManagerDashboard() {
         periodStartDate = null;
     }
     const statusMatch = filterStatus === "all" ||
-        (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterStatus);
+        (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterStatus);
     const requestType = request.request_type;
     const typeMatch = filterType === "all" || requestType === filterType;
     const officeMatch = office === "all" || office == String(request.office_id);
@@ -1370,7 +1370,7 @@ export default function ManagerDashboard() {
             </div>
             <div className="flex gap-1 items-center">
               {renderStatusWithTooltip(requestGroup.status)}
-              {isLongTerm && renderLongTermWithTooltip(true)}
+              {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
               <RoleBasedActionMenu
                   request={requestGroup}
                   isDesktop={isDesktop}
@@ -2261,7 +2261,7 @@ export default function ManagerDashboard() {
                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                   {renderStatusWithTooltip(subRequest.status)}
-                                  {renderLongTermWithTooltip(subRequest.is_long_term || false)}
+                                                                      {selectedRequest.request_type !== 'recurring' && renderLongTermWithTooltip(subRequest.is_long_term || false)}
 
                                   {/* Кнопка комментариев */}
                             <Button

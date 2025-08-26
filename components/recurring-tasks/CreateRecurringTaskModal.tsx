@@ -113,11 +113,7 @@ export function CreateRecurringTaskModal({ onTaskCreated }: CreateRecurringTaskM
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Отладочная информация */}
-          <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
-            <div>Текущий recurrence_type: {formData.recurrence_type}</div>
-            <div>Тип значения: {typeof formData.recurrence_type}</div>
-            <div>Все данные формы: {JSON.stringify(formData, null, 2)}</div>
-          </div>
+
           <div className="space-y-2">
             <Label htmlFor="location">Местоположение *</Label>
             <Input

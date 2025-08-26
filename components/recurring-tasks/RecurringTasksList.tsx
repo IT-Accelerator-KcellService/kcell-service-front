@@ -1,17 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Clock, Calendar, User, CheckCircle, Pause, Play, History, UserPlus, UserCog, FileText } from 'lucide-react';
+import { Clock, Calendar, User, CheckCircle, Pause, Play, History, UserPlus, UserCog, FileText, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { getRecurringTasks, toggleRecurringTask, RecurringTask } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { TaskInstancesList } from './TaskInstancesList';
 import { RecurringTaskDetails } from './RecurringTaskDetails';
+import { CommentsModal } from '@/components/CommentsModal';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 interface RecurringTasksListProps {
   userRole?: string;
@@ -22,6 +25,7 @@ interface RecurringTasksListProps {
   onAssignExecutor?: (request: any) => void;
   onToggleLongTerm?: (requestId: number, requestGroupId: number, currentStatus: boolean) => void;
   onShowMap?: (location: { lat: number; lon: number; accuracy: number }) => void;
+  onDeleteTask?: (taskId: number) => void;
 }
 
 export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({ 
@@ -32,7 +36,8 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
   onRedirectToOtherDepartment,
   onAssignExecutor,
   onToggleLongTerm,
-  onShowMap
+  onShowMap,
+  onDeleteTask
 }) => {
   const [tasks, setTasks] = useState<RecurringTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +46,16 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
   const [showTaskDetails, setShowTaskDetails] = useState(false);
   const [showComments, setShowComments] = useState<number | null>(null);
   const [formErrors, setFormErrors] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
+  const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuthStore();
+
+  // Для Portal
+  useEffect(() => {
+    setMounted(true)
+  }, []);
 
   const fetchTasks = async () => {
     try {
@@ -81,19 +95,37 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
     }
   };
 
+  const handleDeleteClick = (taskId: number) => {
+    setTaskToDelete(taskId);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (taskToDelete && onDeleteTask) {
+      try {
+        await onDeleteTask(taskToDelete);
+        setShowDeleteConfirm(false);
+        setTaskToDelete(null);
+        fetchTasks(); // Обновляем список после удаления
+      } catch (error) {
+        console.error('Ошибка при удалении задачи:', error);
+      }
+    }
+  };
+
 
 
   const getStatusBadge = (task: RecurringTask) => {
     // Используем recurring_status для отображения
     switch (task.recurring_status) {
       case 'active':
-        return <Badge className="bg-green-100 text-green-800">Активна</Badge>;
+        return <Badge className="bg-green-100 text-green-800 whitespace-nowrap">Активна</Badge>;
       case 'paused':
-        return <Badge className="bg-yellow-100 text-yellow-800">Приостановлена</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 whitespace-nowrap">Приостановлена</Badge>;
       case 'completed':
-        return <Badge className="bg-gray-100 text-gray-800">Завершена</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800 whitespace-nowrap">Завершена</Badge>;
       default:
-        return <Badge variant="secondary">{task.recurring_status}</Badge>;
+        return <Badge variant="secondary" className="whitespace-nowrap">{task.recurring_status}</Badge>;
     }
   };
 
@@ -160,13 +192,13 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
             <Card key={task.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start gap-2">
-                  <CardTitle className="text-base sm:text-lg break-words flex-1">
+                  <CardTitle className="text-base sm:text-lg break-words flex-1 min-w-0">
                     {task.recurrence_type === 'weekly' && 'Еженедельная задача'}
                     {task.recurrence_type === 'daily' && 'Ежедневная задача'}
                     {task.recurrence_type === 'monthly' && 'Ежемесячная задача'}
                     {task.recurrence_type === 'yearly' && 'Ежегодная задача'}
                   </CardTitle>
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 ml-2">
                     {getStatusBadge(task)}
                   </div>
                 </div>
@@ -247,6 +279,19 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
                       Возобновить
                     </Button>
                   )}
+
+                  {/* Кнопка удаления для админа */}
+                  {userRole === 'admin-worker' && onDeleteTask && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteClick(task.id)}
+                      className="w-full"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Удалить
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -284,7 +329,7 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
         onRateRequest={onRateRequest}
         onRedirectToOtherDepartment={onRedirectToOtherDepartment}
         onAssignExecutor={onAssignExecutor}
-        onToggleLongTerm={onToggleLongTerm}
+        onDeleteTask={onDeleteTask}
         showComments={showComments}
         setShowComments={setShowComments}
         formErrors={formErrors}
@@ -292,6 +337,62 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
         onRefreshTask={fetchTasks}
       />
     )}
+
+      {/* Модальное окно подтверждения удаления */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="w-[95vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle>Подтверждение удаления</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Вы уверены, что хотите удалить эту повторяющуюся задачу? Это действие нельзя отменить.</p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                setTaskToDelete(null);
+              }}
+            >
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+            >
+              Удалить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Comments Modal */}
+      {isDesktop ? (
+        <CommentsModal
+          isOpen={!!showComments}
+          onClose={() => {
+            setShowComments(null);
+          }}
+          requestId={showComments}
+          currentUserId={user?.id || null}
+          isDesktop={isDesktop}
+        />
+      ) : (
+        // Мобильная версия через Portal
+        mounted && showComments && createPortal(
+          <CommentsModal
+            isOpen={!!showComments}
+            onClose={() => {
+              setShowComments(null);
+            }}
+            requestId={showComments}
+            currentUserId={user?.id || null}
+            isDesktop={isDesktop}
+          />,
+          document.body
+        )
+      )}
     </div>
   );
 };
