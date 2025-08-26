@@ -156,7 +156,7 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-        ...(onToggleLongTerm && (request.status === "assigned" || request.status === 'execution') && request.request_type !== 'recurring'
+        ...(onToggleLongTerm && (request.status === "assigned" || request.status === 'execution') && requestGroup.request_type !== 'recurring'
           ? [
               {
                 icon: Clock,
