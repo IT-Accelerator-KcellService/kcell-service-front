@@ -984,9 +984,29 @@ export default function ExecutorDashboard() {
           return request;
         });
 
-      setAssignedRequests(updateRequestStatus);
-      setMyRequests(updateRequestStatus);
-      setCompletedRequests(updateRequestStatus);
+      // Обновляем все состояния
+      setAssignedRequests(prev => updateRequestStatus(prev));
+      setMyRequests(prev => updateRequestStatus(prev));
+      
+      // Для completedRequests нужно добавить завершенную заявку
+      setCompletedRequests(prev => {
+        // Находим завершенную заявку в assignedRequests или myRequests
+        const completedRequest = assignedRequests.find(req => 
+          req.requests?.some(subReq => subReq.id === selectedTaskForComplete.id)
+        ) || myRequests.find(req => 
+          req.requests?.some(subReq => subReq.id === selectedTaskForComplete.id)
+        );
+        
+        if (completedRequest) {
+          const updatedCompletedRequest = updateRequestStatus([completedRequest])[0];
+          // Проверяем, есть ли уже эта заявка в completedRequests
+          const exists = prev.some(req => req.id === updatedCompletedRequest.id);
+          if (!exists) {
+            return [...prev, updatedCompletedRequest];
+          }
+        }
+        return prev;
+      });
 
       setSelectedRequest(null);
 
