@@ -683,7 +683,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           )}
 
           <div>
-            <Label className="flex items-center gap-1">
+            <Label className="flex items-center gap-1 mb-2">
               Тип заявки
             </Label>
             <Select value={requestType} onValueChange={(value) => {
@@ -711,7 +711,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
           {requestType === "planned" && (userRole === 'admin-worker' || userRole === 'department-head') && (
               <div>
-                <Label>Планируемая дата</Label>
+                <Label className="mb-2">Планируемая дата</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                                          <Button
@@ -750,7 +750,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="recurrence_type">Тип повторения</Label>
+                  <Label htmlFor="recurrence_type" className="mb-2">Тип повторения</Label>
                   <Select
                     value={recurrenceType}
                     onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'yearly') => setRecurrenceType(value)}
@@ -768,7 +768,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 </div>
 
                 <div>
-                  <Label htmlFor="recurrence_interval">Интервал</Label>
+                  <Label htmlFor="recurrence_interval" className="mb-2">Интервал</Label>
                   <Select
                     value={String(recurrenceInterval)}
                     onValueChange={(value) => setRecurrenceInterval(parseInt(value))}
@@ -789,7 +789,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
 
               <div>
-                <Label>Дата начала повторения</Label>
+                <Label className="mb-2">Дата начала повторения</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -834,7 +834,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           )}
 
           <div>
-            <Label className="flex items-center gap-1">
+            <Label className="flex items-center gap-1 mb-2">
               Локация
             </Label>
             <div className="flex flex-wrap gap-2">
@@ -872,7 +872,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           </div>
 
           <div>
-            <Label className="flex items-center gap-1">
+            <Label className="flex items-center gap-1 mb-2">
               Расположение в офисе
             </Label>
             <Input
@@ -887,10 +887,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           </div>
 
           <div>
-            <Label className="flex items-center gap-1">
+            <Label className="flex items-center gap-1 mb-2">
               Фотографии (до 3 шт.)
             </Label>
-            <div className={`flex flex-wrap gap-4 mt-2 ${
+            <div className={`flex flex-wrap gap-4 ${
               hasAttemptedSubmit && basicFieldErrors.has('photos') ? 'border-2 border-red-300 border-dashed rounded-lg p-4' : ''
             }`}>
               {photoPreviews.map((photo, index) => (
@@ -1192,7 +1192,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     <div className={`border-t border-gray-100 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
                       <div className="p-6 space-y-5">
                         <div>
-                          <Label htmlFor={`subRequestTitle-${index}`} className="flex items-center gap-1">
+                          <Label htmlFor={`subRequestTitle-${index}`} className="flex items-center gap-1 mb-2">
                             Название под заявки
                           </Label>
                           <Input
@@ -1208,7 +1208,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         </div>
 
                         <div>
-                          <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1">
+                          <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1 mb-2">
                             Категория услуги
                           </Label>
                           <Select
@@ -1238,7 +1238,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         </div>
 
                         <div>
-                          <Label htmlFor={`subRequestDescription-${index}`} className="flex items-center gap-1">
+                          <Label htmlFor={`subRequestDescription-${index}`} className="flex items-center gap-1 mb-2">
                             Описание проблемы
                           </Label>
                           <Textarea
@@ -1260,7 +1260,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                             {/* Выбор исполнителей через Select */}
                             <div className="space-y-3">
                               <div>
-                                <Label className="text-sm font-medium">Добавить исполнителя (необязательно)</Label>
+                                <Label className="text-sm font-medium mb-2">Добавить исполнителя (необязательно)</Label>
                                 <Select
                                   value=""
                                   onValueChange={(value) => {
@@ -1300,7 +1300,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                               {/* Список выбранных исполнителей */}
                               {subRequest.executors && subRequest.executors.length > 0 && (
                                 <div className="space-y-2">
-                                  <Label className="text-sm font-medium">Выбранные исполнители:</Label>
+                                  <Label className="text-sm font-medium mb-2">Выбранные исполнители:</Label>
                                   {subRequest.executors.map(executorData => {
                                     const executor = executors.find(e => e.id === executorData.id);
                                     if (!executor) return null;
@@ -1410,7 +1410,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                           <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
-                                <Label htmlFor={`subRequestComplexity-${index}`} className="flex items-center gap-1">
+                                <Label htmlFor={`subRequestComplexity-${index}`} className="flex items-center gap-1 mb-2">
                                   Сложность
                                 </Label>
                                 <Select
@@ -1437,7 +1437,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                               </div>
 
                               <div>
-                                <Label htmlFor={`subRequestSLA-${index}`} className="flex items-center gap-1">
+                                <Label htmlFor={`subRequestSLA-${index}`} className="flex items-center gap-1 mb-2">
                                   SLA
                                 </Label>
                                 <Select
