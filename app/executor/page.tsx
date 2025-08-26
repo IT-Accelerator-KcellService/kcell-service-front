@@ -981,13 +981,51 @@ export default function ExecutorDashboard() {
     }
     
     setIsSubmitting(true);
+    
+    // Находим группу заявок, к которой принадлежит подзаявка
+    const allRequests = [
+      ...useRequestStore.getState().requests,
+      ...useRequestStore.getState().myRequests,
+      ...useRequestStore.getState().incomingRequests,
+      ...useRequestStore.getState().assignedRequests,
+      ...useRequestStore.getState().completedRequests
+    ];
+    
+    const requestGroup = allRequests.find(group => 
+      group.requests.some(subReq => subReq.id === selectedTaskForComplete.id)
+    );
+    
+    // Сохраняем оригинальное состояние для отката
+    const originalSubRequest = requestGroup?.requests.find(subReq => subReq.id === selectedTaskForComplete.id);
+    const originalGroupPhotos = requestGroup?.photos || [];
+    
     try {
+      // Оптимистичное обновление - сразу обновляем UI
+      const { updateSubRequestComplete, updateRequestGroupStatus } = useRequestStore.getState();
+      
+      if (requestGroup) {
+        // Создаем временные фотографии для оптимистичного обновления
+        const tempPhotos = photos.map((photo, index) => ({
+          id: `temp-${Date.now()}-${index}`,
+          photo_url: URL.createObjectURL(photo),
+          type: 'after',
+          request_id: selectedTaskForComplete.id
+        }));
+        
+        // Обновляем подзаявку: добавляем комментарий, фотографии, меняем статус
+        updateSubRequestComplete(requestGroup.id, selectedTaskForComplete.id, comment, tempPhotos);
+        
+        // Обновляем статус группы заявок
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
+      // Отправляем запрос на сервер
       const response = await api.patch(`/requests/${selectedTaskForComplete.id}/complete`, {
         comment: comment
       });
 
       let uploadedPhotos: any[] = [];
-      if (photos.length > 0) {
+      if (photos.length > 0 && requestGroup) {
         const formData = new FormData();
         photos.forEach((photo) => {
           formData.append('photos', photo);
@@ -1001,76 +1039,68 @@ export default function ExecutorDashboard() {
             }
           });
           uploadedPhotos = photoResponse.data.photos || [];
+          console.log('Загруженные фотографии:', uploadedPhotos);
         } catch (photoUploadError) {
-            console.error("Ошибка при загрузке фотографий:", photoUploadError);
-            // Откатываем создание заявки при ошибке загрузки фото
-            try {
-          await api.delete(`/requests/${response.data.id}`);
-            } catch (deleteError) {
-              console.error("Ошибка при откате заявки:", deleteError);
-            }
-            successModal.showSuccess({
-              title: "Ошибка",
-              message: "Не удалось загрузить фотографии. Заявка не была завершена."
-            });
-            setIsSubmitting(false);
+          console.error("Ошибка при загрузке фотографий:", photoUploadError);
+          // Откатываем создание заявки при ошибке загрузки фото
+          try {
+            await api.delete(`/requests/${response.data.id}`);
+          } catch (deleteError) {
+            console.error("Ошибка при откате заявки:", deleteError);
+          }
+          successModal.showSuccess({
+            title: "Ошибка",
+            message: "Не удалось загрузить фотографии. Заявка не была завершена."
+          });
+          setIsSubmitting(false);
           return;
         }
       }
-
-      console.log(uploadedPhotos);
-
-      // Оптимистичное обновление UI с комментарием и фотографиями
-      const updateRequestStatus = (requests: any[]) =>
-        requests.map((request: any) => {
-          // Обновляем статус главной заявки, если все подзаявки завершены
-          if (request.requests && request.requests.length > 0) {
-            const updatedRequests = request.requests.map((subReq: any) => 
-              subReq.id === selectedTaskForComplete.id ? { 
-                ...subReq, 
-                status: "completed",
-                comment: comment,
-                actual_completion_date: new Date().toISOString(),
-                photos: uploadedPhotos
-              } : subReq
-            );
-            
-            // Проверяем, нужно ли обновить статус главной заявки
-            const allCompleted = updatedRequests.every((subReq: any) => 
-              subReq.status === "completed"
-            );
-            
-            if (allCompleted) {
-              return { ...request, status: "completed", requests: updatedRequests };
-            }
-            return { ...request, requests: updatedRequests };
-          }
-          return request;
-        });
-
-      // Обновляем все состояния
-      setAssignedRequests(prev => updateRequestStatus(prev));
-      setMyRequests(prev => updateRequestStatus(prev));
       
-      // Для completedRequests нужно добавить завершенную заявку
-      setCompletedRequests(prev => {
-        // Находим завершенную заявку в assignedRequests или myRequests
-        const completedRequest = assignedRequests.find(req => 
-          req.requests?.some(subReq => subReq.id === selectedTaskForComplete.id)
-        ) || myRequests.find(req => 
-          req.requests?.some(subReq => subReq.id === selectedTaskForComplete.id)
+      // Обновляем подзаявку с реальными данными с сервера (с фотографиями или без них)
+      if (requestGroup) {
+        const { updateSubRequestComplete } = useRequestStore.getState();
+        console.log('Обновляем с реальными фотографиями:', uploadedPhotos);
+        updateSubRequestComplete(requestGroup.id, selectedTaskForComplete.id, comment, uploadedPhotos);
+      }
+
+      // Проверяем, нужно ли переместить заявку в completedRequests
+      if (requestGroup) {
+        // Получаем обновленное состояние из хранилища
+        const currentState = useRequestStore.getState();
+        const allCurrentRequests = [
+          ...currentState.requests,
+          ...currentState.myRequests,
+          ...currentState.incomingRequests,
+          ...currentState.assignedRequests,
+          ...currentState.completedRequests
+        ];
+        
+        const updatedGroup = allCurrentRequests.find(group => 
+          group.id === requestGroup.id
         );
         
-        if (completedRequest) {
-          const updatedCompletedRequest = updateRequestStatus([completedRequest])[0];
-          // Проверяем, есть ли уже эта заявка в completedRequests
-          const exists = prev.some(req => req.id === updatedCompletedRequest.id);
-          if (!exists) {
-            return [...prev, updatedCompletedRequest];
-          }
+        if (updatedGroup && updatedGroup.status === 'completed') {
+          // Удаляем из assignedRequests и myRequests
+          const { setAssignedRequests, setMyRequests, setCompletedRequests } = useRequestStore.getState();
+          
+          setAssignedRequests(prev => 
+            prev.filter(req => req.id !== requestGroup.id)
+          );
+          setMyRequests(prev => 
+            prev.filter(req => req.id !== requestGroup.id)
+          );
+          
+          // Добавляем в completedRequests, если еще нет
+          setCompletedRequests(prev => {
+            const exists = prev.some(req => req.id === requestGroup.id);
+            if (!exists) {
+              return [...prev, updatedGroup];
+            }
+            return prev;
+          });
         }
-        return prev;
-      });
+      }
 
       setSelectedRequest(null);
 
@@ -1079,15 +1109,25 @@ export default function ExecutorDashboard() {
         message: "Заявка успешно завершена"
       });
       
-      // Не вызываем fetchRequests() чтобы сохранить оптимистичные обновления
       setShowCompleteTaskModal(false);
       setSelectedTaskForComplete(null);
       setIsSubmitting(false);
     } catch (error) {
-      console.error("Ошибка при завершении задачи", error);
+      // В случае ошибки откатываем изменения
+      if (requestGroup && originalSubRequest) {
+        const { updateSubRequestComplete, updateRequestGroupStatus } = useRequestStore.getState();
+        
+        // Возвращаем оригинальное состояние подзаявки и фотографии группы
+        updateSubRequestComplete(
+          requestGroup.id, 
+          selectedTaskForComplete.id, 
+          originalSubRequest.comment || '', 
+          originalGroupPhotos
+        );
+        updateRequestGroupStatus(requestGroup.id);
+      }
       
-      // Откатываем оптимистичное обновление при ошибке
-      fetchRequests();
+      console.error("Ошибка при завершении задачи", error);
       
       rejectModal.showReject({
         title: "Ошибка",

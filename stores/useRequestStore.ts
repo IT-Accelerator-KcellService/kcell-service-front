@@ -23,6 +23,7 @@ interface RequestState {
     updateSubRequestExecutors: (requestGroupId: number, subRequestId: number, executors: any[], status?: string) => void;
     updateRequestGroupStatus: (requestGroupId: number) => void;
     updateSubRequestRedirect: (requestGroupId: number, subRequestId: number, categoryId: number) => void;
+    updateSubRequestComplete: (requestGroupId: number, subRequestId: number, comment: string, photos: any[]) => void;
 }
 
 export interface SubRequest {
@@ -40,7 +41,8 @@ export interface SubRequest {
     is_long_term?: boolean;
     ratings?: number;
     comment?: string;
-    rating?: number
+    rating?: number;
+    photos?: Photo[];
 }
 
 export interface RequestGroup {
@@ -280,6 +282,41 @@ export const useRequestStore = create<RequestState>((set, get) => ({
                                     ? { ...subReq, category_id: categoryId }
                                     : subReq
                             )
+                        }
+                        : group
+                );
+
+            return {
+                requests: updateGroupRequests(state.requests),
+                incomingRequests: updateGroupRequests(state.incomingRequests),
+                myRequests: updateGroupRequests(state.myRequests),
+                assignedRequests: updateGroupRequests(state.assignedRequests),
+                completedRequests: updateGroupRequests(state.completedRequests),
+            };
+        }),
+
+    updateSubRequestComplete: (requestGroupId, subRequestId, comment, photos) =>
+        set((state) => {
+            const updateGroupRequests = (groups: RequestGroup[]) =>
+                groups.map(group =>
+                    group.id === requestGroupId
+                        ? {
+                            ...group,
+                            // Обновляем подзаявку: статус и комментарий
+                            requests: group.requests.map(subReq =>
+                                subReq.id === subRequestId
+                                    ? { ...subReq, status: 'completed', comment }
+                                    : subReq
+                            ),
+                            // Обновляем фотографии главной заявки
+                            photos: photos && photos.length > 0 
+                                ? [
+                                    // Сохраняем существующие фотографии типа 'before'
+                                    ...(group.photos || []).filter(photo => photo.type === 'before'),
+                                    // Добавляем новые фотографии (заменяем временные на реальные)
+                                    ...photos
+                                  ]
+                                : group.photos || []
                         }
                         : group
                 );
