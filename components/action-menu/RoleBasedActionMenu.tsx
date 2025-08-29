@@ -47,6 +47,7 @@ interface RoleBasedActionMenuProps {
   onAssignExecutor?: (request: any) => void
   onUnassignExecutor?: (request: any) => void
   onRateRequest?: (request: any) => void
+  onRateClient?: (requestGroup: any) => void
   onAddComment?: (request: any) => void
   onExportData?: (request: any) => void
   onShareRequest?: (request: any) => void
@@ -72,6 +73,7 @@ export function RoleBasedActionMenu({
   onToggleLongTerm,
   onAssignExecutor,
   onRateRequest,
+  onRateClient,
   onAddComment,
   onRedirectToOtherDepartment,
 }: RoleBasedActionMenuProps) {
@@ -103,7 +105,7 @@ export function RoleBasedActionMenu({
           setOpen(false)
         },
         variant: "default" as const,
-        showForRoles: ["executor", "manager", "department-head", "admin-worker"],
+        showForRoles: ["executor", "manager", "department-head", "admin-worker","client"],
       },
     ] : []
 
@@ -171,13 +173,28 @@ export function RoleBasedActionMenu({
               },
             ]
           : []),
-          ...(onRedirectToOtherDepartment && (request.status !== "completed")
+                        ...(onRedirectToOtherDepartment && (request.status !== "completed")
               ? [
                 {
                   icon: ArrowRight,
                   label: "Перенаправить к другой категории",
                   onClick: () => {
                     onRedirectToOtherDepartment?.(request)
+                    setOpen(false)
+                  },
+                  variant: "default" as const,
+                  showForRoles: ["executor"],
+                },
+              ]
+              : []),
+              ...(onRateClient && requestGroup && requestGroup.status === "completed" && 
+                  requestGroup.client_id && requestGroup.client?.role === "client"
+              ? [
+                {
+                  icon: Star,
+                  label: "Оценить клиента",
+                  onClick: () => {
+                    onRateClient?.(requestGroup)
                     setOpen(false)
                   },
                   variant: "default" as const,
@@ -193,11 +210,11 @@ export function RoleBasedActionMenu({
       if (isSubRequest) {
         // Действия для подзаявок
         roleSpecificActions.push(
-          ...(request.status === "completed" && !request?.rating && (request?.ratings && !request?.ratings[0])
+          ...(request.status === "completed"
             ? [
                 {
                   icon: Star,
-                  label: "Оценить работу",
+                  label: request?.rating ? "Изменить оценку" : "Оценить работу",
                   onClick: () => {
                     onRateRequest?.(request)
                     setOpen(false)
@@ -226,16 +243,6 @@ export function RoleBasedActionMenu({
       } else {
         // Действия для главных заявок (групп)
         roleSpecificActions.push(
-          {
-            icon: Eye,
-            label: "Посмотреть детали",
-            onClick: () => {
-              onViewDetails?.(request)
-              setOpen(false)
-            },
-            variant: "default" as const,
-            showForRoles: ["client"],
-          },
           ...(request.status === "in_progress" && onDelete
             ? [
                 {
@@ -306,11 +313,11 @@ export function RoleBasedActionMenu({
                 },
               ]
               : []),
-          ...(request.status === "completed" && request.client_id === user?.id && !request?.rating && (request?.ratings && !request?.ratings[0])
+          ...(request.status === "completed" && request.client_id === user?.id
               ? [
                 {
                   icon: Star,
-                  label: "Оценить работу",
+                  label: request?.rating ? "Изменить оценку" : "Оценить работу",
                   onClick: () => {
                     onRateRequest?.(request)
                     setOpen(false)
@@ -344,11 +351,11 @@ export function RoleBasedActionMenu({
     if (userRole === "admin-worker") {
       if (isSubRequest) {
         roleSpecificActions.push(
-            ...(request.status === "completed" && !request?.rating && (request?.ratings && !request?.ratings[0])
+            ...(request.status === "completed"
                 ? [
                   {
                     icon: Star,
-                    label: "Оценить работу",
+                    label: request?.rating ? "Изменить оценку" : "Оценить работу",
                     onClick: () => {
                       onRateRequest?.(request)
                       setOpen(false)

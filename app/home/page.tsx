@@ -211,6 +211,43 @@ export default function HomePage() {
         }
     }
 
+    const getClientRatingInfo = (averageRating: string, totalRatings: number) => {
+        const rating = parseFloat(averageRating);
+        if (totalRatings === 0) {
+            return {
+                label: "Нет оценок",
+                icon: <Star className="w-5 h-5 text-gray-300" />,
+                color: "text-gray-500"
+            }
+        }
+        if (rating >= 4.5) {
+            return {
+                label: `${rating} ⭐`,
+                icon: <Star className="w-5 h-5 text-yellow-500" />,
+                color: "text-yellow-600"
+            }
+        }
+        if (rating >= 4.0) {
+            return {
+                label: `${rating} ⭐`,
+                icon: <Star className="w-5 h-5 text-green-500" />,
+                color: "text-green-600"
+            }
+        }
+        if (rating >= 3.0) {
+            return {
+                label: `${rating} ⭐`,
+                icon: <Star className="w-5 h-5 text-blue-500" />,
+                color: "text-blue-600"
+            }
+        }
+        return {
+            label: `${rating} ⭐`,
+            icon: <Star className="w-5 h-5 text-red-500" />,
+            color: "text-red-600"
+        }
+    }
+
     const summary = useMemo(() => {
         if (role !== "manager") {
             return {
@@ -254,6 +291,11 @@ export default function HomePage() {
     const rating = getRatingInfo((clientStats && clientStats.doneRequests ? (
         clientStats.doneRequests
     ): 0))
+
+    const clientRating = getClientRatingInfo(
+        clientStats?.averageRating || "0",
+        clientStats?.totalRatings || 0
+    )
 
     const handleRefresh = async () => {
         try {
@@ -439,6 +481,15 @@ export default function HomePage() {
                                             <div className="text-xs text-neutral-500">Рейтинг</div>
                                             <div className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
                                                 <span className="text-purple-700">{rating.label}</span> {rating.icon}
+                                            </div>
+                                        </div>
+                                        <div className="rounded-lg border bg-white p-3">
+                                            <div className="text-xs text-neutral-500">Оценка от исполнителей</div>
+                                            <div className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
+                                                <span className={clientRating.color}>{clientRating.label}</span> {clientRating.icon}
+                                            </div>
+                                            <div className="text-xs text-neutral-500 mt-1">
+                                                {clientStats?.totalRatings ?? 0} оценок
                                             </div>
                                         </div>
                                     </>

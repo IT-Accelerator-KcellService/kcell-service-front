@@ -30,7 +30,7 @@ export const CompletedTaskReport: React.FC<CompletedTaskReportProps> = ({ subReq
         </div>
 
         {subRequest.comment && subRequest.comment.trim() !== "" && (
-            <div className="bg-white rounded-md p-2 sm:p-3 ">
+            <div className="bg-white rounded-md p-2 sm:p-3">
               <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-xs sm:text-sm break-words">
                 {subRequest.comment}
               </p>

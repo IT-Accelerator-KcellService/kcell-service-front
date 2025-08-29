@@ -113,6 +113,7 @@ export default function DepartmentHeadDashboard() {
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [ratingValue, setRatingValue] = useState(0)
   const [requestToRate, setRequestToRate] = useState<Request | null>(null)
+  const [ratingComment, setRatingComment] = useState("")
   const {incomingRequests, setIncomingRequests, myRequests, setMyRequests, clearRequests} = useRequestStore()
   const [clientInfo, setClientInfo] = useState<Record<number, User>>({})
   const [showMapModal, setShowMapModal] = useState(false)
@@ -148,6 +149,7 @@ export default function DepartmentHeadDashboard() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [modalStack, setModalStack] = useState<string[]>([]);
+  const [userRatings, setUserRatings] = useState<Record<number, any>>({});
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
 
   const openModal = (name: string) => {
@@ -212,6 +214,7 @@ export default function DepartmentHeadDashboard() {
             setShowRatingModal(false);
             setRatingValue(0);
             setRequestToRate(null);
+            setRatingComment("");
             break;
           case 'mapModal':
             setShowMapModal(false);
@@ -275,6 +278,7 @@ export default function DepartmentHeadDashboard() {
       setShowRatingModal(false);
       setRatingValue(0);
       setRequestToRate(null);
+      setRatingComment("");
     }
     if (modalName !== 'executorDelete') {
       setExecutorToDelete(null);
@@ -453,8 +457,36 @@ export default function DepartmentHeadDashboard() {
       });
       setIncomingRequests(sortedOtherRequests);
       setMyRequests(myRequests);
+
+      // Проверяем рейтинги для завершенных заявок
+      const allRequests = [...sortedOtherRequests, ...myRequests];
+      allRequests.forEach((requestGroup) => {
+        requestGroup.requests.forEach((subRequest) => {
+          if (subRequest.status === "completed") {
+            checkUserRating(subRequest.id);
+          }
+        });
+      });
     } catch (error) {
       console.error("Failed to fetch requests:", error);
+    }
+  }, []);
+
+  const checkUserRating = useCallback(async (requestId: number) => {
+    try {
+      const response = await api.get(`/ratings/user/${requestId}`);
+      if (response.data && response.data.length > 0) {
+        const ratingData = response.data[0];
+        setUserRatings(prev => ({
+          ...prev,
+          [requestId]: {
+            ...ratingData,
+            comments: ratingData.comment ? [ratingData.comment] : [] // Преобразуем в массив для совместимости
+          }
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to check user rating:", error);
     }
   }, []);
   const fetchExecutors = useCallback(async () => {
@@ -615,10 +647,28 @@ export default function DepartmentHeadDashboard() {
           updateSubRequestRating(requestGroup.id, requestToRate.id, ratingValue);
         }
 
-        // Отправляем запрос на сервер
-        const response = await api.post(`/ratings`, {
+        // Обновляем локальное состояние рейтингов (для совместимости с существующим кодом)
+        setUserRatings(prev => ({
+          ...prev,
+          [requestToRate.id]: { 
+            id: 0, // временный ID
+            rating: ratingValue,
+            comment: ratingComment,
+            comments: ratingComment ? [ratingComment] : [], // Преобразуем в массив для совместимости
+            request_id: requestToRate.id,
+            created_at: new Date().toISOString()
+          }
+        }));
+
+        // Проверяем, существует ли уже рейтинг для этой заявки
+        const existingRating = userRatings[requestToRate.id];
+        const isUpdate = !!existingRating;
+        
+        // Отправляем запрос на сервер (POST для создания, PUT для обновления)
+        const response = await api[isUpdate ? 'put' : 'post'](`/ratings`, {
           rating: ratingValue,
-          request_id: requestToRate.id
+          request_id: requestToRate.id,
+          comment: ratingComment
         })
 
         setShowRatingModal(false);
@@ -1165,15 +1215,8 @@ export default function DepartmentHeadDashboard() {
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="mb-6">
-                  {/* на телефоне кнопка сверху */}
+                  {/* на телефоне только табы */}
                   <div className="flex flex-col sm:hidden gap-3 mb-4">
-                    <Button
-                        onClick={() => router.push('/create-request')}
-                        className="bg-violet-600 hover:bg-violet-700 w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Создать заявку
-                    </Button>
                     <TabsList className="flex flex-wrap gap-2 w-full">
                       <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
                         <span className="sm:hidden">Входящие</span>
@@ -1245,10 +1288,12 @@ export default function DepartmentHeadDashboard() {
                     isDesktop={isDesktop}
                     onRateRequest={(subReq) => {
                       setRequestToRate(subReq)
+                      // Устанавливаем текущий рейтинг как начальное значение, если он существует
+                      const currentRating = userRatings[subReq.id]?.rating || 0;
+                      setRatingValue(currentRating);
+                      setRatingComment(""); // Сбрасываем комментарий
                       setShowRatingModal(true)
                       openModal('ratingModal')
-                      setSelectedRequest(null);
-                      closeModalWithHistory()
                     }}
                     onRedirectToOtherDepartment={handleOpenRedirectModal}
                     onAssignExecutor={handleAssignExecutors}
@@ -1628,10 +1673,12 @@ export default function DepartmentHeadDashboard() {
                                         isSubRequest={true}
                                         onRateRequest={(subReq) => {
                                           setRequestToRate(subReq)
+                                          // Устанавливаем текущий рейтинг как начальное значение, если он существует
+                                          const currentRating = userRatings[subReq.id]?.rating || 0;
+                                          setRatingValue(currentRating);
+                                          setRatingComment(""); // Сбрасываем комментарий
                                           setShowRatingModal(true)
                                           openModal('ratingModal')
-                                          setSelectedRequest(null);
-                                          closeModalWithHistory()
                                         }}
                                         onRedirectToOtherDepartment={handleOpenRedirectModal}
                                         onAssignExecutor={handleAssignExecutors}
@@ -1687,7 +1734,7 @@ export default function DepartmentHeadDashboard() {
                                     <SubRequestInfo subRequest={subRequest} />
 
                                     {/* Исполнители */}
-                                    <Executors subRequest={subRequest} />
+                                    <Executors subRequest={subRequest} userRatings={userRatings} />
 
                                     {/* Отчет о выполнении для завершенных подзаявок */}
                                     {subRequest.status === "completed" && (
@@ -1871,12 +1918,16 @@ export default function DepartmentHeadDashboard() {
               closeModalWithHistory();
               setRatingValue(0);
               setRequestToRate(null);
+              setRatingComment("");
             }}
             ratingValue={ratingValue}
             onRatingChange={setRatingValue}
             onSubmit={handleRateExecutor}
             title={"Оценить клиента"}
             description={`Пожалуйста, оцените взаимодействие по заявке #${requestToRate?.id}`}
+            currentRating={requestToRate ? userRatings[requestToRate.id]?.rating : undefined}
+            comment={ratingComment}
+            onCommentChange={setRatingComment}
         />
 
         {/* Map Modal */}

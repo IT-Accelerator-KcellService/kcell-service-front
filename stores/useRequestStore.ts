@@ -39,7 +39,7 @@ export interface SubRequest {
     executor?: {user: { id: number; full_name: any; phone?: string }; RequestExecutor?: { role: string } }; // Для обратной совместимости
     executors?: Array<{user: { id: number; full_name: any; phone?: string; }; RequestExecutor?: { role: string } }>; // Новый массив исполнителей
     is_long_term?: boolean;
-    ratings?: number;
+    ratings?: Array<{rating: number; comment?: string; comments?: string[]}>;
     comment?: string;
     rating?: number;
     photos?: Photo[];
@@ -57,7 +57,7 @@ export interface RequestGroup {
     rejection_reason?: string;
     planned_date?: string;
     created_date: string;
-    client?: { full_name: string; email: string; phone?: string };
+    client?: { full_name: string; email: string; phone?: string; role?: string };
     office?: { id: number; name: string; city: string; address?: string };
     photos?: Photo[];
     requests: SubRequest[];

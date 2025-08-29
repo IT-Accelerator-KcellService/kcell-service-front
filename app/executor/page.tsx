@@ -59,6 +59,7 @@ import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import {RejectSubRequestModal} from "@/components/RejectSubRequestModal";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
+import ClientRatingModal from "@/components/ClientRatingModal";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -134,6 +135,13 @@ export default function ExecutorDashboard() {
   const [selectedTaskForComplete, setSelectedTaskForComplete] = useState<any>(null);
   const [showRejectSubRequestModal, setShowRejectSubRequestModal] = useState(false);
   const [selectedSubRequestForReject, setSelectedSubRequestForReject] = useState<any>(null);
+  
+  // Состояние для рейтинга клиента
+  const [showClientRatingModal, setShowClientRatingModal] = useState(false);
+  const [clientRatingValue, setClientRatingValue] = useState(0);
+  const [clientRatingComment, setClientRatingComment] = useState("");
+  const [requestGroupToRate, setRequestGroupToRate] = useState<any>(null);
+  const [clientRatings, setClientRatings] = useState<Record<number, any>>({});
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
@@ -566,6 +574,50 @@ export default function ExecutorDashboard() {
     }
   }
 
+
+
+  // Функция для оценки клиента
+  const handleRateClient = async () => {
+    if (requestGroupToRate && clientRatingValue > 0) {
+      try {
+        // Проверяем, существует ли уже рейтинг для этой группы заявок
+        const existingRating = clientRatings[requestGroupToRate.id];
+        const isUpdate = !!existingRating;
+        
+        // Отправляем запрос на сервер (POST для создания, PUT для обновления)
+        const response = await api[isUpdate ? 'put' : 'post'](`/client-ratings`, {
+          rating: clientRatingValue,
+          request_group_id: requestGroupToRate.id,
+          comment: clientRatingComment
+        });
+
+        // Обновляем локальное состояние
+        setClientRatings(prev => ({
+          ...prev,
+          [requestGroupToRate.id]: {
+            id: response.data.id,
+            rating: clientRatingValue,
+            comment: clientRatingComment,
+            request_group_id: requestGroupToRate.id,
+            created_at: new Date().toISOString()
+          }
+        }));
+
+        setShowClientRatingModal(false);
+        setClientRatingValue(0);
+        setClientRatingComment("");
+        setRequestGroupToRate(null);
+        closeModalWithHistory();
+      } catch (error) {
+        console.error("Failed to rate client:", error);
+        rejectModal.showReject({
+          title: "Ошибка",
+          message: "Не удалось отправить оценку клиента"
+        });
+      }
+    }
+  };
+
   const fetchExecutorId = useCallback(async () => {
     if (!user?.id) return;
     
@@ -801,22 +853,66 @@ export default function ExecutorDashboard() {
       const responseRating = await api.get('ratings/executor')
       const responseMyRating = await api.get('executors/average-rating')
       setMyRating(responseMyRating.data.average_rating)
-      const ratingsMap = new Map<number, number>()
+      const ratingsMap = new Map<number, any>()
       for (const r of responseRating.data) {
-        ratingsMap.set(r.request_id, parseFloat(r.rating))
+        ratingsMap.set(r.request_id, {
+          rating: parseFloat(r.rating),
+          comments: r.comments || []
+        })
       }
 
       const completed = response.data.completedRequests.map((reqGroup: RequestGroup) => ({
         ...reqGroup,
-        requests: reqGroup.requests.map((req: SubRequest) => ({
-          ...req,
-          rating: ratingsMap.get(req.id) || null,
-        })),
+        requests: reqGroup.requests.map((req: SubRequest) => {
+          const ratingData = ratingsMap.get(req.id);
+          return {
+            ...req,
+            rating: ratingData?.rating || null,
+            ratings: ratingData ? [{
+              rating: ratingData.rating,
+              comments: ratingData.comments
+            }] : undefined
+          };
+        }),
       }))
 
       setCompletedRequests(completed)
       setAssignedRequests(response.data.assignedRequests);
       setMyRequests(response.data.myRequests);
+      
+      // Заполняем userRatings данными из /ratings/executor
+      const userRatingsData: Record<number, any> = {};
+      for (const r of responseRating.data) {
+        userRatingsData[r.request_id] = {
+          rating: parseFloat(r.rating),
+          comments: r.comments || [],
+          request_id: r.request_id
+        };
+      }
+      setUserRatings(userRatingsData);
+      
+      // Обрабатываем рейтинги клиентов из ответа API
+      const processClientRatings = (requestGroups: any[]) => {
+        const ratingsData: Record<number, any> = {};
+        requestGroups.forEach((requestGroup: any) => {
+          if (requestGroup.clientRatings && requestGroup.clientRatings.length > 0) {
+            const rating = requestGroup.clientRatings[0]; // Берем первый рейтинг
+            ratingsData[requestGroup.id] = {
+              id: rating.id,
+              rating: rating.rating,
+              comment: rating.comment,
+              request_group_id: requestGroup.id,
+              created_at: rating.created_at,
+              ratedClient: rating.ratedClient
+            };
+          }
+        });
+        setClientRatings(ratingsData);
+      };
+
+      // Обрабатываем рейтинги клиентов для всех групп заявок
+      processClientRatings([...response.data.completedRequests, ...response.data.assignedRequests, ...response.data.myRequests]);
+
     } catch (error) {
       console.error("Failed to fetch requests:", error)
     }
@@ -1356,6 +1452,14 @@ export default function ExecutorDashboard() {
                     setSelectedRequest(request);
                     openModal('requestDetails');
                   }}
+              onRateClient={(requestGroup) => {
+                setRequestGroupToRate(requestGroup);
+                const currentRating = clientRatings[requestGroup.id]?.rating || 0;
+                setClientRatingValue(currentRating);
+                setClientRatingComment("");
+                setShowClientRatingModal(true);
+                openModal('clientRatingModal');
+              }}
             />
           </div>
         </div>
@@ -1531,6 +1635,8 @@ export default function ExecutorDashboard() {
                                     openModal('requestDetails');
                                   }}
                                   renderCardHeader={renderCardHeader}
+                                  clientRating={clientRatings[request.id]}
+                                  userRole="executor"
                               />
                           ))}
                     </div>
@@ -1567,6 +1673,8 @@ export default function ExecutorDashboard() {
                                     openModal('requestDetails');
                                   }}
                                   renderCardHeader={renderCardHeader}
+                                  clientRating={clientRatings[request.id]}
+                                  userRole="executor"
                               />
                           ))}
                     </div>
@@ -1612,6 +1720,8 @@ export default function ExecutorDashboard() {
                                 openModal('requestDetails');
                               }}
                               renderCardHeader={renderCardHeader}
+                              clientRating={clientRatings[request.id]}
+                              userRole="executor"
                           />
                       ))}
                     </div>
@@ -1842,6 +1952,14 @@ export default function ExecutorDashboard() {
                                         onReject={handleRejectSubRequest}
                                         onRedirectToOtherDepartment={handleOpenRedirectModal}
                                         onToggleLongTerm={handleToggleLongTerm}
+                                        onRateClient={(requestGroup) => {
+                                          setRequestGroupToRate(requestGroup);
+                                          const currentRating = clientRatings[requestGroup.id]?.rating || 0;
+                                          setClientRatingValue(currentRating);
+                                          setClientRatingComment("");
+                                          setShowClientRatingModal(true);
+                                          openModal('clientRatingModal');
+                                        }}
                                     />
                                   </div>
                                 </div>
@@ -2027,14 +2145,46 @@ export default function ExecutorDashboard() {
                   )}
 
 
+                  {/* Отображение рейтинга клиента (если исполнитель уже оценил) */}
+                  {selectedRequest.status === "completed" && clientRatings[selectedRequest.id] && selectedRequest.client?.role === "client" && (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Star className="w-5 h-5 text-purple-600" />
+                        <h4 className="font-semibold text-purple-800">Ваша оценка клиента</h4>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span key={star} className={`text-xl ${star <= clientRatings[selectedRequest.id].rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                        <span className="text-sm text-purple-700">
+                          {clientRatings[selectedRequest.id].rating} из 5
+                        </span>
+                      </div>
+                      {clientRatings[selectedRequest.id].comment && (
+                        <div className="mt-2">
+                          <p className="text-sm text-purple-700 break-words">
+                            "{clientRatings[selectedRequest.id].comment}"
+                          </p>
+                        </div>
+                      )}
+                      <div className="mt-2 text-xs text-purple-600">
+                        Оценка от {new Date(clientRatings[selectedRequest.id].created_at).toLocaleDateString('ru-RU')}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => {
                       setSelectedRequest(null);
                       closeModalWithHistory();
                     }}>
                       Закрыть
-                          </Button>
-                      </div>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -2102,6 +2252,24 @@ export default function ExecutorDashboard() {
               closeModalWithHistory();
             }}
             mapLocation={mapLocation}
+        />
+
+        {/* Client Rating Modal */}
+        <ClientRatingModal
+            isOpen={showClientRatingModal && !!requestGroupToRate}
+            onClose={() => {
+              setShowClientRatingModal(false);
+              closeModalWithHistory();
+              setClientRatingValue(0);
+              setClientRatingComment("");
+              setRequestGroupToRate(null);
+            }}
+            ratingValue={clientRatingValue}
+            onRatingChange={setClientRatingValue}
+            onSubmit={handleRateClient}
+            currentRating={requestGroupToRate ? clientRatings[requestGroupToRate.id]?.rating : undefined}
+            comment={clientRatingComment}
+            onCommentChange={setClientRatingComment}
         />
 
         {/* Redirect Modal */}
@@ -2210,6 +2378,26 @@ export default function ExecutorDashboard() {
             onClose={() => setShowIconInfo(null)}
             iconInfo={showIconInfo}
             isDesktop={isDesktop}
+        />
+
+        {/* Client Rating Modal */}
+        <ClientRatingModal
+            isOpen={showClientRatingModal}
+            onClose={() => {
+              setShowClientRatingModal(false);
+              setClientRatingValue(0);
+              setClientRatingComment("");
+              setRequestGroupToRate(null);
+              closeModalWithHistory();
+            }}
+            ratingValue={clientRatingValue}
+            onRatingChange={setClientRatingValue}
+            onSubmit={handleRateClient}
+            title="Оценка клиента"
+            description="Поставьте оценку клиенту за сотрудничество"
+            currentRating={requestGroupToRate ? clientRatings[requestGroupToRate.id]?.rating : undefined}
+            comment={clientRatingComment}
+            onCommentChange={setClientRatingComment}
         />
       </>
   )

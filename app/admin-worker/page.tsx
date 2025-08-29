@@ -113,6 +113,7 @@ export default function AdminWorkerDashboard() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
   const [requestToRate, setRequestToRate] = useState<Request | null>(null);
+  const [ratingComment, setRatingComment] = useState("");
   const { incomingRequests, setIncomingRequests, myRequests, setMyRequests, clearRequests } = useRequestStore();
   const [clientInfo, setClientInfo] = useState<Record<number, User>>({});
   const [showMapModal, setShowMapModal] = useState(false);
@@ -252,6 +253,7 @@ export default function AdminWorkerDashboard() {
             setShowRatingModal(false);
             setRatingValue(0);
             setRequestToRate(null);
+            setRatingComment("");
             break;
           case 'mapModal':
             setShowMapModal(false);
@@ -315,6 +317,7 @@ export default function AdminWorkerDashboard() {
       setShowRatingModal(false);
       setRatingValue(0);
       setRequestToRate(null);
+      setRatingComment("");
     }
 
 
@@ -604,10 +607,14 @@ export default function AdminWorkerDashboard() {
   const checkUserRating = useCallback(async (requestId: number) => {
     try {
       const response = await api.get(`/ratings/user/${requestId}`);
-      if (response.data) {
+      if (response.data && response.data.length > 0) {
+        const ratingData = response.data[0];
         setUserRatings(prev => ({
           ...prev,
-          [requestId]: response.data[0]
+          [requestId]: {
+            ...ratingData,
+            comments: ratingData.comment ? [ratingData.comment] : [] // Преобразуем в массив для совместимости
+          }
         }));
       }
     } catch (error) {
@@ -767,15 +774,22 @@ export default function AdminWorkerDashboard() {
           [requestToRate.id]: {
             id: 0, // временный ID
             rating: ratingValue,
+            comment: ratingComment,
+            comments: ratingComment ? [ratingComment] : [], // Преобразуем в массив для совместимости
             request_id: requestToRate.id,
             created_at: new Date().toISOString()
           }
         }));
 
-        // Отправляем запрос на сервер
-        const response = await api.post(`/ratings`, {
+        // Проверяем, существует ли уже рейтинг для этой заявки
+        const existingRating = userRatings[requestToRate.id];
+        const isUpdate = !!existingRating;
+        
+        // Отправляем запрос на сервер (POST для создания, PUT для обновления)
+        const response = await api[isUpdate ? 'put' : 'post'](`/ratings`, {
           rating: ratingValue,
-          request_id: requestToRate.id
+          request_id: requestToRate.id,
+          comment: ratingComment
         })
 
         setShowRatingModal(false);
@@ -1187,10 +1201,12 @@ export default function AdminWorkerDashboard() {
               }}
               onRateRequest={(request) => {
                 setRequestToRate(request);
+                // Устанавливаем текущий рейтинг как начальное значение, если он существует
+                const currentRating = userRatings[request.id]?.rating || 0;
+                setRatingValue(currentRating);
+                setRatingComment(""); // Сбрасываем комментарий
                 setShowRatingModal(true);
                 openModal('ratingModal');
-                setSelectedRequest(null);
-                closeModalWithHistory();
               }}
               onDelete={(requestGroup) => {
                 setSelectedRequest(requestGroup);
@@ -1312,15 +1328,8 @@ export default function AdminWorkerDashboard() {
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="mb-6">
-                  {/* на телефоне кнопка сверху */}
-                  <div className="flex flex-col sm:hidden gap-3 mb-4">
-                    <Button
-                        onClick={() => router.push('/create-request')}
-                        className="bg-violet-600 hover:bg-violet-700 w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Создать заявку
-                    </Button>
+                  {/* на телефоне только табы */}
+                  <div className="flex flex-col sm:hidden gap-3 mb-12">
                     <TabsList className="flex flex-wrap gap-2 w-full">
                       <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
                         <span className="sm:hidden">Входящие</span>
@@ -1418,10 +1427,12 @@ export default function AdminWorkerDashboard() {
                     isDesktop={isDesktop}
                     onRateRequest={(subReq) => {
                       setRequestToRate(subReq)
+                      // Устанавливаем текущий рейтинг как начальное значение, если он существует
+                      const currentRating = userRatings[subReq.id]?.rating || 0;
+                      setRatingValue(currentRating);
+                      setRatingComment(""); // Сбрасываем комментарий
                       setShowRatingModal(true)
                       openModal('ratingModal')
-                      setSelectedRequest(null);
-                      closeModalWithHistory()
                     }}
                     onRedirectToOtherDepartment={handleOpenRedirectModal}
                     onAssignExecutor={handleAssignExecutors}
@@ -1710,10 +1721,12 @@ export default function AdminWorkerDashboard() {
                                         isSubRequest={true}
                                         onRateRequest={(subReq) => {
                                           setRequestToRate(subReq)
+                                          // Устанавливаем текущий рейтинг как начальное значение, если он существует
+                                          const currentRating = userRatings[subReq.id]?.rating || 0;
+                                          setRatingValue(currentRating);
+                                          setRatingComment(""); // Сбрасываем комментарий
                                           setShowRatingModal(true)
                                           openModal('ratingModal')
-                                          setSelectedRequest(null);
-                                          closeModalWithHistory();
                                         }}
                                         onDelete={(subReq) => {
                                           handleDeleteSubRequest(subReq);
@@ -2068,10 +2081,14 @@ export default function AdminWorkerDashboard() {
             closeModalWithHistory()
                         setRatingValue(0);
                         setRequestToRate(null);
+                        setRatingComment("");
                       }}
           ratingValue={ratingValue}
           onRatingChange={setRatingValue}
           onSubmit={handleRateExecutor}
+          currentRating={requestToRate ? userRatings[requestToRate.id]?.rating : undefined}
+          comment={ratingComment}
+          onCommentChange={setRatingComment}
         />
         {/* Map Modal */}
         <MapModal

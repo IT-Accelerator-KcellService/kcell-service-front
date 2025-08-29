@@ -72,7 +72,8 @@ interface Stats {
   totalRequests: number,
   activeRequests: number,
   doneRequests: number,
-  averageRating: string
+  averageRating: string,
+  totalRatings: number
 }
 
 export default function ClientDashboard() {
@@ -88,6 +89,7 @@ export default function ClientDashboard() {
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [ratingValue, setRatingValue] = useState(0)
   const [requestToRate, setRequestToRate] = useState<SubRequest | null>(null)
+  const [ratingComment, setRatingComment] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isLoggedIn, setIsLoggedIn] = useState(true)
@@ -95,6 +97,7 @@ export default function ClientDashboard() {
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
+  const [clientRatings, setClientRatings] = useState<Record<number, any>>({});
   const { requests, addRequests, clearRequests, removeRequest } = useRequestStore();
 
   const [showProfile, setShowProfile] = useState(false)
@@ -233,6 +236,7 @@ export default function ClientDashboard() {
             setShowRatingModal(false);
             setRatingValue(0);
             setRequestToRate(null);
+            setRatingComment("");
             break;
           case 'mapModal':
             setShowMapModal(false);
@@ -269,6 +273,12 @@ export default function ClientDashboard() {
     }
     if (modalName !== 'requestDetails') {
       setSelectedRequest(null);
+    }
+    if (modalName !== 'ratingModal') {
+      setShowRatingModal(false);
+      setRatingValue(0);
+      setRequestToRate(null);
+      setRatingComment("");
     }
     if (modalName !== 'mapModal') {
       setShowMapModal(false);
@@ -440,15 +450,38 @@ export default function ClientDashboard() {
   const checkUserRating = useCallback(async (requestId: number) => {
     try {
       const response = await api.get(`/ratings/user/${requestId}`);
-      if (response.data) {
+      if (response.data && response.data.length > 0) {
+        const ratingData = response.data[0];
         setUserRatings(prev => ({
           ...prev,
-          [requestId]: response.data[0]
+          [requestId]: {
+            ...ratingData,
+            comments: ratingData.comment ? [ratingData.comment] : [] // Преобразуем в массив для совместимости
+          }
         }));
       }
     } catch (error) {
       console.error("Failed to check user rating:", error);
     }
+  }, []);
+
+  // Функция для обработки рейтингов клиентов из ответа API
+  const processClientRatings = useCallback((requestGroups: any[]) => {
+    const ratingsData: Record<number, any> = {};
+    requestGroups.forEach((requestGroup: any) => {
+      if (requestGroup.clientRatings && requestGroup.clientRatings.length > 0) {
+        const rating = requestGroup.clientRatings[0]; // Берем первый рейтинг
+        ratingsData[requestGroup.id] = {
+          id: rating.id,
+          rating: rating.rating,
+          comment: rating.comment,
+          request_group_id: requestGroup.id,
+          created_at: rating.created_at,
+          ratedByUser: rating.ratedByUser
+        };
+      }
+    });
+    setClientRatings(ratingsData);
   }, []);
 
   const fetchRequests = useCallback(async (pageToFetch = page) => {
@@ -459,6 +492,9 @@ export default function ClientDashboard() {
       const newRequestGroups = response.data.requests ?? [];
 
       addRequests(newRequestGroups);
+
+      // Обрабатываем рейтинги клиентов из ответа API
+      processClientRatings(newRequestGroups);
 
       if (newRequestGroups.length < pageSize) {
         setHasMore(false);
@@ -480,7 +516,7 @@ export default function ClientDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, addRequests, checkUserRating]);
+  }, [page, pageSize, addRequests, checkUserRating, processClientRatings]);
 
   useEffect(() => {
     if (requests.length === 0) {
@@ -646,15 +682,22 @@ export default function ClientDashboard() {
           [requestToRate.id]: { 
             id: 0, // временный ID
             rating: ratingValue,
+            comment: ratingComment,
+            comments: ratingComment ? [ratingComment] : [], // Преобразуем в массив для совместимости
             request_id: requestToRate.id,
             created_at: new Date().toISOString()
           }
         }));
         
-        // Отправляем запрос на сервер
-        const response = await api.post(`/ratings`, {
+        // Проверяем, существует ли уже рейтинг для этой заявки
+        const existingRating = userRatings[requestToRate.id];
+        const isUpdate = !!existingRating;
+        
+        // Отправляем запрос на сервер (POST для создания, PUT для обновления)
+        const response = await api[isUpdate ? 'put' : 'post'](`/ratings`, {
           rating: ratingValue,
-          request_id: requestToRate.id
+          request_id: requestToRate.id,
+          comment: ratingComment
         })
         
         setShowRatingModal(false)
@@ -889,10 +932,12 @@ export default function ClientDashboard() {
                   }}
                   onRateRequest={(subReq) => {
                     setRequestToRate(subReq)
+                    // Устанавливаем текущий рейтинг как начальное значение, если он существует
+                    const currentRating = userRatings[subReq.id]?.rating || 0;
+                    setRatingValue(currentRating);
+                    setRatingComment(""); // Сбрасываем комментарий
                     setShowRatingModal(true)
                     openModal('ratingModal')
-                    setSelectedRequest(null);
-                    closeModalWithHistory()
                   }}
                   onDelete={(request) => {
                     handleDeleteRequest(request);
@@ -997,15 +1042,8 @@ export default function ClientDashboard() {
           <div className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="mb-6">
-                {/* на телефоне кнопка сверху */}
+                {/* на телефоне только табы */}
                 <div className="flex flex-col sm:hidden gap-3 mb-4">
-                  <Button
-                      onClick={() => router.push('/create-request')}
-                      className="bg-violet-600 hover:bg-violet-700 w-full"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать заявку
-                  </Button>
                   <TabsList>
                     <TabsTrigger value="requests">Мои заявки</TabsTrigger>
                     <TabsTrigger value="statistics">Статистика</TabsTrigger>
@@ -1030,6 +1068,7 @@ export default function ClientDashboard() {
 
               <TabsContent value="requests">
                 <div className="space-y-4">
+
                   <div className="flex items-center space-x-4 mb-4">
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                       <SelectTrigger className="w-48">
@@ -1070,6 +1109,8 @@ export default function ClientDashboard() {
                               renderCardHeader={renderCardHeader}
                               isLast={isLast}
                               lastElementRef={lastRequestRef}
+                              clientRating={clientRatings[requestGroup.id]}
+                              userRole="client"
                           />
                       );})}
                   </div>
@@ -1095,9 +1136,15 @@ export default function ClientDashboard() {
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span>Средняя оценка исполнителей</span>
+                            <span>Средняя оценка от исполнителей</span>
                             <span className="font-bold">
                               {stats && stats.averageRating ? (stats.averageRating) : 0}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Количество полученных оценок</span>
+                            <span className="font-bold text-purple-600">
+                              {stats && stats.totalRatings ? (stats.totalRatings) : 0}
                             </span>
                           </div>
                         </div>
@@ -1214,13 +1261,15 @@ export default function ClientDashboard() {
                                         isDesktop={isDesktop}
                                         userRole="client"
                                         isSubRequest={true}
-                                        onRateRequest={(subReq) => {
-                                          setRequestToRate(subReq)
-                                          setShowRatingModal(true)
-                                          openModal('ratingModal')
-                                          setSelectedRequest(null);
-                                          closeModalWithHistory()
-                                        }}
+                                                                                  onRateRequest={(subReq) => {
+                                            setRequestToRate(subReq)
+                                            // Устанавливаем текущий рейтинг как начальное значение, если он существует
+                                            const currentRating = userRatings[subReq.id]?.rating || 0;
+                                            setRatingValue(currentRating);
+                                            setRatingComment(""); // Сбрасываем комментарий
+                                            setShowRatingModal(true)
+                                            openModal('ratingModal')
+                                          }}
                                         onDelete={(subReq) => {
                                           handleDeleteSubRequest(subReq);
                                         }}
@@ -1412,6 +1461,38 @@ export default function ClientDashboard() {
 
 
 
+                  {/* Отображение рейтинга клиента */}
+                  {selectedRequest.status === "completed" && clientRatings[selectedRequest.id] && selectedRequest.client?.role === "client" && (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Star className="w-5 h-5 text-purple-600" />
+                        <h4 className="font-semibold text-purple-800">Оценка от исполнителя</h4>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span key={star} className={`text-xl ${star <= clientRatings[selectedRequest.id].rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                              ★
+                            </span>
+                          ))}
+                        </div>
+                        <span className="text-sm text-purple-700">
+                          {clientRatings[selectedRequest.id].rating} из 5
+                        </span>
+                      </div>
+                      {clientRatings[selectedRequest.id].comment && (
+                        <div className="mt-2">
+                          <p className="text-sm text-purple-700 break-words">
+                            "{clientRatings[selectedRequest.id].comment}"
+                          </p>
+                        </div>
+                      )}
+                      <div className="mt-2 text-xs text-purple-600">
+                        Оценка от: {clientRatings[selectedRequest.id].ratedByUser?.full_name || 'Исполнитель'}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => {
                       setSelectedRequest(null);
@@ -1442,10 +1523,14 @@ export default function ClientDashboard() {
               closeModalWithHistory();
               setRatingValue(0);
               setRequestToRate(null);
+              setRatingComment("");
             }}
             ratingValue={ratingValue}
             onRatingChange={setRatingValue}
             onSubmit={handleRateExecutor}
+            currentRating={requestToRate ? userRatings[requestToRate.id]?.rating : undefined}
+            comment={ratingComment}
+            onCommentChange={setRatingComment}
         />
 
         {/* Модалка */}

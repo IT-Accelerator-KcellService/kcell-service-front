@@ -1,33 +1,32 @@
-"use client"
+import React, { useState } from 'react';
+import { Star, X } from 'lucide-react';
 
-import React from "react"
-
-interface RatingModalProps {
-  isOpen: boolean
-  onClose: () => void
-  ratingValue: number
-  onRatingChange: (rating: number) => void
-  onSubmit: () => void
-  title?: string
-  description?: string
-  currentRating?: number
-  comment?: string
-  onCommentChange?: (comment: string) => void
+interface ClientRatingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  ratingValue: number;
+  onRatingChange: (rating: number) => void;
+  onSubmit: () => void;
+  title?: string;
+  description?: string;
+  currentRating?: number;
+  comment?: string;
+  onCommentChange?: (comment: string) => void;
 }
 
-export function RatingModal({
+export default function ClientRatingModal({
   isOpen,
   onClose,
   ratingValue,
   onRatingChange,
   onSubmit,
-  title = "Оценка заявки",
-  description = "Поставьте оценку выполненной работе",
+  title = "Оценка клиента",
+  description = "Поставьте оценку клиенту за сотрудничество",
   currentRating,
   comment = "",
   onCommentChange
-}: RatingModalProps) {
-  if (!isOpen) return null
+}: ClientRatingModalProps) {
+  if (!isOpen) return null;
 
   const isUpdate = !!currentRating;
   const showCommentField = ratingValue > 0 && ratingValue < 4;
@@ -84,13 +83,13 @@ export function RatingModal({
               <textarea
                 value={comment}
                 onChange={(e) => onCommentChange?.(e.target.value)}
-                placeholder="Опишите, что именно вас не устроило..."
+                placeholder="Опишите, что именно вас не устроило в сотрудничестве..."
                 className="w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none break-words"
                 rows={3}
                 required
               />
               <p className="text-xs text-gray-500 mt-1 text-left">
-                Это поможет нам улучшить качество обслуживания
+                Это поможет улучшить качество обслуживания
               </p>
             </div>
           )}
@@ -113,5 +112,5 @@ export function RatingModal({
         </div>
       </div>
     </div>
-  )
+  );
 }

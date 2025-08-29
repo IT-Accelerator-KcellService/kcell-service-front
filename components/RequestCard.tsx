@@ -11,6 +11,8 @@ interface RequestCardProps {
   renderCardHeader: (request: RequestGroup) => React.ReactNode
   isLast?: boolean
   lastElementRef?: (node: HTMLDivElement) => void
+  clientRating?: any
+  userRole?: string
 }
 
 export function RequestCard({
@@ -18,7 +20,9 @@ export function RequestCard({
   onCardClick,
   renderCardHeader,
   isLast = false,
-  lastElementRef
+  lastElementRef,
+  clientRating,
+  userRole
 }: RequestCardProps) {
 
   const formatDate = (dateString: string) => {
@@ -81,6 +85,32 @@ export function RequestCard({
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Рейтинг клиента */}
+        {clientRating && request.status === "completed" && request.client?.role === "client" && (
+          <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-medium text-purple-800">
+                  {userRole === "client" ? "Оценка от исполнителя:" : "Оценка клиента:"}
+                </span>
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span key={star} className={`text-sm ${star <= clientRating.rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                    ★
+                  </span>
+                ))}
+              </div>
+              <span className="text-xs text-purple-700">
+                {clientRating.rating}/5
+              </span>
+            </div>
+            {clientRating.comment && (
+              <p className="text-xs text-purple-700 break-words line-clamp-2">
+                "{clientRating.comment}"
+              </p>
+            )}
           </div>
         )}
 

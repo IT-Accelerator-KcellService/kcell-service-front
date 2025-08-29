@@ -8,6 +8,8 @@ export interface ClientStats {
     activeRequests: number;
     doneRequests: number;
     overdueRequests: number;
+    averageRating: string;
+    totalRatings: number;
 }
 
 export interface AdminWorkerStats {
@@ -73,6 +75,8 @@ export type StatsState = {
         activeRequests: 0;
         doneRequests: 0;
         overdueRequests: 0;
+        averageRating: "0";
+        totalRatings: 0;
     };
     adminWorkerStats: AdminWorkerStats | {
         totalRequests: 0;
@@ -139,6 +143,8 @@ export const useStatsStore = create<StatsState & StatsActions>()(
                 activeRequests: 0,
                 doneRequests: 0,
                 overdueRequests: 0,
+                averageRating: "0",
+                totalRatings: 0,
             },
             adminWorkerStats: {
                 totalRequests: 0,
@@ -241,6 +247,8 @@ export const useStatsStore = create<StatsState & StatsActions>()(
                         activeRequests: 0,
                         doneRequests: 0,
                         overdueRequests: 0,
+                        averageRating: "0",
+                        totalRatings: 0,
                     },
                     adminWorkerStats: {
                         totalRequests: 0,
