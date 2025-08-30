@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format } from "date-fns"
 import { ru } from "date-fns/locale"
-import { Calendar as CalendarIcon, Filter, RefreshCw, Eye, User, Clock, Activity } from "lucide-react"
+import { Calendar as CalendarIcon, Filter, RefreshCw, Eye, User, Clock, Activity, Star, Bell } from "lucide-react"
 import api from "@/lib/api"
 
 interface Log {
@@ -36,8 +37,61 @@ interface Log {
   }
 }
 
+interface RatingLog {
+  id: number
+  rating_type: string
+  rating_id: number
+  user_id: number
+  action_type: string
+  action_description: string
+  old_values: any
+  new_values: any
+  created_at: string
+  user?: {
+    id: number
+    full_name: string
+    email: string
+    role: string
+  }
+}
+
+interface NotificationLog {
+  id: number
+  notification_id: number
+  user_id: number
+  notification_type: string
+  delivery_method: string
+  status: string
+  error_message: string | null
+  recipient_email: string | null
+  fcm_token: string | null
+  created_at: string
+  user?: {
+    id: number
+    full_name: string
+    email: string
+    role: string
+  }
+}
+
 interface LogsResponse {
   logs: Log[]
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
+interface RatingLogsResponse {
+  logs: RatingLog[]
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
+interface NotificationLogsResponse {
+  logs: NotificationLog[]
   page: number
   pageSize: number
   total: number
@@ -81,7 +135,28 @@ const actionTypeLabels: Record<string, string> = {
   rejected: "Отклонено",
 }
 
+const ratingTypeLabels: Record<string, string> = {
+  client_rating: "Оценка клиента",
+  request_rating: "Оценка заявки",
+}
+
+const notificationStatusLabels: Record<string, string> = {
+  sent: "Отправлено",
+  delivered: "Доставлено",
+  failed: "Ошибка",
+  pending: "В ожидании",
+}
+
+const deliveryMethodLabels: Record<string, string> = {
+  email: "Email",
+  push: "Push",
+  in_app: "В приложении",
+}
+
 export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
+  const [activeTab, setActiveTab] = useState("requests")
+  
+  // Логи заявок
   const [logs, setLogs] = useState<Log[]>([])
   const [statistics, setStatistics] = useState<Statistics | null>(null)
   const [loading, setLoading] = useState(false)
@@ -90,8 +165,24 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   
+  // Логи рейтингов
+  const [ratingLogs, setRatingLogs] = useState<RatingLog[]>([])
+  const [ratingLoading, setRatingLoading] = useState(false)
+  const [ratingPage, setRatingPage] = useState(1)
+  const [ratingTotal, setRatingTotal] = useState(0)
+  const [ratingTotalPages, setRatingTotalPages] = useState(0)
+  
+  // Логи уведомлений
+  const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([])
+  const [notificationLoading, setNotificationLoading] = useState(false)
+  const [notificationPage, setNotificationPage] = useState(1)
+  const [notificationTotal, setNotificationTotal] = useState(0)
+  const [notificationTotalPages, setNotificationTotalPages] = useState(0)
+  
   // Фильтры
   const [actionType, setActionType] = useState<string>("all")
+  const [ratingType, setRatingType] = useState<string>("all")
+  const [notificationStatus, setNotificationStatus] = useState<string>("all")
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [endDate, setEndDate] = useState<Date | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState<string>("")
@@ -174,23 +265,123 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
     }
   }
 
+  const fetchRatingLogs = async () => {
+    setRatingLoading(true)
+    try {
+      const params = new URLSearchParams()
+      params.append("page", ratingPage.toString())
+      params.append("pageSize", pageSize.toString())
+      
+      if (ratingType !== "all") {
+        params.append("ratingType", ratingType)
+      }
+      if (actionType !== "all") {
+        params.append("actionType", actionType)
+      }
+      if (startDate && endDate) {
+        params.append("startDate", format(startDate, "yyyy-MM-dd"))
+        params.append("endDate", format(endDate, "yyyy-MM-dd"))
+      }
+
+      const response = await api.get<{success: boolean, data: RatingLogsResponse}>(`/rating-logs/type/request_rating?${params.toString()}`)
+      console.log('Rating logs response:', response.data)
+      if (response.data.success && response.data.data) {
+        setRatingLogs(response.data.data.logs)
+        setRatingTotal(response.data.data.total)
+        setRatingTotalPages(response.data.data.totalPages)
+      } else {
+        setRatingLogs([])
+        setRatingTotal(0)
+        setRatingTotalPages(0)
+      }
+    } catch (error) {
+      console.error("Ошибка при загрузке логов рейтингов:", error)
+      setRatingLogs([])
+      setRatingTotal(0)
+      setRatingTotalPages(0)
+    } finally {
+      setRatingLoading(false)
+    }
+  }
+
+  const fetchNotificationLogs = async () => {
+    setNotificationLoading(true)
+    try {
+      const params = new URLSearchParams()
+      params.append("page", notificationPage.toString())
+      params.append("pageSize", pageSize.toString())
+      
+      if (notificationStatus !== "all") {
+        params.append("status", notificationStatus)
+      }
+      if (startDate && endDate) {
+        params.append("startDate", format(startDate, "yyyy-MM-dd"))
+        params.append("endDate", format(endDate, "yyyy-MM-dd"))
+      }
+
+      const response = await api.get<{success: boolean, data: NotificationLogsResponse}>(`/notification-logs/status/delivered?${params.toString()}`)
+      console.log('Notification logs response:', response.data)
+      if (response.data.success && response.data.data) {
+        setNotificationLogs(response.data.data.logs)
+        setNotificationTotal(response.data.data.total)
+        setNotificationTotalPages(response.data.data.totalPages)
+      } else {
+        setNotificationLogs([])
+        setNotificationTotal(0)
+        setNotificationTotalPages(0)
+      }
+    } catch (error) {
+      console.error("Ошибка при загрузке логов уведомлений:", error)
+      setNotificationLogs([])
+      setNotificationTotal(0)
+      setNotificationTotalPages(0)
+    } finally {
+      setNotificationLoading(false)
+    }
+  }
+
   useEffect(() => {
+    console.log('Fetching logs with params:', { page, actionType, startDate, endDate, searchQuery, userRole })
     fetchLogs()
     fetchStatistics()
   }, [page, actionType, startDate, endDate, searchQuery, userRole])
 
+  useEffect(() => {
+    if (activeTab === "ratings") {
+      fetchRatingLogs()
+    }
+  }, [activeTab, ratingPage, ratingType, actionType, startDate, endDate, userRole])
+
+  useEffect(() => {
+    if (activeTab === "notifications") {
+      fetchNotificationLogs()
+    }
+  }, [activeTab, notificationPage, notificationStatus, startDate, endDate, userRole])
+
   const handleRefresh = () => {
     setPage(1)
+    setRatingPage(1)
+    setNotificationPage(1)
     fetchLogs()
     fetchStatistics()
+    if (activeTab === "ratings") {
+      fetchRatingLogs()
+    }
+    if (activeTab === "notifications") {
+      fetchNotificationLogs()
+    }
   }
 
   const clearFilters = () => {
     setActionType("all")
+    setRatingType("all")
+    setNotificationStatus("all")
     setStartDate(undefined)
     setEndDate(undefined)
     setSearchQuery("")
     setPage(1)
+    setRatingPage(1)
+    setNotificationPage(1)
   }
 
   const formatDate = (dateString: string) => {
@@ -216,8 +407,26 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
 
   return (
     <div className="space-y-6 w-full max-w-full overflow-hidden">
-      {/* Статистика */}
-      {loading && !statistics ? (
+      {/* Табы */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="requests" className="flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            Заявки
+          </TabsTrigger>
+          <TabsTrigger value="ratings" className="flex items-center gap-2">
+            <Star className="w-4 h-4" />
+            Рейтинги
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <Bell className="w-4 h-4" />
+            Уведомления
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="requests" className="space-y-6">
+          {/* Статистика */}
+          {loading && !statistics ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i} className="w-full">
@@ -383,10 +592,10 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
       {/* Логи */}
       <Card className="w-full">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base md:text-lg">Логи заявок</CardTitle>
-          <CardDescription className="text-sm">
-            Показано {logs.length} из {total} записей
-          </CardDescription>
+                     <CardTitle className="text-base md:text-lg">Логи заявок</CardTitle>
+           <CardDescription className="text-sm">
+             Показано {logs.length} из {total} записей (loading: {loading.toString()})
+           </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -476,6 +685,289 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="ratings" className="space-y-6">
+          {/* Фильтры для рейтингов */}
+          <Card className="w-full">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                <Filter className="w-4 h-4 md:w-5 md:h-5" />
+                Фильтры логов рейтингов
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-4 w-full">
+                <div>
+                  <Label htmlFor="ratingType">Тип рейтинга</Label>
+                  <Select value={ratingType || "all"} onValueChange={setRatingType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Все типы" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Все типы</SelectItem>
+                      {Object.entries(ratingTypeLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="actionType">Тип действия</Label>
+                  <Select value={actionType || "all"} onValueChange={setActionType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Все действия" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Все действия</SelectItem>
+                      {Object.entries(actionTypeLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Логи рейтингов */}
+          <Card className="w-full">
+            <CardHeader className="pb-3">
+                             <CardTitle className="text-base md:text-lg">Логи рейтингов</CardTitle>
+               <CardDescription className="text-sm">
+                 Показано {ratingLogs?.length || 0} из {ratingTotal} записей
+               </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {ratingLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+                  Загрузка логов рейтингов...
+                </div>
+                             ) : ratingLogs?.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  Логи рейтингов не найдены
+                </div>
+              ) : (
+                                 <div className="space-y-4 w-full">
+                   {ratingLogs?.map((log) => (
+                    <div key={log.id} className="border rounded-lg p-3 md:p-4 hover:bg-gray-50 transition-colors w-full break-words">
+                      <div className="flex items-start justify-between w-full">
+                        <div className="flex-1 min-w-0 max-w-full">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <Star className="w-4 h-4" />
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${actionTypeColors[log.action_type] || "bg-gray-100 text-gray-800 border-gray-200"}`}
+                            >
+                              {actionTypeLabels[log.action_type] || log.action_type}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-200">
+                              {ratingTypeLabels[log.rating_type] || log.rating_type}
+                            </Badge>
+                            <span className="text-xs md:text-sm text-gray-500">
+                              {formatDate(log.created_at)}
+                            </span>
+                          </div>
+                          
+                          <p className="text-sm font-medium mb-1 break-words max-w-full overflow-hidden">{log.action_description}</p>
+                          
+                                                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-600 w-full">
+                             <div className="flex items-center gap-1 min-w-0 flex-1">
+                               <User className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                               <span className="truncate">
+                                 {log.user ? `${log.user.full_name} (${log.user.role})` : `Пользователь ID: ${log.user_id}`}
+                               </span>
+                             </div>
+                             <div className="flex items-center gap-1 min-w-0 flex-1">
+                               <span className="truncate">Рейтинг ID: {log.rating_id}</span>
+                             </div>
+                           </div>
+
+                          {(log.old_values || log.new_values) && (
+                            <div className="mt-2 text-xs text-gray-500 w-full">
+                              {log.old_values && (
+                                <div className="break-all">Было: {JSON.stringify(log.old_values)}</div>
+                              )}
+                              {log.new_values && (
+                                <div className="break-all">Стало: {JSON.stringify(log.new_values)}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Пагинация для рейтингов */}
+              {ratingTotalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 w-full">
+                  <div className="text-sm text-gray-500 text-center sm:text-left">
+                    Страница {ratingPage} из {ratingTotalPages}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRatingPage(ratingPage - 1)}
+                      disabled={ratingPage === 1}
+                      className="px-3 py-1 text-xs"
+                    >
+                      Назад
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRatingPage(ratingPage + 1)}
+                      disabled={ratingPage === ratingTotalPages}
+                      className="px-3 py-1 text-xs"
+                    >
+                      Вперед
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-6">
+          {/* Фильтры для уведомлений */}
+          <Card className="w-full">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                <Filter className="w-4 h-4 md:w-5 md:h-5" />
+                Фильтры логов уведомлений
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-4 w-full">
+                <div>
+                  <Label htmlFor="notificationStatus">Статус уведомления</Label>
+                  <Select value={notificationStatus || "all"} onValueChange={setNotificationStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Все статусы" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Все статусы</SelectItem>
+                      {Object.entries(notificationStatusLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Логи уведомлений */}
+          <Card className="w-full">
+            <CardHeader className="pb-3">
+                             <CardTitle className="text-base md:text-lg">Логи уведомлений</CardTitle>
+               <CardDescription className="text-sm">
+                 Показано {notificationLogs?.length || 0} из {notificationTotal} записей
+               </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {notificationLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+                  Загрузка логов уведомлений...
+                </div>
+                             ) : notificationLogs?.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  Логи уведомлений не найдены
+                </div>
+              ) : (
+                <div className="space-y-4 w-full">
+                  {notificationLogs?.map((log) => (
+                    <div key={log.id} className="border rounded-lg p-3 md:p-4 hover:bg-gray-50 transition-colors w-full break-words">
+                      <div className="flex items-start justify-between w-full">
+                        <div className="flex-1 min-w-0 max-w-full">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <Bell className="w-4 h-4" />
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                log.status === 'delivered' ? 'bg-green-100 text-green-800 border-green-200' :
+                                log.status === 'failed' ? 'bg-red-100 text-red-800 border-red-200' :
+                                log.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                'bg-gray-100 text-gray-800 border-gray-200'
+                              }`}
+                            >
+                              {notificationStatusLabels[log.status] || log.status}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-200">
+                              {deliveryMethodLabels[log.delivery_method] || log.delivery_method}
+                            </Badge>
+                            <span className="text-xs md:text-sm text-gray-500">
+                              {formatDate(log.created_at)}
+                            </span>
+                          </div>
+                          
+                          <p className="text-sm font-medium mb-1 break-words max-w-full overflow-hidden">
+                            {log.notification_type} - {log.recipient_email || 'Email не указан'}
+                          </p>
+                          
+                                                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-600 w-full">
+                             <div className="flex items-center gap-1 min-w-0 flex-1">
+                               <User className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                               <span className="truncate">
+                                 {log.user ? `${log.user.full_name} (${log.user.role})` : `Пользователь ID: ${log.user_id}`}
+                               </span>
+                             </div>
+                             <div className="flex items-center gap-1 min-w-0 flex-1">
+                               <span className="truncate">Уведомление ID: {log.notification_id}</span>
+                             </div>
+                           </div>
+
+                          {log.error_message && (
+                            <div className="mt-2 text-xs text-red-500 w-full">
+                              Ошибка: {log.error_message}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Пагинация для уведомлений */}
+              {notificationTotalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 w-full">
+                  <div className="text-sm text-gray-500 text-center sm:text-left">
+                    Страница {notificationPage} из {notificationTotalPages}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setNotificationPage(notificationPage - 1)}
+                      disabled={notificationPage === 1}
+                      className="px-3 py-1 text-xs"
+                    >
+                      Назад
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setNotificationPage(notificationPage + 1)}
+                      disabled={notificationPage === notificationTotalPages}
+                      className="px-3 py-1 text-xs"
+                    >
+                      Вперед
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
