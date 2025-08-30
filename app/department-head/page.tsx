@@ -474,16 +474,16 @@ export default function DepartmentHeadDashboard() {
 
   const checkUserRating = useCallback(async (requestId: number) => {
     try {
-      const response = await api.get(`/ratings/user/${requestId}`);
-      if (response.data && response.data.length > 0) {
-        const ratingData = response.data[0];
-        setUserRatings(prev => ({
-          ...prev,
-          [requestId]: {
-            ...ratingData,
-            comments: ratingData.comment ? [ratingData.comment] : [] // Преобразуем в массив для совместимости
-          }
-        }));
+      const response = await api.get(`/ratings/request/${requestId}`);
+      if(response.data.success && response.data.data.length > 0) {
+          const ratingData = response.data.data[0];
+          setUserRatings(prev => ({
+            ...prev,
+            [requestId]: {
+              ...ratingData,
+              comments: ratingData.comments || [] // Используем comments из ответа API
+            }
+          }));
       }
     } catch (error) {
       console.error("Failed to check user rating:", error);
