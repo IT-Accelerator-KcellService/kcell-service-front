@@ -12,6 +12,7 @@ import { Camera, MapPin, Plus, Trash2, ChevronUp, ChevronDown, Loader2, Calendar
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ImportExcelModal } from "./ImportExcelModal";
+import { findNearestOffice, getLocationByIP } from "@/lib/utils";
 
 interface ServiceCategory {
   id: number;
@@ -23,6 +24,8 @@ interface Office {
   name: string;
   city: string;
   address: string;
+  lat: number | null;
+  lon: number | null;
 }
 
 interface Executor {
@@ -65,7 +68,7 @@ interface CreateRequestModalProps {
   userServiceCategoryId?: number; // ID категории пользователя для department-head
   createMode?: 'create' | 'createAndComplete'; // Режим создания для executor
   onModeChange?: (mode: 'create' | 'createAndComplete') => void; // Функция изменения режима
-  offices?: Office[]; // Список офисов для manager
+  offices: Office[]; // Список офисов для всех ролей (обязательное поле)
   isFullScreen?: boolean; // Полноэкранный режим для мобильных устройств
   onCreateRecurringTask?: () => void; // Функция для создания повторяющейся задачи
 }
@@ -89,7 +92,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   onCreateRecurringTask,
 }) => {
   const [requestType, setRequestType] = useState("normal");
-  const [location, setLocation] = useState(clientLocation);
   const [locationDetails, setLocationDetails] = useState("");
   const [plannedDate, setPlannedDate] = useState<string>("");
   const [date, setDate] = useState<Date>();
@@ -129,13 +131,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
   }, [isOpen]);
 
-  // Обновление локации при изменении clientLocation
-  useEffect(() => {
-    if (clientLocation) {
-      setLocation(clientLocation);
-    }
-  }, [clientLocation]);
-
   // Сброс даты при изменении типа заявки
   useEffect(() => {
     if (requestType !== "planned") {
@@ -146,7 +141,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
   const resetForm = () => {
     setRequestType("normal");
-    setLocation(clientLocation);
     setLocationDetails("");
     setPlannedDate("");
     setDate(undefined);
@@ -298,10 +292,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       newBasicFieldErrors.add('requestType');
     }
 
-    if (!location.trim()) {
-      newBasicFieldErrors.add('location');
-    }
-
     if (!locationDetails.trim()) {
       newBasicFieldErrors.add('locationDetails');
     }
@@ -310,8 +300,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       newBasicFieldErrors.add('photos');
     }
 
-    // Валидация офиса для manager
-    if (userRole === 'manager' && !selectedOfficeId) {
+    // Валидация офиса для всех ролей
+    if (!selectedOfficeId) {
       newBasicFieldErrors.add('office');
     }
 
@@ -326,7 +316,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     setBasicFieldErrors(newBasicFieldErrors);
-  }, [requestType, location, locationDetails, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit]);
+  }, [requestType, locationDetails, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit]);
 
   const toggleSubRequestExpansion = (index: number) => {
     setExpandedSubRequests(prev => {
@@ -340,54 +330,55 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     });
   };
 
-  const handleGetLocation = () => {
-    if (navigator.geolocation) {
-      // Показываем индикатор загрузки
-      setIsGettingLocation(true);
-      setLocation("Определение местоположения...");
+  useEffect(() => {
+    if (isOpen) {
+      handleGetLocation();
+    }
+  }, [isOpen]);
 
+  const handleGetLocation = async () => {
+    // Показываем индикатор загрузки
+    setIsGettingLocation(true);
+
+    // Сначала пробуем геолокацию браузера
+    if (navigator.geolocation) {
       const options = {
         enableHighAccuracy: true,
         timeout: 10000, // 10 секунд
         maximumAge: 60000 // 1 минута кэша
       };
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude, accuracy } = position.coords;
-          setLocation(
-            `Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`
-          );
-          setIsGettingLocation(false);
-        },
-        (error) => {
-          console.error("Ошибка геолокации:", error);
-          setIsGettingLocation(false);
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, options);
+        });
 
-          // Детальная обработка ошибок
-          let errorMessage = "Не удалось определить местоположение";
+        const { latitude, longitude, accuracy } = position.coords;
+        
+        // Ищем ближайший офис
+        const nearestOfficeResult = findNearestOffice(latitude, longitude, offices);
+        
+        if (nearestOfficeResult) {
+          const { office, distance } = nearestOfficeResult;
+          setSelectedOfficeId(office.id);
+          
+          // Показываем информацию о найденном офисе
+          const distanceText = distance < 1 ? `${Math.round(distance * 1000)} м` : `${distance.toFixed(1)} км`;
+          console.log(`Найден ближайший офис: ${office.name} (${distanceText})`);
+        }
+        
+        setIsGettingLocation(false);
+        return;
+      } catch (error: any) {
+        console.error("Ошибка геолокации:", error);
+        
+        // Детальная обработка ошибок
+        let errorMessage = "Не удалось определить местоположение";
 
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              errorMessage = "Доступ к геолокации запрещен. Разрешите доступ в настройках браузера.";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              errorMessage = "Информация о местоположении недоступна. Проверьте подключение к интернету.";
-              break;
-            case error.TIMEOUT:
-              errorMessage = "Превышено время ожидания. Попробуйте еще раз.";
-              break;
-            default:
-              errorMessage = "Ошибка определения местоположения. Попробуйте ввести адрес вручную.";
-              break;
-          }
-
-          setLocation(errorMessage);
-        },
-        options
-      );
-    } else {
-      setLocation("Геолокация не поддерживается вашим браузером. Введите адрес вручную.");
+        console.log(errorMessage);
+      } finally {
+        setIsGettingLocation(false);
+      }
     }
   };
 
@@ -402,10 +393,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       basicFieldErrors.push('тип заявки');
     }
 
-    if (!location.trim()) {
-      basicFieldErrors.push('локацию');
-    }
-
     if (!locationDetails.trim()) {
       basicFieldErrors.push('расположение в офисе');
     }
@@ -414,8 +401,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       basicFieldErrors.push('фотографии (минимум 1)');
     }
 
-    // Валидация офиса для manager
-    if (userRole === 'manager' && !selectedOfficeId) {
+    // Валидация офиса для всех ролей
+    if (!selectedOfficeId) {
       basicFieldErrors.push('офис');
     }
 
@@ -515,11 +502,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     // Для повторяющихся задач устанавливаем request_type как 'recurring', иначе используем обычный requestType
     const finalRequestType = isRecurringTask ? 'recurring' : requestType;
     formData.append('request_type', finalRequestType);
-    formData.append('location', location);
+    const currentOffice = offices.find(office => office.id === selectedOfficeId);
+    formData.append('location', `Широта: ${currentOffice?.lat}, Долгота: ${currentOffice?.lon} (±${Math.round(1)} м)`);
     formData.append('location_detail', locationDetails);
     formData.append('status', groupStatus);
     if (plannedDate) formData.append('planned_date', plannedDate);
-    if (userRole === 'manager' && selectedOfficeId) {
+    if (selectedOfficeId) {
       formData.append('office_id', String(selectedOfficeId));
     }
 
@@ -655,8 +643,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </div>
           )}
 
-          {/* Выбор офиса для manager */}
-          {userRole === 'manager' && offices.length > 0 && (
+          {/* Выбор офиса для всех ролей */}
+          {offices.length > 0 && (
             <div>
               <Label className="flex items-center gap-1">
                 Офис
@@ -679,6 +667,25 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               {hasAttemptedSubmit && !selectedOfficeId && (
                 <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
               )}
+
+                             <Button
+                   variant="outline"
+                   className="whitespace-nowrap mt-4"
+                   onClick={handleGetLocation}
+                   disabled={isGettingLocation}
+               >
+                 {isGettingLocation ? (
+                     <>
+                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-violet-600 mr-2"></div>
+                       Определение...
+                     </>
+                 ) : (
+                     <>
+                       <MapPin className="w-4 h-4 mr-2" />
+                       Определить ближайший офис
+                     </>
+                 )}
+               </Button>
             </div>
           )}
 
@@ -832,44 +839,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
             </div>
           )}
-
-          <div>
-            <Label className="flex items-center gap-1 mb-2">
-              Локация
-            </Label>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                className={`flex-1 min-w-[200px] ${['client', 'executor'].includes(userRole) ? "bg-gray-100 cursor-not-allowed" : ""} ${
-                  hasAttemptedSubmit && basicFieldErrors.has('location') ? 'border-red-300 focus:border-red-500' : ''
-                }`}
-                placeholder={['client', 'executor'].includes(userRole) ? "Определение вашего местоположения..." : "Введите расположение"}
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                readOnly={['client', 'executor'].includes(userRole)}
-              />
-              <Button
-                  variant="outline"
-                  className="whitespace-nowrap"
-                  onClick={handleGetLocation}
-                  disabled={isGettingLocation}
-              >
-                {isGettingLocation ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-violet-600 mr-2"></div>
-                    Определение...
-                  </>
-                ) : (
-                  <>
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Определить местоположение
-                  </>
-                )}
-              </Button>
-            </div>
-            {hasAttemptedSubmit && basicFieldErrors.has('location') && (
-              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-            )}
-          </div>
 
           <div>
             <Label className="flex items-center gap-1 mb-2">

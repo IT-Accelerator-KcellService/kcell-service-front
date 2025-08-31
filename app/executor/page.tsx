@@ -28,7 +28,7 @@ import {
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import axios from "axios";
-import api from "@/lib/api";
+import api, { getOffices } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -123,6 +123,7 @@ export default function ExecutorDashboard() {
 
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
+  const [offices, setOffices] = useState<any[]>([]);
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedRequestForReject, setSelectedRequestForReject] = useState<any>(null);
@@ -575,6 +576,15 @@ export default function ExecutorDashboard() {
     }
   }
 
+  const fetchOffices = async () => {
+    try {
+      const res = await getOffices();
+      setOffices(res.data);
+    } catch (error) {
+      console.error('Ошибка при загрузке офисов:', error);
+    }
+  }
+
 
 
   // Функция для оценки клиента
@@ -679,6 +689,7 @@ export default function ExecutorDashboard() {
     // Инициализация данных при первом рендере
     fetchNotifications();
     fetchRequests();
+    fetchOffices();
     if (!executorId && user?.id) {
       fetchExecutorId();
     }
@@ -1477,6 +1488,7 @@ export default function ExecutorDashboard() {
       setCreateMode('create')
       setExecutorId(null)
       setUserRatings({})
+      setOffices([])
 
       clearRequests();
       clearNotifications()
@@ -1486,6 +1498,7 @@ export default function ExecutorDashboard() {
         fetchStats(),
         fetchCategories(token!),
         fetchNotifications(),
+          fetchOffices()
       ]);
 
     } catch (error) {
@@ -2238,6 +2251,7 @@ export default function ExecutorDashboard() {
             clientLocation={requestLocation}
             createMode={createMode}
             onModeChange={setCreateMode}
+            offices={offices}
         />
 
         {/* Map Modal */}

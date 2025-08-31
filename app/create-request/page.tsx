@@ -67,10 +67,8 @@ export default function CreateRequestPage() {
           await fetchExecutors();
         }
         
-        // Загружаем офисы для manager
-        if (user.role === 'manager') {
-          await fetchOffices();
-        }
+        // Загружаем офисы для всех ролей
+        await fetchOffices();
       } catch (error) {
         console.error('Ошибка загрузки данных:', error);
         toast({

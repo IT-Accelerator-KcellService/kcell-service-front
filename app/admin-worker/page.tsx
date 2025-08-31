@@ -32,7 +32,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import api from "@/lib/api";
+import api, { getOffices } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -165,6 +165,7 @@ export default function AdminWorkerDashboard() {
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
+  const [offices, setOffices] = useState<any[]>([]);
 
   const lastRequestRef = useCallback((node: HTMLDivElement) => {
     lastElementRef.current = node;
@@ -340,6 +341,7 @@ export default function AdminWorkerDashboard() {
     if (!stats) {
       fetchStats()
     }
+    fetchOffices()
   }, []);
 
   const filteredMyRequests = sortRequests(
@@ -401,6 +403,15 @@ export default function AdminWorkerDashboard() {
       setNotificationLoading(false)
     }
   }, []);
+
+  const fetchOffices = async () => {
+    try {
+      const res = await getOffices();
+      setOffices(res.data);
+    } catch (error) {
+      console.error('Ошибка при загрузке офисов:', error);
+    }
+  }
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification)
@@ -1233,12 +1244,14 @@ export default function AdminWorkerDashboard() {
 
       clearRequests();
       clearNotifications()
+      setOffices([])
 
       await Promise.all([
         fetchRequests(),
         fetchStats(),
         fetchCategories(token!),
         fetchNotifications(),
+        fetchOffices(),
       ]);
 
     } catch (error) {
@@ -2066,7 +2079,7 @@ export default function AdminWorkerDashboard() {
            isSubmitting={isSubmitting}
            formErrors={formErrors}
            translateType={translateType}
-
+           offices={offices}
          />
 
         {/* Rating Modal */}

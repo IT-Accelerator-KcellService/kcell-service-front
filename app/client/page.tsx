@@ -28,7 +28,7 @@ import {
   Hourglass, ChevronUp, ChevronDown, Users, Calendar as CalendarLucid,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import api from "@/lib/api";
+import api, { getOffices } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -127,6 +127,7 @@ export default function ClientDashboard() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
+  const [offices, setOffices] = useState<any[]>([]);
 
   const lastRequestRef = useCallback((node: HTMLDivElement) => {
     lastElementRef.current = node;
@@ -301,6 +302,7 @@ export default function ClientDashboard() {
     if (notifications.length > 0) {
       setNotificationLoading(false)
     }
+    fetchOffices()
   }, [])
 
   useEffect(() => {
@@ -349,6 +351,15 @@ export default function ClientDashboard() {
       console.error('Ошибка при загрузке уведомлений:', error)
     } finally {
       setNotificationLoading(false)
+    }
+  }
+
+  const fetchOffices = async () => {
+    try {
+      const res = await getOffices();
+      setOffices(res.data);
+    } catch (error) {
+      console.error('Ошибка при загрузке офисов:', error);
     }
   }
 
@@ -883,6 +894,7 @@ export default function ClientDashboard() {
       clearNotifications()
       setStats(null);
       setUserRatings({});
+      setOffices([]);
 
       // 4. Параллельная загрузка всех данных
       await Promise.all([
@@ -890,6 +902,7 @@ export default function ClientDashboard() {
         fetchStats(),
         fetchCategories(token!),
         fetchNotifications(),
+          fetchOffices(),
       ]);
 
     } catch (error) {
@@ -1576,6 +1589,7 @@ export default function ClientDashboard() {
           isSubmitting={isSubmitting}
           formErrors={formErrors}
           clientLocation={requestLocation}
+          offices={offices}
         />
 
         {/* Delete Request Confirmation Modal */}

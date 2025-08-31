@@ -31,7 +31,7 @@ import {
 
 
 import Header from "@/app/header/Header"
-import api from "@/lib/api";
+import api, { getOffices } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {SuccessModal} from "@/components/success-model";
@@ -152,6 +152,7 @@ export default function DepartmentHeadDashboard() {
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [userRatings, setUserRatings] = useState<Record<number, any>>({});
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
+  const [offices, setOffices] = useState<any[]>([]);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
@@ -499,10 +500,20 @@ export default function DepartmentHeadDashboard() {
     }
   }, []);
 
+  const fetchOffices = async () => {
+    try {
+      const res = await getOffices();
+      setOffices(res.data);
+    } catch (error) {
+      console.error('Ошибка при загрузке офисов:', error);
+    }
+  }
+
   useEffect(() => {
     // Инициализация данных при первом рендере
     fetchRequests();
     fetchExecutors();
+    fetchOffices();
   }, [])
 
   const fetchClientInfo = async (userId: number) => {
@@ -1019,6 +1030,7 @@ export default function DepartmentHeadDashboard() {
       setStats(null)
       setExecutors([])
       setNewExecutorName("")
+      setOffices([])
 
       clearRequests();
       clearNotifications()
@@ -1029,6 +1041,7 @@ export default function DepartmentHeadDashboard() {
         fetchCategories(token!),
         fetchNotifications(),
         fetchExecutors(),
+          fetchOffices()
       ]);
 
     } catch (error) {
@@ -1903,7 +1916,7 @@ export default function DepartmentHeadDashboard() {
           formErrors={formErrors}
           executors={executors}
           userServiceCategoryId={user?.service_category_id}
-          
+          offices={offices}
         />
 
         {/* Rating Modal */}
