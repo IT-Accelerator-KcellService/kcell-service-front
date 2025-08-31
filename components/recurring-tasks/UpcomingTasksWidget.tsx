@@ -104,8 +104,11 @@ export function UpcomingTasksWidget({ refreshTrigger = 0 }: UpcomingTasksWidgetP
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+          <div className="flex justify-center py-8">
+            <div className="flex items-center gap-2 text-gray-500">
+              <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm">Загрузка...</span>
+            </div>
           </div>
         </CardContent>
       </Card>
