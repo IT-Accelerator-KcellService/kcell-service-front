@@ -21,6 +21,23 @@ if (typeof window !== 'undefined') {
     }, error => Promise.reject(error));
 }
 
+// Обработка ответов - если получаем 401, очищаем токен и перенаправляем на логин
+api.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response?.status === 401) {
+            // Очищаем store
+            useAuthStore.getState().clearAuth();
+
+            // Перенаправляем на страницу входа, если мы не уже на ней
+            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 
 export const getUsers = () => api.get('/users');
 
