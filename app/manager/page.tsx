@@ -71,6 +71,7 @@ import {Calendar} from "@/components/ui/calendar";
 import {ru} from "date-fns/locale";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
+import PhotoModal from "@/components/photo/PhotoModal";
 
 declare global {
   interface Window {
@@ -161,7 +162,7 @@ export default function ManagerDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<RequestGroup | null>(null)
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [showMapModal, setShowMapModal] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
   const {requests, setRequests, clearRequests} = useRequestStore()
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
@@ -2347,7 +2348,7 @@ export default function ManagerDashboard() {
                                           subRequest={subRequest}
                                           isDesktop={isDesktop}
                                           onPhotoClick={(photoUrl) => {
-                                            setSelectedPhoto(photoUrl);
+                                            setSelectedPhoto({url: photoUrl});
                                             openModal('photoPreview');
                                           }}
                                       />
@@ -2419,7 +2420,7 @@ export default function ManagerDashboard() {
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {
-                                      setSelectedPhoto(photo.photo_url);
+                                      setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                       openModal('photoPreview');
                                     }}
                                     onError={(e) => {
@@ -2445,7 +2446,7 @@ export default function ManagerDashboard() {
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {
-                                      setSelectedPhoto(photo.photo_url);
+                                      setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                       openModal('photoPreview');
                                     }}
                                     onError={(e) => {
@@ -2456,24 +2457,6 @@ export default function ManagerDashboard() {
                                     </div>
                               </div>
                 )}
-
-                      {/* Модальное окно */}
-                      {selectedPhoto && (
-                          <div
-                              className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                        onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
-                          >
-                            <img
-                                src={selectedPhoto}
-                                alt="Увеличенное фото"
-                                className="max-w-full max-h-full rounded-lg"
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                    </div>
-                )}
-
-
-
 
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => {
@@ -2486,6 +2469,16 @@ export default function ManagerDashboard() {
               </CardContent>
             </Card>
           </div>
+      )}
+
+      {/* Модальное окно фото */}
+      {selectedPhoto && selectedPhoto?.url && (
+          <PhotoModal
+              selectedPhoto={selectedPhoto}
+              onClose={() => {
+                setSelectedPhoto(null);
+              }}
+          />
       )}
 
       {/* Map Modal */}

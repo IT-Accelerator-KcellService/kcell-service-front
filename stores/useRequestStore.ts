@@ -83,6 +83,7 @@ interface Photo {
     request_id: number;
     photo_url: string;
     type: string;
+    created_at: string;
 }
 
 export const sortRequests = (requests: RequestGroup[]): RequestGroup[] => {

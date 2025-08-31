@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Clock, Calendar, User, CheckCircle, Pause, Play, History, FileText, ChevronDown, ChevronUp, MessageCircle, Zap, XCircle, Hourglass, MapPin, Edit, Trash2, X } from 'lucide-react';
+import { Clock, Calendar, User, CheckCircle, Pause, Play, History, FileText, ChevronDown, ChevronUp, MessageCircle, Zap, XCircle, Hourglass, MapPin, Edit, Trash2, X, Calendar as CalendarLucid } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { RecurringTask, getExecutors } from '@/lib/api';
@@ -56,7 +56,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
   const [internalShowComments, setInternalShowComments] = useState<number | null>(null);
   const [showInstances, setShowInstances] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
   const [selectedSubRequest, setSelectedSubRequest] = useState<any>(null);
   const [executors, setExecutors] = useState<any[]>([]);
@@ -373,7 +373,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                       alt={`Фото ${index + 1}`}
                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                       onClick={() => {
-                        setSelectedPhoto(photo.photo_url);
+                        setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                       }}
                       onError={(e) => {
                         e.currentTarget.src = "/placeholder.svg";
@@ -398,7 +398,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                       alt={`Фото ${index + 1}`}
                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                       onClick={() => {
-                        setSelectedPhoto(photo.photo_url);
+                        setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                       }}
                       onError={(e) => {
                         e.currentTarget.src = "/placeholder.svg";
@@ -415,12 +415,30 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
               className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
               onClick={() => {setSelectedPhoto(null);}}
             >
-              <img
-                src={selectedPhoto}
-                alt="Увеличенное фото"
-                className="max-w-full max-h-full rounded-lg"
-                onClick={(e) => e.stopPropagation()}
-              />
+              <div className="relative max-w-full max-h-full">
+                <img
+                  src={selectedPhoto.url}
+                  alt="Увеличенное фото"
+                  className="max-w-full max-h-full rounded-lg"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                {selectedPhoto.created_at && (
+                  <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg text-sm">
+                    <div className="flex items-center gap-2">
+                      <CalendarLucid className="w-4 h-4" />
+                      <span>
+                        {new Date(selectedPhoto.created_at).toLocaleString("ru-RU", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

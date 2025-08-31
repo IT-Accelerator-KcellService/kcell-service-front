@@ -63,6 +63,7 @@ import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
 import { ImportExcelModal } from "@/components/ImportExcelModal";
+import PhotoModal from "@/components/photo/PhotoModal";
 
 interface User {
   id: number
@@ -118,7 +119,7 @@ export default function DepartmentHeadDashboard() {
   const [clientInfo, setClientInfo] = useState<Record<number, User>>({})
   const [showMapModal, setShowMapModal] = useState(false)
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 })
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
+  const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null)
   const [newExecutorEmail,setNewExecutorEmail]=useState("")
   const [newExecutorPhone, setNewExecutorPhone] = useState("")
   const [executors, setExecutors] = useState<Executor[]>([])
@@ -1742,7 +1743,7 @@ export default function DepartmentHeadDashboard() {
                                             subRequest={subRequest}
                                             isDesktop={isDesktop}
                                             onPhotoClick={(photoUrl) => {
-                                              setSelectedPhoto(photoUrl);
+                                              setSelectedPhoto({url: photoUrl});
                                     openModal('photoPreview');
                                   }}
                               />
@@ -1814,7 +1815,7 @@ export default function DepartmentHeadDashboard() {
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                   onClick={() => {
-                                        setSelectedPhoto(photo.photo_url);
+                                        setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
                                       }}
                                       onError={(e) => {
@@ -1840,7 +1841,7 @@ export default function DepartmentHeadDashboard() {
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                             onClick={() => {
-                                        setSelectedPhoto(photo.photo_url);
+                                        setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
                                       }}
                                       onError={(e) => {
@@ -1849,21 +1850,6 @@ export default function DepartmentHeadDashboard() {
                                   />
                               ))}
                   </div>
-            </div>
-        )}
-
-        {/* Модальное окно */}
-        {selectedPhoto && (
-            <div
-                className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                          onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
-            >
-              <img
-                  src={selectedPhoto}
-                  alt="Увеличенное фото"
-                  className="max-w-full max-h-full rounded-lg"
-                  onClick={(e) => e.stopPropagation()}
-              />
             </div>
         )}
 
@@ -1891,6 +1877,16 @@ export default function DepartmentHeadDashboard() {
             currentUserId={currentUserId}
             isDesktop={isDesktop}
         />
+
+        {/* Модальное окно фото */}
+        {selectedPhoto && selectedPhoto?.url && (
+            <PhotoModal
+                selectedPhoto={selectedPhoto}
+                onClose={() => {
+                  setSelectedPhoto(null);
+                }}
+            />
+        )}
 
         {/* Create Request Modal */}
         <CreateRequestModal

@@ -68,6 +68,7 @@ import Executors from "@/components/Executors";
 import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
 import { ImportExcelModal } from "@/components/ImportExcelModal";
 import { deleteRecurringTask } from "@/lib/api";
+import PhotoModal from "@/components/photo/PhotoModal";
 
 interface User {
   id: number;
@@ -118,7 +119,7 @@ export default function AdminWorkerDashboard() {
   const [clientInfo, setClientInfo] = useState<Record<number, User>>({});
   const [showMapModal, setShowMapModal] = useState(false);
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
 
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
   const [showComments, setShowComments] = useState<number | null>(null);
@@ -1789,7 +1790,7 @@ export default function AdminWorkerDashboard() {
                                             subRequest={subRequest}
                                             isDesktop={isDesktop}
                                             onPhotoClick={(photoUrl) => {
-                                              setSelectedPhoto(photoUrl);
+                                              setSelectedPhoto({url: photoUrl});
                                               openModal('photoPreview');
                                             }}
                                         />
@@ -1911,7 +1912,7 @@ export default function AdminWorkerDashboard() {
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                       onClick={() => {
-                                        setSelectedPhoto(photo.photo_url);
+                                        setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
                                       }}
                                       onError={(e) => {
@@ -1937,7 +1938,7 @@ export default function AdminWorkerDashboard() {
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                       onClick={() => {
-                                        setSelectedPhoto(photo.photo_url);
+                                        setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
                                       }}
                                       onError={(e) => {
@@ -1947,21 +1948,6 @@ export default function AdminWorkerDashboard() {
                                 ))}
                               </div>
                         </div>
-                  )}
-
-                  {/* Модальное окно */}
-                  {selectedPhoto && (
-                      <div
-                          className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                          onClick={() => {setSelectedPhoto(null); closeModalWithHistory(); }}
-                      >
-                        <img
-                            src={selectedPhoto}
-                            alt="Увеличенное фото"
-                            className="max-w-full max-h-full rounded-lg"
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
                   )}
 
                   {/* Кнопки действий для админа */}
@@ -2042,6 +2028,16 @@ export default function AdminWorkerDashboard() {
                 </CardContent>
               </Card>
             </div>
+        )}
+
+        {/* Модальное окно фото */}
+        {selectedPhoto && selectedPhoto?.url && (
+            <PhotoModal
+                selectedPhoto={selectedPhoto}
+                onClose={() => {
+                  setSelectedPhoto(null);
+                }}
+            />
         )}
 
 
