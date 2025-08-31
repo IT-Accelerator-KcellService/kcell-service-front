@@ -1476,6 +1476,7 @@ export default function AdminWorkerDashboard() {
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>
+                          <SelectItem value="rejected">Отклоненные</SelectItem>
                         </SelectContent>
                       </Select>
                       <Select value={filterIncomingType} onValueChange={setFilterIncomingType}>
