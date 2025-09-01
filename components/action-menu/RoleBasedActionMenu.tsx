@@ -112,97 +112,135 @@ export function RoleBasedActionMenu({
     const roleSpecificActions: ActionItem[] = []
 
     // Действия для исполнителя
-    if (userRole === "executor" && isSubRequest && isExecutorLeader) {
-      roleSpecificActions.push(
-        ...(request.status === "assigned"
-          ? [
-              {
-                icon: Play,
-                label: "Начать задачу",
-                onClick: () => {
-                  onStartTask?.(request.id)
-                  setOpen(false)
-                },
-                variant: "default" as const,
-                primary: true,
-                showForRoles: ["executor"],
-              },
-            ]
-          : []),
-        ...(request.status === "execution"
-          ? [
-              {
-                icon: CheckCircle,
-                label: "Завершить задачу",
-                onClick: () => {
-                  onCompleteTask?.(request)
-                  setOpen(false)
-                },
-                variant: "default" as const,
-                primary: true,
-                showForRoles: ["executor"],
-              }
-            ]
-          : []),
-        ...(((request.status === "assigned" || request.status === 'execution') && onReject)
-          ? [
-              {
-                icon: XCircle,
-                label: "Отклонить",
-                onClick: () => {
-                  onReject(request)
-                  setOpen(false)
-                },
-                variant: "destructive" as const,
-                showForRoles: ["executor"],
-              },
-            ]
-          : []),
-        ...(onToggleLongTerm && (request.status === "assigned" || request.status === 'execution') && requestGroup.request_type !== 'recurring'
-          ? [
-              {
-                icon: Clock,
-                label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
-                onClick: () => {
-                  onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
-                  setOpen(false)
-                },
-                variant: "default" as const,
-                longTerm: true,
-                showForRoles: ["executor"],
-              },
-            ]
-          : []),
-                        ...(onRedirectToOtherDepartment && (request.status !== "completed")
-              ? [
-                {
-                  icon: ArrowRight,
-                  label: "Перенаправить к другой категории",
-                  onClick: () => {
-                    onRedirectToOtherDepartment?.(request)
-                    setOpen(false)
+    if (userRole === "executor") {
+      if (isSubRequest) {
+        roleSpecificActions.push(
+            ...(request.status === "in_progress" && requestGroup?.client_id === user?.id && onDelete
+                ? [
+                  {
+                    icon: Trash2,
+                    label: "Удалить подзаявку",
+                    onClick: () => {
+                      onDelete(request)
+                      setOpen(false)
+                    },
+                    variant: "destructive" as const,
+                    showForRoles: ["executor"],
                   },
-                  variant: "default" as const,
-                  showForRoles: ["executor"],
-                },
-              ]
-              : []),
-              ...(onRateClient && requestGroup && requestGroup.status === "completed" && 
-                  requestGroup.client_id && requestGroup.client?.role === "client"
-              ? [
-                {
-                  icon: Star,
-                  label: "Оценить клиента",
-                  onClick: () => {
-                    onRateClient?.(requestGroup)
-                    setOpen(false)
+                ]
+                : [])
+        )
+      }
+      if (isSubRequest && isExecutorLeader) {
+        roleSpecificActions.push(
+            ...(request.status === "assigned"
+                ? [
+                  {
+                    icon: Play,
+                    label: "Начать задачу",
+                    onClick: () => {
+                      onStartTask?.(request.id)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    primary: true,
+                    showForRoles: ["executor"],
                   },
-                  variant: "default" as const,
-                  showForRoles: ["executor"],
-                },
-              ]
-              : []),
-      )
+                ]
+                : []),
+            ...(request.status === "execution"
+                ? [
+                  {
+                    icon: CheckCircle,
+                    label: "Завершить задачу",
+                    onClick: () => {
+                      onCompleteTask?.(request)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    primary: true,
+                    showForRoles: ["executor"],
+                  }
+                ]
+                : []),
+            ...(((request.status === "assigned" || request.status === 'execution') && onReject)
+                ? [
+                  {
+                    icon: XCircle,
+                    label: "Отклонить",
+                    onClick: () => {
+                      onReject(request)
+                      setOpen(false)
+                    },
+                    variant: "destructive" as const,
+                    showForRoles: ["executor"],
+                  },
+                ]
+                : []),
+            ...(onToggleLongTerm && (request.status === "assigned" || request.status === 'execution') && requestGroup.request_type !== 'recurring'
+                ? [
+                  {
+                    icon: Clock,
+                    label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
+                    onClick: () => {
+                      onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    longTerm: true,
+                    showForRoles: ["executor"],
+                  },
+                ]
+                : []),
+            ...(onRedirectToOtherDepartment && (request.status !== "completed")
+                ? [
+                  {
+                    icon: ArrowRight,
+                    label: "Перенаправить к другой категории",
+                    onClick: () => {
+                      onRedirectToOtherDepartment?.(request)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    showForRoles: ["executor"],
+                  },
+                ]
+                : []),
+            ...(onRateClient && requestGroup && requestGroup.status === "completed" &&
+            requestGroup.client_id && requestGroup.client?.role === "client"
+                ? [
+                  {
+                    icon: Star,
+                    label: "Оценить клиента",
+                    onClick: () => {
+                      onRateClient?.(requestGroup)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    showForRoles: ["executor"],
+                  },
+                ]
+                : [])
+        )
+      } else if (!isSubRequest) {
+        // Действия для главных заявок (групп)
+        roleSpecificActions.push(
+            ...(request.status === "in_progress" && requestGroup?.client_id === user?.id && onDelete
+                ? [
+                  {
+                    icon: Trash2,
+                    label: "Удалить заявку",
+                    onClick: () => {
+                      onDelete(request)
+                      setOpen(false)
+                    },
+                    variant: "destructive" as const,
+                    showForRoles: ["executor"],
+                  },
+                ]
+                : [])
+        )
+      }
     }
 
     // Действия для клиента
@@ -297,69 +335,101 @@ export function RoleBasedActionMenu({
     }
 
     // Действия для руководителя направления
-    if (userRole === "department-head" && isSubRequest && request?.category?.id === user?.service_category_id) {
-      roleSpecificActions.push(
-          ...(request.status === "awaiting_assignment" && onAssignExecutor
-              ? [
-                {
-                  icon: UserPlus,
-                  label: "Назначить исполнителей",
-                  onClick: () => {
-                    onAssignExecutor(request)
-                    setOpen(false)
+    if (userRole === "department-head") {
+      if (isSubRequest && request?.category?.id === user?.service_category_id) {
+        roleSpecificActions.push(
+            ...(request.status === "awaiting_assignment" && onAssignExecutor
+                ? [
+                  {
+                    icon: UserPlus,
+                    label: "Назначить исполнителей",
+                    onClick: () => {
+                      onAssignExecutor(request)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    primary: true,
+                    showForRoles: ["department-head"],
                   },
-                  variant: "default" as const,
-                  primary: true,
-                  showForRoles: ["department-head"],
-                },
-              ]
-              : []),
-          ...(onRedirectToOtherDepartment && (request.status !== "completed")
-              ? [
-                {
-                  icon: ArrowRight,
-                  label: "Перенаправить к другой категории",
-                  onClick: () => {
-                    onRedirectToOtherDepartment?.(request)
-                    setOpen(false)
+                ]
+                : []),
+            ...(onRedirectToOtherDepartment && (request.status !== "completed")
+                ? [
+                  {
+                    icon: ArrowRight,
+                    label: "Перенаправить к другой категории",
+                    onClick: () => {
+                      onRedirectToOtherDepartment?.(request)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    showForRoles: ["department-head"],
                   },
-                  variant: "default" as const,
-                  showForRoles: ["department-head"],
-                },
-              ]
-              : []),
-          ...(request.status === "completed" && request.client_id === user?.id
-              ? [
-                {
-                  icon: Star,
-                  label: request?.rating ? "Изменить оценку" : "Оценить работу",
-                  onClick: () => {
-                    onRateRequest?.(request)
-                    setOpen(false)
+                ]
+                : []),
+            ...(request.status === "completed" && request.client_id === user?.id
+                ? [
+                  {
+                    icon: Star,
+                    label: request?.rating ? "Изменить оценку" : "Оценить работу",
+                    onClick: () => {
+                      onRateRequest?.(request)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    primary: true,
+                    showForRoles: ["department-head"],
                   },
-                  variant: "default" as const,
-                  primary: true,
-                  showForRoles: ["department-head"],
-                },
-              ]
-              : []),
-          ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned") && requestGroup.request_type !== 'recurring'
-              ? [
-                {
-                  icon: Clock,
-                  label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
-                  onClick: () => {
-                    onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
-                    setOpen(false)
+                ]
+                : []),
+            ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned") && requestGroup.request_type !== 'recurring'
+                ? [
+                  {
+                    icon: Clock,
+                    label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
+                    onClick: () => {
+                      onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    longTerm: true,
+                    showForRoles: ["department-head"],
                   },
-                  variant: "default" as const,
-                  longTerm: true,
-                  showForRoles: ["department-head"],
-                },
-              ]
-              : [])
-      )
-
+                ]
+                : []),
+            ...(onDelete
+                ? [
+                  {
+                    icon: Trash2,
+                    label: "Удалить подзаявку",
+                    onClick: () => {
+                      onDelete(request)
+                      setOpen(false)
+                    },
+                    variant: "destructive" as const,
+                    showForRoles: ["department-head"],
+                  },
+                ]
+                : [])
+        )
+      } else {
+        roleSpecificActions.push(
+            ...(onDelete && request?.client_id === user?.id
+                ? [
+                  {
+                    icon: Trash2,
+                    label: "Удалить",
+                    onClick: () => {
+                      onDelete(request)
+                      setOpen(false)
+                    },
+                    variant: "destructive" as const,
+                    showForRoles: ["department-head"],
+                  },
+                ]
+                : [])
+        )
+      }
     }
 
     // Действия для администратора офиса
@@ -396,7 +466,7 @@ export function RoleBasedActionMenu({
                   },
                 ]
                 : []),
-            ...(request.status === "in_progress" && onDelete
+            ...(onDelete
                 ? [
                   {
                     icon: Trash2,
@@ -413,7 +483,7 @@ export function RoleBasedActionMenu({
         )
       } else {
         roleSpecificActions.push(
-            ...(onDelete && (request.status === "in_progress" || request.status === "assigned" || request.status === "awaiting_assignment")
+            ...(onDelete
                 ? [
                   {
                     icon: Trash2,

@@ -61,6 +61,7 @@ import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import ClientRatingModal from "@/components/ClientRatingModal";
 import PhotoModal from "@/components/photo/PhotoModal";
+import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
@@ -120,6 +121,7 @@ export default function ExecutorDashboard() {
   const [myRating, setMyRating] = useState<number | null>(null)
   const [stats, setStats] = useState<Stats | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
 
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
@@ -546,6 +548,9 @@ export default function ExecutorDashboard() {
           case 'redirectModal':
             handleCloseRedirectModal();
             break;
+          case 'deleteRequestModal':
+            setShowDeleteRequestModal(false);
+            break;
           default:
             break;
         }
@@ -585,7 +590,72 @@ export default function ExecutorDashboard() {
     }
   }
 
+  const handleDeleteRequest = async (request: Request) => {
+    try {
+      await api.delete(`/request-groups/${request.id}`)
+      fetchRequests()
+      successModal.showSuccess({
+        title: "Заявка удалена",
+        message: "Заявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Failed to delete request:", error)
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Не удалось удалить заявку."
+      })
+    }
+  }
 
+  const handleDeleteSubRequest = async (subRequest: SubRequest) => {
+    try {
+      await api.delete(`/requests/${subRequest.id}`)
+
+      // Обновляем состояние - удаляем под заявку из группы
+      if (selectedRequest) {
+        const updatedRequests = selectedRequest.requests.filter((req: { id: number }) => req.id !== subRequest.id)
+        const updatedRequestGroup = {
+          ...selectedRequest,
+          requests: updatedRequests
+        }
+        setSelectedRequest(updatedRequestGroup)
+
+        // Обновляем в store
+        const currentMyRequests = useRequestStore.getState().myRequests
+        const updatedStoreMyRequests = currentMyRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        ).filter(req => req.requests.length > 0)
+        const currentAssignedRequests = useRequestStore.getState().assignedRequests
+        const updatedStoreAssignedRequests = currentAssignedRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        ).filter(req => req.requests.length > 0)
+        const currentCompletedRequests = useRequestStore.getState().completedRequests
+        const updatedStoreCompletedRequests = currentCompletedRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        ).filter(req => req.requests.length > 0)
+        useRequestStore.getState().setMyRequests(updatedStoreMyRequests)
+        useRequestStore.getState().setAssignedRequests(updatedStoreAssignedRequests)
+        useRequestStore.getState().setCompletedRequests(updatedStoreCompletedRequests)
+
+        // Если это была последняя под заявка в группе, закрываем модальное окно
+        if (updatedRequests.length === 0) {
+          setSelectedRequest(null);
+          closeModalWithHistory();
+        }
+      }
+
+      successModal.showSuccess({
+        title: "Под заявка удалена",
+        message: "Под заявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Error deleting sub-request:", error)
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Не удалось удалить под заявку."
+      })
+    }
+  }
 
   // Функция для оценки клиента
   const handleRateClient = async () => {
@@ -678,7 +748,9 @@ export default function ExecutorDashboard() {
     if (modalName !== 'rejectModal') {
       handleCloseRejectModal();
     }
-
+    if (modalName !== 'deleteRequestModal') {
+      setShowDeleteRequestModal(false);
+    }
     // Очищаем стек и добавляем только текущую модалку
     setModalStack([modalName]);
     // Используем pushState вместо replaceState для правильной работы истории
@@ -1457,21 +1529,25 @@ export default function ExecutorDashboard() {
               {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
                   request={requestGroup}
-              isDesktop={isDesktop}
-              userRole="executor"
+                  isDesktop={isDesktop}
+                  userRole="executor"
                   isSubRequest={false}
-              onViewDetails={(request) => {
+                  onViewDetails={(request) => {
                     setSelectedRequest(request);
                     openModal('requestDetails');
                   }}
-              onRateClient={(requestGroup) => {
-                setRequestGroupToRate(requestGroup);
-                const currentRating = clientRatings[requestGroup.id]?.rating || 0;
-                setClientRatingValue(currentRating);
-                setClientRatingComment("");
-                setShowClientRatingModal(true);
-                openModal('clientRatingModal');
-              }}
+                  onRateClient={(requestGroup) => {
+                    setRequestGroupToRate(requestGroup);
+                    const currentRating = clientRatings[requestGroup.id]?.rating || 0;
+                    setClientRatingValue(currentRating);
+                    setClientRatingComment("");
+                    setShowClientRatingModal(true);
+                    openModal('clientRatingModal');
+                  }}
+                  onDelete={(requestGroup) => {
+                    setSelectedRequest(requestGroup);
+                    setShowDeleteRequestModal(true);
+                  }}
             />
           </div>
         </div>
@@ -1974,6 +2050,9 @@ export default function ExecutorDashboard() {
                                           setShowClientRatingModal(true);
                                           openModal('clientRatingModal');
                                         }}
+                                        onDelete={(subReq) => {
+                                          handleDeleteSubRequest(subReq);
+                                        }}
                                     />
                                   </div>
                                 </div>
@@ -2220,6 +2299,24 @@ export default function ExecutorDashboard() {
             onComplete={handleCompleteTaskSubmit}
             task={selectedTaskForComplete}
             isSubmitting={isSubmitting}
+        />
+
+        {/* Request Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+            key="request-delete-modal"
+            isOpen={showDeleteRequestModal && !!selectedRequest}
+            onClose={() => {
+              setShowDeleteRequestModal(false);
+            }}
+            onConfirm={() => {
+              if (selectedRequest) {
+                handleDeleteRequest(selectedRequest);
+                setSelectedRequest(null);
+                setShowDeleteRequestModal(false);
+              }
+            }}
+            title="Удалить заявку?"
+            description={`Это действие необратимо. Вы точно хотите удалить заявку ${selectedRequest?.id}?`}
         />
 
         {/* Reject Sub Request Modal */}

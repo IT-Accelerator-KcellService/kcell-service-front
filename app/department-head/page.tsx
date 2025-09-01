@@ -148,6 +148,7 @@ export default function DepartmentHeadDashboard() {
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
   const [upcomingTasksRefreshTrigger, setUpcomingTasksRefreshTrigger] = useState(0);
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
 
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [userRatings, setUserRatings] = useState<Record<number, any>>({});
@@ -239,6 +240,9 @@ export default function DepartmentHeadDashboard() {
           case 'taskHistory':
             // Закрытие модального окна истории задач обрабатывается в RecurringTasksList
             break;
+          case 'deleteRequestModal':
+            setShowDeleteRequestModal(false);
+            break;
           default:
             break;
         }
@@ -287,6 +291,9 @@ export default function DepartmentHeadDashboard() {
     }
     if (modalName !== 'redirectModal') {
       handleCloseRedirectModal();
+    }
+    if (modalName !== 'deleteRequestModal') {
+      setShowDeleteRequestModal(false);
     }
     setModalStack([modalName]);
     // Используем pushState вместо replaceState для правильной работы истории
@@ -980,6 +987,68 @@ export default function DepartmentHeadDashboard() {
     }
   };
 
+  const handleDeleteRequest = async (request: Request) => {
+    try {
+      await api.delete(`/request-groups/${request.id}`)
+      fetchRequests()
+      successModal.showSuccess({
+        title: "Заявка удалена",
+        message: "Заявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Failed to delete request:", error)
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Не удалось удалить заявку."
+      })
+    }
+  }
+
+  const handleDeleteSubRequest = async (subRequest: SubRequest) => {
+    try {
+      await api.delete(`/requests/${subRequest.id}`)
+
+      // Обновляем состояние - удаляем под заявку из группы
+      if (selectedRequest) {
+        const updatedRequests = selectedRequest.requests.filter((req: { id: number }) => req.id !== subRequest.id)
+        const updatedRequestGroup = {
+          ...selectedRequest,
+          requests: updatedRequests
+        }
+        setSelectedRequest(updatedRequestGroup)
+
+        // Обновляем в store
+        const currentMyRequests = useRequestStore.getState().myRequests
+        const updatedStoreMyRequests = currentMyRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        ).filter(req => req.requests.length > 0)
+        const currentIncomingRequests = useRequestStore.getState().incomingRequests
+        const updatedStoreIncomingRequests = currentIncomingRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        ).filter(req => req.requests.length > 0)
+        useRequestStore.getState().setMyRequests(updatedStoreMyRequests)
+        useRequestStore.getState().setIncomingRequests(updatedStoreIncomingRequests)
+
+        // Если это была последняя под заявка в группе, закрываем модальное окно
+        if (updatedRequests.length === 0) {
+          setSelectedRequest(null);
+          closeModalWithHistory();
+        }
+      }
+
+      successModal.showSuccess({
+        title: "Под заявка удалена",
+        message: "Под заявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Error deleting sub-request:", error)
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Не удалось удалить под заявку."
+      })
+    }
+  }
+
   const renderCardHeader = (requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     const totalSubRequests = requestGroup.requests.length;
@@ -1007,12 +1076,16 @@ export default function DepartmentHeadDashboard() {
               {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
                   request={requestGroup}
-              isDesktop={isDesktop}
-              userRole="department-head"
+                  isDesktop={isDesktop}
+                  userRole="department-head"
                   isSubRequest={false}
-              onViewDetails={(request) => {
-                setSelectedRequest(request);
+                  onViewDetails={(request) => {
+                    setSelectedRequest(request);
                     openModal('requestDetails');
+                  }}
+                  onDelete={(requestGroup) => {
+                    setSelectedRequest(requestGroup);
+                    setShowDeleteRequestModal(true);
                   }}
             />
           </div>
@@ -1697,6 +1770,9 @@ export default function DepartmentHeadDashboard() {
                                         onRedirectToOtherDepartment={handleOpenRedirectModal}
                                         onAssignExecutor={handleAssignExecutors}
                                         onToggleLongTerm={handleToggleLongTerm}
+                                        onDelete={(subReq) => {
+                                          handleDeleteSubRequest(subReq);
+                                        }}
                                     />
                                   </div>
                     </div>
@@ -1917,6 +1993,24 @@ export default function DepartmentHeadDashboard() {
           executors={executors}
           userServiceCategoryId={user?.service_category_id}
           offices={offices}
+        />
+
+        {/* Request Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+            key="request-delete-modal"
+            isOpen={showDeleteRequestModal && !!selectedRequest}
+            onClose={() => {
+              setShowDeleteRequestModal(false);
+            }}
+            onConfirm={() => {
+              if (selectedRequest) {
+                handleDeleteRequest(selectedRequest);
+                setSelectedRequest(null);
+                setShowDeleteRequestModal(false);
+              }
+            }}
+            title="Удалить заявку?"
+            description={`Это действие необратимо. Вы точно хотите удалить заявку ${selectedRequest?.id}?`}
         />
 
         {/* Rating Modal */}

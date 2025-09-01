@@ -731,11 +731,16 @@ export default function AdminWorkerDashboard() {
         setSelectedRequest(updatedRequestGroup)
 
         // Обновляем в store
-        const currentRequests = useRequestStore.getState().requests
-        const updatedStoreRequests = currentRequests.map(req =>
+        const currentMyRequests = useRequestStore.getState().myRequests
+        const updatedStoreMyRequests = currentMyRequests.map(req =>
             req.id === selectedRequest.id ? updatedRequestGroup : req
         ).filter(req => req.requests.length > 0)
-        useRequestStore.getState().setRequests(updatedStoreRequests)
+        const currentIncomingRequests = useRequestStore.getState().incomingRequests
+        const updatedStoreIncomingRequests = currentIncomingRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        ).filter(req => req.requests.length > 0)
+        useRequestStore.getState().setMyRequests(updatedStoreMyRequests)
+        useRequestStore.getState().setIncomingRequests(updatedStoreIncomingRequests)
 
         // Если это была последняя под заявка в группе, закрываем модальное окно
         if (updatedRequests.length === 0) {
@@ -2144,11 +2149,10 @@ export default function AdminWorkerDashboard() {
               handleDeleteRequest(selectedRequest);
               setSelectedRequest(null);
               setShowDeleteRequestModal(false);
-              closeModalWithHistory();
             }
           }}
           title="Удалить заявку?"
-          description={`Это действие необратимо. Вы точно хотите удалить заявку ${selectedRequest?.title}?`}
+          description={`Это действие необратимо. Вы точно хотите удалить заявку ${selectedRequest?.id}?`}
         />
 
 
