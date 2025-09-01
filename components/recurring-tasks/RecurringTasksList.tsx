@@ -253,6 +253,27 @@ export const RecurringTasksList: React.FC<RecurringTasksListProps> = ({
                   </div>
                 )}
 
+                {/* Статус назначения исполнителя */}
+                <div className="flex items-center gap-2 text-sm">
+                  <UserPlus className={`h-4 w-4 flex-shrink-0 ${
+                    task.executors && task.executors.length > 0 
+                      ? 'text-green-500' 
+                      : 'text-orange-500'
+                  }`} />
+                  <span className="break-words">
+                    {task.executors && task.executors.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-green-600 font-medium">Исполнитель назначен</span>
+                        <span className="text-xs text-gray-600">
+                          {task.executors.map(exec => exec.full_name).join(', ')}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-orange-600 font-medium">Исполнитель не назначен</span>
+                    )}
+                  </span>
+                </div>
+
                 {task.taskInstances && Array.isArray(task.taskInstances) && task.taskInstances.length > 0 && (
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
