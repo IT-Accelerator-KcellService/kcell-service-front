@@ -977,21 +977,23 @@ export default function ExecutorDashboard() {
       
       // Обрабатываем рейтинги клиентов из ответа API
       const processClientRatings = (requestGroups: any[]) => {
-        const ratingsData: Record<number, any> = {};
-        requestGroups.forEach((requestGroup: any) => {
-          if (requestGroup.clientRatings && requestGroup.clientRatings.length > 0) {
-            const rating = requestGroup.clientRatings[0]; // Берем первый рейтинг
-            ratingsData[requestGroup.id] = {
-              id: rating.id,
-              rating: rating.rating,
-              comment: rating.comment,
-              request_group_id: requestGroup.id,
-              created_at: rating.created_at,
-              ratedClient: rating.ratedClient
-            };
-          }
+        setClientRatings(prevRatings => {
+          const newRatings = { ...prevRatings };
+          requestGroups.forEach((requestGroup: any) => {
+            if (requestGroup.clientRatings && requestGroup.clientRatings.length > 0) {
+              const rating = requestGroup.clientRatings[0]; // Берем первый рейтинг
+              newRatings[requestGroup.id] = {
+                id: rating.id,
+                rating: rating.rating,
+                comment: rating.comment,
+                request_group_id: requestGroup.id,
+                created_at: rating.created_at,
+                ratedClient: rating.ratedClient
+              };
+            }
+          });
+          return newRatings;
         });
-        setClientRatings(ratingsData);
       };
 
       // Обрабатываем рейтинги клиентов для всех групп заявок
@@ -1529,10 +1531,11 @@ export default function ExecutorDashboard() {
               {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
                   request={requestGroup}
-                  isDesktop={isDesktop}
-                  userRole="executor"
+                  requestGroup={requestGroup}
+              isDesktop={isDesktop}
+              userRole="executor"
                   isSubRequest={false}
-                  onViewDetails={(request) => {
+              onViewDetails={(request) => {
                     setSelectedRequest(request);
                     openModal('requestDetails');
                   }}

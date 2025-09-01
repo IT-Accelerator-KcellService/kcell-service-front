@@ -496,6 +496,21 @@ export function RoleBasedActionMenu({
                     showForRoles: ["admin-worker"],
                   },
                 ]
+                : []),
+            ...(onRateClient && requestGroup && requestGroup.status === "completed" &&
+            requestGroup.client_id && requestGroup.client?.role === "client"
+                ? [
+                  {
+                    icon: Star,
+                    label: "Оценить клиента",
+                    onClick: () => {
+                      onRateClient?.(requestGroup)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    showForRoles: ["executor", "admin-worker"],
+                  },
+                ]
                 : [])
         )
       }
