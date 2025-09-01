@@ -264,6 +264,21 @@ export function RoleBasedActionMenu({
     // Действия для менеджера
     if (userRole === "manager") {
       roleSpecificActions.push(
+        ...(request.status === "completed" && isSubRequest
+          ? [
+              {
+                icon: Star,
+                label: request?.rating ? "Изменить оценку" : "Оценить работу",
+                onClick: () => {
+                  onRateRequest?.(request)
+                  setOpen(false)
+                },
+                variant: "default" as const,
+                primary: true,
+                showForRoles: ["manager"],
+              },
+            ]
+          : []),
         ...(onDelete
           ? [
               {

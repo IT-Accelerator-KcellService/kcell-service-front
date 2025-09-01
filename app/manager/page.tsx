@@ -73,6 +73,7 @@ import {ru} from "date-fns/locale";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import PhotoModal from "@/components/photo/PhotoModal";
+import {RatingModal} from "@/components/RatingModal";
 
 declare global {
   interface Window {
@@ -178,6 +179,13 @@ export default function ManagerDashboard() {
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false)
   const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false)
   const [userToDelete, setUserToDelete] = useState<User | null>(null)
+  
+  // Состояния для рейтинга
+  const [showRatingModal, setShowRatingModal] = useState(false)
+  const [requestToRate, setRequestToRate] = useState<any>(null)
+  const [ratingValue, setRatingValue] = useState(0)
+  const [ratingComment, setRatingComment] = useState("")
+  const [userRatings, setUserRatings] = useState<{[key: number]: {rating: number, comment?: string}}>({})
   const [pagination, setPagination] = useState({
     currentPage: 1,
     itemsPerPage: 10,
@@ -294,6 +302,24 @@ export default function ManagerDashboard() {
     // Откатываем историю браузера назад
     window.history.back();
   };
+
+  const checkUserRating = useCallback(async (requestId: number) => {
+    try {
+      const response = await api.get(`/ratings/user/${requestId}`);
+      if (response.data && response.data.length > 0) {
+        const ratingData = response.data[0];
+        setUserRatings(prev => ({
+          ...prev,
+          [requestId]: {
+            rating: ratingData.rating,
+            comment: ratingData.comment
+          }
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to check user rating:", error);
+    }
+  }, []);
 
   useEffect(() => {
     if (!stats.length) {
@@ -555,6 +581,12 @@ export default function ManagerDashboard() {
           case 'categoryDelete':
             setCategoryToDelete(null);
             break;
+          case 'ratingModal':
+            setShowRatingModal(false);
+            setRequestToRate(null);
+            setRatingValue(0);
+            setRatingComment("");
+            break;
           default:
             break;
         }
@@ -597,6 +629,12 @@ export default function ManagerDashboard() {
     if (modalName !== 'deleteRequest') {
       setShowDeleteRequestModal(false);
       setRequestToDelete(null);
+    }
+    if (modalName !== 'ratingModal') {
+      setShowRatingModal(false);
+      setRequestToRate(null);
+      setRatingValue(0);
+      setRatingComment("");
     }
     setModalStack([modalName]);
     // Используем pushState вместо replaceState для правильной работы истории
@@ -822,12 +860,21 @@ export default function ManagerDashboard() {
       setHasMore(pageToLoad < response.data.totalPages);
       setPage(pageToLoad);
 
+      // Загружаем оценки для завершенных заявок
+      newRequests.forEach((requestGroup: any) => {
+        requestGroup.requests.forEach((subRequest: any) => {
+          if (subRequest.status === "completed") {
+            checkUserRating(subRequest.id);
+          }
+        });
+      });
+
     } catch (error) {
       console.error("Failed to fetch requests:", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [checkUserRating]);
 
   const handleLogout = async () => {
     try {
@@ -1381,9 +1428,22 @@ export default function ManagerDashboard() {
                   onViewDetails={(request) => {
                     setSelectedRequest(request);
                     openModal('requestDetails');
+                    // Загружаем оценки для всех завершенных подзаявок
+                    request.requests.forEach((subRequest: any) => {
+                      if (subRequest.status === "completed") {
+                        checkUserRating(subRequest.id);
+                      }
+                    });
                   }}
                   onDelete={(request) => {
                     handleDeleteRequest(request);
+                  }}
+                  onRateRequest={(request) => {
+                    setRequestToRate(request);
+                    setShowRatingModal(true);
+                    openModal('ratingModal');
+                    // Загружаем существующую оценку
+                    checkUserRating(request.id);
                   }}
               />
             </div>
@@ -1414,6 +1474,48 @@ export default function ManagerDashboard() {
       console.error("Failed to remove category:", error)
     }
   }
+
+  const handleRateExecutor = async () => {
+    if (!requestToRate || ratingValue === 0) return;
+
+    try {
+      const response = await api.post(`/ratings`, {
+        request_id: requestToRate.id,
+        rating: ratingValue,
+        comment: ratingComment
+      });
+
+      if (response.status === 201) {
+        // Обновляем локальное состояние
+        setUserRatings(prev => ({
+          ...prev,
+          [requestToRate.id]: {
+            rating: ratingValue,
+            comment: ratingComment
+          }
+        }));
+
+        // Показываем уведомление об успехе
+        successModal.showSuccess({
+          title: "Оценка отправлена",
+          message: "Ваша оценка была успешно отправлена."
+        });
+
+        // Закрываем модалку и сбрасываем состояние
+        setShowRatingModal(false);
+        setRequestToRate(null);
+        setRatingValue(0);
+        setRatingComment("");
+        closeModalWithHistory();
+      }
+    } catch (error) {
+      console.error("Failed to rate request:", error);
+      rejectModal.showReject({
+        title: "Ошибка",
+        message: "Не удалось отправить оценку. Попробуйте еще раз."
+      });
+    }
+  };
 
   return (
     <>
@@ -2302,6 +2404,13 @@ export default function ManagerDashboard() {
                                       onDelete={(subReq) => {
                                         handleDeleteSubRequest(subReq);
                                       }}
+                                      onRateRequest={(request) => {
+                                        setRequestToRate(request);
+                                        setShowRatingModal(true);
+                                        openModal('ratingModal');
+                                        // Загружаем существующую оценку
+                                        checkUserRating(request.id);
+                                      }}
                                   />
                       </div>
                     </div>
@@ -2353,7 +2462,7 @@ export default function ManagerDashboard() {
                                   <SubRequestInfo subRequest={subRequest} />
 
                                   {/* Исполнители */}
-                                  <Executors subRequest={subRequest} />
+                                  <Executors subRequest={subRequest} userRatings={userRatings} />
 
                                   {/* Отчет о выполнении для завершенных подзаявок */}
                                   {subRequest.status === "completed" && (
@@ -2503,7 +2612,22 @@ export default function ManagerDashboard() {
           }}
           mapLocation={mapLocation}
       />
-
+      <RatingModal
+          isOpen={showRatingModal && !!requestToRate}
+          onClose={() => {
+            setShowRatingModal(false);
+            closeModalWithHistory();
+            setRatingValue(0);
+            setRequestToRate(null);
+            setRatingComment("");
+          }}
+          ratingValue={ratingValue}
+          onRatingChange={setRatingValue}
+          onSubmit={handleRateExecutor}
+          currentRating={requestToRate ? userRatings[requestToRate.id]?.rating : undefined}
+          comment={ratingComment}
+          onCommentChange={setRatingComment}
+      />
       {/* Create Request Modal */}
       <CreateRequestModal
           isOpen={showCreateRequestModal}
