@@ -1860,14 +1860,7 @@ export default function AdminWorkerDashboard() {
                                           setShowRatingModal(true)
                                           openModal('ratingModal')
                                         }}
-                                        onRateClient={(requestGroup) => {
-                                          setRequestGroupToRate(requestGroup);
-                                          const currentRating = clientRatings[requestGroup.id]?.rating || 0;
-                                          setClientRatingValue(currentRating);
-                                          setClientRatingComment("");
-                                          setShowClientRatingModal(true);
-                                          openModal('clientRatingModal');
-                                        }}
+
                                         onDelete={(subReq) => {
                                           handleDeleteSubRequest(subReq);
                                         }}
