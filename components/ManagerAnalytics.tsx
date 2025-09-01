@@ -233,13 +233,7 @@ export default function ManagerAnalytics() {
         </div>
 
         <TabsContent value="sla" className="space-y-6">
-          <div className={`grid gap-4 ${isDesktop ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1'}`}>
-            <StatCard
-              title="Среднее время выполнения"
-              value={slaStats?.byDate.length ? `${parseFloat(slaStats.byDate[slaStats.byDate.length - 1]?.avgHours || "0").toFixed(1)}ч` : "0ч"}
-              icon={<Clock className="w-4 h-4 text-blue-600" />}
-              bg="bg-blue-100"
-            />
+          <div className={`grid gap-4 ${isDesktop ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
             <StatCard
               title="Всего завершено"
               value={slaStats?.byDate.reduce((sum, item) => sum + item.totalCompleted, 0) || 0}
