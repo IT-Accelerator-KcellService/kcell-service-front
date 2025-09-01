@@ -134,7 +134,10 @@ const actionTypeLabels: Record<string, string> = {
   deleted: "Удалено",
   rejected: "Отклонено",
 }
-
+const actionTypeLabelsForRating: Record<string, string> = {
+  created: "Создано",
+  updated: "Обновлено",
+}
 const ratingTypeLabels: Record<string, string> = {
   client_rating: "Оценка клиента",
   request_rating: "Оценка заявки",
@@ -272,9 +275,6 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
       params.append("page", ratingPage.toString())
       params.append("pageSize", pageSize.toString())
       
-      if (ratingType !== "all") {
-        params.append("ratingType", ratingType)
-      }
       if (actionType !== "all") {
         params.append("actionType", actionType)
       }
@@ -283,17 +283,52 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
         params.append("endDate", format(endDate, "yyyy-MM-dd"))
       }
 
-      const response = await api.get<{success: boolean, data: RatingLogsResponse}>(`/rating-logs/type/request_rating?${params.toString()}`)
-      console.log('Rating logs response:', response.data)
-      if (response.data.success && response.data.data) {
-        setRatingLogs(response.data.data.logs)
-        setRatingTotal(response.data.data.total)
-        setRatingTotalPages(response.data.data.totalPages)
+      let allLogs: RatingLog[] = []
+      let totalCount = 0
+      let totalPagesCount = 0
+
+      if (ratingType === "all") {
+        // Загружаем логи обоих типов рейтингов
+        const [requestRatingResponse, clientRatingResponse] = await Promise.all([
+          api.get<{success: boolean, data: RatingLogsResponse}>(`/rating-logs/type/request_rating?${params.toString()}`),
+          api.get<{success: boolean, data: RatingLogsResponse}>(`/rating-logs/type/client_rating?${params.toString()}`)
+        ])
+
+        console.log('Request rating response:', requestRatingResponse.data)
+        console.log('Client rating response:', clientRatingResponse.data)
+
+        const requestLogs = requestRatingResponse.data.success ? requestRatingResponse.data.data.logs : []
+        const clientLogs = clientRatingResponse.data.success ? clientRatingResponse.data.data.logs : []
+
+        console.log('Request logs count:', requestLogs.length)
+        console.log('Client logs count:', clientLogs.length)
+
+        // Объединяем логи и сортируем по дате создания
+        allLogs = [...requestLogs, ...clientLogs].sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+
+        // Вычисляем общую статистику
+        totalCount = (requestRatingResponse.data.success ? requestRatingResponse.data.data.total : 0) + 
+                    (clientRatingResponse.data.success ? clientRatingResponse.data.data.total : 0)
+        totalPagesCount = Math.max(
+          requestRatingResponse.data.success ? requestRatingResponse.data.data.totalPages : 0,
+          clientRatingResponse.data.success ? clientRatingResponse.data.data.totalPages : 0
+        )
       } else {
-        setRatingLogs([])
-        setRatingTotal(0)
-        setRatingTotalPages(0)
+        // Загружаем логи конкретного типа рейтинга
+        const response = await api.get<{success: boolean, data: RatingLogsResponse}>(`/rating-logs/type/${ratingType}?${params.toString()}`)
+        console.log(`Rating logs response for ${ratingType}:`, response.data)
+        if (response.data.success && response.data.data) {
+          allLogs = response.data.data.logs
+          totalCount = response.data.data.total
+          totalPagesCount = response.data.data.totalPages
+        }
       }
+
+      setRatingLogs(allLogs)
+      setRatingTotal(totalCount)
+      setRatingTotalPages(totalPagesCount)
     } catch (error) {
       console.error("Ошибка при загрузке логов рейтингов:", error)
       setRatingLogs([])
@@ -311,25 +346,69 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
       params.append("page", notificationPage.toString())
       params.append("pageSize", pageSize.toString())
       
-      if (notificationStatus !== "all") {
-        params.append("status", notificationStatus)
-      }
       if (startDate && endDate) {
         params.append("startDate", format(startDate, "yyyy-MM-dd"))
         params.append("endDate", format(endDate, "yyyy-MM-dd"))
       }
 
-      const response = await api.get<{success: boolean, data: NotificationLogsResponse}>(`/notification-logs/status/delivered?${params.toString()}`)
-      console.log('Notification logs response:', response.data)
-      if (response.data.success && response.data.data) {
-        setNotificationLogs(response.data.data.logs)
-        setNotificationTotal(response.data.data.total)
-        setNotificationTotalPages(response.data.data.totalPages)
+      let allLogs: NotificationLog[] = []
+      let totalCount = 0
+      let totalPagesCount = 0
+
+      if (notificationStatus === "all") {
+        // Загружаем логи всех статусов уведомлений
+        const [deliveredResponse, sentResponse, failedResponse, pendingResponse] = await Promise.all([
+          api.get<{success: boolean, data: NotificationLogsResponse}>(`/notification-logs/status/delivered?${params.toString()}`),
+          api.get<{success: boolean, data: NotificationLogsResponse}>(`/notification-logs/status/sent?${params.toString()}`),
+          api.get<{success: boolean, data: NotificationLogsResponse}>(`/notification-logs/status/failed?${params.toString()}`),
+          api.get<{success: boolean, data: NotificationLogsResponse}>(`/notification-logs/status/pending?${params.toString()}`)
+        ])
+
+        console.log('Delivered response:', deliveredResponse.data)
+        console.log('Sent response:', sentResponse.data)
+        console.log('Failed response:', failedResponse.data)
+        console.log('Pending response:', pendingResponse.data)
+
+        const deliveredLogs = deliveredResponse.data.success ? deliveredResponse.data.data.logs : []
+        const sentLogs = sentResponse.data.success ? sentResponse.data.data.logs : []
+        const failedLogs = failedResponse.data.success ? failedResponse.data.data.logs : []
+        const pendingLogs = pendingResponse.data.success ? pendingResponse.data.data.logs : []
+
+        console.log('Delivered logs count:', deliveredLogs.length)
+        console.log('Sent logs count:', sentLogs.length)
+        console.log('Failed logs count:', failedLogs.length)
+        console.log('Pending logs count:', pendingLogs.length)
+
+        // Объединяем логи и сортируем по дате создания
+        allLogs = [...deliveredLogs, ...sentLogs, ...failedLogs, ...pendingLogs].sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+
+        // Вычисляем общую статистику
+        totalCount = (deliveredResponse.data.success ? deliveredResponse.data.data.total : 0) + 
+                    (sentResponse.data.success ? sentResponse.data.data.total : 0) +
+                    (failedResponse.data.success ? failedResponse.data.data.total : 0) +
+                    (pendingResponse.data.success ? pendingResponse.data.data.total : 0)
+        totalPagesCount = Math.max(
+          deliveredResponse.data.success ? deliveredResponse.data.data.totalPages : 0,
+          sentResponse.data.success ? sentResponse.data.data.totalPages : 0,
+          failedResponse.data.success ? failedResponse.data.data.totalPages : 0,
+          pendingResponse.data.success ? pendingResponse.data.data.totalPages : 0
+        )
       } else {
-        setNotificationLogs([])
-        setNotificationTotal(0)
-        setNotificationTotalPages(0)
+        // Загружаем логи конкретного статуса уведомления
+        const response = await api.get<{success: boolean, data: NotificationLogsResponse}>(`/notification-logs/status/${notificationStatus}?${params.toString()}`)
+        console.log(`Notification logs response for ${notificationStatus}:`, response.data)
+        if (response.data.success && response.data.data) {
+          allLogs = response.data.data.logs
+          totalCount = response.data.data.total
+          totalPagesCount = response.data.data.totalPages
+        }
       }
+
+      setNotificationLogs(allLogs)
+      setNotificationTotal(totalCount)
+      setNotificationTotalPages(totalPagesCount)
     } catch (error) {
       console.error("Ошибка при загрузке логов уведомлений:", error)
       setNotificationLogs([])
@@ -721,7 +800,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Все действия</SelectItem>
-                      {Object.entries(actionTypeLabels).map(([key, label]) => (
+                      {Object.entries(actionTypeLabelsForRating).map(([key, label]) => (
                         <SelectItem key={key} value={key}>{label}</SelectItem>
                       ))}
                     </SelectContent>
