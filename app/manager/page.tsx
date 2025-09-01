@@ -66,6 +66,7 @@ import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import {RequestCard} from "@/components/RequestCard";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
+import ManagerAnalytics from "@/components/ManagerAnalytics";
 import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover"
 import {Calendar} from "@/components/ui/calendar";
 import {ru} from "date-fns/locale";
@@ -1533,20 +1534,27 @@ export default function ManagerDashboard() {
 
         {/* Mobile-optimized Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-3">
-            <TabsTrigger value="requests" className="text-xs sm:text-sm">
-              Заявки
-            </TabsTrigger>
-            <TabsTrigger value="overview" className="text-xs sm:text-sm">
-              Обзор
-            </TabsTrigger>
-            <TabsTrigger value="management" className="text-xs sm:text-sm">
-              Управление
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="text-xs sm:text-sm">
-              Логи
-            </TabsTrigger>
-          </TabsList>
+          <div className="w-full mb-3">
+            <div className="overflow-x-auto">
+              <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-5 sm:w-full">
+                <TabsTrigger value="requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                  Заявки
+                </TabsTrigger>
+                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                  Обзор
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                  Аналитика
+                </TabsTrigger>
+                <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                  Управление
+                </TabsTrigger>
+                <TabsTrigger value="logs" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                  Логи
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
 
           <TabsContent value="requests" className="mb-20">
             {/* График для десктопа */}
@@ -1748,6 +1756,10 @@ export default function ManagerDashboard() {
                 <NotificationsSidebar onNotificationClick={handleNotificationClick} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mb-20">
+            <ManagerAnalytics />
           </TabsContent>
 
           {/* Management Tab Content for Manager */}
