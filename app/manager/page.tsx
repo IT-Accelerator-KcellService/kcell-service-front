@@ -53,7 +53,7 @@ import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
-import {RoleBasedActionMenu} from "@/components/action-menu";
+import {RoleBasedActionMenu} from "@/components/action-menu/RoleBasedActionMenu";
 import {LogsViewer} from "@/components/logs-viewer";
 import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 import {IconInfoModal} from "@/components/IconInfoModal";

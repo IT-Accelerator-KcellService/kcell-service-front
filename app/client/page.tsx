@@ -44,7 +44,7 @@ import PullToRefresh from "@/components/pull-to-refresh";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
-import { RoleBasedActionMenu } from "@/components/action-menu";
+import { RoleBasedActionMenu } from "@/components/action-menu/RoleBasedActionMenu";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import {RatingModal} from "@/components/RatingModal";
 import {RequestCard} from "@/components/RequestCard";

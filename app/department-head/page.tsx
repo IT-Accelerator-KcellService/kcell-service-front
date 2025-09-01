@@ -46,7 +46,7 @@ import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
-import {RoleBasedActionMenu} from "@/components/action-menu";
+import {RoleBasedActionMenu} from "@/components/action-menu/RoleBasedActionMenu";
 import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 import {MapModal} from "@/components/MapModal";
 import {RatingModal} from "@/components/RatingModal";
