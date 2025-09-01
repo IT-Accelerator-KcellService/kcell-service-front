@@ -734,7 +734,7 @@ export default function AdminWorkerDashboard() {
         const currentRequests = useRequestStore.getState().requests
         const updatedStoreRequests = currentRequests.map(req =>
             req.id === selectedRequest.id ? updatedRequestGroup : req
-        )
+        ).filter(req => req.requests.length > 0)
         useRequestStore.getState().setRequests(updatedStoreRequests)
 
         // Если это была последняя под заявка в группе, закрываем модальное окно
