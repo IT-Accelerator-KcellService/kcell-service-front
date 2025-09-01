@@ -646,7 +646,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           {/* Выбор офиса для всех ролей */}
           {offices.length > 0 && (
             <div>
-              <Label className="flex items-center gap-1">
+              <Label className="flex items-center gap-1 mb-2">
                 Офис
               </Label>
               <Select
