@@ -479,21 +479,23 @@ export default function ClientDashboard() {
 
   // Функция для обработки рейтингов клиентов из ответа API
   const processClientRatings = useCallback((requestGroups: any[]) => {
-    const ratingsData: Record<number, any> = {};
-    requestGroups.forEach((requestGroup: any) => {
-      if (requestGroup.clientRatings && requestGroup.clientRatings.length > 0) {
-        const rating = requestGroup.clientRatings[0]; // Берем первый рейтинг
-        ratingsData[requestGroup.id] = {
-          id: rating.id,
-          rating: rating.rating,
-          comment: rating.comment,
-          request_group_id: requestGroup.id,
-          created_at: rating.created_at,
-          ratedByUser: rating.ratedByUser
-        };
-      }
+    setClientRatings(prev => {
+      const newRatingsData = { ...prev };
+      requestGroups.forEach((requestGroup: any) => {
+        if (requestGroup.clientRatings && requestGroup.clientRatings.length > 0) {
+          // Сохраняем все рейтинги как массив
+          newRatingsData[requestGroup.id] = requestGroup.clientRatings.map((rating: any) => ({
+            id: rating.id,
+            rating: rating.rating,
+            comment: rating.comment,
+            request_group_id: requestGroup.id,
+            created_at: rating.created_at,
+            ratedByUser: rating.ratedByUser
+          }));
+        }
+      });
+      return newRatingsData;
     });
-    setClientRatings(ratingsData);
   }, []);
 
   const fetchRequests = useCallback(async (pageToFetch = page) => {
@@ -1457,35 +1459,59 @@ export default function ClientDashboard() {
                         </div>
                   )}
 
-                  {/* Отображение рейтинга клиента */}
+                  {/* Отображение рейтингов клиента */}
                   {selectedRequest.status === "completed" && clientRatings[selectedRequest.id] && selectedRequest.client?.role === "client" && (
                     <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-3">
                         <Star className="w-5 h-5 text-purple-600" />
-                        <h4 className="font-semibold text-purple-800">Оценка от исполнителя</h4>
+                        <h4 className="font-semibold text-purple-800">
+                          Оценки от исполнителей ({clientRatings[selectedRequest.id].length})
+                        </h4>
                       </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="flex">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <span key={star} className={`text-xl ${star <= clientRatings[selectedRequest.id].rating ? 'text-purple-500' : 'text-gray-300'}`}>
-                              ★
-                            </span>
-                          ))}
-                        </div>
-                        <span className="text-sm text-purple-700">
-                          {clientRatings[selectedRequest.id].rating} из 5
-                        </span>
-                      </div>
-                      {clientRatings[selectedRequest.id].comment && (
-                        <div className="mt-2">
-                          <p className="text-sm text-purple-700 break-words">
-                            "{clientRatings[selectedRequest.id].comment}"
-                          </p>
+                      
+                      {Array.isArray(clientRatings[selectedRequest.id]) ? (
+                        // Показываем все оценки
+                        clientRatings[selectedRequest.id].map((rating: any, index: number) => (
+                          <div key={rating.id} className={`mb-3 ${index > 0 ? 'pt-3 border-t border-purple-200' : ''}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <span key={star} className={`text-xl ${star <= rating.rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                                    ★
+                                  </span>
+                                ))}
+                              </div>
+                              <span className="text-sm text-purple-700">
+                                {rating.rating} из 5
+                              </span>
+                            </div>
+                            {rating.comment && (
+                              <div className="mt-2">
+                                <p className="text-sm text-purple-700 break-words">
+                                  "{rating.comment}"
+                                </p>
+                              </div>
+                            )}
+                            <div className="mt-2 text-xs text-purple-600">
+                              Оценка от: {rating.ratedByUser?.full_name || 'Исполнитель'}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        // Обратная совместимость для старого формата (один рейтинг)
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span key={star} className={`text-xl ${star <= clientRatings[selectedRequest.id].rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                                ★
+                              </span>
+                            ))}
+                          </div>
+                          <span className="text-sm text-purple-700">
+                            {clientRatings[selectedRequest.id].rating} из 5
+                          </span>
                         </div>
                       )}
-                      <div className="mt-2 text-xs text-purple-600">
-                        Оценка от: {clientRatings[selectedRequest.id].ratedByUser?.full_name || 'Исполнитель'}
-                      </div>
                     </div>
                   )}
 

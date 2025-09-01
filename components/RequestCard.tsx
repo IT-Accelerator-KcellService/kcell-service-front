@@ -91,25 +91,62 @@ export function RequestCard({
         {/* Рейтинг клиента */}
         {clientRating && request.status === "completed" && request.client?.role === "client" && (
           <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-medium text-purple-800">
-                  {userRole === "client" ? "Оценка от исполнителя:" : "Оценка клиента:"}
-                </span>
-              <div className="flex">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <span key={star} className={`text-sm ${star <= clientRating.rating ? 'text-purple-500' : 'text-gray-300'}`}>
-                    ★
-                  </span>
-                ))}
-              </div>
-              <span className="text-xs text-purple-700">
-                {clientRating.rating}/5
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-medium text-purple-800">
+                {userRole === "client" ? "Оценки от исполнителей:" : "Оценки клиента:"}
               </span>
+              {Array.isArray(clientRating) ? (
+                // Показываем количество оценок
+                <span className="text-xs text-purple-700">
+                  {clientRating.length} оценок
+                </span>
+              ) : (
+                // Обратная совместимость для старого формата
+                <div className="flex">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span key={star} className={`text-sm ${star <= clientRating.rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                      ★
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-            {clientRating.comment && (
-              <p className="text-xs text-purple-700 break-words line-clamp-2">
-                "{clientRating.comment}"
-              </p>
+            
+            {Array.isArray(clientRating) ? (
+              // Показываем первую оценку как превью
+              clientRating.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span key={star} className={`text-sm ${star <= clientRating[0].rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                    <span className="text-xs text-purple-700">
+                      {clientRating[0].rating}/5
+                    </span>
+                  </div>
+                  {clientRating[0].comment && (
+                    <p className="text-xs text-purple-700 break-words line-clamp-2">
+                      "{clientRating[0].comment}"
+                    </p>
+                  )}
+                  {clientRating.length > 1 && (
+                    <p className="text-xs text-purple-600 mt-1">
+                      +{clientRating.length - 1} еще оценок
+                    </p>
+                  )}
+                </div>
+              )
+            ) : (
+              // Обратная совместимость для старого формата
+              clientRating.comment && (
+                <p className="text-xs text-purple-700 break-words line-clamp-2">
+                  "{clientRating.comment}"
+                </p>
+              )
             )}
           </div>
         )}
