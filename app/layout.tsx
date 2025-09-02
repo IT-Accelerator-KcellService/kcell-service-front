@@ -11,7 +11,14 @@ export const metadata: Metadata = {
   description:
     "Mobile-first internal solution for Kcell employees to submit and manage cleaning and maintenance requests across office buildings.",
   keywords: "Kcell, service requests, maintenance, internal app, Kazakhstan telecom",
-    generator: 'v0.dev'
+  generator: 'v0.dev',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: 'cover'
+  }
 }
 
 export default function RootLayout({
@@ -21,6 +28,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="scroll-smooth">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+      </head>
       <body className={inter.className}>{children}</body>
     </html>
   )
