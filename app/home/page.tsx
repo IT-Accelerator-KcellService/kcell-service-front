@@ -29,6 +29,17 @@ declare global {
       reloadPage: () => void;
       notifyReady: () => void;
     };
+    webkit?: {
+      messageHandlers: {
+        saveFile: {
+          postMessage: (message: {
+            filename: string;
+            base64Data: string;
+            mimeType: string;
+          }) => void;
+        };
+      };
+    };
   }
 }
 
@@ -349,6 +360,31 @@ export default function HomePage() {
                         base64data,
                         mimeType
                     );
+                };
+
+                reader.readAsDataURL(blob);
+            } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.saveFile) {
+                // Для iOS WebView используем специальный обработчик
+                const response = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const blob = await response.blob();
+                const reader = new FileReader();
+
+                reader.onloadend = function() {
+                    const base64data = reader.result?.toString().split(',')[1] || '';
+                    const mimeType = blob.type ||
+                        (format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
+                            'application/octet-stream');
+
+                    window.webkit?.messageHandlers?.saveFile?.postMessage({
+                        filename: `analytics.${format}`,
+                        base64Data: base64data,
+                        mimeType: mimeType
+                    });
                 };
 
                 reader.readAsDataURL(blob);
