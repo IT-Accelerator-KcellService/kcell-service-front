@@ -1905,6 +1905,7 @@ export default function AdminWorkerDashboard() {
                                       </>
                                   )}
                                 </Button>
+
                     </div>
 
                               {/* Раскрытая информация */}
