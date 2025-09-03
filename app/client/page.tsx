@@ -1303,7 +1303,7 @@ export default function ClientDashboard() {
                                 </div>
 
                                 {/* Кнопка раскрытия */}
-                                {subRequest.status !== 'in_progress' && (
+                                {subRequest.status !== 'in_progress' && subRequest.status !== 'rejected' && (
                                   <Button
                                       variant="ghost"
                                       size="sm"

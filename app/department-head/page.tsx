@@ -1787,7 +1787,7 @@ export default function DepartmentHeadDashboard() {
                     </div>
 
                                 {/* Кнопка раскрытия */}
-                                {subRequest.status !== 'in_progress' && (
+                                {subRequest.status !== 'in_progress' && subRequest.status !== 'rejected' && (
                                     <Button
                                         variant="ghost"
                                         size="sm"
