@@ -760,7 +760,7 @@ export default function ManagerDashboard() {
         );
       } else {
         // Добавление
-        const response = await api.post("/users", newUser);
+        const response = await api.post("/users", payload);
         response.data.office_id = newUser.office_id;
         response.data.category_id = newUser.category_id;
         setUsers((prev) => [...prev, response.data]);
