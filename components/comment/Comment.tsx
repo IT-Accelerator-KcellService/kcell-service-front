@@ -97,15 +97,18 @@ export function CommentList({
                                     className={`flex items-start gap-2.5 group relative transition-colors duration-150 ${
                                         activeCommentId === c.id ? "bg-violet-50" : "hover:bg-gray-50"
                                     }`}
-                                    style={{ position: 'relative', borderRadius: '0.5rem', padding: '0.5rem' }}
+                                    style={{ WebkitUserSelect: "none", userSelect: "none", position: 'relative', borderRadius: '0.5rem', padding: '0.5rem' }}
                                     onContextMenu={(e) => {
                                         if (!isDesktop || !isOwnComment) return;
                                         e.preventDefault();
                                         openActions(c);
                                     }}
-                                    onTouchStart={() => {
+                                    onTouchStart={(e) => {
                                         if (isDesktop || !isOwnComment) return;
-                                        const timer = setTimeout(() => openActions(c), 500);
+                                        const timer = setTimeout(() => {
+                                            e.preventDefault(); // только при долгом нажатии
+                                            openActions(c);
+                                        }, 500);
                                         const clearTimer = () => clearTimeout(timer);
                                         document.addEventListener("touchend", clearTimer, { once: true });
                                         document.addEventListener("touchmove", clearTimer, { once: true });
