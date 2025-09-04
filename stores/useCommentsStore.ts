@@ -122,6 +122,7 @@ export const useCommentsStore = create<CommentsState>((set, get) => ({
     try {
       const response = await api.put(`/comments/${commentId}`, {
         comment: newText.trim(),
+        request_id: requestId
       });
       
       // Обновляем комментарий с данными с сервера
