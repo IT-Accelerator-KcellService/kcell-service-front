@@ -751,6 +751,9 @@ export default function ManagerDashboard() {
         role: newUser.role,
         category_id: newUser.role === 'department-head' ? newUser.category_id : undefined,
       }
+      if (payload.category_id === 0) {
+        payload.category_id = undefined;
+      }
 
       if (editingUserId) {
         // Обновление
