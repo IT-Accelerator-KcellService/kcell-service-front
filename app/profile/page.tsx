@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useState } from "react"
+import React, { useState } from "react"
 import {
     Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card"
@@ -45,6 +45,40 @@ export default function ProfilePage() {
     const {clearNotifications} = useNotificationStore()
     const {clearRequests} = useRequestStore()
 
+    // Обработка изменения телефона с форматированием
+    function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const value = e.target.value;
+        const formatted = formatPhone(value);
+        updateUser({ ...user, phone: formatted });
+    }
+
+    // Форматирование номера телефона
+    const formatPhone = (value: string) => {
+        // убираем всё, кроме цифр
+        let numbers = value.replace(/\D/g, '');
+
+        // если номер начинается с "8", заменяем на "7"
+        if (numbers.startsWith('8')) {
+            numbers = '7' + numbers.slice(1);
+        }
+
+        // если нет "7" в начале — добавляем
+        if (!numbers.startsWith('7')) {
+            numbers = '7' + numbers;
+        }
+
+        // оставляем максимум 11 цифр
+        numbers = numbers.slice(0, 11);
+
+        // форматируем
+        if (numbers.length <= 1) return '+7 ';
+        if (numbers.length <= 4) return `+7 ${numbers.slice(1)}`;
+        if (numbers.length <= 7) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4)}`;
+        if (numbers.length <= 9) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7)}`;
+        return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7, 9)} ${numbers.slice(9, 11)}`;
+    };
+
+
     const handleLogout = () => {
         setIsLoggingOut(true)
         clearAuth()
@@ -58,19 +92,8 @@ export default function ProfilePage() {
         setProfileError("")
         setProfileSuccess("")
 
-        if (!user || !user.full_name || !user.email) {
-            setProfileError("ФИО и Email обязательны.")
-            return
-        }
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(user.email)) {
-            setProfileError("Некорректный email адрес.")
-            return
-        }
-
-        if (user.phone && user.phone.length < 10) {
-            setProfileError("Номер телефона должен содержать минимум 10 символов.")
+        if (!user || !user.full_name || !user.phone) {
+            setProfileError("ФИО и Номер обязательны.")
             return
         }
 
@@ -78,7 +101,6 @@ export default function ProfilePage() {
         try {
             await api.put(`/users/${user.id}`, {
                 full_name: user.full_name,
-                email: user.email,
                 phone: user.phone,
             })
             setProfileSuccess("Профиль обновлён.")
@@ -190,21 +212,11 @@ export default function ProfilePage() {
                                 </div>
 
                                 <div className="space-y-1">
-                                    <Label className="text-sm">Email</Label>
-                                    <Input
-                                        type="email"
-                                        value={user?.email}
-                                        onChange={(e) => updateUser({ ...user, email: e.target.value })}
-                                        className="text-sm"
-                                    />
-                                </div>
-
-                                <div className="space-y-1">
                                     <Label className="text-sm">Номер телефона</Label>
                                     <Input
                                         type="tel"
                                         value={user?.phone || ""}
-                                        onChange={(e) => updateUser({ ...user, phone: e.target.value })}
+                                        onChange={handlePhoneChange}
                                         className="text-sm"
                                         placeholder="+7 (999) 123-45-67"
                                     />

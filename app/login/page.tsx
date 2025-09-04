@@ -5,22 +5,24 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Building2, Users } from "lucide-react"
+import { Building2, Users, UserPlus } from "lucide-react"
 import {useRouter} from "next/navigation";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import api from "@/lib/api";
 import {useCategoryStore} from "@/stores/useCategoryStore";
+import RegistrationRequestModal from "@/components/RegistrationRequestModal";
 
 export default function LoginPage() {
   const router = useRouter()
   const [isLogin, setIsLogin] = useState(true)
-  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
-  const [emailError, setEmailError] = useState("")
+  const [phoneError, setPhoneError] = useState("")
   const [passwordError, setPasswordError] = useState("")
   const [formError, setFormError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false)
   const {role, token} = useAuthStore()
 
   useEffect(() => {
@@ -29,15 +31,47 @@ export default function LoginPage() {
     }
   }, [token, role, router])
 
+  // Автоматическое форматирование телефона
+  const formatPhone = (value: string) => {
+    // убираем всё, кроме цифр
+    let numbers = value.replace(/\D/g, '');
+
+    // если номер начинается с "8", заменяем на "7"
+    if (numbers.startsWith('8')) {
+      numbers = '7' + numbers.slice(1);
+    }
+
+    // если нет "7" в начале — добавляем
+    if (!numbers.startsWith('7')) {
+      numbers = '7' + numbers;
+    }
+
+    // оставляем максимум 11 цифр
+    numbers = numbers.slice(0, 11);
+
+    // форматируем
+    if (numbers.length <= 1) return '+7 ';
+    if (numbers.length <= 4) return `+7 ${numbers.slice(1)}`;
+    if (numbers.length <= 7) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4)}`;
+    if (numbers.length <= 9) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7)}`;
+    return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7, 9)} ${numbers.slice(9, 11)}`;
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const formatted = formatPhone(value);
+    setPhone(formatted);
+  };
+
   const validate = () => {
     let isValid = true
-    setEmailError("")
+    setPhoneError("")
     setPasswordError("")
     setFormError("")
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!email || !emailRegex.test(email)) {
-      setEmailError("Введите корректный email")
+    const phoneRegex = /^\+7 \d{3} \d{3} \d{2} \d{2}$/
+    if (!phone || !phoneRegex.test(phone)) {
+      setPhoneError("Введите корректный номер телефона в формате +7 XXX XXX XX XX")
       isValid = false
     }
 
@@ -62,14 +96,14 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ phone, password }),
         credentials: "include",
       })
 
       if (!response.ok) {
         const error = await response.json();
-        if(error?.details?.[0]?.message==="Invalid email or password"){
-          setFormError("Неверный email или пароль")
+        if(error?.details?.[0]?.message==="Неверный номер телефона или пароль"){
+          setFormError("Неверный номер телефона или пароль")
         }else {
           const message =
               error?.details?.[0]?.message || error.message || "Ошибка входа";
@@ -129,15 +163,16 @@ export default function LoginPage() {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="phone">Номер телефона</Label>
                   <Input
-                      id="email"
-                      type="email"
-                      placeholder="your.email@kcell.kz"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      id="phone"
+                      type="tel"
+                      placeholder="+7 XXX XXX XX XX"
+                      value={phone}
+                      onChange={handlePhoneChange}
+                      maxLength={19}
                   />
-                  {emailError && <p className="text-red-500 text-sm mt-1">{emailError}</p>}
+                  {phoneError && <p className="text-red-500 text-sm mt-1">{phoneError}</p>}
                 </div>
                 <div>
                   <Label htmlFor="password">Пароль</Label>
@@ -162,6 +197,17 @@ export default function LoginPage() {
               {formError && (
                   <p className="text-red-500 text-center text-sm mt-2">{formError}</p>
               )}
+
+              <div className="text-center">
+                <Button
+                  onClick={() => setShowRegistrationModal(true)}
+                  variant="outline"
+                  className="w-full text-violet-600 border-violet-600 hover:bg-violet-50"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Запросить регистрацию
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -180,6 +226,11 @@ export default function LoginPage() {
             </Card>
           </div>
         </div>
+
+        <RegistrationRequestModal
+          isOpen={showRegistrationModal}
+          onClose={() => setShowRegistrationModal(false)}
+        />
       </div>
   )
 }

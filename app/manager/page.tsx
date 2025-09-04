@@ -74,6 +74,7 @@ import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import PhotoModal from "@/components/photo/PhotoModal";
 import {RatingModal} from "@/components/RatingModal";
+import RegistrationRequestsManager from "@/components/RegistrationRequestsManager";
 
 declare global {
   interface Window {
@@ -102,7 +103,6 @@ type OfficeType = {
 type User = {
   id: number;
   full_name: string;
-  email: string;
   phone?: string;
   office_id: number;
   role: string;
@@ -195,7 +195,6 @@ export default function ManagerDashboard() {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [newUser, setNewUser] = useState({
     id: 0,
-    email: "",
     full_name: "",
     phone: "",
     office_id: 0,
@@ -744,7 +743,6 @@ export default function ManagerDashboard() {
 
       const payload = {
         id: newUser.id,
-        email: newUser.email,
         full_name: newUser.full_name,
         phone: newUser.phone,
         office_id: newUser.office_id,
@@ -771,7 +769,6 @@ export default function ManagerDashboard() {
 
       setNewUser({
         id: 0,
-        email: "",
         full_name: "",
         phone: "",
         office_id: 0,
@@ -825,7 +822,6 @@ export default function ManagerDashboard() {
   };
 
   const isValidUser =
-      newUser.email.trim() &&
       newUser.full_name.trim() &&
       newUser.office_id !== 0 &&
       newUser.role;
@@ -833,7 +829,6 @@ export default function ManagerDashboard() {
   const handleEditUser = (user: User) => {
     setNewUser({
       id: user.id,
-      email: user.email,
       full_name: user.full_name,
       phone: user.phone || "",
       office_id: user.office_id,
@@ -1363,7 +1358,7 @@ export default function ManagerDashboard() {
       setNewOfficeAddress("")
       setFilterStatus("all")
       setFilterType("all")
-      setNewUser({ id: 0, email: "", full_name: "", phone: "", office_id: 0, role: "", category_id: 0 });
+      setNewUser({ id: 0, full_name: "", phone: "", office_id: 0, role: "", category_id: 0 });
       setSearchInput("")
       setEditedOffice({name: "", city: "", address: ""})
       setDistribution({
@@ -1658,9 +1653,16 @@ export default function ManagerDashboard() {
                 <TabsTrigger value="logs" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                   Логи
                 </TabsTrigger>
+                <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                  Регистрации
+                </TabsTrigger>
               </TabsList>
             </div>
           </div>
+
+          <TabsContent value="registration-requests" className="mb-20">
+            <RegistrationRequestsManager />
+          </TabsContent>
 
           <TabsContent value="requests" className="mb-20">
             {/* График для десктопа */}
@@ -2021,7 +2023,7 @@ export default function ManagerDashboard() {
                   <div className="flex flex-col sm:flex-row gap-2">
                     {/* Поле ввода */}
                     <Input
-                        placeholder="Поиск по имени или email"
+                        placeholder="Поиск по имени или номер"
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -2055,94 +2057,89 @@ export default function ManagerDashboard() {
                   </div>
 
                   {/* Форма добавления */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    <Input
-                        placeholder="Email"
-                        value={newUser.email}
-                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    />
-                    <Input
-                        placeholder="Полное имя"
-                        value={newUser.full_name}
-                        onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-                    />
-                    <Input
-                        placeholder="Номер телефона"
-                        value={newUser.phone}
-                        onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-                    />
-                    <Select
-                        value={String(newUser.office_id === 0 ? "" : newUser.office_id)}
-                        onValueChange={(val) => setNewUser({ ...newUser, office_id: Number(val) })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Офис" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {offices.map((office: any, index: number) => (
-                            <SelectItem key={index} value={String(office.id)}>
-                              {office.name}
-                            </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {/*<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">*/}
+                  {/*  <Input*/}
+                  {/*      placeholder="Полное имя"*/}
+                  {/*      value={newUser.full_name}*/}
+                  {/*      onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}*/}
+                  {/*  />*/}
+                  {/*  <Input*/}
+                  {/*      placeholder="Номер телефона"*/}
+                  {/*      value={newUser.phone}*/}
+                  {/*      onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}*/}
+                  {/*  />*/}
+                  {/*  <Select*/}
+                  {/*      value={String(newUser.office_id === 0 ? "" : newUser.office_id)}*/}
+                  {/*      onValueChange={(val) => setNewUser({ ...newUser, office_id: Number(val) })}*/}
+                  {/*  >*/}
+                  {/*    <SelectTrigger>*/}
+                  {/*      <SelectValue placeholder="Офис" />*/}
+                  {/*    </SelectTrigger>*/}
+                  {/*    <SelectContent>*/}
+                  {/*      {offices.map((office: any, index: number) => (*/}
+                  {/*          <SelectItem key={index} value={String(office.id)}>*/}
+                  {/*            {office.name}*/}
+                  {/*          </SelectItem>*/}
+                  {/*      ))}*/}
+                  {/*    </SelectContent>*/}
+                  {/*  </Select>*/}
 
-                    <Select
-                        value={newUser.role}
-                        onValueChange={(val) => {
-                          // Меняем роль только если не executor
-                          if (!(editingUserId && newUser.role === "executor")) {
-                            setNewUser({ ...newUser, role: val, category_id: 0 });
-                          }
-                        }}
-                        disabled={!!editingUserId && newUser.role === "executor"}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Роль" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["client", "admin-worker", "department-head", "manager", "executor"]
-                            .filter((role) => {
-                              if (!editingUserId && role === "executor") return false; // при добавлении убираем executor
-                              return true;
-                            })
-                            .map((role) => (
-                                <SelectItem key={role} value={role}>
-                                  {roleTranslations[role] || role}
-                                </SelectItem>
-                            ))}
-                      </SelectContent>
-                    </Select>
+                  {/*  <Select*/}
+                  {/*      value={newUser.role}*/}
+                  {/*      onValueChange={(val) => {*/}
+                  {/*        // Меняем роль только если не executor*/}
+                  {/*        if (!(editingUserId && newUser.role === "executor")) {*/}
+                  {/*          setNewUser({ ...newUser, role: val, category_id: 0 });*/}
+                  {/*        }*/}
+                  {/*      }}*/}
+                  {/*      disabled={!!editingUserId && newUser.role === "executor"}*/}
+                  {/*  >*/}
+                  {/*    <SelectTrigger>*/}
+                  {/*      <SelectValue placeholder="Роль" />*/}
+                  {/*    </SelectTrigger>*/}
+                  {/*    <SelectContent>*/}
+                  {/*      {["client", "admin-worker", "department-head", "manager", "executor"]*/}
+                  {/*          .filter((role) => {*/}
+                  {/*            if (!editingUserId && role === "executor") return false; // при добавлении убираем executor*/}
+                  {/*            return true;*/}
+                  {/*          })*/}
+                  {/*          .map((role) => (*/}
+                  {/*              <SelectItem key={role} value={role}>*/}
+                  {/*                {roleTranslations[role] || role}*/}
+                  {/*              </SelectItem>*/}
+                  {/*          ))}*/}
+                  {/*    </SelectContent>*/}
+                  {/*  </Select>*/}
 
-                    {/* Появляется только если выбрана роль department-head */}
-                    {newUser.role === "department-head" && (
-                        <Select
-                            value={String(newUser.category_id) === "0" ? undefined : String(newUser.category_id)}
-                            onValueChange={(val) => setNewUser({ ...newUser, category_id: Number(val) })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Специализация" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((cat: any, index: number) => (
-                                <SelectItem key={index} value={String(cat.id)}>
-                                  {cat.name}
-                                </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                    )}
-                  </div>
-                  {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+                  {/*  /!* Появляется только если выбрана роль department-head *!/*/}
+                  {/*  {newUser.role === "department-head" && (*/}
+                  {/*      <Select*/}
+                  {/*          value={String(newUser.category_id) === "0" ? undefined : String(newUser.category_id)}*/}
+                  {/*          onValueChange={(val) => setNewUser({ ...newUser, category_id: Number(val) })}*/}
+                  {/*      >*/}
+                  {/*        <SelectTrigger>*/}
+                  {/*          <SelectValue placeholder="Специализация" />*/}
+                  {/*        </SelectTrigger>*/}
+                  {/*        <SelectContent>*/}
+                  {/*          {categories.map((cat: any, index: number) => (*/}
+                  {/*              <SelectItem key={index} value={String(cat.id)}>*/}
+                  {/*                {cat.name}*/}
+                  {/*              </SelectItem>*/}
+                  {/*          ))}*/}
+                  {/*        </SelectContent>*/}
+                  {/*      </Select>*/}
+                  {/*  )}*/}
+                  {/*</div>*/}
+                  {/*{formErrors && <p className="text-sm text-red-500">{formErrors}</p>}*/}
 
-                  {/* Кнопка добавить/сохранить */}
-                  <Button
-                      onClick={handleAddOrUpdateUser}
-                      disabled={!isValidUser || loading}
-                      className="bg-green-600 hover:bg-green-700 w-full sm:w-fit"
-                  >
-                    {editingUserId ? "Сохранить" : "Добавить пользователя"}
-                  </Button>
+                  {/*/!* Кнопка добавить/сохранить *!/*/}
+                  {/*<Button*/}
+                  {/*    onClick={handleAddOrUpdateUser}*/}
+                  {/*    disabled={!isValidUser || loading}*/}
+                  {/*    className="bg-green-600 hover:bg-green-700 w-full sm:w-fit"*/}
+                  {/*>*/}
+                  {/*  {editingUserId ? "Сохранить" : "Добавить пользователя"}*/}
+                  {/*</Button>*/}
 
                   {/* Список пользователей */}
                   <div className="space-y-2 mt-4">
@@ -2160,7 +2157,6 @@ export default function ManagerDashboard() {
                                 {/* Информация о пользователе */}
                                 <div className="flex-1 min-w-0 max-w-full sm:max-w-[75%]">
                                   <div className="font-semibold text-gray-800 truncate">{user.full_name}</div>
-                                  <div className="text-sm text-gray-500 truncate">{user.email}</div>
                                   {user.phone && (
                                     <div className="text-sm text-gray-500 truncate">{user.phone}</div>
                                   )}
@@ -2728,7 +2724,7 @@ export default function ManagerDashboard() {
           }
         }}
         title="Удалить пользователя?"
-        description={`Вы уверены, что хотите удалить пользователя ${userToDelete?.full_name} (${userToDelete?.email})? Это действие нельзя отменить.`}
+        description={`Вы уверены, что хотите удалить пользователя ${userToDelete?.full_name}? Это действие нельзя отменить.`}
       />
 
       <DeleteConfirmationModal

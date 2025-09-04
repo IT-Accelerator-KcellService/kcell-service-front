@@ -57,7 +57,7 @@ export interface RequestGroup {
     rejection_reason?: string;
     planned_date?: string;
     created_date: string;
-    client?: { full_name: string; email: string; phone?: string; role?: string };
+    client?: { full_name: string; phone?: string; role?: string };
     office?: { id: number; name: string; city: string; address?: string };
     photos?: Photo[];
     requests: SubRequest[];

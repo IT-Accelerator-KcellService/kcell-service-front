@@ -608,8 +608,8 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                                              )}
                                            </span>
                                          </div>
-                                         {requestExecutor.executor?.user?.email && (
-                                           <div className="text-xs text-gray-500 mt-1 sm:mt-0.5">{requestExecutor.executor.user.email}</div>
+                                         {requestExecutor.executor?.user?.phone && (
+                                           <div className="text-xs text-gray-500 mt-1 sm:mt-0.5">{requestExecutor.executor.user.phone}</div>
                                          )}
                                        </div>
                                      </div>

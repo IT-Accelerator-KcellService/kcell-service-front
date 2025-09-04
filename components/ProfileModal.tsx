@@ -48,6 +48,41 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     const [notificationSuccess, setNotificationSuccess] = useState("")
     const [isLoggingOut, setIsLoggingOut] = useState(false)
 
+
+    // Форматирование номера телефона: +7 (___) ___-__-__
+    const formatPhone = (value: string) => {
+        // убираем всё, кроме цифр
+        let numbers = value.replace(/\D/g, '');
+
+        // если номер начинается с "8", заменяем на "7"
+        if (numbers.startsWith('8')) {
+            numbers = '7' + numbers.slice(1);
+        }
+
+        // если нет "7" в начале — добавляем
+        if (!numbers.startsWith('7')) {
+            numbers = '7' + numbers;
+        }
+
+        // оставляем максимум 11 цифр
+        numbers = numbers.slice(0, 11);
+
+        // форматируем
+        if (numbers.length <= 1) return '+7 ';
+        if (numbers.length <= 4) return `+7 ${numbers.slice(1)}`;
+        if (numbers.length <= 7) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4)}`;
+        if (numbers.length <= 9) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7)}`;
+        return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7, 9)} ${numbers.slice(9, 11)}`;
+    };
+
+    // Обработчик изменения телефона
+    function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const value = e.target.value;
+        const formatted = formatPhone(value);
+        updateUser((prev) => prev ? { ...prev, phone: formatted } : null);
+    }
+
+
     // Функция закрытия — централизованная
     const handleClose = useCallback(() => {
         if (onClose) onClose()
@@ -57,17 +92,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     const handleSaveProfile = async () => {
         setProfileError("")
         setProfileSuccess("")
-        if (!user || !user.full_name || !user.email) {
-            setProfileError("ФИО и Email обязательны.")
-            return
-        }
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!emailRegex.test(user.email)) {
-            setProfileError("Некорректный email адрес.")
-            return
-        }
-        if (user.phone && user.phone.length < 10) {
-            setProfileError("Номер телефона должен содержать минимум 10 символов.")
+        if (!user || !user.full_name || !user.phone) {
+            setProfileError("ФИО и Номер обязательны.")
             return
         }
 
@@ -75,7 +101,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         try {
             await api.put(`/users/${user.id}`, {
                 full_name: user.full_name,
-                email: user.email,
                 phone: user.phone,
             })
             setProfileSuccess("Профиль обновлён.")
@@ -139,13 +164,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             setNotificationError("Ошибка при сохранении настроек")
         } finally {
             setIsSavingNotifications(false)
-        }
-    }
-
-    // 🔧 Закрытие по клику на фон
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            handleClose()
         }
     }
 
@@ -231,24 +249,11 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label className="text-sm">Email</Label>
-                                        <Input
-                                            type="email"
-                                            value={user?.email || ""}
-                                            onChange={(e) =>
-                                                updateUser((prev) => prev ? { ...prev, email: e.target.value } : null)
-                                            }
-                                            className="text-sm"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
                                         <Label className="text-sm">Номер телефона</Label>
                                         <Input
                                             type="tel"
                                             value={user?.phone || ""}
-                                            onChange={(e) =>
-                                                updateUser((prev) => prev ? { ...prev, phone: e.target.value } : null)
-                                            }
+                                            onChange={handlePhoneChange}
                                             className="text-sm"
                                             placeholder="+7 (999) 123-45-67"
                                         />

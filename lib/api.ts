@@ -148,7 +148,7 @@ export interface RecurringTask {
     client?: {
         id: number;
         name: string;
-        email: string;
+        phone: string;
     };
     office?: {
         id: number;
@@ -157,7 +157,7 @@ export interface RecurringTask {
     executors?: {
         id: number;
         full_name: string;
-        email: string;
+        phone: string;
     }[];
     taskInstances?: TaskInstance[];
     // Подзаявки повторяющейся задачи
@@ -185,7 +185,7 @@ export interface RecurringTask {
                 user?: {
                     id: number;
                     full_name: string;
-                    email: string;
+                    phone: string;
                 };
             };
         }>;
@@ -206,7 +206,7 @@ export interface TaskInstance {
     taskCompletedByUser?: {
         id: number;
         name: string;
-        email: string;
+        phone: string;
     };
     recurringTaskGroup?: {
         id: number;

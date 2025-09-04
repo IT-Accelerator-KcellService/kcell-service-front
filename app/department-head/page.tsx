@@ -68,7 +68,6 @@ import PhotoModal from "@/components/photo/PhotoModal";
 interface User {
   id: number
   full_name: string
-  email: string
   phone?: string
   role: string
 }
@@ -379,12 +378,9 @@ export default function DepartmentHeadDashboard() {
 
   const [errors, setErrors] = useState({
     name: "",
-    email: "",
     phone: "",
   })
-  const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  }
+
   const validateFullName = (name: string) => {
     return /^([А-ЯӘӨҚҢҮҰҺІЁ][а-яәөқңүұһіё]+)\s([А-ЯӘӨҚҢҮҰҺІЁ][а-яәөқңүұһіё]+)$/.test(name.trim())
   }
@@ -397,7 +393,6 @@ export default function DepartmentHeadDashboard() {
 
   const handleAddExecutor = async () => {
     const name = newExecutorName.trim()
-    const email = newExecutorEmail.trim()
     const phone = newExecutorPhone.trim()
 
     const newErrors = {
@@ -406,11 +401,6 @@ export default function DepartmentHeadDashboard() {
               ? ""
               : "Введите корректное полное имя (например: Иван Иванов)"
           : "Введите имя",
-      email: email
-          ? validateEmail(email)
-              ? ""
-              : "Некорректный email"
-          : "Введите email",
       phone: phone
           ? phone.length >= 10
               ? ""
@@ -425,14 +415,13 @@ export default function DepartmentHeadDashboard() {
     try {
       await api.post('/executors', {
         full_name: name,
-        email,
         phone,
       })
       fetchExecutors()
       setNewExecutorName("")
       setNewExecutorEmail("")
       setNewExecutorPhone("")
-      setErrors({ name: "", email: "", phone: "" })
+      setErrors({ name: "", phone: "" })
     } catch (error) {
       console.error("Failed to add executor:", error)
     }
@@ -1514,35 +1503,28 @@ export default function DepartmentHeadDashboard() {
                         <CardDescription>Добавление и просмотр исполнителей</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Input
-                              placeholder="Имя и Фамилия исполнителя"
-                              value={newExecutorName}
-                              onChange={(e) => setNewExecutorName(e.target.value)}
-                          />
-                          {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
-
-                          <Input
-                              placeholder="Email"
-                              value={newExecutorEmail}
-                              onChange={(e) => setNewExecutorEmail(e.target.value)}
-                          />
-                          {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Input
-                              placeholder="Номер телефона"
-                              value={newExecutorPhone}
-                              onChange={(e) => setNewExecutorPhone(e.target.value)}
-                          />
-                          {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
-                        </div>
-                        <Button
-                            onClick={handleAddExecutor}
-                            disabled={!newExecutorName.trim() || !newExecutorEmail.trim() || !newExecutorPhone.trim()}
-                        >
-                          Добавить исполнителя
-                        </Button>
+                        {/*<div className="grid grid-cols-1 md:grid-cols-2 gap-4">*/}
+                        {/*  <Input*/}
+                        {/*      placeholder="Имя и Фамилия исполнителя"*/}
+                        {/*      value={newExecutorName}*/}
+                        {/*      onChange={(e) => setNewExecutorName(e.target.value)}*/}
+                        {/*  />*/}
+                        {/*  {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}*/}
+                        {/*</div>*/}
+                        {/*<div className="grid grid-cols-1 md:grid-cols-2 gap-4">*/}
+                        {/*  <Input*/}
+                        {/*      placeholder="Номер телефона"*/}
+                        {/*      value={newExecutorPhone}*/}
+                        {/*      onChange={(e) => setNewExecutorPhone(e.target.value)}*/}
+                        {/*  />*/}
+                        {/*  {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}*/}
+                        {/*</div>*/}
+                        {/*<Button*/}
+                        {/*    onClick={handleAddExecutor}*/}
+                        {/*    disabled={!newExecutorName.trim() || !newExecutorEmail.trim() || !newExecutorPhone.trim()}*/}
+                        {/*>*/}
+                        {/*  Добавить исполнителя*/}
+                        {/*</Button>*/}
                         {/* Поиск исполнителей */}
                         <div className="mt-4">
                           <Input

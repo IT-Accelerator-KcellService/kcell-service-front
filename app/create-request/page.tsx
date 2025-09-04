@@ -21,6 +21,8 @@ interface Office {
   name: string;
   city: string;
   address: string;
+  lat: number;
+  lon: number;
 }
 
 interface Executor {

@@ -27,7 +27,7 @@ interface Log {
   user: {
     id: number
     full_name: string
-    email: string
+    phone: string
     role: string
   }
   request: {
@@ -50,7 +50,7 @@ interface RatingLog {
   user?: {
     id: number
     full_name: string
-    email: string
+    phone: string
     role: string
   }
 }
@@ -69,7 +69,7 @@ interface NotificationLog {
   user?: {
     id: number
     full_name: string
-    email: string
+    phone: string
     role: string
   }
 }
@@ -151,7 +151,6 @@ const notificationStatusLabels: Record<string, string> = {
 }
 
 const deliveryMethodLabels: Record<string, string> = {
-  email: "Email",
   push: "Push",
   in_app: "В приложении",
 }

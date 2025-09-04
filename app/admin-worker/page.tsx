@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { LeaderIndicator } from "@/components/ui/leader-indicator";
+import RegistrationRequestsManager from "@/components/RegistrationRequestsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Tooltip,
@@ -73,7 +73,6 @@ import PhotoModal from "@/components/photo/PhotoModal";
 interface User {
   id: number;
   full_name: string;
-  email: string;
   role: string;
 }
 interface Rating {
@@ -1523,6 +1522,9 @@ export default function AdminWorkerDashboard() {
                       <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
                         Логи
                       </TabsTrigger>
+                      <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Регистрации
+                      </TabsTrigger>
                     </TabsList>
                   </div>
 
@@ -1544,16 +1546,21 @@ export default function AdminWorkerDashboard() {
                       <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
                         Логи
                       </TabsTrigger>
+                      <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Регистрации
+                      </TabsTrigger>
                     </TabsList>
                     <Button
                         onClick={() => router.push('/create-request')}
                         className="bg-violet-600 hover:bg-violet-700"
                     >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Создать заявку
+                      Создать
                     </Button>
                   </div>
                 </div>
+                <TabsContent value="registration-requests">
+                  <RegistrationRequestsManager />
+                </TabsContent>
                 <TabsContent value="my-requests">
                   <div className="space-y-4">
                     <div className="flex items-center space-x-4 mb-4">

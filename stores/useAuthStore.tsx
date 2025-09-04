@@ -7,7 +7,6 @@ interface Office {
 
 interface User {
     id: number;
-    email: string;
     full_name: string;
     phone?: string;
     office_id: number;
