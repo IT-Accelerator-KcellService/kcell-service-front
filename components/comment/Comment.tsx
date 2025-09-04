@@ -104,9 +104,11 @@ export function CommentList({
                                         openActions(c);
                                     }}
                                     onTouchStart={(e) => {
-                                        e.preventDefault();
                                         if (isDesktop || !isOwnComment) return;
-                                        const timer = setTimeout(() => openActions(c), 500);
+                                        const timer = setTimeout(() => {
+                                            e.preventDefault(); // только при долгом нажатии
+                                            openActions(c);
+                                        }, 500);
                                         const clearTimer = () => clearTimeout(timer);
                                         document.addEventListener("touchend", clearTimer, { once: true });
                                         document.addEventListener("touchmove", clearTimer, { once: true });
