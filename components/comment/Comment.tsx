@@ -103,7 +103,8 @@ export function CommentList({
                                         e.preventDefault();
                                         openActions(c);
                                     }}
-                                    onTouchStart={() => {
+                                    onTouchStart={(e) => {
+                                        e.preventDefault();
                                         if (isDesktop || !isOwnComment) return;
                                         const timer = setTimeout(() => openActions(c), 500);
                                         const clearTimer = () => clearTimeout(timer);
