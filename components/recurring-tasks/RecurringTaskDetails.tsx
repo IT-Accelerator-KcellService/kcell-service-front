@@ -115,6 +115,8 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
         return 'bg-blue-100 text-blue-800';
       case 'awaiting_assignment':
         return 'bg-yellow-100 text-yellow-800';
+      case 'awaiting_sla':
+        return 'bg-orange-100 text-orange-800';
       case 'execution':
         return 'bg-purple-100 text-purple-800';
       case 'completed':
@@ -145,6 +147,8 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
         return 'В обработке';
       case 'awaiting_assignment':
         return 'Ожидает назначения';
+      case 'awaiting_sla':
+        return 'Ожидание времени выполнения';
       case 'assigned':
         return 'Назначена';
       case 'execution':

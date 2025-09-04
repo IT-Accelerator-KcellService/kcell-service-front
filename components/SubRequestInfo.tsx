@@ -10,10 +10,10 @@ interface SubRequestInfoProps {
     isDesktop?: boolean
 }
 
-const translateSLA = (sla: string) => {
+const translateTime = (sla: string) => {
 
 
-    // Парсим число и единицу времени
+    // Парсим число и единицу времени выполнения
     const match = sla.match(/^(\d+)([hdwmy])$/)
     if (!match) return sla
 
@@ -65,9 +65,9 @@ export default function SubRequestInfo({ subRequest}: SubRequestInfoProps) {
 
                 {subRequest.sla && (
                     <div className="flex flex-row items-center gap-2 sm:gap-3">
-                        <span className="font-medium text-sm sm:text-base text-gray-900">SLA</span>
+                        <span className="font-medium text-sm sm:text-base text-gray-900">Время выполнения</span>
                         <Badge variant="secondary" className="bg-muted text-muted-foreground border-0 text-xs font-normal w-fit">
-                            {translateSLA(subRequest.sla)}
+                            {translateTime(subRequest.sla)}
                         </Badge>
                     </div>
                 )}

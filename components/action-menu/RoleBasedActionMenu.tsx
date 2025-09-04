@@ -177,21 +177,6 @@ export function RoleBasedActionMenu({
                   },
                 ]
                 : []),
-            ...(onToggleLongTerm && (request.status === "assigned" || request.status === 'execution') && requestGroup.request_type !== 'recurring'
-                ? [
-                  {
-                    icon: Clock,
-                    label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
-                    onClick: () => {
-                      onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
-                      setOpen(false)
-                    },
-                    variant: "default" as const,
-                    longTerm: true,
-                    showForRoles: ["executor"],
-                  },
-                ]
-                : []),
             ...(onRedirectToOtherDepartment && (request.status !== "completed")
                 ? [
                   {
@@ -378,21 +363,6 @@ export function RoleBasedActionMenu({
                     },
                     variant: "default" as const,
                     primary: true,
-                    showForRoles: ["department-head"],
-                  },
-                ]
-                : []),
-            ...(onToggleLongTerm && (request.status === "in_progress" || request.status === "execution" || request.status === "awaiting_assignment" || request.status === "assigned") && requestGroup.request_type !== 'recurring'
-                ? [
-                  {
-                    icon: Clock,
-                    label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
-                    onClick: () => {
-                      onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
-                      setOpen(false)
-                    },
-                    variant: "default" as const,
-                    longTerm: true,
                     showForRoles: ["department-head"],
                   },
                 ]

@@ -562,6 +562,7 @@ export default function ClientDashboard() {
       case "completed": return "Завершено";
       case "rejected": return "Отклонено";
       case "awaiting_assignment": return "Ожидание назначения";
+      case "awaiting_sla": return "Ожидание времени выполнения";
       case "assigned": return "назначенный";
       default: return status;
     }

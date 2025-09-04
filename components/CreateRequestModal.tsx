@@ -259,7 +259,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       const newValidationErrors = new Set<number>();
       subRequests.forEach((subRequest, index) => {
         if (subRequest.title.trim() && subRequest.description.trim() && subRequest.category_id > 0) {
-          // Проверяем сложность и SLA
+          // Проверяем сложность и время выполнения
           if (!subRequest.complexity || !subRequest.sla) {
             newValidationErrors.add(index);
           }
@@ -440,7 +440,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       return;
     }
 
-    // Валидация SLA и complexity для admin-worker и department-head
+            // Валидация времени выполнения и complexity для admin-worker и department-head
     if (userRole === 'admin-worker' || userRole === 'department-head') {
       const invalidSubRequests = subRequests.filter(sub => !sub.complexity || !sub.sla);
       if (invalidSubRequests.length > 0) {
@@ -453,7 +453,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           newExpandedSubRequests.add(index - 1); // index - 1 потому что индексы начинаются с 1
         });
         setExpandedSubRequests(newExpandedSubRequests);
-        const errorMessage = `Пожалуйста, заполните сложность и SLA для всех подзаявок.\n\nНе заполнено для подзаявок: ${invalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
+        const errorMessage = `Пожалуйста, заполните сложность и время выполнения для всех подзаявок.\n\nНе заполнено для подзаявок: ${invalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
         return;
       }
     }
@@ -511,7 +511,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       formData.append('office_id', String(selectedOfficeId));
     }
 
-    // Под заявки с их SLA и сложностью
+            // Под заявки с их временем выполнения и сложностью
     const subRequestsData = subRequests.map(sub => {
       let subStatus = 'awaiting_assignment';
       if (userRole === 'client') {
@@ -1097,18 +1097,18 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                 <AlertTriangle className="w-4 h-4" />
                                 <span>
                                   {userRole === 'admin-worker'
-                                    ? 'Требуется заполнить сложность и SLA'
+                                    ? 'Требуется заполнить сложность и время выполнения'
                                     : userRole === 'department-head'
                                       ? (() => {
                                           const subRequest = subRequests[index];
-                                          const hasComplexityAndSLA = subRequest.complexity && subRequest.sla;
+                                          const hasComplexityAndTime = subRequest.complexity && subRequest.sla;
                                           const hasExecutors = subRequest.executors && subRequest.executors.length > 0;
                                           const hasLeader = hasExecutors && subRequest.executors!.some(e => e.role === 'leader');
 
-                                          if (!hasComplexityAndSLA && !hasLeader) {
-                                            return 'Требуется заполнить сложность, SLA и назначить лидера';
-                                          } else if (!hasComplexityAndSLA) {
-                                            return 'Требуется заполнить сложность и SLA';
+                                                  if (!hasComplexityAndTime && !hasLeader) {
+          return 'Требуется заполнить сложность, время выполнения и назначить лидера';
+        } else if (!hasComplexityAndTime) {
+          return 'Требуется заполнить сложность и время выполнения';
                                           } else if (!hasLeader) {
                                             return 'Требуется назначить лидера среди исполнителей';
                                           }
@@ -1408,7 +1408,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
                               <div>
                                 <Label htmlFor={`subRequestSLA-${index}`} className="flex items-center gap-1 mb-2">
-                                  SLA
+                                  Время выполнения
                                 </Label>
                                 <Select
                                   value={subRequest.sla || ''}
@@ -1418,7 +1418,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                     id={`subRequestSLA-${index}`}
                                     className={hasAttemptedSubmit && !subRequest.sla ? 'border-red-300 focus:border-red-500' : ''}
                                   >
-                                    <SelectValue placeholder="Выберите SLA" />
+                                    <SelectValue placeholder="Выберите время выполнения" />
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="1h">1 час</SelectItem>
@@ -1454,7 +1454,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                     <>
                                       <AlertTriangle className="w-4 h-4 text-yellow-600" />
                                       <span className="text-yellow-800">
-                                        Заполните сложность и SLA для этой подзаявки
+                                        Заполните сложность и время выполнения для этой подзаявки
                                       </span>
                                     </>
                                   )}

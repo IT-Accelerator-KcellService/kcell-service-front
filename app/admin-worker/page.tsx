@@ -683,7 +683,7 @@ export default function AdminWorkerDashboard() {
     try {
       setIsSubmitting(true);
       
-      // Проверяем, что все под заявки имеют SLA и complexity (кроме плановых)
+      // Проверяем, что все под заявки имеют время выполнения и complexity (кроме плановых)
       if (editableRequestType !== 'planned') {
         const allSubRequestsHaveSettings = selectedRequest?.requests.every((subReq: SubRequest) => {
           const settings = subRequestSettings[subReq.id];
@@ -691,7 +691,7 @@ export default function AdminWorkerDashboard() {
         });
 
         if (!allSubRequestsHaveSettings) {
-          setFormErrors("Пожалуйста, укажите SLA и сложность для всех под заявок");
+          setFormErrors("Пожалуйста, укажите время выполнения и сложность для всех под заявок");
           return;
         }
       }
@@ -762,6 +762,52 @@ export default function AdminWorkerDashboard() {
     }
   };
 
+  const handleSaveTimeSettings = async (subRequest: SubRequest) => {
+    try {
+      const settings = subRequestSettings[subRequest.id];
+      if (!settings || !settings.sla || !settings.complexity) {
+        setFormErrors("Для сохранения необходимо заполнить оба поля: время выполнения и сложность");
+        return;
+      }
+
+      await api.patch(`/requests/${subRequest.id}`, {
+        patch_code: 3,
+        sla: settings.sla,
+        complexity: settings.complexity
+      });
+
+      successModal.showSuccess({
+        title: "Настройки обновлены",
+        message: "Время выполнения и сложность успешно обновлены"
+      });
+
+      // Обновляем данные в selectedRequest
+      if (selectedRequest) {
+        const updatedRequests = selectedRequest.requests.map((req: any) => 
+          req.id === subRequest.id 
+            ? { ...req, sla: settings.sla, complexity: settings.complexity }
+            : req
+        );
+        setSelectedRequest({
+          ...selectedRequest,
+          requests: updatedRequests
+        });
+      }
+
+      // Очищаем настройки для этой подзаявки
+      setSubRequestSettings(prev => {
+        const newSettings = { ...prev };
+        delete newSettings[subRequest.id];
+        return newSettings;
+      });
+
+      fetchRequests();
+    } catch (error) {
+      console.error("Ошибка при сохранении настроек:", error);
+      setFormErrors("Ошибка при сохранении настроек");
+    }
+  };
+
   const handleDeleteSubRequest = async (subRequest: SubRequest) => {
     try {
       await api.delete(`/requests/${subRequest.id}`)
@@ -777,13 +823,13 @@ export default function AdminWorkerDashboard() {
 
         // Обновляем в store
         const currentMyRequests = useRequestStore.getState().myRequests
-        const updatedStoreMyRequests = currentMyRequests.map(req =>
+        const updatedStoreMyRequests = currentMyRequests.map((req: any) =>
             req.id === selectedRequest.id ? updatedRequestGroup : req
-        ).filter(req => req.requests.length > 0)
+        ).filter((req: any) => req.requests.length > 0)
         const currentIncomingRequests = useRequestStore.getState().incomingRequests
-        const updatedStoreIncomingRequests = currentIncomingRequests.map(req =>
+        const updatedStoreIncomingRequests = currentIncomingRequests.map((req: any) =>
             req.id === selectedRequest.id ? updatedRequestGroup : req
-        ).filter(req => req.requests.length > 0)
+        ).filter((req: any) => req.requests.length > 0)
         useRequestStore.getState().setMyRequests(updatedStoreMyRequests)
         useRequestStore.getState().setIncomingRequests(updatedStoreIncomingRequests)
 
@@ -993,7 +1039,7 @@ export default function AdminWorkerDashboard() {
       case "rejected": return "Отклонено";
       case "awaiting_assignment": return "Ожидание назначения";
       case "assigned": return "Назначено";
-      case "awaiting_sla": return "Ожидание SLA";
+              case "awaiting_sla": return "Ожидание времени выполнения";
       default: return status;
     }
   };
@@ -1929,22 +1975,36 @@ export default function AdminWorkerDashboard() {
                                         />
                                     )}
                                     
-                                    {/* Настройки SLA и сложности для админа */}
-                                    {selectedRequest?.status === 'in_progress' && editableRequestType !== 'planned' && (
+                                    {/* Настройки времени выполнения и сложности для админа */}
+                                    {editableRequestType !== 'planned' && (
                                         <div className="border-t border-gray-200 pt-3 mt-3">
-                                          <h5 className="font-medium text-sm mb-3 text-gray-700">Настройки для принятия</h5>
+                                          <h5 className="font-medium text-sm mb-3 text-gray-700">Настройки времени выполнения и сложности</h5>
                                           <div className={`grid gap-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   <div>
-                                              <Label className="text-xs font-medium text-gray-600">SLA</Label>
+                                              <Label className="text-xs font-medium text-gray-600">Время выполнения</Label>
                         <Select
                                                   value={subRequestSettings[subRequest.id]?.sla || ''}
                                                   onValueChange={(value) => setSubRequestSettings(prev => ({
                                                     ...prev,
-                                                    [subRequest.id]: { ...prev[subRequest.id], sla: value }
+                                                    [subRequest.id]: { 
+                                                      sla: value, 
+                                                      complexity: prev[subRequest.id]?.complexity || '' 
+                                                    }
                                                   }))}
+                                                  onOpenChange={(open) => {
+                                                    if (open && !subRequestSettings[subRequest.id]) {
+                                                      setSubRequestSettings(prev => ({
+                                                        ...prev,
+                                                        [subRequest.id]: { 
+                                                          sla: '', 
+                                                          complexity: '' 
+                                                        }
+                                                      }));
+                                                    }
+                                                  }}
                                               >
                                                 <SelectTrigger className="h-8 text-xs">
-                                                  <SelectValue placeholder="Выберите SLA" />
+                                                  <SelectValue placeholder="Выберите время выполнения" />
                           </SelectTrigger>
                           <SelectContent>
                                                   <SelectItem value="1h">1 час</SelectItem>
@@ -1962,8 +2022,22 @@ export default function AdminWorkerDashboard() {
                                                   value={subRequestSettings[subRequest.id]?.complexity || ''}
                                                   onValueChange={(value) => setSubRequestSettings(prev => ({
                                                     ...prev,
-                                                    [subRequest.id]: { ...prev[subRequest.id], complexity: value }
+                                                    [subRequest.id]: { 
+                                                      sla: prev[subRequest.id]?.sla || '', 
+                                                      complexity: value 
+                                                    }
                                                   }))}
+                                                  onOpenChange={(open) => {
+                                                    if (open && !subRequestSettings[subRequest.id]) {
+                                                      setSubRequestSettings(prev => ({
+                                                        ...prev,
+                                                        [subRequest.id]: { 
+                                                          sla: '', 
+                                                          complexity: '' 
+                                                        }
+                                                      }));
+                                                    }
+                                                  }}
                                               >
                                                 <SelectTrigger className="h-8 text-xs">
                               <SelectValue placeholder="Выберите сложность" />
@@ -1975,6 +2049,41 @@ export default function AdminWorkerDashboard() {
                             </SelectContent>
                           </Select>
                                             </div>
+                                            
+                                            {/* Индикатор заполненности и кнопка сохранения */}
+                                            <div className="mt-3">
+                                              {/* Индикатор заполненности */}
+                                              <div className={`p-2 rounded-lg border text-xs mb-2 ${
+                                                subRequestSettings[subRequest.id]?.sla && subRequestSettings[subRequest.id]?.complexity
+                                                  ? 'bg-green-50 border-green-200 text-green-800'
+                                                  : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                                              }`}>
+                                                <div className="flex items-center gap-2">
+                                                  {subRequestSettings[subRequest.id]?.sla && subRequestSettings[subRequest.id]?.complexity ? (
+                                                    <>
+                                                      <CheckCircle className="w-3 h-3 text-green-600" />
+                                                      <span>Оба поля заполнены</span>
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      <AlertTriangle className="w-3 h-3 text-yellow-600" />
+                                                      <span>Заполните оба поля для сохранения</span>
+                                                    </>
+                                                  )}
+                                                </div>
+                                              </div>
+                                              
+                                              {/* Кнопка сохранения изменений */}
+                                              {subRequestSettings[subRequest.id]?.sla && subRequestSettings[subRequest.id]?.complexity && (
+                                                <Button
+                                                  size="sm"
+                                                  onClick={() => handleSaveTimeSettings(subRequest)}
+                                                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                                                >
+                                                  Сохранить изменения
+                                                </Button>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
                                     )}
@@ -1984,7 +2093,7 @@ export default function AdminWorkerDashboard() {
                         );
                       })}
                     </div>
-                    </div>
+                  </div>
 
                   <div>
                     <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Локация в офисе</Label>

@@ -1012,6 +1012,7 @@ export default function ExecutorDashboard() {
       case "completed": return "Завершено";
       case "rejected": return "Отклонено";
       case "awaiting_assignment": return "Ожидание назначения";
+      case "awaiting_sla": return "Ожидание времени выполнения";
       case "assigned": return "назначенный";
       case "pending": return "Ожидает";
       case "overdue": return "Просрочено";
