@@ -97,7 +97,7 @@ export function CommentList({
                                     className={`flex items-start gap-2.5 group relative transition-colors duration-150 ${
                                         activeCommentId === c.id ? "bg-violet-50" : "hover:bg-gray-50"
                                     }`}
-                                    style={{ position: 'relative', borderRadius: '0.5rem', padding: '0.5rem' }}
+                                    style={{ WebkitUserSelect: "none", userSelect: "none", position: 'relative', borderRadius: '0.5rem', padding: '0.5rem' }}
                                     onContextMenu={(e) => {
                                         if (!isDesktop || !isOwnComment) return;
                                         e.preventDefault();
