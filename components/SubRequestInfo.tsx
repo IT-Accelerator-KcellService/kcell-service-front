@@ -64,9 +64,14 @@ export default function SubRequestInfo({ subRequest}: SubRequestInfoProps) {
                 )}
 
                 {subRequest.sla && (
-                    <div className="flex flex-row items-center gap-2 sm:gap-3">
-                        <span className="font-medium text-sm sm:text-base text-gray-900">Время выполнения</span>
-                        <Badge variant="secondary" className="bg-muted text-muted-foreground border-0 text-xs font-normal w-fit">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+  <span className="font-medium text-sm sm:text-base text-gray-900">
+    Время выполнения
+  </span>
+                        <Badge
+                            variant="secondary"
+                            className="bg-muted text-muted-foreground border-0 text-xs font-normal max-w-[150px] truncate sm:max-w-none"
+                        >
                             {translateTime(subRequest.sla)}
                         </Badge>
                     </div>
