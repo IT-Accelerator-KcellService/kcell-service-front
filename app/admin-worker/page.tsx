@@ -32,7 +32,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import api, { getOffices } from "@/lib/api";
+import api, { getOffices, getExecutorsByCategory, changeCategoryHead } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -74,6 +74,13 @@ interface User {
   id: number;
   full_name: string;
   role: string;
+}
+
+interface Executor {
+  id: number;
+  specialty: string;
+  department_id: number;
+  user: User;
 }
 interface Rating {
   id: number;
@@ -158,6 +165,11 @@ export default function AdminWorkerDashboard() {
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
   const [upcomingTasksRefreshTrigger, setUpcomingTasksRefreshTrigger] = useState(0);
+  const [availableExecutors, setAvailableExecutors] = useState<Executor[]>([]);
+  const [selectedExecutorId, setSelectedExecutorId] = useState<number | null>(null);
+  const [isChangingHead, setIsChangingHead] = useState(false);
+  const [isLoadingExecutors, setIsLoadingExecutors] = useState(false);
+  const [changeHeadError, setChangeHeadError] = useState<string | null>(null);
 
   // Состояния для оценки клиента
   const [showClientRatingModal, setShowClientRatingModal] = useState(false);
@@ -428,6 +440,59 @@ export default function AdminWorkerDashboard() {
       setOffices(res.data);
     } catch (error) {
       console.error('Ошибка при загрузке офисов:', error);
+    }
+  }
+
+  const loadExecutorsForCategory = async (categoryId: number) => {
+    setIsLoadingExecutors(true);
+    setChangeHeadError(null);
+    try {
+      const response = await getExecutorsByCategory(categoryId);
+      // Фильтруем только исполнителей (исключаем текущего руководителя)
+      const executors = response.data.filter((executor: Executor) => executor.user.role === 'executor');
+      setAvailableExecutors(executors);
+    } catch (error: any) {
+      console.error("Ошибка при загрузке исполнителей:", error);
+      setChangeHeadError("Не удалось загрузить исполнителей");
+      setAvailableExecutors([]);
+    } finally {
+      setIsLoadingExecutors(false);
+    }
+  }
+
+  const handleChangeCategoryHead = async () => {
+    if (!selectedCategoryId || !selectedExecutorId) return;
+
+    setIsChangingHead(true);
+    setChangeHeadError(null);
+
+    try {
+      const response = await changeCategoryHead(selectedCategoryId, selectedExecutorId);
+      
+      // Формируем сообщение с информацией об обработанных задачах
+      let message = `Новый руководитель: ${response.data.newHead.name}`;
+      if (response.data.processedTasks && response.data.processedTasks.count > 0) {
+        message += `\n\n${response.data.processedTasks.message}`;
+      }
+      
+      successModal.showSuccess({
+        title: "Руководитель изменен",
+        message: message,
+      });
+
+      // Сбросить выбор
+      setSelectedCategoryId(null);
+      setSelectedExecutorId(null);
+      setAvailableExecutors([]);
+      
+      // Обновить данные
+      fetchRequests();
+      fetchCategories(token!);
+    } catch (error: any) {
+      console.error("Ошибка при смене руководителя:", error);
+      setChangeHeadError(error.response?.data?.message || "Не удалось сменить руководителя");
+    } finally {
+      setIsChangingHead(false);
     }
   }
 
@@ -1516,8 +1581,11 @@ export default function AdminWorkerDashboard() {
                       <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
                         <span className="sm:hidden">Повторяющиеся</span>
                       </TabsTrigger>
-                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Статистика
+                      {/*<TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">*/}
+                      {/*  Статистика*/}
+                      {/*</TabsTrigger>*/}
+                      <TabsTrigger value="change-head" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Управление
                       </TabsTrigger>
                       <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
                         Логи
@@ -1540,8 +1608,11 @@ export default function AdminWorkerDashboard() {
                       <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
                         <span className="hidden sm:inline">Повторяющиеся</span>
                       </TabsTrigger>
-                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Статистика
+                      {/*<TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">*/}
+                      {/*  Статистика*/}
+                      {/*</TabsTrigger>*/}
+                      <TabsTrigger value="change-head" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Управление
                       </TabsTrigger>
                       <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
                         Логи
@@ -1744,6 +1815,146 @@ export default function AdminWorkerDashboard() {
                         </div>
                       </CardContent>
                     </Card>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="change-head">
+                  <div className="w-full max-w-full overflow-hidden">
+                    <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
+                      <Card className="w-full">
+                        <CardHeader className="pb-3 sm:pb-6">
+                          <CardTitle className="text-base sm:text-lg">Смена руководителя категории</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 sm:space-y-4">
+                          {/* Выбор категории */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Выберите категорию</Label>
+                            <Select onValueChange={(categoryId) => {
+                              const id = parseInt(categoryId);
+                              setSelectedCategoryId(id);
+                              setSelectedExecutorId(null);
+                              loadExecutorsForCategory(id);
+                            }} value={selectedCategoryId?.toString() || ""} disabled={isLoadingExecutors || isChangingHead}>
+                              <SelectTrigger className="w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                                <SelectValue placeholder="Выберите категорию" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categories.map(category => (
+                                  <SelectItem key={category.id} value={category.id.toString()}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Выбор исполнителя */}
+                          {selectedCategoryId && (
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Выберите нового руководителя</Label>
+                              
+                              {/* Индикатор загрузки исполнителей */}
+                              {isLoadingExecutors && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+                                  <div className="flex items-center gap-2 sm:gap-3">
+                                    <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                                    <div className="text-xs sm:text-sm text-blue-800">
+                                      <p className="font-medium">Загрузка исполнителей...</p>
+                                      <p className="text-blue-600">Ищем доступных исполнителей в категории</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <Select 
+                                onValueChange={(executorId) => setSelectedExecutorId(parseInt(executorId))} 
+                                value={selectedExecutorId?.toString() || ""}
+                                disabled={isLoadingExecutors}
+                              >
+                                <SelectTrigger className="w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                                  <SelectValue placeholder={isLoadingExecutors ? "Загрузка..." : "Выберите исполнителя"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {isLoadingExecutors ? (
+                                    <SelectItem value="loading" disabled className="text-gray-500">
+                                      Загрузка исполнителей...
+                                    </SelectItem>
+                                  ) : availableExecutors.length === 0 ? (
+                                    <SelectItem value="no-executors" disabled className="text-gray-500">
+                                      Нет доступных исполнителей в этой категории
+                                    </SelectItem>
+                                  ) : (
+                                    availableExecutors.map(executor => (
+                                      <SelectItem key={executor.id} value={executor.id.toString()}>
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="font-medium truncate">{executor.user.full_name}</span>
+                                          <span className="text-xs text-gray-500 truncate">{executor.specialty}</span>
+                                        </div>
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          {/* Информация о выбранном исполнителе */}
+                          {selectedExecutorId && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                <div className="text-xs sm:text-sm text-blue-800 min-w-0 flex-1">
+                                  <p className="font-medium mb-1">Новый руководитель будет:</p>
+                                  <p>• Назначен руководителем категории</p>
+                                  <p>• Получит права управления исполнителями</p>
+                                  <p>• Текущий руководитель станет исполнителем</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Кнопки */}
+                          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                            <Button
+                              onClick={handleChangeCategoryHead}
+                              disabled={!selectedCategoryId || !selectedExecutorId || isChangingHead}
+                              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white h-10 sm:h-9"
+                            >
+                              {isChangingHead ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  <span>Смена...</span>
+                                </div>
+                              ) : (
+                                "Сменить руководителя"
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedCategoryId(null);
+                                setSelectedExecutorId(null);
+                                setAvailableExecutors([]);
+                              }}
+                              disabled={isLoadingExecutors || isChangingHead}
+                              className="w-full sm:w-auto h-10 sm:h-9 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Сбросить
+                            </Button>
+                          </div>
+
+                          {/* Ошибка */}
+                          {changeHeadError && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-xs sm:text-sm text-red-800 min-w-0 flex-1">{changeHeadError}</p>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 </TabsContent>
 
@@ -2058,28 +2269,9 @@ export default function AdminWorkerDashboard() {
                                             </div>
                                             
                                             {/* Индикатор заполненности и кнопка сохранения */}
-                                            <div className="mt-3">
+                                            {(subRequest.status!='in_progress' && subRequest.status!='completed' && subRequest.status!='rejected')&&(<div className="mt-3">
                                               {/* Индикатор заполненности */}
-                                              <div className={`p-2 rounded-lg border text-xs mb-2 ${
-                                                subRequestSettings[subRequest.id]?.sla && subRequestSettings[subRequest.id]?.complexity
-                                                  ? 'bg-green-50 border-green-200 text-green-800'
-                                                  : 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                                              }`}>
-                                                <div className="flex items-center gap-2">
-                                                  {subRequestSettings[subRequest.id]?.sla && subRequestSettings[subRequest.id]?.complexity ? (
-                                                    <>
-                                                      <CheckCircle className="w-3 h-3 text-green-600" />
-                                                      <span>Оба поля заполнены</span>
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      <AlertTriangle className="w-3 h-3 text-yellow-600" />
-                                                      <span>Заполните оба поля для сохранения</span>
-                                                    </>
-                                                  )}
-                                                </div>
-                                              </div>
-                                              
+
                                               {/* Кнопка сохранения изменений */}
                                               {subRequestSettings[subRequest.id]?.sla && subRequestSettings[subRequest.id]?.complexity && (
                                                 <Button
@@ -2090,7 +2282,7 @@ export default function AdminWorkerDashboard() {
                                                   Сохранить изменения
                                                 </Button>
                                               )}
-                                            </div>
+                                            </div>)}
                                           </div>
                                         </div>
                                     )}
@@ -2472,6 +2664,7 @@ export default function AdminWorkerDashboard() {
           userRole="admin-worker"
           isFullScreen={!isDesktop}
         />
+
       </>
   );
 }

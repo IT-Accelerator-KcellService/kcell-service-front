@@ -159,9 +159,14 @@ export function RequestCard({
               <span className="font-medium">{request.client?.full_name || 'Неизвестный клиент'}</span>
             </div>
             {request.client?.phone && (
-              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              <a 
+                href={`tel:${request.client.phone}`}
+                className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full transition-colors duration-200 cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+                title="Позвонить"
+              >
                 {request.client.phone}
-              </div>
+              </a>
             )}
           </div>
         </div>

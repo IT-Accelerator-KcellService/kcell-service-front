@@ -80,6 +80,18 @@ export const updateServiceCategory = (id: number, data: { name: string }) =>
 export const deleteServiceCategory = (id: number) =>
     api.delete(`/service-categories/${id}`);
 
+// Получить исполнителей по категории
+export const getExecutorsByCategory = (categoryId: number) =>
+    api.get(`/service-categories/${categoryId}/executors`);
+
+// Получить исполнителей по специальности
+export const getExecutorsBySpecialty = (specialty: string) =>
+    api.get(`/service-categories/specialty/${encodeURIComponent(specialty)}/executors`);
+
+// Сменить руководителя категории
+export const changeCategoryHead = (categoryId: number, newHeadUserId: number) =>
+    api.post(`/service-categories/${categoryId}/change-head`, { newHeadUserId });
+
 
 // ==================== Offices ====================
 
