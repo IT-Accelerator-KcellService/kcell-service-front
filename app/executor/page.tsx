@@ -1498,18 +1498,25 @@ export default function ExecutorDashboard() {
         <CardHeader className={`pb-3 px-5 pt-5`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
                 <h3 className={`font-bold text-base leading-tight line-clamp-2 text-gray-900`}>
                   Заявка #{requestGroup.id}
-              </h3>
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50`}>
+                </h3>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
                 {totalSubRequests} под заявок
+                {totalSubRequests > 0 && (
+                    <span className="ml-1 text-gray-700">
+                    : {requestGroup.requests.map((sub) => sub.id).join(', ')}
+                  </span>
+                )}
               </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
-                {translateType(requestGroup.request_type)}
+                {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
+              </div>
             </div>
             
             {/* Информация о повторяющейся задаче */}
