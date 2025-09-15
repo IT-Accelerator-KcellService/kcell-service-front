@@ -3,6 +3,7 @@ import {Star, User, MessageCircle} from "lucide-react"
 import {SubRequest} from "@/stores/useRequestStore";
 import {LeaderIndicator} from "@/components/ui/leader-indicator";
 import {useMediaQuery} from "@/hooks/use-media-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface ExecutorsProps {
     subRequest: SubRequest;
@@ -18,6 +19,21 @@ const Executors: React.FC<ExecutorsProps> = ({ subRequest, userRatings }) => {
                 : []
 
     const isDesktop = useMediaQuery("(min-width: 768px)");
+    const { toast } = useToast();
+
+    const handlePhoneClick = (phone: string, executorName: string) => {
+        // Проверяем, поддерживает ли устройство звонки
+        if (navigator.userAgent.includes('Mobile') || navigator.userAgent.includes('Android') || navigator.userAgent.includes('iPhone')) {
+            // Для мобильных устройств используем tel: ссылку
+            window.location.href = `tel:${phone}`
+        } else {
+            // Для десктопа показываем уведомление
+            toast({
+                title: "Звонок",
+                description: `Номер телефона ${executorName}: ${phone}`,
+            })
+        }
+    }
 
     const renderStars = (rating: number) => {
         return Array.from({ length: 5 }, (_, i) => (
@@ -85,7 +101,13 @@ const Executors: React.FC<ExecutorsProps> = ({ subRequest, userRatings }) => {
                                   </span>
                                 </div>
                                 {executor.user.phone && (
-                                    <div className="text-xs text-gray-500 mt-1 sm:mt-0.5">{executor.user.phone}</div>
+                                    <button
+                                        onClick={() => executor.user.phone && handlePhoneClick(executor.user.phone, executor.user.full_name)}
+                                        className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full transition-colors duration-200 cursor-pointer"
+                                        title={`Позвонить: ${executor.user.phone}`}
+                                    >
+                                        {executor.user.phone}
+                                    </button>
                                 )}
                                 {ratingData && (
                                     <div className="mt-2 space-y-2">
