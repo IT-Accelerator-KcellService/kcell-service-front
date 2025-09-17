@@ -1576,6 +1576,7 @@ export default function ManagerDashboard() {
           handleLogout={handleLogout}
           notificationCount={notifications.length}
           role="Руководитель"
+          onRefresh={handleRefresh}
       />
       <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 

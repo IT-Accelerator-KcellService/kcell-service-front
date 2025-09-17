@@ -1599,6 +1599,7 @@ export default function ExecutorDashboard() {
             handleLogout={handleLogout}
             notificationCount={notifications.length}
             role="Исполнитель"
+            onRefresh={handleRefresh}
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 

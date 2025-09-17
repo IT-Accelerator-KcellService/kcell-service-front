@@ -1658,6 +1658,7 @@ export default function AdminWorkerDashboard() {
             handleLogout={handleLogout}
             notificationCount={3}
             role="Администратор"
+            onRefresh={handleRefresh}
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
         <PullToRefresh onRefresh={handleRefresh}>
