@@ -152,23 +152,23 @@ export function RequestCard({
         )}
 
         {/* Нижняя панель */}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 text-xs text-gray-600">
-              <User className="w-3 h-3" />
-              <span className="font-medium">{request.client?.full_name || 'Неизвестный клиент'}</span>
-            </div>
-            {request.client?.phone && (
-              <a 
-                href={`tel:${request.client.phone}`}
-                className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full transition-colors duration-200 cursor-pointer"
-                onClick={(e) => e.stopPropagation()}
-                title="Позвонить"
-              >
-                {request.client.phone}
-              </a>
-            )}
+        <div className="flex flex-wrap items-center justify-between pt-3 border-t border-gray-100 gap-2">
+          <div className="flex items-center gap-1 text-xs text-gray-600 min-w-0">
+            <User className="w-3 h-3 flex-shrink-0" />
+            <span className="font-medium truncate" title={request.client?.full_name || 'Неизвестный клиент'}>
+              {request.client?.full_name || 'Неизвестный клиент'}
+            </span>
           </div>
+          {request.client?.phone && (
+            <a
+              href={`tel:${request.client.phone}`}
+              className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full transition-colors duration-200 cursor-pointer break-words"
+              onClick={(e) => e.stopPropagation()}
+              title="Позвонить"
+            >
+              {request.client.phone}
+            </a>
+          )}
         </div>
       </CardContent>
     </Card>

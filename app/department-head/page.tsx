@@ -1221,6 +1221,7 @@ export default function DepartmentHeadDashboard() {
             handleLogout={handleLogout}
             notificationCount={3}
             role="Руководитель направления"
+            onRefresh={handleRefresh}
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
         <PullToRefresh onRefresh={handleRefresh}>

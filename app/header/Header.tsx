@@ -1,4 +1,4 @@
-import {Bell, Loader2, LogOut, User, CheckCircle, Clock, AlertCircle} from "lucide-react";
+import {Bell, Loader2, LogOut, User, CheckCircle, Clock, AlertCircle, RefreshCw} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Badge} from "@/components/ui/badge";
 import React, {useEffect, useRef, useState} from "react";
@@ -12,6 +12,7 @@ interface HeaderProps {
     handleLogout: () => void;
     notificationCount?: number;
     role?: string;
+    onRefresh?: () => void;
 }
 
 interface Notification {
@@ -33,6 +34,7 @@ const Header: React.FC<HeaderProps> = ({
                                            handleLogout,
                                            notificationCount = 0,
                                            role = "Клиент",
+                                           onRefresh,
                                        }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
@@ -193,6 +195,17 @@ const Header: React.FC<HeaderProps> = ({
                         </div>
                         {/* DESKTOP */}
                         <div className="hidden md:flex flex-row space-x-4 items-center">
+                            {onRefresh && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={onRefresh}
+                                    className="hover:bg-violet-50 transition-colors duration-200"
+                                >
+                                    <RefreshCw className="w-5 h-5 text-gray-700"/>
+                                    <span className="ml-1 text-sm">Обновить</span>
+                                </Button>
+                            )}
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -222,6 +235,17 @@ const Header: React.FC<HeaderProps> = ({
                             </Button>
                         </div>
                         <div className="flex md:hidden items-center space-x-2">
+                            {onRefresh && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={onRefresh}
+                                    className="p-2 hover:bg-violet-50 transition-colors duration-200"
+                                >
+                                    <RefreshCw className="w-5 h-5 text-gray-700"/>
+                                    <span className="ml-1 text-sm">Обновить</span>
+                                </Button>
+                            )}
                             <Button
                                 variant="ghost"
                                 size="sm"

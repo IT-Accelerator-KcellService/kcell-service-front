@@ -980,6 +980,7 @@ export default function ClientDashboard() {
             handleLogout={handleLogout}
             notificationCount={notifications.length}
             role="Клиент"
+            onRefresh={handleRefresh}
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
       <PullToRefresh onRefresh={handleRefresh}>
