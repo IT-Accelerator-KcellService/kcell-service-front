@@ -39,13 +39,6 @@ api.interceptors.response.use(
 );
 
 
-export const getUsers = () => api.get('/users');
-
-export const getUserById = (id: string) => api.get(`/users/${id}`);
-
-// Создать пользователя
-export const createUser = (data: { email: string; password: string }) =>
-    api.post('/users', data);
 
 // Логин
 export const login = (data: { email: string; password: string }) =>
@@ -88,6 +81,10 @@ export const getExecutorsByCategory = (categoryId: number) =>
 export const getExecutorsBySpecialty = (specialty: string) =>
     api.get(`/service-categories/specialty/${encodeURIComponent(specialty)}/executors`);
 
+// Назначить исполнителя к категории
+export const assignExecutorToCategory = (categoryId: number, executorId: number) =>
+    api.post(`/service-categories/${categoryId}/assign-executor`, { executorId });
+
 // Сменить руководителя категории
 export const changeCategoryHead = (categoryId: number, newHeadUserId: number) =>
     api.post(`/service-categories/${categoryId}/change-head`, { newHeadUserId });
@@ -98,19 +95,8 @@ export const changeCategoryHead = (categoryId: number, newHeadUserId: number) =>
 // Получить все офисы
 export const getOffices = () => api.get('/offices');
 
-// Получить офис по ID
-export const getOfficeById = (id: number) => api.get(`/offices/${id}`);
 
-// Создать офис
-export const createOffice = (data: { name: string; address: string; city: string }) =>
-    api.post('/offices', data);
 
-// Обновить офис
-export const updateOffice = (id: number, data: { name: string; address: string; city: string }) =>
-    api.put(`/offices/${id}`, data);
-
-// Удалить офис
-export const deleteOffice = (id: number) => api.delete(`/offices/${id}`);
 
 
 // ==================== Users ====================
@@ -121,23 +107,18 @@ export const updateUser = (
     data: { email: string; password: string; full_name: string; office_id: number }
 ) => api.put(`/users/${id}`, data);
 
-// Удалить пользователя
-export const deleteUser = (id: number) => api.delete(`/users/${id}`);
 
 
-// ==================== Chat Messages ====================
-
-
-
-// Получить сообщения чата по requestId
-export const getChatMessagesByRequestId = (requestId: number) =>
-    api.get(`/chat-messages/request/${requestId}`);
 
 
 // ==================== Executors ====================
 
 // Получить всех исполнителей
 export const getExecutors = () => api.get('/executors');
+
+// Получить всех исполнителей для менеджера/админа
+export const getAllExecutorsForAdmin = () => api.get('/executors/all');
+
 
 // ==================== Recurring Tasks ====================
 

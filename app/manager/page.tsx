@@ -204,6 +204,10 @@ export default function ManagerDashboard() {
   const [searchInput, setSearchInput] = useState(''); // Отдельное состояние для input
   const [isSearching, setIsSearching] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
+  
+  // Фильтры для пользователей
+  const [officeFilter, setOfficeFilter] = useState<number | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [editingOfficeId, setEditingOfficeId] = useState(null);
   const [editedOffice, setEditedOffice] = useState<Partial<OfficeType>>({
@@ -532,18 +536,40 @@ export default function ManagerDashboard() {
   const fetchUsers = useCallback(async (page: number = 1) => {
     try {
       setLoading(true);
-      const response = await api.get(`/users?page=${page}&limit=${pagination.itemsPerPage}`);
-      setUsers(response.data.users || response.data);
+      
+      // Используем обычный endpoint для получения всех пользователей
+      const params: any = {
+        page,
+        limit: pagination.itemsPerPage
+      };
+      
+      if (officeFilter) {
+        params.office_id = officeFilter;
+      }
+      
+      if (roleFilter) {
+        params.role = roleFilter;
+      }
+      
+      const response = await api.get('/users', { params });
+      
+      if (response.data.success) {
+        setUsers(response.data.users);
       setPagination(prev => ({
         ...prev,
         currentPage: page,
         totalItems: response.data.total,
       }));
+      } else {
+        console.error('Ошибка при загрузке пользователей:', response.data.message);
+        setUsers([]);
+      }
     } catch (error) {
       setLoading(false);
       console.error('Ошибка при загрузке пользователей:', error);
+      setUsers([]);
     }
-  }, [pagination.itemsPerPage]);
+  }, [pagination.itemsPerPage, officeFilter, roleFilter]);
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
@@ -722,17 +748,12 @@ export default function ManagerDashboard() {
     }
   };
 
-  const handleAddOrUpdateUser = async () => {
+  const handleUpdateUser = async () => {
+    if (!editingUserId) return;
+
     try {
       setFormErrors(null);
       setLoading(true);
-
-      // Если роль department-head, проверяем наличие категории
-      if (newUser.role === "department-head" && !newUser.category_id) {
-        setFormErrors("Выберите категорию для руководителя отдела");
-        setLoading(false);
-        return;
-      }
 
       // Валидация телефона
       if (newUser.phone && newUser.phone.length < 10) {
@@ -742,30 +763,17 @@ export default function ManagerDashboard() {
       }
 
       const payload = {
-        id: newUser.id,
         full_name: newUser.full_name,
         phone: newUser.phone,
         office_id: newUser.office_id,
         role: newUser.role,
-        category_id: newUser.role === 'department-head' ? newUser.category_id : undefined,
-      }
-      if (payload.category_id === 0) {
-        payload.category_id = undefined;
-      }
+      };
 
-      if (editingUserId) {
-        // Обновление
+      // Обновление пользователя
         const response = await api.put(`/users/${editingUserId}`, payload);
         setUsers((prev) =>
             prev.map((user) => (user.id === editingUserId ? response.data : user))
         );
-      } else {
-        // Добавление
-        const response = await api.post("/users", payload);
-        response.data.office_id = newUser.office_id;
-        response.data.category_id = newUser.category_id;
-        setUsers((prev) => [...prev, response.data]);
-      }
 
       setNewUser({
         id: 0,
@@ -776,9 +784,10 @@ export default function ManagerDashboard() {
         category_id: 0,
       });
       setEditingUserId(null);
+      setFormErrors(null);
     } catch (err) {
-      setFormErrors("Ошибка при сохранении пользователя");
-      console.error("Ошибка при сохранении пользователя:", err);
+      setFormErrors("Ошибка при обновлении пользователя");
+      console.error("Ошибка при обновлении пользователя:", err);
     } finally {
       setLoading(false);
     }
@@ -812,10 +821,24 @@ export default function ManagerDashboard() {
   const handleDeleteUser = async (userId: number) => {
     try {
       setLoading(true);
-      await api.delete(`/users/${userId}`);
+      const response = await api.delete(`/users/${userId}`);
+      
+      // Если успешно удален (статус 204)
+      if (response.status === 204) {
       setUsers((prev) => prev.filter((user) => user.id !== userId));
-    } catch (err) {
+        // Показываем уведомление об успехе
+        if (typeof window !== 'undefined') {
+          alert('Пользователь успешно удален');
+        }
+      }
+    } catch (err: any) {
       console.error("Ошибка при удалении пользователя:", err);
+      
+      // Показываем ошибку пользователю
+      const errorMessage = err.response?.data?.message || 'Произошла ошибка при удалении пользователя';
+      if (typeof window !== 'undefined') {
+        alert(`Ошибка: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -844,6 +867,13 @@ export default function ManagerDashboard() {
     fetchNotifications();
     fetchOffices();
   }, []);
+
+  // Автоматический поиск при изменении фильтров
+  useEffect(() => {
+    if (officeFilter !== null || roleFilter !== null) {
+      handleSearch();
+    }
+  }, [officeFilter, roleFilter]);
 
   const fetchRequests = useCallback(async (pageToLoad = 1) => {
     try {
@@ -1073,26 +1103,44 @@ export default function ManagerDashboard() {
   }
 
   const handleSearch = async () => {
-    if (!searchInput.trim()) {
-      return;
-    }
-
     try {
-      const response = await api.get('/users/search', {
-        params: {
-          q: searchInput,
-          limit: 5
+      setIsSearching(true);
+      
+      // Если есть текстовый поиск, используем API поиска
+      if (searchInput.trim()) {
+        const response = await api.get('/users/search', {
+          params: {
+            q: searchInput.trim(),
+            limit: 50
+          }
+        });
+
+        if (response.data.success) {
+          let filteredUsers = response.data.users;
+          
+          // Применяем дополнительные фильтры на фронтенде
+          if (officeFilter) {
+            filteredUsers = filteredUsers.filter((user: any) => user.office_id === officeFilter);
+          }
+          
+          if (roleFilter) {
+            filteredUsers = filteredUsers.filter((user: any) => user.role === roleFilter);
+          }
+          
+          setUsers(filteredUsers);
+        } else {
+          console.error(response.data.message);
+          setUsers([]);
         }
-      });
-
-      if (response.data.success) {
-        setUsers(response.data.users);
       } else {
-
-        console.error(response.data.message);
+        // Если нет текстового поиска, загружаем всех пользователей с фильтрами
+        await fetchUsers(1);
       }
     } catch (error) {
-
+      console.error('Ошибка при поиске пользователей:', error);
+      setUsers([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -1642,7 +1690,7 @@ export default function ManagerDashboard() {
         <Tabs value={tab} onValueChange={setTab}>
           <div className="w-full mb-3">
             <div className="overflow-x-auto">
-              <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-5 sm:w-full">
+              <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-6 sm:w-full">
                 <TabsTrigger value="requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                   Заявки
                 </TabsTrigger>
@@ -2020,13 +2068,14 @@ export default function ManagerDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle>Управление пользователями</CardTitle>
-                  <CardDescription>Добавление, изменение и удаление пользователей</CardDescription>
+                  <CardDescription>Редактирование и удаление пользователей</CardDescription>
                 </CardHeader>
 
                 <CardContent className="space-y-4 mb-8">
-                  {/* Поиск пользователей */}
+                  {/* Поиск и фильтры пользователей */}
+                  <div className="space-y-3">
+                    {/* Поиск по имени */}
                   <div className="flex flex-col sm:flex-row gap-2">
-                    {/* Поле ввода */}
                     <Input
                         placeholder="Поиск по имени или номер"
                         value={searchInput}
@@ -2034,7 +2083,6 @@ export default function ManagerDashboard() {
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     />
 
-                    {/* Кнопка поиска */}
                     <Button
                         onClick={handleSearch}
                         disabled={isSearching}
@@ -2048,103 +2096,173 @@ export default function ManagerDashboard() {
                     </Button>
 
                     {/* Кнопка сброса */}
-                    {searchInput && (
+                      {(searchInput || officeFilter || roleFilter) && (
                         <Button
                             variant="outline"
                             onClick={() => {
                               setSearchInput('');
+                                setOfficeFilter(null);
+                                setRoleFilter(null);
                               fetchUsers(1);
                             }}
                         >
-                          Сбросить
+                            Сбросить все
                         </Button>
                     )}
                   </div>
 
-                  {/* Форма добавления */}
-                  {/*<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">*/}
-                  {/*  <Input*/}
-                  {/*      placeholder="Полное имя"*/}
-                  {/*      value={newUser.full_name}*/}
-                  {/*      onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}*/}
-                  {/*  />*/}
-                  {/*  <Input*/}
-                  {/*      placeholder="Номер телефона"*/}
-                  {/*      value={newUser.phone}*/}
-                  {/*      onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}*/}
-                  {/*  />*/}
-                  {/*  <Select*/}
-                  {/*      value={String(newUser.office_id === 0 ? "" : newUser.office_id)}*/}
-                  {/*      onValueChange={(val) => setNewUser({ ...newUser, office_id: Number(val) })}*/}
-                  {/*  >*/}
-                  {/*    <SelectTrigger>*/}
-                  {/*      <SelectValue placeholder="Офис" />*/}
-                  {/*    </SelectTrigger>*/}
-                  {/*    <SelectContent>*/}
-                  {/*      {offices.map((office: any, index: number) => (*/}
-                  {/*          <SelectItem key={index} value={String(office.id)}>*/}
-                  {/*            {office.name}*/}
-                  {/*          </SelectItem>*/}
-                  {/*      ))}*/}
-                  {/*    </SelectContent>*/}
-                  {/*  </Select>*/}
+                    {/* Фильтры */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Фильтр по офису */}
+                      <Select 
+                          value={officeFilter?.toString() || "all"} 
+                          onValueChange={(value) => setOfficeFilter(value === "all" ? null : parseInt(value))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Фильтр по офису" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все офисы</SelectItem>
+                          {offices.map((office: any, index: number) => (
+                              <SelectItem key={index} value={office.id.toString()}>
+                                {office.name}
+                              </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                  {/*  <Select*/}
-                  {/*      value={newUser.role}*/}
-                  {/*      onValueChange={(val) => {*/}
-                  {/*        // Меняем роль только если не executor*/}
-                  {/*        if (!(editingUserId && newUser.role === "executor")) {*/}
-                  {/*          setNewUser({ ...newUser, role: val, category_id: 0 });*/}
-                  {/*        }*/}
-                  {/*      }}*/}
-                  {/*      disabled={!!editingUserId && newUser.role === "executor"}*/}
-                  {/*  >*/}
-                  {/*    <SelectTrigger>*/}
-                  {/*      <SelectValue placeholder="Роль" />*/}
-                  {/*    </SelectTrigger>*/}
-                  {/*    <SelectContent>*/}
-                  {/*      {["client", "admin-worker", "department-head", "manager", "executor"]*/}
-                  {/*          .filter((role) => {*/}
-                  {/*            if (!editingUserId && role === "executor") return false; // при добавлении убираем executor*/}
-                  {/*            return true;*/}
-                  {/*          })*/}
-                  {/*          .map((role) => (*/}
-                  {/*              <SelectItem key={role} value={role}>*/}
-                  {/*                {roleTranslations[role] || role}*/}
-                  {/*              </SelectItem>*/}
-                  {/*          ))}*/}
-                  {/*    </SelectContent>*/}
-                  {/*  </Select>*/}
+                      {/* Фильтр по роли */}
+                      <Select 
+                          value={roleFilter || "all"} 
+                          onValueChange={(value) => setRoleFilter(value === "all" ? null : value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Фильтр по роли" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все роли</SelectItem>
+                          <SelectItem value="client">Клиент</SelectItem>
+                          <SelectItem value="admin-worker">Администратор офиса</SelectItem>
+                          <SelectItem value="department-head">Руководитель направления</SelectItem>
+                          <SelectItem value="executor">Исполнитель</SelectItem>
+                          <SelectItem value="manager">Руководитель</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  {/*  /!* Появляется только если выбрана роль department-head *!/*/}
-                  {/*  {newUser.role === "department-head" && (*/}
-                  {/*      <Select*/}
-                  {/*          value={String(newUser.category_id) === "0" ? undefined : String(newUser.category_id)}*/}
-                  {/*          onValueChange={(val) => setNewUser({ ...newUser, category_id: Number(val) })}*/}
-                  {/*      >*/}
-                  {/*        <SelectTrigger>*/}
-                  {/*          <SelectValue placeholder="Специализация" />*/}
-                  {/*        </SelectTrigger>*/}
-                  {/*        <SelectContent>*/}
-                  {/*          {categories.map((cat: any, index: number) => (*/}
-                  {/*              <SelectItem key={index} value={String(cat.id)}>*/}
-                  {/*                {cat.name}*/}
-                  {/*              </SelectItem>*/}
-                  {/*          ))}*/}
-                  {/*        </SelectContent>*/}
-                  {/*      </Select>*/}
-                  {/*  )}*/}
-                  {/*</div>*/}
-                  {/*{formErrors && <p className="text-sm text-red-500">{formErrors}</p>}*/}
+                    {/* Индикатор активных фильтров */}
+                    {(officeFilter || roleFilter) && (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="text-sm text-gray-600">Активные фильтры:</span>
+                        {officeFilter && (
+                          <Badge variant="secondary" className="text-xs">
+                            Офис: {offices.find(o => o.id === officeFilter)?.name}
+                            <button
+                              onClick={() => setOfficeFilter(null)}
+                              className="ml-1 text-gray-500 hover:text-gray-700"
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        )}
+                        {roleFilter && (
+                          <Badge variant="secondary" className="text-xs">
+                            Роль: {roleTranslations[roleFilter] || roleFilter}
+                            <button
+                              onClick={() => setRoleFilter(null)}
+                              className="ml-1 text-gray-500 hover:text-gray-700"
+                            >
+                              ×
+                            </button>
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                  {/*/!* Кнопка добавить/сохранить *!/*/}
-                  {/*<Button*/}
-                  {/*    onClick={handleAddOrUpdateUser}*/}
-                  {/*    disabled={!isValidUser || loading}*/}
-                  {/*    className="bg-green-600 hover:bg-green-700 w-full sm:w-fit"*/}
-                  {/*>*/}
-                  {/*  {editingUserId ? "Сохранить" : "Добавить пользователя"}*/}
-                  {/*</Button>*/}
+                  {/* Форма редактирования пользователя */}
+                  {editingUserId && (
+                    <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h3 className="text-lg font-semibold text-blue-800">Редактирование пользователя</h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        <Input
+                            placeholder="Полное имя"
+                            value={newUser.full_name}
+                            onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                        />
+                        <Input
+                            placeholder="Номер телефона"
+                            value={newUser.phone}
+                            onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                        />
+                        <Select
+                            value={String(newUser.office_id === 0 ? "" : newUser.office_id)}
+                            onValueChange={(val) => setNewUser({ ...newUser, office_id: Number(val) })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Офис" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {offices.map((office: any, index: number) => (
+                                <SelectItem key={index} value={String(office.id)}>
+                                  {office.name}
+                                </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Select
+                            value={newUser.role}
+                            onValueChange={(val) => setNewUser({ ...newUser, role: val, category_id: 0 })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Роль" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["client", "admin-worker", "manager"]
+                                .map((role) => (
+                                    <SelectItem key={role} value={role}>
+                                      {roleTranslations[role] || role}
+                                    </SelectItem>
+                                ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+
+                      {/* Кнопки сохранить и отмена */}
+                      <div className="flex gap-2">
+                        <Button
+                            onClick={handleUpdateUser}
+                            disabled={!isValidUser || loading}
+                            className="bg-green-600 hover:bg-green-700"
+                        >
+                          Сохранить изменения
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingUserId(null);
+                              setNewUser({
+                                id: 0,
+                                full_name: "",
+                                phone: "",
+                                office_id: 0,
+                                role: "",
+                                category_id: 0,
+                              });
+                              setFormErrors(null);
+                            }}
+                        >
+                          Отмена
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Список пользователей */}
                   <div className="space-y-2 mt-4">

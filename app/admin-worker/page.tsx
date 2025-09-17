@@ -32,7 +32,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import api, { getOffices, getExecutorsByCategory, changeCategoryHead } from "@/lib/api";
+import api, { getOffices, getExecutorsByCategory, changeCategoryHead, createServiceCategory, deleteServiceCategory, assignExecutorToCategory, getAllExecutorsForAdmin } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -130,7 +130,8 @@ export default function AdminWorkerDashboard() {
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
   const [showComments, setShowComments] = useState<number | null>(null);
   const [showIconInfo, setShowIconInfo] = useState<{type: 'status' | 'longTerm', value: string} | null>(null);
-  const [subRequestSettings, setSubRequestSettings] = useState<Record<number, {sla: string, complexity: string}>>({});
+  const [subRequestSettings, setSubRequestSettings] = useState<Record<number, {sla: string, complexity: string, category_id?: number}>>({});
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
@@ -170,6 +171,21 @@ export default function AdminWorkerDashboard() {
   const [isChangingHead, setIsChangingHead] = useState(false);
   const [isLoadingExecutors, setIsLoadingExecutors] = useState(false);
   const [changeHeadError, setChangeHeadError] = useState<string | null>(null);
+  
+  // Состояния для управления категориями
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [categoriesWithExecutors, setCategoriesWithExecutors] = useState<Set<number>>(new Set());
+  
+  // Состояния для управления исполнителями
+  const [selectedExecutorForAssignment, setSelectedExecutorForAssignment] = useState<number | null>(null);
+  const [isAssigningExecutor, setIsAssigningExecutor] = useState(false);
+  const [executorManagementError, setExecutorManagementError] = useState<string | null>(null);
+  const [allExecutors, setAllExecutors] = useState<Executor[]>([]);
+  const [isLoadingAllExecutors, setIsLoadingAllExecutors] = useState(false);
 
   // Состояния для оценки клиента
   const [showClientRatingModal, setShowClientRatingModal] = useState(false);
@@ -372,7 +388,14 @@ export default function AdminWorkerDashboard() {
       fetchStats()
     }
     fetchOffices()
+    loadAllExecutors()
   }, []);
+
+  useEffect(() => {
+    if (categories.length > 0) {
+      checkCategoriesWithExecutors();
+    }
+  }, [categories]);
 
   const filteredMyRequests = sortRequests(
       myRequests.filter((request) => {
@@ -495,6 +518,125 @@ export default function AdminWorkerDashboard() {
       setIsChangingHead(false);
     }
   }
+
+  // Функции для управления категориями
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    setIsCreatingCategory(true);
+    setCategoryError(null);
+
+    try {
+      await createServiceCategory({ name: newCategoryName.trim() });
+      
+      successModal.showSuccess({
+        title: "Категория создана",
+        message: `Категория "${newCategoryName}" успешно создана`
+      });
+
+      setNewCategoryName("");
+      fetchCategories(token!);
+    } catch (error: any) {
+      console.error("Ошибка при создании категории:", error);
+      setCategoryError(error.response?.data?.message || "Ошибка при создании категории");
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  }
+
+  const checkCategoriesWithExecutors = async () => {
+    const categoriesWithExecs = new Set<number>();
+    
+    for (const category of categories) {
+      try {
+        const response = await getExecutorsByCategory(category.id);
+        if (response.data && response.data.length > 0) {
+          categoriesWithExecs.add(category.id);
+        }
+      } catch (error) {
+        console.error(`Ошибка при проверке категории ${category.id}:`, error);
+      }
+    }
+    
+    setCategoriesWithExecutors(categoriesWithExecs);
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    setIsDeletingCategory(true);
+    setCategoryError(null);
+
+    try {
+      await deleteServiceCategory(categoryToDelete);
+      
+      successModal.showSuccess({
+        title: "Категория удалена",
+        message: "Категория успешно удалена"
+      });
+
+      setCategoryToDelete(null);
+      fetchCategories(token!);
+      checkCategoriesWithExecutors();
+    } catch (error: any) {
+      console.error("Ошибка при удалении категории:", error);
+      setCategoryError(error.response?.data?.message || "Ошибка при удалении категории");
+    } finally {
+      setIsDeletingCategory(false);
+    }
+  }
+
+  // Функции для управления исполнителями
+  const loadAllExecutors = async () => {
+    setIsLoadingAllExecutors(true);
+    setExecutorManagementError(null);
+    
+    try {
+      const response = await getAllExecutorsForAdmin();
+      setAllExecutors(response.data);
+    } catch (error: any) {
+      console.error("Ошибка при загрузке исполнителей:", error);
+      setExecutorManagementError("Не удалось загрузить исполнителей");
+    } finally {
+      setIsLoadingAllExecutors(false);
+    }
+  }
+
+  const handleAssignExecutorToCategory = async () => {
+    if (!selectedCategoryId || !selectedExecutorForAssignment) return;
+
+    setIsAssigningExecutor(true);
+    setExecutorManagementError(null);
+
+    try {
+      const response = await assignExecutorToCategory(selectedCategoryId, selectedExecutorForAssignment);
+      
+      if (response.data.isNewHead) {
+        successModal.showSuccess({
+          title: "Исполнитель назначен и стал руководителем",
+          message: `Исполнитель ${response.data.executor.name} успешно назначен к категории "${response.data.category.name}" и автоматически стал руководителем этой категории`
+        });
+      } else {
+        successModal.showSuccess({
+          title: "Исполнитель назначен",
+          message: `Исполнитель ${response.data.executor.name} успешно назначен к категории "${response.data.category.name}"`
+        });
+      }
+
+      setSelectedExecutorForAssignment(null);
+      loadAllExecutors();
+      if (selectedCategoryId) {
+        loadExecutorsForCategory(selectedCategoryId);
+      }
+      checkCategoriesWithExecutors();
+    } catch (error: any) {
+      console.error("Ошибка при назначении исполнителя:", error);
+      setExecutorManagementError(error.response?.data?.message || "Ошибка при назначении исполнителя");
+    } finally {
+      setIsAssigningExecutor(false);
+    }
+  }
+
 
   const handleNotificationClick = async (notification: any) => {
     setSelectedNotification(notification)
@@ -763,20 +905,34 @@ export default function AdminWorkerDashboard() {
       // Подготавливаем данные для отправки
       const sub_requests = selectedRequest.requests.map((subReq: SubRequest) => {
         const settings = subRequestSettings[subReq.id];
-        return {
+        const result = {
           id: subReq.id,
           sla: editableRequestType === 'planned' ? null : settings?.sla,
           complexity: editableRequestType === 'planned' ? null : settings?.complexity,
-          category_id: subReq.category_id
+          category_id: settings?.category_id || subReq.category_id
         };
+        
+        // Отладочная информация
+        console.log(`SubRequest ${subReq.id}:`, {
+          original_category_id: subReq.category_id,
+          settings_category_id: settings?.category_id,
+          final_category_id: result.category_id,
+          settings: settings
+        });
+        
+        return result;
       });
 
       // Отправляем запрос на принятие группы заявок
-      await api.patch(`/request-groups/${selectedRequest.id}`, {
+      const requestData = {
         patch_code: 1,
         sub_requests: sub_requests,
         request_type: editableRequestType
-      });
+      };
+      
+      console.log('Отправляем данные на сервер:', requestData);
+      
+      await api.patch(`/request-groups/${selectedRequest.id}`, requestData);
 
       successModal.showSuccess({
         title: "Заявка принята в работу",
@@ -785,6 +941,8 @@ export default function AdminWorkerDashboard() {
       setSelectedRequest(null);
       closeModalWithHistory();
       setEditableRequestType('');
+      setEditingCategoryId(null);
+      setSubRequestSettings({});
       fetchRequests();
     } catch (error) {
       console.error("Ошибка при принятии заявки:", error);
@@ -816,6 +974,8 @@ export default function AdminWorkerDashboard() {
       setSelectedRequest(null);
       setRejectionReason("");
       setEditableRequestType('');
+      setEditingCategoryId(null);
+      setSubRequestSettings({});
       closeModalWithHistory();
       fetchRequests();
     } catch (error) {
@@ -1826,6 +1986,203 @@ export default function AdminWorkerDashboard() {
                 <TabsContent value="change-head">
                   <div className="w-full max-w-full overflow-hidden">
                     <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
+                      {/* Управление категориями */}
+                      <Card className="w-full">
+                        <CardHeader className="pb-3 sm:pb-6">
+                          <CardTitle className="text-base sm:text-lg">Управление категориями</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 sm:space-y-4">
+                          {/* Создание категории */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Создать новую категорию</Label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newCategoryName}
+                                onChange={(e) => setNewCategoryName(e.target.value)}
+                                placeholder="Название категории"
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                disabled={isCreatingCategory}
+                              />
+                              <Button
+                                onClick={handleCreateCategory}
+                                disabled={!newCategoryName.trim() || isCreatingCategory}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                {isCreatingCategory ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>Создание...</span>
+                                  </div>
+                                ) : (
+                                  "Создать"
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Удаление категории */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Удалить категорию</Label>
+                            
+                            {/* Информационное сообщение */}
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                              <div className="flex items-start gap-2">
+                                <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                                <div className="text-xs text-yellow-800">
+                                  <p className="font-medium mb-1">Внимание:</p>
+                                  <p>• Категорию можно удалить только если в ней нет исполнителей и руководителя</p>
+                                  <p>• Сначала удалите всех исполнителей из категории</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <Select onValueChange={(categoryId) => setCategoryToDelete(parseInt(categoryId))} value={categoryToDelete?.toString() || ""}>
+                                <SelectTrigger className="flex-1">
+                                  <SelectValue placeholder="Выберите категорию для удаления" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categories.map(category => {
+                                    const hasExecutors = categoriesWithExecutors.has(category.id);
+                                    return (
+                                      <SelectItem 
+                                        key={category.id} 
+                                        value={category.id.toString()}
+                                        disabled={hasExecutors}
+                                        className={hasExecutors ? "text-gray-400" : ""}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span>{category.name}</span>
+                                          {hasExecutors && (
+                                            <span className="text-xs text-gray-500">(есть исполнители)</span>
+                                          )}
+                                        </div>
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                onClick={handleDeleteCategory}
+                                disabled={!categoryToDelete || isDeletingCategory || (categoryToDelete ? categoriesWithExecutors.has(categoryToDelete) : false)}
+                                variant="destructive"
+                              >
+                                {isDeletingCategory ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>Удаление...</span>
+                                  </div>
+                                ) : (
+                                  "Удалить"
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Ошибки управления категориями */}
+                          {categoryError && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-xs sm:text-sm text-red-800 min-w-0 flex-1">{categoryError}</p>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {/* Управление исполнителями */}
+                      <Card className="w-full">
+                        <CardHeader className="pb-3 sm:pb-6">
+                          <CardTitle className="text-base sm:text-lg">Управление исполнителями</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 sm:space-y-4">
+                          {/* Назначение исполнителя к категории */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Назначить исполнителя к категории</Label>
+                            
+                            {/* Информационное сообщение */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <div className="flex items-start gap-2">
+                                <CheckCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                                <div className="text-xs text-blue-800">
+                                  <p className="font-medium mb-1">Важно:</p>
+                                  <p>• Если в категории нет исполнителей, первый назначенный исполнитель автоматически станет руководителем</p>
+                                  <p>• Последующие исполнители будут назначены как обычные исполнители</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <Select onValueChange={(categoryId) => setSelectedCategoryId(parseInt(categoryId))} value={selectedCategoryId?.toString() || ""}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Выберите категорию" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categories.map(category => (
+                                    <SelectItem key={category.id} value={category.id.toString()}>
+                                      {category.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Select onValueChange={(executorId) => setSelectedExecutorForAssignment(parseInt(executorId))} value={selectedExecutorForAssignment?.toString() || ""} disabled={isLoadingAllExecutors}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={isLoadingAllExecutors ? "Загрузка..." : "Выберите исполнителя"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {isLoadingAllExecutors ? (
+                                    <SelectItem value="loading" disabled className="text-gray-500">
+                                      Загрузка исполнителей...
+                                    </SelectItem>
+                                  ) : allExecutors.length === 0 ? (
+                                    <SelectItem value="no-executors" disabled className="text-gray-500">
+                                      Нет доступных исполнителей
+                                    </SelectItem>
+                                  ) : (
+                                    allExecutors.map(executor => (
+                                      <SelectItem key={executor.id} value={executor.id.toString()}>
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="font-medium truncate">{executor.user.full_name}</span>
+                                          <span className="text-xs text-gray-500 truncate">{executor.specialty}</span>
+                                        </div>
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Button
+                              onClick={handleAssignExecutorToCategory}
+                              disabled={!selectedCategoryId || !selectedExecutorForAssignment || isAssigningExecutor}
+                              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                              {isAssigningExecutor ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  <span>Назначение...</span>
+                                </div>
+                              ) : (
+                                "Назначить исполнителя"
+                              )}
+                            </Button>
+                          </div>
+
+
+                          {/* Ошибки управления исполнителями */}
+                          {executorManagementError && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-xs sm:text-sm text-red-800 min-w-0 flex-1">{executorManagementError}</p>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {/* Смена руководителя категории */}
                       <Card className="w-full">
                         <CardHeader className="pb-3 sm:pb-6">
                           <CardTitle className="text-base sm:text-lg">Смена руководителя категории</CardTitle>
@@ -2088,10 +2445,69 @@ export default function AdminWorkerDashboard() {
                                       <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>#{subRequest.id} {subRequest.title}</h4>
                       </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
-                                      <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
-                                        <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
-                                        {subRequest.category?.name || 'Без категории'}
-                                      </span>
+                                      {editingCategoryId === subRequest.id ? (
+                                        <div className="flex items-center gap-2">
+                                          <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                          <Select
+                                            value={subRequestSettings[subRequest.id]?.category_id?.toString() || subRequest.category_id?.toString() || ''}
+                                            onValueChange={(value) => {
+                                              setSubRequestSettings(prev => ({
+                                                ...prev,
+                                                [subRequest.id]: {
+                                                  ...prev[subRequest.id],
+                                                  sla: prev[subRequest.id]?.sla || '',
+                                                  complexity: prev[subRequest.id]?.complexity || '',
+                                                  category_id: parseInt(value)
+                                                }
+                                              }));
+                                            }}
+                                            onOpenChange={(open) => {
+                                              if (!open) {
+                                                setEditingCategoryId(null);
+                                              }
+                                            }}
+                                          >
+                                            <SelectTrigger className="h-8 text-xs w-40">
+                                              <SelectValue placeholder="Выберите категорию" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {categories.map((category) => (
+                                                <SelectItem key={category.id} value={category.id.toString()}>
+                                                  {category.name}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                      ) : (
+                                        <span 
+                                          className="flex items-center gap-1 cursor-pointer"
+                                          onClick={() => {
+                                            setEditingCategoryId(subRequest.id);
+                                            // Инициализируем настройки если их нет
+                                            if (!subRequestSettings[subRequest.id]) {
+                                              setSubRequestSettings(prev => ({
+                                                ...prev,
+                                                [subRequest.id]: {
+                                                  sla: '',
+                                                  complexity: '',
+                                                  category_id: subRequest.category_id || undefined
+                                                }
+                                              }));
+                                            }
+                                          }}
+                                        >
+                                          <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                          {(() => {
+                                            const settings = subRequestSettings[subRequest.id];
+                                            if (settings?.category_id) {
+                                              const selectedCategory = categories.find(cat => cat.id === settings.category_id);
+                                              return selectedCategory?.name || subRequest.category?.name || 'Без категории';
+                                            }
+                                            return subRequest.category?.name || 'Без категории';
+                                          })()}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -2202,7 +2618,7 @@ export default function AdminWorkerDashboard() {
                                     {editableRequestType !== 'planned' && (
                                         <div className="border-t border-gray-200 pt-3 mt-3">
                                           <h5 className="font-medium text-sm mb-3 text-gray-700">Настройки времени выполнения и сложности</h5>
-                                          <div className={`grid gap-3 ${isDesktop ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                          <div className={`grid gap-3 ${isDesktop ? 'grid-cols-3' : 'grid-cols-1'}`}>
                   <div>
                                               <Label className="text-xs font-medium text-gray-600">Время выполнения</Label>
                         <Select
@@ -2501,6 +2917,8 @@ export default function AdminWorkerDashboard() {
                       closeModalWithHistory();
                       setFormErrors(null);
                       setEditableRequestType('');
+                      setEditingCategoryId(null);
+                      setSubRequestSettings({});
                     }}>
                       Закрыть
                     </Button>
