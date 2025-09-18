@@ -26,8 +26,14 @@ interface Role {
     label: string;
 }
 
+interface ServiceCategory {
+    id: number;
+    name: string;
+}
+
 const ROLES: Role[] = [
-    { value: 'client', label: 'Клиент' }
+    { value: 'client', label: 'Клиент' },
+    { value: 'executor', label: 'Исполнитель' }
 ];
 
 export default function RegistrationRequestModal({ isOpen, onClose }: RegistrationRequestModalProps) {
@@ -36,10 +42,12 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
         full_name: '',
         office_id: '',
         role: '',
+        service_category_id: '',
         password: '',
         confirm_password: ''
     });
     const [offices, setOffices] = useState<Office[]>([]);
+    const [categories, setCategories] = useState<ServiceCategory[]>([]);
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1);
     const [showPassword, setShowPassword] = useState(false);
@@ -47,10 +55,11 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
     const successModal = useSuccessModal()
     const [formErrors, setFormErrors] = useState<string | null>(null);
 
-    // Загружаем список офисов при открытии модала
+    // Загружаем список офисов и категорий при открытии модала
     React.useEffect(() => {
         if (isOpen) {
             loadOffices();
+            loadCategories();
         }
     }, [isOpen]);
 
@@ -60,6 +69,15 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
             setOffices(response.data);
         } catch (error) {
             console.error('Ошибка при загрузке офисов:', error);
+        }
+    };
+
+    const loadCategories = async () => {
+        try {
+            const response = await api.get('/service-categories/public');
+            setCategories(response.data);
+        } catch (error) {
+            console.error('Ошибка при загрузке категорий:', error);
         }
     };
 
@@ -111,14 +129,21 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
 
         setLoading(true);
         try {
-            const { phone, full_name, office_id, role, password } = formData;
-            await api.post('/registration-requests', {
+            const { phone, full_name, office_id, role, service_category_id, password } = formData;
+            const requestData: any = {
                 phone,
                 full_name,
                 office_id: parseInt(office_id),
                 role,
                 password
-            });
+            };
+            
+            // Добавляем service_category_id только если роль - executor и категория выбрана
+            if (role === 'executor' && service_category_id) {
+                requestData.service_category_id = parseInt(service_category_id);
+            }
+            
+            await api.post('/registration-requests', requestData);
 
             successModal.showSuccess();
 
@@ -127,6 +152,7 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
                 full_name: '',
                 office_id: '',
                 role: '',
+                service_category_id: '',
                 password: '',
                 confirm_password: ''
             });
@@ -203,7 +229,7 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
                                     <Label htmlFor="role" className="text-sm md:text-base">Роль *</Label>
                                     <Select
                                         value={formData.role}
-                                        onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+                                        onValueChange={(value) => setFormData(prev => ({ ...prev, role: value, service_category_id: '' }))}
                                         required
                                     >
                                         <SelectTrigger className="text-sm md:text-base">
@@ -219,6 +245,28 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
                                     </Select>
                                 </div>
 
+                                {formData.role === 'executor' && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="service_category" className="text-sm md:text-base">Категория услуг *</Label>
+                                        <Select
+                                            value={formData.service_category_id}
+                                            onValueChange={(value) => setFormData(prev => ({ ...prev, service_category_id: value }))}
+                                            required
+                                        >
+                                            <SelectTrigger className="text-sm md:text-base">
+                                                <SelectValue placeholder="Выберите категорию услуг" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category.id} value={category.id.toString()}>
+                                                        {category.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+
                                 {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
 
                                 <Button
@@ -227,7 +275,13 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
                                         setStep(2);
                                         setFormErrors("");
                                     }}
-                                    disabled={!formData.phone || !formData.full_name || !formData.office_id || !formData.role}
+                                    disabled={
+                                        !formData.phone || 
+                                        !formData.full_name || 
+                                        !formData.office_id || 
+                                        !formData.role ||
+                                        (formData.role === 'executor' && !formData.service_category_id)
+                                    }
                                     className="w-full text-sm md:text-base py-2 md:py-3"
                                 >
                                     Далее

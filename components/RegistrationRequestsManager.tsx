@@ -19,6 +19,8 @@ interface RegistrationRequest {
     full_name: string;
     office: { name: string };
     role: string;
+    service_category_id?: number;
+    service_category?: { name: string };
     status: 'pending' | 'approved' | 'rejected';
     created_at: string;
 }
@@ -219,11 +221,19 @@ export default function RegistrationRequestsManager() {
                                                 <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
                                                     <h3 className="font-semibold text-sm md:text-base">{request.full_name}</h3>
                                                     {getStatusBadge(request.status)}
+                                                    {request.role === 'executor' && (
+                                                        <Badge variant="outline" className="text-xs">
+                                                            Исполнитель
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs md:text-sm text-muted-foreground">
                                                     <p>Телефон: {request.phone}</p>
                                                     <p>Офис: {request.office.name}</p>
                                                     <p>Роль: {getRoleLabel(request.role)}</p>
+                                                    {request.role === 'executor' && request.service_category && (
+                                                        <p>Категория: {request.service_category.name}</p>
+                                                    )}
                                                     <p>Дата: {format(new Date(request.created_at), 'dd MMMM yyyy HH:mm', { locale: ru })}</p>
                                                 </div>
                                             </div>
