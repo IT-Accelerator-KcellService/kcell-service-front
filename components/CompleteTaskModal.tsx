@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, Camera, Upload, Trash2, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { getSubRequestDisplayId } from "@/lib/subRequestUtils";
 
 interface CompleteTaskModalProps {
   isOpen: boolean;
@@ -97,7 +98,7 @@ export const CompleteTaskModal: React.FC<CompleteTaskModalProps> = ({
                     Завершить задачу
                   </CardTitle>
                   <CardDescription className="text-sm text-gray-500">
-                    Подзаявка #{task.id}
+                    Подзаявка № {getSubRequestDisplayId(task, task.request_group_id)}
                   </CardDescription>
                 </div>
               </div>

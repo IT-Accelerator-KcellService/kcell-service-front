@@ -18,6 +18,7 @@ import { AssignExecutorsModal } from '@/components/AssignExecutorsModal';
 import { CommentsModal } from '@/components/CommentsModal';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { getSubRequestDisplayId } from '@/lib/subRequestUtils';
 
 
 interface RecurringTaskDetailsProps {
@@ -462,7 +463,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2">
-                              <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>#{subRequest.id} {subRequest.title}</h4>
+                              <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>№ {getSubRequestDisplayId(subRequest, task.id)} {subRequest.title}</h4>
                             </div>
                             <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                               <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>

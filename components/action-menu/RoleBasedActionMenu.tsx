@@ -18,6 +18,7 @@ import {
   SkipForward
 } from "lucide-react"
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu"
+import { getSubRequestDisplayId } from "@/lib/subRequestUtils"
 import {useAuthStore} from "@/stores/useAuthStore";
 
 interface ActionItem {
@@ -572,7 +573,7 @@ export function RoleBasedActionMenu({
         {/* Header */}
         <div className="px-6 pb-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">Действия</h3>
-          <p className="text-sm text-gray-500 mt-1">Выберите действие для заявки #{request.id}</p>
+          <p className="text-sm text-gray-500 mt-1">Выберите действие для заявки № {isSubRequest ? getSubRequestDisplayId(request, requestGroup.id) : request.id}</p>
           <p className="text-xs text-purple-600 mt-1 font-medium">
             {userRole === "client" && "Клиент"}
             {userRole === "executor" && "Исполнитель"}

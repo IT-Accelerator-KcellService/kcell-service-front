@@ -46,6 +46,7 @@ import {useCategoryStore} from "@/stores/useCategoryStore";
 import {RejectModal} from "@/components/reject-modal";
 import {RoleBasedActionMenu} from "@/components/action-menu/RoleBasedActionMenu";
 import {IconInfoModal} from "@/components/IconInfoModal";
+import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {RejectRequestModal} from "@/components/RejectRequestModal";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
@@ -1507,11 +1508,6 @@ export default function ExecutorDashboard() {
               <div className="flex items-center gap-2 mt-1">
               <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
                 {totalSubRequests} под заявок
-                {totalSubRequests > 0 && (
-                    <span className="ml-1 text-gray-700">
-                    : {requestGroup.requests.map((sub) => sub.id).join(', ')}
-                  </span>
-                )}
               </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
@@ -2013,7 +2009,7 @@ export default function ExecutorDashboard() {
                                 <div className="flex justify-between items-start mb-3">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>#{subRequest.id} {subRequest.title}</h4>
+                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>№ {getSubRequestDisplayId(subRequest, selectedRequest.id)} {subRequest.title}</h4>
                     </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
