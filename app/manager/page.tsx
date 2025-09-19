@@ -35,7 +35,7 @@ import {
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
-import api from "@/lib/api";
+import api, { createServiceCategory, deleteServiceCategory, getExecutorsByCategory } from "@/lib/api";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip as TooltipForTabs} from "recharts";
 import {format, isAfter, subDays, subMonths, subYears} from "date-fns";
 import {useNotificationStore} from "@/stores/notificationStore";
@@ -135,9 +135,7 @@ interface Category {
 
 export default function ManagerDashboard() {
   const {token, clearAuth, user} = useAuthStore()
-  const {categories, fetchCategories, clearCategories, updateCategories} = useCategoryStore()
-  const [newRequestCategory, setNewRequestCategory] = useState("")
-  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
+  const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const approveModal = useAcceptRequestModal()
@@ -153,6 +151,14 @@ export default function ManagerDashboard() {
   const [newOfficeName, setNewOfficeName] = useState("")
   const [newOfficeCity, setNewOfficeCity] = useState("")
   const [newOfficeAddress, setNewOfficeAddress] = useState("")
+  
+  // Состояния для управления категориями
+  const [newCategoryName, setNewCategoryName] = useState("")
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
+  const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null)
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false)
+  const [categoryError, setCategoryError] = useState<string | null>(null)
+  const [categoriesWithExecutors, setCategoriesWithExecutors] = useState<Set<number>>(new Set())
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [showProfile, setShowProfile] = useState(false)
@@ -866,7 +872,16 @@ export default function ManagerDashboard() {
     fetchRequests(1);
     fetchNotifications();
     fetchOffices();
-  }, []);
+    if (token) {
+      fetchCategories(token);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (categories.length > 0) {
+      checkCategoriesWithExecutors();
+    }
+  }, [categories]);
 
   // Автоматический поиск при изменении фильтров
   useEffect(() => {
@@ -1280,6 +1295,73 @@ export default function ManagerDashboard() {
     }
   }
 
+  // Функции для управления категориями
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    setIsCreatingCategory(true);
+    setCategoryError(null);
+
+    try {
+      await createServiceCategory({ name: newCategoryName.trim() });
+      
+      successModal.showSuccess({
+        title: "Категория создана",
+        message: `Категория "${newCategoryName}" успешно создана`
+      });
+
+      setNewCategoryName("");
+      fetchCategories(token!);
+    } catch (error: any) {
+      console.error("Ошибка при создании категории:", error);
+      setCategoryError(error.response?.data?.message || "Ошибка при создании категории");
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  }
+
+  const checkCategoriesWithExecutors = async () => {
+    const categoriesWithExecs = new Set<number>();
+    
+    for (const category of categories) {
+      try {
+        const response = await getExecutorsByCategory(category.id);
+        if (response.data && response.data.length > 0) {
+          categoriesWithExecs.add(category.id);
+        }
+      } catch (error) {
+        console.error(`Ошибка при проверке категории ${category.id}:`, error);
+      }
+    }
+    
+    setCategoriesWithExecutors(categoriesWithExecs);
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
+
+    setIsDeletingCategory(true);
+    setCategoryError(null);
+
+    try {
+      await deleteServiceCategory(categoryToDelete!);
+      
+      successModal.showSuccess({
+        title: "Категория удалена",
+        message: "Категория успешно удалена"
+      });
+
+      setCategoryToDelete(null);
+      fetchCategories(token!);
+      checkCategoriesWithExecutors();
+    } catch (error: any) {
+      console.error("Ошибка при удалении категории:", error);
+      setCategoryError(error.response?.data?.message || "Ошибка при удалении категории");
+    } finally {
+      setIsDeletingCategory(false);
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":
@@ -1504,28 +1586,6 @@ export default function ManagerDashboard() {
     );
   };
 
-  const handleAddCategory = async () => {
-    if (newRequestCategory.trim() && !categories.some(c => c.name === newRequestCategory.trim())) {
-      try {
-        const response = await api.post('/service-categories', {
-          name: newRequestCategory.trim()
-        })
-        updateCategories(prev => [...prev, response.data])
-        setNewRequestCategory("")
-      } catch (error) {
-        console.error("Failed to add category:", error)
-      }
-    }
-  }
-
-  const handleRemoveCategory = async (categoryId: number) => {
-    try {
-      await api.delete(`/service-categories/${categoryId}`)
-      updateCategories(prev => prev.filter(category => category.id !== categoryId))
-    } catch (error) {
-      console.error("Failed to remove category:", error)
-    }
-  }
 
   const handleRateExecutor = async () => {
     if (!requestToRate || ratingValue === 0) return;
@@ -2065,6 +2125,124 @@ export default function ManagerDashboard() {
 
               </Card>
 
+              {/* Управление категориями услуг */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Управление категориями услуг</CardTitle>
+                  <CardDescription>Создание и удаление категорий услуг</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Форма создания категории */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Создать новую категорию</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Название категории"
+                        className="flex-1"
+                        disabled={isCreatingCategory}
+                      />
+                      <Button
+                        onClick={handleCreateCategory}
+                        disabled={!newCategoryName.trim() || isCreatingCategory}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        {isCreatingCategory ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Создание...</span>
+                          </div>
+                        ) : (
+                          "Создать"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Форма удаления категории */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Удалить категорию</Label>
+                    <div className="flex gap-2">
+                      <Select onValueChange={(categoryId) => setCategoryToDelete(parseInt(categoryId) || null)} value={categoryToDelete?.toString() || ""}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Выберите категорию для удаления" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map(category => {
+                            const hasExecutors = categoriesWithExecutors.has(category.id);
+                            return (
+                              <SelectItem 
+                                key={category.id} 
+                                value={category.id.toString()}
+                                disabled={hasExecutors}
+                                className={hasExecutors ? "text-gray-400" : ""}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span>{category.name}</span>
+                                  {hasExecutors && (
+                                    <span className="text-xs text-gray-500">(есть исполнители)</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={handleDeleteCategory}
+                        disabled={!categoryToDelete || isDeletingCategory || (categoryToDelete ? categoriesWithExecutors.has(categoryToDelete) : false)}
+                        variant="destructive"
+                      >
+                        {isDeletingCategory ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Удаление...</span>
+                          </div>
+                        ) : (
+                          "Удалить"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Отображение ошибок */}
+                  {categoryError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-sm text-red-600">{categoryError}</p>
+                    </div>
+                  )}
+
+                  {/* Список существующих категорий */}
+                  <div className="space-y-2">
+                    <Label>Существующие категории ({categories.length}):</Label>
+                    {categories.length === 0 ? (
+                      <p className="text-sm text-gray-500 italic">Нет добавленных категорий.</p>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2">
+                        {categories.map((category) => {
+                          const hasExecutors = categoriesWithExecutors.has(category.id);
+                          return (
+                            <div
+                              key={category.id}
+                              className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
+                            >
+                              <div className="text-gray-700">
+                                <div className="text-lg font-semibold">{category.name}</div>
+                                {hasExecutors && (
+                                  <div className="text-sm text-gray-500">Есть исполнители</div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Управление пользователями */}
               <Card>
                 <CardHeader>
@@ -2343,50 +2521,6 @@ export default function ManagerDashboard() {
                 </CardContent>
               </Card>
 
-              { /* Управление услугами */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Управление услугами</CardTitle>
-                  <CardDescription>Добавление и просмотр категорий услуг</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex space-x-2">
-                    <Input
-                        placeholder="Название новой категории"
-                        value={newRequestCategory}
-                        onChange={(e) => setNewRequestCategory(e.target.value)}
-                    />
-                    <Button onClick={handleAddCategory} disabled={!newRequestCategory.trim()}>
-                      Добавить
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Существующие категории:</Label>
-                    {categories.length === 0 ? (
-                        <p className="text-sm text-gray-500">Нет добавленных категорий.</p>
-                    ) : (
-                        <ul className="list-disc pl-5">
-                          {categories.map((category) => (
-                              <li key={category.id} className="text-sm text-gray-700 flex justify-between items-center">
-                                {category.name}
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setCategoryToDelete(category);
-                                      setShowDeleteCategoryModal(true);
-                                        }}
-                                    >
-                                      <Trash2 className="w-4 h-4 text-red-500" />
-                                    </Button>
-
-                              </li>
-                          ))}
-                        </ul>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 
@@ -2859,13 +2993,13 @@ export default function ManagerDashboard() {
         }}
         onConfirm={() => {
           if (categoryToDelete) {
-            handleRemoveCategory(categoryToDelete.id);
+            handleDeleteCategory();
             setCategoryToDelete(null);
             setShowDeleteCategoryModal(false);
           }
         }}
         title="Удалить категорию?"
-        description={`Это действие нельзя отменить. Вы действительно хотите удалить категорию ${categoryToDelete?.name}?`}
+        description={`Это действие нельзя отменить. Вы действительно хотите удалить категорию?`}
       />
 
       {/* Модальное окно информации об иконках */}
