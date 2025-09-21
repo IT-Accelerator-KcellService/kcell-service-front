@@ -50,6 +50,8 @@ import {RatingModal} from "@/components/RatingModal";
 import {RequestCard} from "@/components/RequestCard";
 import {IconInfoModal} from "@/components/IconInfoModal";
 import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
+import { createClickableRequestIds } from '@/lib/notificationUtils';
+import { RequestNotFoundModal } from '@/components/RequestNotFoundModal';
 import {MapModal} from "@/components/MapModal";
 import {CreateRequestModal} from "@/components/CreateRequestModal";
 import {CommentsModal} from "@/components/CommentsModal";
@@ -89,6 +91,8 @@ export default function ClientDashboard() {
   const [showCreateRequest, setShowCreateRequest] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<RequestGroup | null>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
+  const [showNotFoundModal, setShowNotFoundModal] = useState(false)
+  const [notFoundRequestId, setNotFoundRequestId] = useState<string>('')
   const [ratingValue, setRatingValue] = useState(0)
   const [requestToRate, setRequestToRate] = useState<SubRequest | null>(null)
   const [ratingComment, setRatingComment] = useState("")
@@ -977,6 +981,17 @@ export default function ClientDashboard() {
             notificationCount={notifications.length}
             role="Клиент"
             onRefresh={handleRefresh}
+            onRequestClick={(requestId) => {
+              // Парсим ID заявки (может быть в формате "123" или "123/1")
+              const parsedId = parseInt(requestId.split('/')[0]);
+              const request = requests.find(r => r.id === parsedId);
+              if (request) {
+                setSelectedRequest(request);
+                openModal('requestDetails');
+                return true; // Заявка найдена
+              }
+              return false; // Заявка не найдена
+            }}
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
       <PullToRefresh onRefresh={handleRefresh}>
@@ -1178,7 +1193,20 @@ export default function ClientDashboard() {
             <div className="space-y-6 mb-20">
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
-                  <NotificationsSidebar onNotificationClick={handleNotificationClick} />
+                  <NotificationsSidebar 
+                    onNotificationClick={handleNotificationClick}
+                    onRequestClick={(requestId) => {
+                      // Парсим ID заявки (может быть в формате "123" или "123/1")
+                      const parsedId = parseInt(requestId.split('/')[0]);
+                      const request = requests.find(r => r.id === parsedId);
+                      if (request) {
+                        setSelectedRequest(request);
+                        openModal('requestDetails');
+                        return true;
+                      }
+                      return false;
+                    }}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -1595,7 +1623,20 @@ export default function ClientDashboard() {
                   </button>
                 </div>
                 <p className="text-sm text-gray-800 whitespace-pre-line">
-                  {selectedNotification.content}
+                  {createClickableRequestIds(selectedNotification.content, (requestId) => {
+                    // Парсим ID заявки (может быть в формате "123" или "123/1")
+                    const parsedId = parseInt(requestId.split('/')[0]);
+                    const request = requests.find(r => r.id === parsedId);
+                    if (request) {
+                      setSelectedRequest(request);
+                      openModal('requestDetails');
+                      setIsModalOpen(false); // Закрываем модалку уведомления
+                    } else {
+                      // Заявка не найдена, показываем модалку предупреждения
+                      setNotFoundRequestId(requestId);
+                      setShowNotFoundModal(true);
+                    }
+                  })}
                 </p>
                 <p className="text-xs text-gray-500 mt-4">
                   Получено: {new Date(selectedNotification.created_at).toLocaleString()}
@@ -1675,6 +1716,13 @@ export default function ClientDashboard() {
           <MessageCircle className="w-7 h-7" />
 
         </Link>}
+
+        {/* Модалка для случая, когда заявка не найдена */}
+        <RequestNotFoundModal
+          isOpen={showNotFoundModal}
+          onClose={() => setShowNotFoundModal(false)}
+          requestId={notFoundRequestId}
+        />
   </>
   )
 }

@@ -4,7 +4,9 @@ import {Badge} from "@/components/ui/badge";
 import React, {useEffect, useRef, useState} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import api from "@/lib/api";
-import {VisuallyHidden} from "@radix-ui/react-visually-hidden";
+import { createClickableRequestIds } from '@/lib/notificationUtils';
+import { useRequestFromNotification } from '@/hooks/useRequestFromNotification';
+import { RequestNotFoundModal } from '@/components/RequestNotFoundModal';
 
 
 interface HeaderProps {
@@ -13,6 +15,7 @@ interface HeaderProps {
     notificationCount?: number;
     role?: string;
     onRefresh?: () => void;
+    onRequestClick?: (requestId: string) => boolean;
 }
 
 interface Notification {
@@ -35,6 +38,7 @@ const Header: React.FC<HeaderProps> = ({
                                            notificationCount = 0,
                                            role = "Клиент",
                                            onRefresh,
+                                           onRequestClick,
                                        }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
@@ -42,6 +46,9 @@ const Header: React.FC<HeaderProps> = ({
     const [hasMore, setHasMore] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const { getRequestById } = useRequestFromNotification();
+    const [showNotFoundModal, setShowNotFoundModal] = useState(false);
+    const [notFoundRequestId, setNotFoundRequestId] = useState<string>('');
 
     // Основная функция загрузки уведомлений
     const loadNotifications = async (pageNum: number, reset: boolean = false) => {
@@ -144,6 +151,21 @@ const Header: React.FC<HeaderProps> = ({
             month: '2-digit',
             year: 'numeric'
         });
+    };
+
+    // Обработчик клика по ID заявки
+    const handleRequestIdClick = (requestId: string) => {
+        const request = getRequestById(requestId);
+        if (request && onRequestClick) {
+            if (onRequestClick(requestId)) {
+                setIsModalOpen(false);
+                return;
+            }
+        }
+        
+        // Заявка не найдена, показываем модалку
+        setNotFoundRequestId(requestId);
+        setShowNotFoundModal(true);
     };
 
     // Получить иконку для типа уведомления
@@ -331,7 +353,7 @@ const Header: React.FC<HeaderProps> = ({
                                                     {formatTimeAgo(n.created_at)}
                                                 </p>
                                                 <p className="text-sm text-gray-700 mt-2 leading-relaxed line-clamp-3">
-                                                    {n.content}
+                                                    {createClickableRequestIds(n.content, handleRequestIdClick)}
                                                 </p>
                                             </div>
                                         </div>
@@ -369,6 +391,13 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Модалка для случая, когда заявка не найдена */}
+            <RequestNotFoundModal
+                isOpen={showNotFoundModal}
+                onClose={() => setShowNotFoundModal(false)}
+                requestId={notFoundRequestId}
+            />
 
         </>
     );

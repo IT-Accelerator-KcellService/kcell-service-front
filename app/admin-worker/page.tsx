@@ -61,6 +61,8 @@ import { RatingModal } from "@/components/RatingModal";
 import { IconInfoModal } from "@/components/IconInfoModal";
 import { MapModal } from "@/components/MapModal";
 import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
+import { createClickableRequestIds } from '@/lib/notificationUtils';
+import { RequestNotFoundModal } from '@/components/RequestNotFoundModal';
 import { CreateRequestModal } from "@/components/CreateRequestModal";
 import { CommentsModal } from "@/components/CommentsModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
@@ -117,6 +119,8 @@ export default function AdminWorkerDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false);
+  const [showNotFoundModal, setShowNotFoundModal] = useState(false);
+  const [notFoundRequestId, setNotFoundRequestId] = useState<string>('');
   const [showProfile, setShowProfile] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
@@ -1655,6 +1659,18 @@ export default function AdminWorkerDashboard() {
             notificationCount={3}
             role="Администратор"
             onRefresh={handleRefresh}
+            onRequestClick={(requestId) => {
+              // Парсим ID заявки (может быть в формате "123" или "123/1")
+              const parsedId = parseInt(requestId.split('/')[0]);
+              const allRequests = [...myRequests, ...incomingRequests];
+              const request = allRequests.find(r => r.id === parsedId);
+              if (request) {
+                setSelectedRequest(request);
+                openModal('requestDetails');
+                return true; // Заявка найдена
+              }
+              return false; // Заявка не найдена
+            }}
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
         <PullToRefresh onRefresh={handleRefresh}>
@@ -2328,7 +2344,21 @@ export default function AdminWorkerDashboard() {
               <UpcomingTasksWidget refreshTrigger={upcomingTasksRefreshTrigger} />
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
-                  <NotificationsSidebar onNotificationClick={handleNotificationClick} />
+                  <NotificationsSidebar 
+                    onNotificationClick={handleNotificationClick}
+                    onRequestClick={(requestId) => {
+                      // Парсим ID заявки (может быть в формате "123" или "123/1")
+                      const parsedId = parseInt(requestId.split('/')[0]);
+                      const allRequests = [...myRequests, ...incomingRequests];
+                      const request = allRequests.find(r => r.id === parsedId);
+                      if (request) {
+                        setSelectedRequest(request);
+                        openModal('requestDetails');
+                        return true; // Заявка найдена
+                      }
+                      return false; // Заявка не найдена
+                    }}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -2363,7 +2393,21 @@ export default function AdminWorkerDashboard() {
                   </button>
                 </div>
                 <p className="text-sm text-gray-800 whitespace-pre-line">
-                  {selectedNotification.content}
+                  {createClickableRequestIds(selectedNotification.content, (requestId) => {
+                    // Парсим ID заявки (может быть в формате "123" или "123/1")
+                    const parsedId = parseInt(requestId.split('/')[0]);
+                    const allRequests = [...myRequests, ...incomingRequests];
+                    const request = allRequests.find(r => r.id === parsedId);
+                    if (request) {
+                      setSelectedRequest(request);
+                      openModal('requestDetails');
+                      setIsModalOpen(false); // Закрываем модалку уведомления
+                    } else {
+                      // Заявка не найдена, показываем модалку предупреждения
+                      setNotFoundRequestId(requestId);
+                      setShowNotFoundModal(true);
+                    }
+                  })}
                 </p>
                 <p className="text-xs text-gray-500 mt-4">
                   Получено: {new Date(selectedNotification.created_at).toLocaleString()}
@@ -3083,6 +3127,13 @@ export default function AdminWorkerDashboard() {
           }}
           userRole="admin-worker"
           isFullScreen={!isDesktop}
+        />
+
+        {/* Модалка для случая, когда заявка не найдена */}
+        <RequestNotFoundModal
+          isOpen={showNotFoundModal}
+          onClose={() => setShowNotFoundModal(false)}
+          requestId={notFoundRequestId}
         />
 
       </>
