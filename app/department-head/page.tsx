@@ -54,6 +54,9 @@ import {RequestCard} from "@/components/RequestCard";
 import {CreateRequestModal} from "@/components/CreateRequestModal";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {IconInfoModal} from "@/components/IconInfoModal";
+import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
+import { createClickableRequestIds } from '@/lib/notificationUtils';
+import { RequestNotFoundModal } from '@/components/RequestNotFoundModal';
 import {CommentsModal} from "@/components/CommentsModal";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {RejectRequestModal} from "@/components/RejectRequestModal";
@@ -106,6 +109,8 @@ export default function DepartmentHeadDashboard() {
   const [activeTab, setActiveTab] = useState("incoming")
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
+  const [showNotFoundModal, setShowNotFoundModal] = useState(false)
+  const [notFoundRequestId, setNotFoundRequestId] = useState<string>('')
 
   const [showProfile, setShowProfile] = useState(false)
   const [showIconInfo, setShowIconInfo] = useState<{type: 'status' | 'longTerm', value: string} | null>(null);
@@ -1055,11 +1060,6 @@ export default function DepartmentHeadDashboard() {
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
                 {totalSubRequests} под заявок
-                {totalSubRequests > 0 && (
-                    <span className="ml-1 text-gray-700">
-                    : {requestGroup.requests.map((sub) => sub.id).join(', ')}
-                  </span>
-                )}
               </span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
@@ -1222,6 +1222,18 @@ export default function DepartmentHeadDashboard() {
             notificationCount={3}
             role="Руководитель направления"
             onRefresh={handleRefresh}
+            onRequestClick={(requestId) => {
+              // Парсим ID заявки (может быть в формате "123" или "123/1")
+              const parsedId = parseInt(requestId.split('/')[0]);
+              const allRequests = [...myRequests, ...incomingRequests];
+              const request = allRequests.find(r => r.id === parsedId);
+              if (request) {
+                setSelectedRequest(request);
+                openModal('requestDetails');
+                return true; // Заявка найдена
+              }
+              return false; // Заявка не найдена
+            }}
         />
         <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
         <PullToRefresh onRefresh={handleRefresh}>
@@ -1613,7 +1625,21 @@ export default function DepartmentHeadDashboard() {
               <UpcomingTasksWidget refreshTrigger={upcomingTasksRefreshTrigger} />
               <Card className="overflow-hidden">
                 <CardContent className="p-0">
-                  <NotificationsSidebar onNotificationClick={handleNotificationClick} />
+                  <NotificationsSidebar 
+                    onNotificationClick={handleNotificationClick}
+                    onRequestClick={(requestId) => {
+                      // Парсим ID заявки (может быть в формате "123" или "123/1")
+                      const parsedId = parseInt(requestId.split('/')[0]);
+                      const allRequests = [...myRequests, ...incomingRequests];
+                      const request = allRequests.find(r => r.id === parsedId);
+                      if (request) {
+                        setSelectedRequest(request);
+                        openModal('requestDetails');
+                        return true; // Заявка найдена
+                      }
+                      return false; // Заявка не найдена
+                    }}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -1649,7 +1675,21 @@ export default function DepartmentHeadDashboard() {
                   </button>
                 </div>
                 <p className="text-sm text-gray-800 whitespace-pre-line">
-                  {selectedNotification.content}
+                  {createClickableRequestIds(selectedNotification.content, (requestId) => {
+                    // Парсим ID заявки (может быть в формате "123" или "123/1")
+                    const parsedId = parseInt(requestId.split('/')[0]);
+                    const allRequests = [...myRequests, ...incomingRequests];
+                    const request = allRequests.find(r => r.id === parsedId);
+                    if (request) {
+                      setSelectedRequest(request);
+                      openModal('requestDetails');
+                      setIsModalOpen(false); // Закрываем модалку уведомления
+                    } else {
+                      // Заявка не найдена, показываем модалку предупреждения
+                      setNotFoundRequestId(requestId);
+                      setShowNotFoundModal(true);
+                    }
+                  })}
                 </p>
                 <p className="text-xs text-gray-500 mt-4">
                   Получено: {new Date(selectedNotification.created_at).toLocaleString()}
@@ -1712,7 +1752,7 @@ export default function DepartmentHeadDashboard() {
                                 <div className="flex justify-between items-start mb-3">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>#{subRequest.id} {subRequest.title}</h4>
+                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>№ {getSubRequestDisplayId(subRequest, selectedRequest.id)} {subRequest.title}</h4>
                   </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
@@ -2168,6 +2208,13 @@ export default function DepartmentHeadDashboard() {
           }}
           userRole="department-head"
           isFullScreen={!isDesktop}
+        />
+
+        {/* Модалка для случая, когда заявка не найдена */}
+        <RequestNotFoundModal
+          isOpen={showNotFoundModal}
+          onClose={() => setShowNotFoundModal(false)}
+          requestId={notFoundRequestId}
         />
       </>
   )

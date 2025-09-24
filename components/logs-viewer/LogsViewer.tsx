@@ -712,7 +712,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                           <span className="truncate">{log.user.full_name} ({log.user.role})</span>
                         </div>
                         <div className="flex items-center gap-1 min-w-0 flex-1">
-                          <span className="truncate">Заявка #{log.request.id}: {log.request.title}</span>
+                          <span className="truncate">Заявка № {log.request.id}: {log.request.title}</span>
                         </div>
                       </div>
 

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { MoreHorizontal, Play, CheckCircle, Eye, Edit, Trash2, XCircle, Clock } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { getSubRequestDisplayId } from "@/lib/subRequestUtils"
 
 interface ActionMenuProps {
   request: any
@@ -206,7 +207,7 @@ export function ActionMenu({
         {/* Header */}
         <div className="px-6 pb-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">Действия</h3>
-          <p className="text-sm text-gray-500 mt-1">Выберите действие для заявки #{request.id}</p>
+          <p className="text-sm text-gray-500 mt-1">Выберите действие для заявки № {request.sub_request_number ? getSubRequestDisplayId(request, request.request_group_id) : request.id}</p>
         </div>
 
         {/* Actions */}

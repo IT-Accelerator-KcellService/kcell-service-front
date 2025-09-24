@@ -4,6 +4,9 @@ import {useNotificationStore} from '@/stores/notificationStore'
 import React, {useEffect, useState} from 'react'
 import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
 import {Bell, CheckCircle, Clock, AlertCircle} from 'lucide-react';
+import { createClickableRequestIds } from '@/lib/notificationUtils';
+import { useRequestFromNotification } from '@/hooks/useRequestFromNotification';
+import { RequestNotFoundModal } from '@/components/RequestNotFoundModal';
 
 interface Notification {
     id: number
@@ -15,11 +18,15 @@ interface Notification {
 
 interface Props {
     onNotificationClick: (notification: Notification) => void
+    onRequestClick?: (requestId: string) => boolean
 }
 
-export function NotificationsSidebar({ onNotificationClick }: Props) {
+export function NotificationsSidebar({ onNotificationClick, onRequestClick }: Props) {
     const { notifications, notificationLoading } = useNotificationStore()
     const [displayedNotifications, setDisplayedNotifications] = useState<Notification[]>([])
+    const { getRequestById } = useRequestFromNotification()
+    const [showNotFoundModal, setShowNotFoundModal] = useState(false)
+    const [notFoundRequestId, setNotFoundRequestId] = useState<string>('')
 
     useEffect(() => {
         const latest = [...notifications]
@@ -78,7 +85,24 @@ export function NotificationsSidebar({ onNotificationClick }: Props) {
         return 'bg-violet-50/90 border-violet-200';
     }
 
+    // Обработчик клика по ID заявки
+    const handleRequestIdClick = (requestId: string) => {
+        const request = getRequestById(requestId);
+        if (request && onRequestClick) {
+            const success = onRequestClick(requestId);
+            if (success) {
+                // Заявка найдена и модалка открыта
+                return;
+            }
+        }
+        
+        // Заявка не найдена, показываем модалку
+        setNotFoundRequestId(requestId);
+        setShowNotFoundModal(true);
+    };
+
     return (
+        <>
         <Card className="border-0 shadow-lg bg-white/95 backdrop-blur-sm">
             <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
@@ -134,7 +158,7 @@ export function NotificationsSidebar({ onNotificationClick }: Props) {
                                             {formatTimeAgo(n.created_at)}
                                         </p>
                                         <p className="text-sm text-gray-700 mt-2 leading-relaxed line-clamp-2">
-                                            {n.content}
+                                            {createClickableRequestIds(n.content, handleRequestIdClick)}
                                         </p>
                                     </div>
                                 </div>
@@ -144,5 +168,13 @@ export function NotificationsSidebar({ onNotificationClick }: Props) {
                 )}
             </CardContent>
         </Card>
+        
+        {/* Модалка для случая, когда заявка не найдена */}
+        <RequestNotFoundModal
+            isOpen={showNotFoundModal}
+            onClose={() => setShowNotFoundModal(false)}
+            requestId={notFoundRequestId}
+        />
+    </>
     )
 }

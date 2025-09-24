@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, AlertTriangle } from "lucide-react";
+import { getSubRequestDisplayId } from "@/lib/subRequestUtils";
 
 interface RejectSubRequestModalProps {
   isOpen: boolean;
@@ -67,7 +68,7 @@ export const RejectSubRequestModal: React.FC<RejectSubRequestModalProps> = ({
               <div>
                 <CardTitle className="text-lg">Отклонить подзаявку</CardTitle>
                 <CardDescription>
-                  Подзаявка #{request.id}
+                  Подзаявка № {getSubRequestDisplayId(request, request.request_group_id)}
                 </CardDescription>
               </div>
             </div>
