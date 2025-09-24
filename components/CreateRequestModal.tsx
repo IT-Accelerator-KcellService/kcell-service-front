@@ -691,6 +691,21 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
           <div>
             <Label className="flex items-center gap-1 mb-2">
+              Расположение в офисе
+            </Label>
+            <Input
+              className={hasAttemptedSubmit && basicFieldErrors.has('locationDetails') ? 'border-red-300 focus:border-red-500' : ''}
+              placeholder="Например: 3 этаж, кабинет 305"
+              value={locationDetails}
+              onChange={(e) => setLocationDetails(e.target.value)}
+            />
+            {hasAttemptedSubmit && basicFieldErrors.has('locationDetails') && (
+              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+            )}
+          </div>
+
+          <div>
+            <Label className="flex items-center gap-1 mb-2">
               Тип заявки
             </Label>
             <Select value={requestType} onValueChange={(value) => {
@@ -839,21 +854,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
             </div>
           )}
-
-          <div>
-            <Label className="flex items-center gap-1 mb-2">
-              Расположение в офисе
-            </Label>
-            <Input
-              className={hasAttemptedSubmit && basicFieldErrors.has('locationDetails') ? 'border-red-300 focus:border-red-500' : ''}
-              placeholder="Например: 3 этаж, кабинет 305"
-              value={locationDetails}
-              onChange={(e) => setLocationDetails(e.target.value)}
-            />
-            {hasAttemptedSubmit && basicFieldErrors.has('locationDetails') && (
-              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-            )}
-          </div>
 
           <div>
             <Label className="flex items-center gap-1 mb-2">

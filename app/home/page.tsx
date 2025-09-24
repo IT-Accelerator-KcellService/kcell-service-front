@@ -447,9 +447,6 @@ export default function HomePage() {
                             </div>
                             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
                             <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-                                <div className="rounded-full bg-white/90 px-3 py-1 text-xs text-purple-700 shadow">
-                                    Нажмите, чтобы открыть карту офисов
-                                </div>
                                 <button
                                     onClick={() => setMapOpen(true)}
                                     className="rounded-full bg-purple-700 px-3 py-2 text-xs font-medium text-white shadow active:scale-[0.98]"
