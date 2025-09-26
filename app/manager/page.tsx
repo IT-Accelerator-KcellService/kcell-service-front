@@ -7,6 +7,7 @@ import {Badge} from "@/components/ui/badge"
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Input} from "@/components/ui/input"
+import {Textarea} from "@/components/ui/textarea"
 import {Label} from "@/components/ui/label"
 import {useRouter, useSearchParams} from "next/navigation"
 
@@ -187,9 +188,49 @@ export default function ManagerDashboard() {
   const [requestToDelete, setRequestToDelete] = useState<Request | null>(null)
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
   const [showDeleteOfficeModal, setShowDeleteOfficeModal] = useState(false)
+  
+  // Состояния для редактирования заявок
+  const [editableRequestType, setEditableRequestType] = useState<string>("")
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null)
+  const [subRequestSettings, setSubRequestSettings] = useState<{[key: number]: {category_id?: number, complexity?: string, sla?: string}}>({})
+  const [isUpdatingRequest, setIsUpdatingRequest] = useState(false)
+  const [editableLocationDetail, setEditableLocationDetail] = useState<string>("")
+  const [editableSubRequestTitles, setEditableSubRequestTitles] = useState<{[key: number]: string}>({})
+  const [editableSubRequestDescriptions, setEditableSubRequestDescriptions] = useState<{[key: number]: string}>({})
+  const [editableSubRequestComplexity, setEditableSubRequestComplexity] = useState<{[key: number]: string}>({})
+  const [editableSubRequestSla, setEditableSubRequestSla] = useState<{[key: number]: string}>({})
+  const [isEditingMode, setIsEditingMode] = useState(false)
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false)
   const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false)
   const [userToDelete, setUserToDelete] = useState<User | null>(null)
+
+  // Инициализация состояний редактирования при выборе заявки
+  useEffect(() => {
+    if (selectedRequest) {
+      setEditableRequestType(selectedRequest.request_type);
+      setEditableLocationDetail(selectedRequest.location_detail || "");
+      setEditingCategoryId(null);
+      setSubRequestSettings({});
+      setFormErrors(null);
+      setIsEditingMode(false);
+      
+      // Инициализируем поля подзаявок
+      const titles: {[key: number]: string} = {};
+      const descriptions: {[key: number]: string} = {};
+      const complexity: {[key: number]: string} = {};
+      const sla: {[key: number]: string} = {};
+      selectedRequest.requests.forEach((subRequest: any) => {
+        titles[subRequest.id] = subRequest.title || "";
+        descriptions[subRequest.id] = subRequest.description || "";
+        complexity[subRequest.id] = subRequest.complexity || "";
+        sla[subRequest.id] = subRequest.sla || "";
+      });
+      setEditableSubRequestTitles(titles);
+      setEditableSubRequestDescriptions(descriptions);
+      setEditableSubRequestComplexity(complexity);
+      setEditableSubRequestSla(sla);
+    }
+  }, [selectedRequest]);
   
   // Состояния для рейтинга
   const [showRatingModal, setShowRatingModal] = useState(false)
@@ -1366,6 +1407,127 @@ export default function ManagerDashboard() {
       setIsDeletingCategory(false);
     }
   }
+
+  // Функция для обновления заявки
+  const handleUpdateRequest = async () => {
+    if (!selectedRequest) return;
+
+    setIsUpdatingRequest(true);
+    setFormErrors(null);
+
+    try {
+      const updateData: any = {};
+
+      // Обновляем тип заявки если он изменился
+      if (editableRequestType && editableRequestType !== selectedRequest.request_type) {
+        updateData.request_type = editableRequestType;
+      }
+
+      // Обновляем расположение если изменилось
+      if (editableLocationDetail && editableLocationDetail !== selectedRequest.location_detail) {
+        updateData.location_detail = editableLocationDetail;
+      }
+
+      // Обновляем подзаявки
+      const subRequestUpdates: any[] = [];
+      
+      // Добавляем изменения в настройки подзаявок
+      Object.keys(subRequestSettings).forEach(subRequestId => {
+        const settings = subRequestSettings[parseInt(subRequestId)];
+        if (settings && (settings.category_id || settings.complexity || settings.sla)) {
+          subRequestUpdates.push({
+            id: parseInt(subRequestId),
+            ...settings
+          });
+        }
+      });
+
+      // Добавляем изменения в названия и описания подзаявок
+      Object.keys(editableSubRequestTitles).forEach(subRequestId => {
+        const subRequestIdNum = parseInt(subRequestId);
+        const originalSubRequest = selectedRequest.requests.find((r: any) => r.id === subRequestIdNum);
+        if (originalSubRequest) {
+          const hasChanges = 
+            editableSubRequestTitles[subRequestIdNum] !== originalSubRequest.title ||
+            editableSubRequestDescriptions[subRequestIdNum] !== originalSubRequest.description ||
+            editableSubRequestComplexity[subRequestIdNum] !== originalSubRequest.complexity ||
+            editableSubRequestSla[subRequestIdNum] !== originalSubRequest.sla;
+          
+          if (hasChanges) {
+            const existingUpdate = subRequestUpdates.find(u => u.id === subRequestIdNum);
+            if (existingUpdate) {
+              existingUpdate.title = editableSubRequestTitles[subRequestIdNum];
+              existingUpdate.description = editableSubRequestDescriptions[subRequestIdNum];
+              existingUpdate.complexity = editableSubRequestComplexity[subRequestIdNum];
+              existingUpdate.sla = editableSubRequestSla[subRequestIdNum];
+            } else {
+              subRequestUpdates.push({
+                id: subRequestIdNum,
+                title: editableSubRequestTitles[subRequestIdNum],
+                description: editableSubRequestDescriptions[subRequestIdNum],
+                complexity: editableSubRequestComplexity[subRequestIdNum],
+                sla: editableSubRequestSla[subRequestIdNum]
+              });
+            }
+          }
+        }
+      });
+
+      if (subRequestUpdates.length > 0) {
+        updateData.sub_requests = subRequestUpdates;
+      }
+
+      // Отправляем обновление только если есть изменения
+      if (Object.keys(updateData).length > 0) {
+        await api.put(`/request-groups/${selectedRequest.id}`, updateData);
+        
+        successModal.showSuccess({
+          title: "Заявка обновлена",
+          message: "Информация о заявке успешно обновлена"
+        });
+
+        // Обновляем локальное состояние
+        const updateLocalState = (prev: any[]) => prev.map(request => {
+          if (request.id === selectedRequest.id) {
+            let updatedRequest = { ...request, ...updateData };
+            
+            // Обновляем подзаявки если они были изменены
+            if (updateData.sub_requests && updateData.sub_requests.length > 0) {
+              updatedRequest.requests = request.requests.map((subRequest: any) => {
+                const update = updateData.sub_requests.find((u: any) => u.id === subRequest.id);
+                return update ? { ...subRequest, ...update } : subRequest;
+              });
+            }
+            
+            return updatedRequest;
+          }
+          return request;
+        });
+
+        setRequests(updateLocalState);
+
+        // Обновляем selectedRequest для отображения в модальном окне
+        const updatedSelectedRequest = updateLocalState([selectedRequest])[0];
+        setSelectedRequest(updatedSelectedRequest);
+
+        // Сбрасываем состояния редактирования
+        setEditableRequestType("");
+        setEditableLocationDetail("");
+        setEditingCategoryId(null);
+        setSubRequestSettings({});
+        setEditableSubRequestTitles({});
+        setEditableSubRequestDescriptions({});
+        setEditableSubRequestComplexity({});
+        setEditableSubRequestSla({});
+        setIsEditingMode(false);
+      }
+    } catch (error: any) {
+      console.error("Ошибка при обновлении заявки:", error);
+      setFormErrors(error.response?.data?.message || "Ошибка при обновлении заявки");
+    } finally {
+      setIsUpdatingRequest(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -2615,13 +2777,66 @@ export default function ManagerDashboard() {
           }}>
             <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
               <CardHeader>
-                <CardTitle className="font-medium text-gray-900">Заявка #{selectedRequest.id}</CardTitle>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="font-medium text-gray-900">Заявка #{selectedRequest.id}</CardTitle>
+                  {selectedRequest.status !== 'completed' && (
+                    <Button
+                      variant={isEditingMode ? "destructive" : "outline"}
+                      size="sm"
+                      className={!isEditingMode ? "bg-purple-600 hover:bg-purple-700 text-white border-purple-600" : ""}
+                      onClick={() => {
+                        if (isEditingMode) {
+                          // Отменяем редактирование
+                          setEditableRequestType(selectedRequest.request_type);
+                          setEditableLocationDetail(selectedRequest.location_detail || "");
+                          setEditingCategoryId(null);
+                          setSubRequestSettings({});
+                          setFormErrors(null);
+                          setIsEditingMode(false);
+                          
+                          // Сбрасываем поля подзаявок
+                          const titles: {[key: number]: string} = {};
+                          const descriptions: {[key: number]: string} = {};
+                          const complexity: {[key: number]: string} = {};
+                          const sla: {[key: number]: string} = {};
+                          selectedRequest.requests.forEach((subRequest: any) => {
+                            titles[subRequest.id] = subRequest.title || "";
+                            descriptions[subRequest.id] = subRequest.description || "";
+                            complexity[subRequest.id] = subRequest.complexity || "";
+                            sla[subRequest.id] = subRequest.sla || "";
+                          });
+                          setEditableSubRequestTitles(titles);
+                          setEditableSubRequestDescriptions(descriptions);
+                          setEditableSubRequestComplexity(complexity);
+                          setEditableSubRequestSla(sla);
+                        } else {
+                          // Включаем редактирование
+                          setIsEditingMode(true);
+                        }
+                      }}
+                    >
+                      {isEditingMode ? "Отменить" : "Редактировать"}
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4 pb-16">
                 <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Тип заявки</Label>
+                  {isEditingMode && selectedRequest.request_type !== "planned" ? (
+                    <Select value={editableRequestType} onValueChange={setEditableRequestType}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="normal">Обычная</SelectItem>
+                        <SelectItem value="urgent">Экстренная</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
                     <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
+                  )}
                 </div>
                 <div>
                     <Label>Статус</Label>
@@ -2661,7 +2876,21 @@ export default function ManagerDashboard() {
                               <div className="flex justify-between items-start mb-3">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-2">
-                                    <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>№ {getSubRequestDisplayId(subRequest, selectedRequest.id)} {subRequest.title}</h4>
+                                    {isEditingMode ? (
+                                      <div className="flex-1">
+                                        <Input
+                                          value={editableSubRequestTitles[subRequest.id] || subRequest.title}
+                                          onChange={(e) => setEditableSubRequestTitles(prev => ({
+                                            ...prev,
+                                            [subRequest.id]: e.target.value
+                                          }))}
+                                          placeholder="Название подзаявки"
+                                          className="w-full"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>№ {getSubRequestDisplayId(subRequest, selectedRequest.id)} {subRequest.title}</h4>
+                                    )}
                   </div>
                                   <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
@@ -2712,7 +2941,17 @@ export default function ManagerDashboard() {
 
                               {/* Краткое описание */}
                               <div className={`text-gray-600 mb-3 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
-                                {isDesktop ? (
+                                {isEditingMode ? (
+                                  <Textarea
+                                    value={editableSubRequestDescriptions[subRequest.id] || subRequest.description}
+                                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditableSubRequestDescriptions(prev => ({
+                                      ...prev,
+                                      [subRequest.id]: e.target.value
+                                    }))}
+                                    placeholder="Описание подзаявки"
+                                    className="w-full min-h-[80px]"
+                                  />
+                                ) : isDesktop ? (
                                     <p className="line-clamp-2">{subRequest.description}</p>
                                 ) : (
                                     <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
@@ -2754,7 +2993,20 @@ export default function ManagerDashboard() {
                             {isExpanded && (
                                 <div className={`border-t bg-gradient-to-br from-gray-50 to-gray-100 ${isDesktop ? 'p-4' : 'p-5'}`}>
                                   {/* Основная информация */}
-                                  <SubRequestInfo subRequest={subRequest} />
+                                   <SubRequestInfo 
+                                     subRequest={subRequest} 
+                                     isEditingMode={isEditingMode}
+                                     editableComplexity={editableSubRequestComplexity[subRequest.id]}
+                                     editableSla={editableSubRequestSla[subRequest.id]}
+                                     onComplexityChange={(value) => setEditableSubRequestComplexity(prev => ({
+                                       ...prev,
+                                       [subRequest.id]: value
+                                     }))}
+                                     onSlaChange={(value) => setEditableSubRequestSla(prev => ({
+                                       ...prev,
+                                       [subRequest.id]: value
+                                     }))}
+                                   />
 
                                   {/* Исполнители */}
                                   <Executors subRequest={subRequest} userRatings={userRatings} />
@@ -2780,7 +3032,16 @@ export default function ManagerDashboard() {
 
                 <div>
                   <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Локация в офисе</Label>
-                  <p className="text-sm">{selectedRequest.location_detail}</p>
+                  {isEditingMode ? (
+                    <Input
+                      value={editableLocationDetail}
+                      onChange={(e) => setEditableLocationDetail(e.target.value)}
+                      placeholder="Введите расположение в офисе"
+                      className="w-full"
+                    />
+                  ) : (
+                    <p className="text-sm">{selectedRequest.location_detail}</p>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -2875,9 +3136,71 @@ export default function ManagerDashboard() {
                               </div>
                 )}
 
+                {/* Отображение ошибок */}
+                {formErrors && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-md mb-4">
+                    <p className="text-sm text-red-600">{formErrors}</p>
+                  </div>
+                )}
+
+                {/* Кнопки сохранения изменений */}
+                {isEditingMode && (
+                  (editableRequestType && editableRequestType !== selectedRequest.request_type) ||
+                  (editableLocationDetail && editableLocationDetail !== selectedRequest.location_detail) ||
+                  Object.keys(editableSubRequestTitles).some(id => 
+                    editableSubRequestTitles[parseInt(id)] !== selectedRequest.requests.find((r: any) => r.id === parseInt(id))?.title
+                  ) ||
+                  Object.keys(editableSubRequestDescriptions).some(id => 
+                    editableSubRequestDescriptions[parseInt(id)] !== selectedRequest.requests.find((r: any) => r.id === parseInt(id))?.description
+                  ) ||
+                  Object.keys(editableSubRequestComplexity).some(id => 
+                    editableSubRequestComplexity[parseInt(id)] !== selectedRequest.requests.find((r: any) => r.id === parseInt(id))?.complexity
+                  ) ||
+                  Object.keys(editableSubRequestSla).some(id => 
+                    editableSubRequestSla[parseInt(id)] !== selectedRequest.requests.find((r: any) => r.id === parseInt(id))?.sla
+                  )
+                ) && (
+                  <div className="flex gap-2 mb-4">
+                    <Button
+                      onClick={handleUpdateRequest}
+                      disabled={isUpdatingRequest}
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                    >
+                      {isUpdatingRequest ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Сохранение...
+                        </>
+                      ) : (
+                        "Сохранить"
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        // Восстанавливаем исходные значения из selectedRequest
+                        setEditableRequestType(selectedRequest.request_type);
+                        setEditableLocationDetail(selectedRequest.location_detail || "");
+                        setEditingCategoryId(null);
+                        setSubRequestSettings({});
+                        setFormErrors(null);
+                        setIsEditingMode(false);
+                      }}
+                      disabled={isUpdatingRequest}
+                      className="flex-1"
+                    >
+                      Отменить
+                    </Button>
+                  </div>
+                )}
+
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => {
                     setSelectedRequest(null);
+                    setEditableRequestType("");
+                    setEditingCategoryId(null);
+                    setSubRequestSettings({});
+                    setFormErrors(null);
                     closeModalWithHistory();
                   }}>
                     Закрыть
