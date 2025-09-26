@@ -2729,7 +2729,7 @@ export default function AdminWorkerDashboard() {
                             <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
                               {/* Заголовок под заявки */}
                               <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
-                                <div className="flex justify-between items-start mb-3">
+                                <div className="flex justify-between items-start mb-3 gap-4">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
                                       {isEditingMode ? (
