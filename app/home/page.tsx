@@ -63,7 +63,7 @@ export default function HomePage() {
     const [offices, setOffices] = useState<OfficeType[]>([])
 
     const router = useRouter()
-    const {role, token} = useAuthStore()
+    const {role, token, user} = useAuthStore()
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const [mapOpen, setMapOpen] = useState(false)
     const [period, setPeriod] = useState("month")
@@ -80,6 +80,7 @@ export default function HomePage() {
         fetchStats,
         resetStats,
     } = useStatsStore();
+
     const HERO_SRC = "https://img.forbes.kz/forbes-photobank/media/2024-06-09/b47e8a4b-14f2-4c8c-9697-f58fd2c560c8.webp"
 
     const officePoints: OfficePoint[] = offices.map((o) => ({ ...o }))
@@ -108,11 +109,74 @@ export default function HomePage() {
     useEffect(() => {
         if (role && token) {
             fetchStats(role);
+            // Для админов также загружаем managerStats для графиков
+            if (role === 'admin-worker') {
+                fetchStats('manager');
+            }
         }
     }, [role, token, fetchStats]);
 
     const chartData: ChartData[] = useMemo(() => {
-        if (role !== 'manager') return [];
+        if (role !== 'manager' && role !== 'admin-worker') return [];
+        
+        // Для админа показываем только данные по его офису
+        if (role === 'admin-worker') {
+            const adminOfficeId = user?.office_id;
+            
+            // Если managerStats пустые, используем adminWorkerStats для создания упрощенного графика
+            if (!managerStats || managerStats.length === 0) {
+                if (!adminWorkerStats || adminWorkerStats.totalRequests === 0) return [];
+                
+                // Создаем простой график с одним значением - общее количество заявок
+                const today = new Date().toISOString().split('T')[0];
+                return [{
+                    date: today,
+                    count: adminWorkerStats.totalRequests
+                }];
+            }
+            
+            if (!adminOfficeId) return [];
+            const subset = managerStats.filter((s) => s.officeId === adminOfficeId);
+            
+            // Если выбран интервал дат, показываем данные за этот интервал
+            if (startDate && endDate) {
+                const startDateStr = startDate.toISOString().split('T')[0];
+                const endDateStr = endDate.toISOString().split('T')[0];
+                const map: Record<string, number> = {};
+
+                subset.forEach((s) => {
+                    Object.entries(s.data).forEach(([date, d]) => {
+                        if (date >= startDateStr && date <= endDateStr) {
+                            map[date] = (map[date] || 0) + d.totalRequests;
+                        }
+                    });
+                });
+
+                return Object.entries(map)
+                    .map(([date, count]) => ({ date, count }))
+                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            }
+
+            // Иначе используем обычную логику по периодам
+            const now = new Date()
+            const start = new Date(
+                period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
+                period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
+                period === "week" ? now.getDate() - 7 : now.getDate(),
+            )
+            const map: Record<string, number> = {}
+            subset.forEach((s) => {
+                Object.entries(s.data).forEach(([date, d]) => {
+                    const dd = new Date(date)
+                    if (dd >= start) map[date] = (map[date] || 0) + d.totalRequests
+                })
+            })
+            return Object.entries(map)
+                .map(([date, count]) => ({ date, count }))
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        }
+        
+        // Для менеджера используем существующую логику
         const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
         
         // Если выбран интервал дат, показываем данные за этот интервал
@@ -151,10 +215,76 @@ export default function HomePage() {
         return Object.entries(map)
             .map(([date, count]) => ({ date, count }))
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    }, [office, period, startDate, endDate])
+    }, [role, user, office, period, startDate, endDate, managerStats, adminWorkerStats])
 
     const distribution = useMemo(() => {
-        if (role !== 'manager') return;
+        if (role !== 'manager' && role !== 'admin-worker') return;
+        
+        // Для админа показываем только данные по его офису
+        if (role === 'admin-worker') {
+            const adminOfficeId = user?.office_id;
+            
+            // Если managerStats пустые, используем adminWorkerStats для создания упрощенного распределения
+            if (!managerStats || managerStats.length === 0) {
+                if (!adminWorkerStats || adminWorkerStats.totalRequests === 0) return;
+                
+                const total = adminWorkerStats.totalRequests;
+                const normal = adminWorkerStats.requestTypeSummary.normal || 0;
+                const urgent = adminWorkerStats.requestTypeSummary.urgent || 0;
+                const planned = adminWorkerStats.requestTypeSummary.planned || 0;
+                
+                const pct = (n: number) => {
+                    if (total <= 0 || isNaN(n) || n === undefined || n === null) return 0;
+                    return Math.round((n / total) * 100);
+                };
+                return {
+                    total,
+                    normal,
+                    urgent,
+                    planned,
+                    normalPercent: pct(normal),
+                    urgentPercent: pct(urgent),
+                    plannedPercent: pct(planned),
+                };
+            }
+            
+            if (!adminOfficeId) return;
+            const subset = managerStats.filter((s) => s.officeId === adminOfficeId);
+            
+            const now = new Date()
+            const start = new Date(
+                period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
+                period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
+                period === "week" ? now.getDate() - 7 : now.getDate(),
+            )
+            let total = 0
+            let normal = 0
+            let urgent = 0
+            let planned = 0
+            subset.forEach((stat) => {
+                Object.entries(stat.data).forEach(([date, data]) => {
+                    const d = new Date(date)
+                    if (d >= start) {
+                        total += data.totalRequests
+                        normal += data.normalRequests || 0
+                        urgent += data.urgentRequests || 0
+                        planned += data.plannedRequests || 0
+                    }
+                })
+            })
+            const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
+            return {
+                total,
+                normal,
+                urgent,
+                planned,
+                normalPercent: pct(normal),
+                urgentPercent: pct(urgent),
+                plannedPercent: pct(planned),
+            }
+        }
+        
+        // Для менеджера используем существующую логику
         const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
         const now = new Date()
         const start = new Date(
@@ -187,7 +317,7 @@ export default function HomePage() {
             urgentPercent: pct(urgent),
             plannedPercent: pct(planned),
         }
-    }, [office, period])
+    }, [role, user, office, period, managerStats, adminWorkerStats])
 
     const roleTranslations: Record<string, string> = {
         client: "Клиент",
@@ -260,7 +390,7 @@ export default function HomePage() {
     }
 
     const summary = useMemo(() => {
-        if (role !== "manager") {
+        if (role !== "manager" && role !== "admin-worker") {
             return {
                 total: 0,
                 completed: 0,
@@ -270,6 +400,75 @@ export default function HomePage() {
                 avgPerDay: 0,
             }
         }
+        
+        // Для админа показываем только данные по его офису
+        if (role === 'admin-worker') {
+            const adminOfficeId = user?.office_id;
+            
+            // Если managerStats пустые, используем adminWorkerStats для создания упрощенного summary
+            if (!managerStats || managerStats.length === 0) {
+                if (!adminWorkerStats || adminWorkerStats.totalRequests === 0) {
+                    return {
+                        total: 0,
+                        completed: 0,
+                        overdue: 0,
+                        completionRate: 0,
+                        overdueRate: 0,
+                        avgPerDay: 0,
+                    }
+                }
+                
+                const total = adminWorkerStats.totalRequests;
+                const completed = adminWorkerStats.statusCounts.completed;
+                const overdue = adminWorkerStats.statusCounts.overdue;
+                const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+                const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0;
+                const avgPerDay = Math.round(total / 30); // Примерно за месяц
+                
+                return { total, completed, overdue, completionRate, overdueRate, avgPerDay };
+            }
+            
+            if (!adminOfficeId) {
+                return {
+                    total: 0,
+                    completed: 0,
+                    overdue: 0,
+                    completionRate: 0,
+                    overdueRate: 0,
+                    avgPerDay: 0,
+                }
+            }
+            const subset = managerStats.filter((s) => s.officeId === adminOfficeId);
+            
+            const now = new Date()
+            const start = new Date(
+                period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
+                period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
+                period === "week" ? now.getDate() - 7 : now.getDate(),
+            )
+            let total = 0
+            let completed = 0
+            let overdue = 0
+            const dayCounts = new Set<string>()
+            subset.forEach((stat) => {
+                Object.entries(stat.data).forEach(([date, data]) => {
+                    const d = new Date(date)
+                    if (d >= start) {
+                        total += data.totalRequests
+                        completed += data.completedRequests
+                        overdue += data.overdueRequests || 0;
+                        dayCounts.add(date)
+                    }
+                })
+            })
+            const days = dayCounts.size || 1
+            const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+            const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0
+            const avgPerDay = Math.round(total / days)
+            return { total, completed, overdue, completionRate, overdueRate, avgPerDay }
+        }
+        
+        // Для менеджера используем существующую логику
         const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
         const now = new Date()
         const start = new Date(
@@ -297,7 +496,7 @@ export default function HomePage() {
         const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0
         const avgPerDay = Math.round(total / days)
         return { total, completed, overdue, completionRate, overdueRate, avgPerDay }
-    }, [managerStats, office, period])
+    }, [role, user, managerStats, adminWorkerStats, office, period])
 
     const rating = getRatingInfo((clientStats && clientStats.doneRequests ? (
         clientStats.doneRequests
@@ -313,6 +512,10 @@ export default function HomePage() {
             resetAllStates()
             if (role) {
                 await fetchStats(role);
+                // Для админов также загружаем managerStats для графиков
+                if (role === 'admin-worker') {
+                    await fetchStats('manager');
+                }
             }
         } catch (error) {
             console.error("Ошибка при обновлении:", error);
@@ -461,27 +664,36 @@ export default function HomePage() {
                     </section>
 
                     {/* Controls container with max-width wrapper */}
-                    {role === "manager" && (
+                    {(role === "manager" || role === "admin-worker") && (
                         <section className="pt-3">
                             <div className="mx-auto max-w-screen-sm px-3">
                                 <Card className="border bg-white">
                                     <CardContent className="flex flex-col gap-3 p-3">
                                         <div className="flex gap-3">
-                                            <div className="flex-1">
-                                                <Select value={office} onValueChange={setOffice}>
-                                                    <SelectTrigger className="h-10 w-full">
-                                                        <SelectValue placeholder="Офис" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="all">Все</SelectItem>
-                                                        {offices.map((o:any, index) => (
-                                                            <SelectItem key={index} value={String(o.id)}>
-                                                                {o.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
+                                            {role === "manager" && (
+                                                <div className="flex-1">
+                                                    <Select value={office} onValueChange={setOffice}>
+                                                        <SelectTrigger className="h-10 w-full">
+                                                            <SelectValue placeholder="Офис" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="all">Все</SelectItem>
+                                                            {offices.map((o:any, index) => (
+                                                                <SelectItem key={index} value={String(o.id)}>
+                                                                    {o.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            )}
+                                            {role === "admin-worker" && (
+                                                <div className="flex-1">
+                                                    <div className="h-15 w-full flex items-center px-3 py-2 border border-input bg-background rounded-md text-sm">
+                                                        {user?.office?.name || "Офис"}
+                                                    </div>
+                                                </div>
+                                            )}
                                             <div className="flex-1">
                                                 <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
                                                     <SelectTrigger className="h-10 w-full">
@@ -567,8 +779,8 @@ export default function HomePage() {
                         </div>
                     </section>
 
-                    {/* График "Динамика по дням" только для manager на мобильных устройствах */}
-                    {!isDesktop && role === "manager" && (
+                    {/* График "Динамика по дням" для manager и admin-worker на мобильных устройствах */}
+                    {!isDesktop && (role === "manager" || role === "admin-worker") && (
                         <section className="pt-3">
                             <div className="mx-auto max-w-screen-sm px-3">
                                 <Card className="border bg-white">
@@ -674,7 +886,7 @@ export default function HomePage() {
                                         </div>
 
                                         {/* Кнопки экспорта */}
-                                        {role === "manager" && (
+                                        {(role === "manager" || role === "admin-worker") && (
                                             <div className="mt-4 pt-4 border-t border-gray-200">
                                                 <div className="text-sm font-medium mb-3">Экспорт данных</div>
                                                 <div className="flex gap-2">
@@ -705,8 +917,8 @@ export default function HomePage() {
                             </section>
                     )}
 
-                    {/* Только обзор для Manager */}
-                    {role === "manager" && (
+                    {/* Обзор для Manager и Admin-worker */}
+                    {(role === "manager" || role === "admin-worker") && (
                             <section className="pt-3">
                                 <div className="mx-auto max-w-screen-sm px-3">
                                     <Card className="border bg-white">
