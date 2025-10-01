@@ -1161,14 +1161,45 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                         {/* Содержимое подзаявки */}
                     <div className={`border-t border-gray-100 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
                       <div className="p-6 space-y-5">
+
+                        <div>
+                          <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1 mb-2">
+                            Категория заявки
+                          </Label>
+                          <Select
+                              value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
+                              onValueChange={(value) => {
+                                const category = categories.find(c => c.name === value);
+                                updateSubRequest(index, 'category_id', category?.id || 0);
+                              }}
+                          >
+                            <SelectTrigger
+                                id={`subRequestCategory-${index}`}
+                                className={hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) ? 'border-red-300 focus:border-red-500' : ''}
+                            >
+                              <SelectValue placeholder="Выберите категорию" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map(category => (
+                                  <SelectItem key={category.id} value={category.name}>
+                                    {category.name}
+                                  </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) && (
+                              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                          )}
+                        </div>
+
                         <div>
                           <Label htmlFor={`subRequestTitle-${index}`} className="flex items-center gap-1 mb-2">
-                            Название под заявки
+                            Название заявки
                           </Label>
                           <Input
                             id={`subRequestTitle-${index}`}
                             className={hasAttemptedSubmit && !subRequest.title.trim() ? 'border-red-300 focus:border-red-500' : ''}
-                            placeholder="Краткое название задачи"
+                            placeholder="Краткое название заявки"
                             value={subRequest.title}
                             onChange={(e) => updateSubRequest(index, 'title', e.target.value)}
                           />
@@ -1178,42 +1209,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         </div>
 
                         <div>
-                          <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1 mb-2">
-                            Категория услуги
-                          </Label>
-                          <Select
-                            value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
-                            onValueChange={(value) => {
-                              const category = categories.find(c => c.name === value);
-                              updateSubRequest(index, 'category_id', category?.id || 0);
-                            }}
-                          >
-                            <SelectTrigger
-                              id={`subRequestCategory-${index}`}
-                              className={hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) ? 'border-red-300 focus:border-red-500' : ''}
-                            >
-                              <SelectValue placeholder="Выберите категорию" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categories.map(category => (
-                                <SelectItem key={category.id} value={category.name}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) && (
-                            <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                          )}
-                        </div>
-
-                        <div>
                           <Label htmlFor={`subRequestDescription-${index}`} className="flex items-center gap-1 mb-2">
-                            Описание проблемы
+                            Описание заявки
                           </Label>
                           <Textarea
                             id={`subRequestDescription-${index}`}
-                            placeholder="Опишите проблему подробно..."
+                            placeholder="Опишите заявку подробно..."
                             className={`min-h-[100px] ${hasAttemptedSubmit && !subRequest.description.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
                             value={subRequest.description}
                             onChange={(e) => updateSubRequest(index, 'description', e.target.value)}
