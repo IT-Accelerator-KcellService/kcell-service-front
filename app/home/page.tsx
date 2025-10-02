@@ -412,6 +412,7 @@ export default function HomePage() {
                         total: 0,
                         completed: 0,
                         overdue: 0,
+                        inWork: 0,
                         completionRate: 0,
                         overdueRate: 0,
                         avgPerDay: 0,
@@ -421,11 +422,12 @@ export default function HomePage() {
                 const total = adminWorkerStats.totalRequests;
                 const completed = adminWorkerStats.statusCounts.completed;
                 const overdue = adminWorkerStats.statusCounts.overdue;
+                const inWork = adminWorkerStats.statusCounts.inWork;
                 const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
                 const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0;
                 const avgPerDay = Math.round(total / 30); // Примерно за месяц
                 
-                return { total, completed, overdue, completionRate, overdueRate, avgPerDay };
+                return { total, completed, overdue, inWork, completionRate, overdueRate, avgPerDay };
             }
             
             if (!adminOfficeId) {
@@ -433,6 +435,7 @@ export default function HomePage() {
                     total: 0,
                     completed: 0,
                     overdue: 0,
+                    inWork: 0,
                     completionRate: 0,
                     overdueRate: 0,
                     avgPerDay: 0,
@@ -449,6 +452,7 @@ export default function HomePage() {
             let total = 0
             let completed = 0
             let overdue = 0
+            let inWork = 0
             const dayCounts = new Set<string>()
             subset.forEach((stat) => {
                 Object.entries(stat.data).forEach(([date, data]) => {
@@ -457,6 +461,9 @@ export default function HomePage() {
                         total += data.totalRequests
                         completed += data.completedRequests
                         overdue += data.overdueRequests || 0;
+                        // Для менеджера используем общее количество заявок минус завершенные и просроченные
+                        const inWorkCount = data.totalRequests - data.completedRequests - (data.overdueRequests || 0);
+                        inWork += Math.max(0, inWorkCount);
                         dayCounts.add(date)
                     }
                 })
@@ -465,7 +472,7 @@ export default function HomePage() {
             const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
             const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0
             const avgPerDay = Math.round(total / days)
-            return { total, completed, overdue, completionRate, overdueRate, avgPerDay }
+            return { total, completed, overdue, inWork, completionRate, overdueRate, avgPerDay }
         }
         
         // Для менеджера используем существующую логику
@@ -479,6 +486,8 @@ export default function HomePage() {
         let total = 0
         let completed = 0
         let overdue = 0
+        let inWork = 0
+        let newRequests = 0
         const dayCounts = new Set<string>()
         subset.forEach((stat) => {
             Object.entries(stat.data).forEach(([date, data]) => {
@@ -487,6 +496,12 @@ export default function HomePage() {
                     total += data.totalRequests
                     completed += data.completedRequests
                     overdue += data.overdueRequests || 0;
+                    // Для менеджера используем общее количество заявок минус завершенные и просроченные
+                    const inWorkCount = data.totalRequests - data.completedRequests - (data.overdueRequests || 0);
+                    inWork += Math.max(0, inWorkCount);
+                    // Новые заявки - это общее количество минус завершенные, просроченные и в работе
+                    const newCount = data.totalRequests - data.completedRequests - (data.overdueRequests || 0) - Math.max(0, inWorkCount);
+                    newRequests += Math.max(0, newCount);
                     dayCounts.add(date)
                 }
             })
@@ -495,7 +510,7 @@ export default function HomePage() {
         const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
         const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0
         const avgPerDay = Math.round(total / days)
-        return { total, completed, overdue, completionRate, overdueRate, avgPerDay }
+        return { total, completed, overdue, inWork, newRequests, completionRate, overdueRate, avgPerDay }
     }, [role, user, managerStats, adminWorkerStats, office, period])
 
     const rating = getRatingInfo((clientStats && clientStats.doneRequests ? (
@@ -742,10 +757,12 @@ export default function HomePage() {
 
                                 {role === "admin-worker" && (
                                     <>
+                                        <Stat label="Всего" value={summary.total} />
                                         <Stat label="Новые" value={adminWorkerStats?.statusCounts?.new ?? 0} />
                                         <Stat label="В работе" value={adminWorkerStats?.statusCounts?.inWork ?? 0} />
-                                        <Stat label="Завершено" value={adminWorkerStats?.statusCounts?.completed ?? 0} />
-                                        <Stat label="Просрочено" value={adminWorkerStats?.statusCounts?.overdue ?? 0} />
+                                        <Stat label="Завершено" value={`${adminWorkerStats?.statusCounts?.completed ?? 0} (${summary.completionRate}%)`} />
+                                        <Stat label="Просрочено" value={`${adminWorkerStats?.statusCounts?.overdue ?? 0} (${summary.overdueRate}%)`} />
+                                        <Stat label="В день (ср.)" value={summary.avgPerDay} />
                                     </>
                                 )}
 
@@ -770,6 +787,8 @@ export default function HomePage() {
                                 {role === "manager" && (
                                     <>
                                         <Stat label="Всего" value={summary.total} />
+                                        <Stat label="Новые" value={summary.newRequests || 0} />
+                                        <Stat label="В работе" value={summary.inWork || 0} />
                                         <Stat label="Завершено" value={`${summary.completed} (${summary.completionRate}%)`} />
                                         <Stat label="Просрочено" value={`${summary.overdue} (${summary.overdueRate}%)`} />
                                         <Stat label="В день (ср.)" value={summary.avgPerDay} />
@@ -926,8 +945,10 @@ export default function HomePage() {
                                             <div className="mb-2">
                                                 <div className="text-sm font-medium">Краткий обзор</div>
                                                 <div className="text-xs text-neutral-500">
-                                                    Выполнено {summary.completed} из {summary.total} ({summary.completionRate}
-                                                    %), просрочено {summary.overdue} ({summary.overdueRate}%).
+                                                    {role === "admin-worker" 
+                                                        ? `Всего заявок: ${summary.total}, в работе: ${summary.inWork}, выполнено: ${summary.completed} (${summary.completionRate}%), просрочено: ${summary.overdue} (${summary.overdueRate}%)`
+                                                        : `Выполнено ${summary.completed} из ${summary.total} (${summary.completionRate}%), просрочено ${summary.overdue} (${summary.overdueRate}%)`
+                                                    }
                                                 </div>
                                             </div>
                                             {distribution && (
