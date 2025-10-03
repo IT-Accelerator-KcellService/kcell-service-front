@@ -58,6 +58,8 @@ export interface ManagerStats {
     data: {
         [date: string]: {
             totalRequests: number;
+            newRequests: number;
+            inWorkRequests: number;
             completedRequests: number;
             overdueUrgentRequests: number;
             normalRequests: number;

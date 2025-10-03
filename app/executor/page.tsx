@@ -1699,21 +1699,8 @@ export default function ExecutorDashboard() {
                 <TabsContent value="tasks" className="pt-6 sm:pt-0">
                   <div className="space-y-4">
                     <div className="flex items-center space-x-4 mb-4">
-                      <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="w-48">
-                          <SelectValue placeholder="Статус" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Все</SelectItem>
-                          <SelectItem value="in_progress">В обработке</SelectItem>
-                          <SelectItem value="execution">Исполнение</SelectItem>
-                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
-                          <SelectItem value="completed">Завершено</SelectItem>
-                          <SelectItem value="long_term">Долгосрочные</SelectItem>
-                        </SelectContent>
-                      </Select>
                       <Select value={filterType} onValueChange={setFilterType}>
-                        <SelectTrigger className="w-48">
+                        <SelectTrigger className="w-full sm:w-48">
                           <SelectValue placeholder="Тип заявки" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1723,16 +1710,13 @@ export default function ExecutorDashboard() {
                           <SelectItem value="planed">Плановая</SelectItem>
                         </SelectContent>
                       </Select>
-
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {assignedRequests
                           ?.filter((task: any) => {
-                            const statusOk = filterStatus === "all"   ||
-                                (filterStatus === "long_term" ? task.requests.some((req: { is_long_term: any }) => req.is_long_term && task.request_type !== 'recurring') : task.status === filterStatus);
                             const typeOk = filterType === "all" || task.request_type === filterType;
-                            return statusOk && typeOk;
+                            return typeOk;
                           })
                           ?.sort((a: any, b: any) => {
                             const typeOrderA = getTaskTypeOrder(a.type)
@@ -1805,6 +1789,7 @@ export default function ExecutorDashboard() {
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                          <SelectItem value="assigned">Назначен</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>

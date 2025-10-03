@@ -180,6 +180,8 @@ export default function ManagerDashboard() {
   const {requests, setRequests, clearRequests} = useRequestStore()
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
+  const prevFilterStatus = useRef("all")
+  const isInitialized = useRef(false)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
@@ -384,6 +386,7 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
+    const status = searchParams.get("status")
 
     if (create === "true") {
       // Всегда добавляем createRequest в стек и историю
@@ -395,6 +398,12 @@ export default function ManagerDashboard() {
       setShowCreateRequestModal(false)
       // Просто обновляем стек модальных окон
       setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
+    }
+
+    // Обработка параметра status из URL
+    if (status) {
+      // Маппинг статусов: in_progress -> in_progress, execution -> execution, completed -> completed
+      setFilterStatus(status);
     }
   }, [searchParams])
 
@@ -915,7 +924,10 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     // Инициализация данных при первом рендере
-    fetchRequests(1);
+    if (!isInitialized.current) {
+      fetchRequests(1);
+      isInitialized.current = true;
+    }
     fetchNotifications();
     fetchOffices();
     if (token) {
@@ -936,10 +948,33 @@ export default function ManagerDashboard() {
     }
   }, [officeFilter, roleFilter]);
 
+  // Перезагружаем данные при изменении фильтра статуса
+  useEffect(() => {
+    if (filterStatus !== prevFilterStatus.current) {
+      prevFilterStatus.current = filterStatus;
+      fetchRequests(1); // Reset to first page when filter changes
+    }
+  }, [filterStatus]);
+
   const fetchRequests = useCallback(async (pageToLoad = 1) => {
     try {
       setLoading(true);
-      const response = await api.get(`/request-groups?page=${pageToLoad}&pageSize=10`);
+      
+      // Создаем параметры запроса
+      const params = new URLSearchParams({
+        page: pageToLoad.toString(),
+        pageSize: '10'
+      });
+
+      // Добавляем фильтр статуса если он не "all"
+      if (filterStatus !== "all" && filterStatus !== "long_term") {
+        params.append('status', filterStatus);
+      }
+
+      const queryString = params.toString();
+      const url = `/request-groups?${queryString}`;
+      
+      const response = await api.get(url);
       const newRequests = response.data.data;
       if (pageToLoad === 1) {
         setRequests(newRequests);
@@ -963,7 +998,7 @@ export default function ManagerDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [checkUserRating]);
+  }, [checkUserRating, filterStatus]);
 
   const handleLogout = async () => {
     try {
@@ -2067,6 +2102,7 @@ export default function ManagerDashboard() {
                     <SelectItem value="all">Все</SelectItem>
                     <SelectItem value="in_progress">В обработке</SelectItem>
                     <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                    <SelectItem value="assigned">Назначен</SelectItem>
                     <SelectItem value="execution">Исполнение</SelectItem>
                     <SelectItem value="completed">Завершено</SelectItem>
                     <SelectItem value="long_term">Долгосрочные</SelectItem>

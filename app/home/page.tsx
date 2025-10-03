@@ -461,9 +461,8 @@ export default function HomePage() {
                         total += data.totalRequests
                         completed += data.completedRequests
                         overdue += data.overdueRequests || 0;
-                        // Для менеджера используем общее количество заявок минус завершенные и просроченные
-                        const inWorkCount = data.totalRequests - data.completedRequests - (data.overdueRequests || 0);
-                        inWork += Math.max(0, inWorkCount);
+                        // Теперь используем прямые данные из бэкенда
+                        inWork += data.inWorkRequests || 0;
                         dayCounts.add(date)
                     }
                 })
@@ -496,12 +495,9 @@ export default function HomePage() {
                     total += data.totalRequests
                     completed += data.completedRequests
                     overdue += data.overdueRequests || 0;
-                    // Для менеджера используем общее количество заявок минус завершенные и просроченные
-                    const inWorkCount = data.totalRequests - data.completedRequests - (data.overdueRequests || 0);
-                    inWork += Math.max(0, inWorkCount);
-                    // Новые заявки - это общее количество минус завершенные, просроченные и в работе
-                    const newCount = data.totalRequests - data.completedRequests - (data.overdueRequests || 0) - Math.max(0, inWorkCount);
-                    newRequests += Math.max(0, newCount);
+                    // Теперь используем прямые данные из бэкенда
+                    inWork += data.inWorkRequests || 0;
+                    newRequests += data.newRequests || 0;
                     dayCounts.add(date)
                 }
             })
@@ -630,14 +626,60 @@ export default function HomePage() {
         }
     };
 
-    const Stat = ({ label, value }: { label: string; value: number | string }) => (
-        <div className="rounded-lg border bg-white">
+    const Stat = ({ label, value, onClick }: { label: string; value: number | string; onClick?: () => void }) => (
+        <div 
+            className={`rounded-lg border bg-white ${onClick ? 'cursor-pointer hover:bg-gray-50 transition-colors' : ''}`}
+            onClick={onClick}
+        >
             <div className="p-3">
                 <div className="text-xs text-neutral-500">{label}</div>
                 <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
             </div>
         </div>
     )
+
+    // Функции для обработки кликов по показателям
+    const handleNewRequestsClick = () => {
+        if (role === 'admin-worker') {
+            router.push(`/admin-worker?status=in_progress`);
+        } else if (role === 'department-head') {
+            router.push(`/department-head?status=in_progress`);
+        } else if (role === 'manager') {
+            router.push(`/manager?status=in_progress`);
+        }
+    };
+
+    const handleInWorkRequestsClick = () => {
+        if (role === 'admin-worker') {
+            router.push(`/admin-worker?status=execution`);
+        } else if (role === 'department-head') {
+            router.push(`/department-head?status=execution`);
+        } else if (role === 'executor') {
+            router.push(`/executor?status=execution`);
+        } else if (role === 'manager') {
+            router.push(`/manager?status=execution`);
+        }
+    };
+
+    const handleCompletedRequestsClick = () => {
+        if (role === 'admin-worker') {
+            router.push(`/admin-worker?status=completed`);
+        } else if (role === 'department-head') {
+            router.push(`/department-head?status=completed`);
+        } else if (role === 'manager') {
+            router.push(`/manager?status=completed`);
+        }
+    };
+
+    const handleTotalRequestsClick = () => {
+        if (role === 'admin-worker') {
+            router.push(`/admin-worker`);
+        } else if (role === 'department-head') {
+            router.push(`/department-head`);
+        } else if (role === 'manager') {
+            router.push(`/manager`);
+        }
+    };
 
     return (
         <>
@@ -757,10 +799,26 @@ export default function HomePage() {
 
                                 {role === "admin-worker" && (
                                     <>
-                                        <Stat label="Всего" value={summary.total} />
-                                        <Stat label="Новые" value={adminWorkerStats?.statusCounts?.new ?? 0} />
-                                        <Stat label="В работе" value={adminWorkerStats?.statusCounts?.inWork ?? 0} />
-                                        <Stat label="Завершено" value={`${adminWorkerStats?.statusCounts?.completed ?? 0} (${summary.completionRate}%)`} />
+                                        <Stat 
+                                            label="Всего" 
+                                            value={summary.total} 
+                                            onClick={handleTotalRequestsClick}
+                                        />
+                                        <Stat 
+                                            label="Новые" 
+                                            value={adminWorkerStats?.statusCounts?.new ?? 0} 
+                                            onClick={handleNewRequestsClick}
+                                        />
+                                        <Stat 
+                                            label="В работе" 
+                                            value={adminWorkerStats?.statusCounts?.inWork ?? 0} 
+                                            onClick={handleInWorkRequestsClick}
+                                        />
+                                        <Stat 
+                                            label="Завершено" 
+                                            value={`${adminWorkerStats?.statusCounts?.completed ?? 0} (${summary.completionRate}%)`} 
+                                            onClick={handleCompletedRequestsClick}
+                                        />
                                         <Stat label="Просрочено" value={`${adminWorkerStats?.statusCounts?.overdue ?? 0} (${summary.overdueRate}%)`} />
                                         <Stat label="В день (ср.)" value={summary.avgPerDay} />
                                     </>
@@ -768,9 +826,21 @@ export default function HomePage() {
 
                                 {role === "department-head" && (
                                     <>
-                                        <Stat label="Новые" value={depHeadStats?.statusCounts?.new ?? 0} />
-                                        <Stat label="В работе" value={depHeadStats?.statusCounts?.inWork ?? 0} />
-                                        <Stat label="Завершено" value={depHeadStats?.statusCounts?.completed ?? 0} />
+                                        <Stat 
+                                            label="Новые" 
+                                            value={depHeadStats?.statusCounts?.new ?? 0} 
+                                            onClick={handleNewRequestsClick}
+                                        />
+                                        <Stat 
+                                            label="В работе" 
+                                            value={depHeadStats?.statusCounts?.inWork ?? 0} 
+                                            onClick={handleInWorkRequestsClick}
+                                        />
+                                        <Stat 
+                                            label="Завершено" 
+                                            value={depHeadStats?.statusCounts?.completed ?? 0} 
+                                            onClick={handleCompletedRequestsClick}
+                                        />
                                         <Stat label="Просрочено" value={depHeadStats?.statusCounts?.overdue ?? 0} />
                                     </>
                                 )}
@@ -786,10 +856,26 @@ export default function HomePage() {
 
                                 {role === "manager" && (
                                     <>
-                                        <Stat label="Всего" value={summary.total} />
-                                        <Stat label="Новые" value={summary.newRequests || 0} />
-                                        <Stat label="В работе" value={summary.inWork || 0} />
-                                        <Stat label="Завершено" value={`${summary.completed} (${summary.completionRate}%)`} />
+                                        <Stat 
+                                            label="Всего" 
+                                            value={summary.total} 
+                                            onClick={handleTotalRequestsClick}
+                                        />
+                                        <Stat 
+                                            label="Новые" 
+                                            value={summary.newRequests || 0} 
+                                            onClick={handleNewRequestsClick}
+                                        />
+                                        <Stat 
+                                            label="В работе" 
+                                            value={summary.inWork || 0} 
+                                            onClick={handleInWorkRequestsClick}
+                                        />
+                                        <Stat 
+                                            label="Завершено" 
+                                            value={`${summary.completed} (${summary.completionRate}%)`} 
+                                            onClick={handleCompletedRequestsClick}
+                                        />
                                         <Stat label="Просрочено" value={`${summary.overdue} (${summary.overdueRate}%)`} />
                                         <Stat label="В день (ср.)" value={summary.avgPerDay} />
                                     </>

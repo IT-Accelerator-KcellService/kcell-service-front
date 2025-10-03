@@ -192,6 +192,8 @@ export default function AdminWorkerDashboard() {
   const [filterMyType, setFilterMyType] = useState("all")
   const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
   const [filterIncomingType, setFilterIncomingType] = useState("all")
+  const prevFilterStatus = useRef("all")
+  const isInitialized = useRef(false)
   const [stats, setStats] = useState<Stats | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
@@ -434,6 +436,16 @@ export default function AdminWorkerDashboard() {
     loadAllExecutors()
   }, []);
 
+  // Инициализация данных при первом рендере
+  useEffect(() => {
+    if (isLoggedIn && !isInitialized.current) {
+      console.log('=== INITIAL LOAD ===');
+      console.log('Loading initial data without filter');
+      fetchRequests(1);
+      isInitialized.current = true;
+    }
+  }, [isLoggedIn]);
+
   useEffect(() => {
     if (categories.length > 0) {
       checkCategoriesWithExecutors();
@@ -456,6 +468,8 @@ export default function AdminWorkerDashboard() {
             (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterIncomingStatus);
         const requestType = request.request_type;
         const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType;
+        
+        
         return statusMatch && typeMatch;
       })
   );
@@ -475,6 +489,7 @@ export default function AdminWorkerDashboard() {
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
+    const status = searchParams.get("status")
 
     if (create === "true") {
       // Всегда добавляем createRequest в стек и историю
@@ -486,6 +501,14 @@ export default function AdminWorkerDashboard() {
       setShowCreateRequestModal(false)
       // Просто обновляем стек модальных окон
       setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
+    }
+
+    // Обработка параметра status из URL
+    if (status) {
+      console.log('=== URL STATUS ===');
+      console.log('Setting filterIncomingStatus to:', status);
+      // Маппинг статусов: in_progress -> in_progress, execution -> execution, completed -> completed
+      setFilterIncomingStatus(status);
     }
   }, [searchParams])
 
@@ -499,6 +522,21 @@ export default function AdminWorkerDashboard() {
       setNotificationLoading(false)
     }
   }, []);
+
+  // Перезагружаем данные при изменении фильтра статуса
+  useEffect(() => {
+    console.log('=== STATUS EFFECT ===');
+    console.log('isLoggedIn:', isLoggedIn);
+    console.log('filterIncomingStatus:', filterIncomingStatus);
+    console.log('prevFilterStatus:', prevFilterStatus.current);
+    
+    if (isLoggedIn && filterIncomingStatus !== prevFilterStatus.current) {
+      console.log('Filter status changed, fetching requests');
+      prevFilterStatus.current = filterIncomingStatus;
+      fetchRequests(1); // Сбрасываем на первую страницу при изменении фильтра
+      isInitialized.current = true;
+    }
+  }, [filterIncomingStatus, isLoggedIn]);
 
   const fetchOffices = async () => {
     try {
@@ -708,21 +746,41 @@ export default function AdminWorkerDashboard() {
     setLoading(true);
 
     try {
+      // Создаем параметры запроса
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString()
+      });
+
+      // Добавляем фильтр статуса если он не "all"
+      if (filterIncomingStatus !== "all" && filterIncomingStatus !== "long_term") {
+        params.append('status', filterIncomingStatus);
+      }
+
       const response = await api.get<{
         otherRequests: Request[];
         myRequests: Request[];
-      }>(`/request-groups?page=${currentPage}&pageSize=${pageSize}`);
-
+      }>(`/request-groups?${params.toString()}`);
+      
+      console.log('=== FETCH REQUESTS ===');
+      console.log('Filter status:', filterIncomingStatus);
+      console.log('Current page:', currentPage);
+      console.log('API Response:', response.data);
+      console.log('Incoming requests count:', response.data.otherRequests.length);
+      console.log('My requests count:', response.data.myRequests.length);
+      
       const sortedNewIncomingRequests = sortRequests(response.data.otherRequests);
       const sortedNewMyRequests = sortRequests(response.data.myRequests);
 
       setIncomingRequests((prev) => {
         const sortedNewItems = sortRequests(sortedNewIncomingRequests);
-        return currentPage === 1
+        const newIncomingRequests = currentPage === 1
             ? sortedNewItems
             : [...prev, ...sortedNewItems.filter(item => !prev.some(p => p.id === item.id))];
+        console.log('Setting incomingRequests:', newIncomingRequests.length, 'items');
+        console.log('Previous incomingRequests:', prev.length, 'items');
+        return newIncomingRequests;
       });
-
       setMyRequests((prev) => {
         const sortedNewItems = sortRequests(sortedNewMyRequests);
         return currentPage === 1
@@ -784,7 +842,7 @@ export default function AdminWorkerDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  }, [loading, filterIncomingStatus]);
 
 
 
@@ -928,13 +986,23 @@ export default function AdminWorkerDashboard() {
   };
 
   useEffect(() => {
-    // Сбрасываем состояние при изменении фильтров
-    setPage(1);
-    setHasMore(true);
-    setIncomingRequests([]);
-    setMyRequests([]);
-    fetchRequests();
-  }, [filterMyStatus, filterMyType, filterIncomingStatus, filterIncomingType]);
+    // Сбрасываем состояние при изменении фильтров (кроме filterIncomingStatus, который обрабатывается отдельно)
+    console.log('=== FILTERS EFFECT ===');
+    console.log('isInitialized:', isInitialized.current);
+    console.log('filterMyStatus:', filterMyStatus);
+    console.log('filterMyType:', filterMyType);
+    console.log('filterIncomingType:', filterIncomingType);
+    
+    // Не срабатываем при инициализации, только при реальном изменении фильтров
+    if (isInitialized.current && (filterMyStatus !== "all" || filterMyType !== "all" || filterIncomingType !== "all")) {
+      console.log('Resetting state and fetching requests');
+      setPage(1);
+      setHasMore(true);
+      setIncomingRequests([]);
+      setMyRequests([]);
+      fetchRequests();
+    }
+  }, [filterMyStatus, filterMyType, filterIncomingType]);
 
 
 
@@ -2029,6 +2097,7 @@ export default function AdminWorkerDashboard() {
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                          <SelectItem value="assigned">Назначен</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>
@@ -2100,6 +2169,7 @@ export default function AdminWorkerDashboard() {
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="awaiting_assignment">Ожидает назначения</SelectItem>
+                          <SelectItem value="assigned">Назначен</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>
