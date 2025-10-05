@@ -558,7 +558,7 @@ export default function HomePage() {
 
             // Для Android WebView используем специальный обработчик
             if (window.androidApp) {
-                const response = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
+                const response = await fetch(`http://localhost:8080/api/analytics/export?${params.toString()}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -583,7 +583,7 @@ export default function HomePage() {
                 reader.readAsDataURL(blob);
             } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.saveFile) {
                 // Для iOS WebView используем специальный обработчик
-                const response = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
+                const response = await fetch(`http://localhost:8080/api/analytics/export?${params.toString()}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -608,7 +608,7 @@ export default function HomePage() {
                 reader.readAsDataURL(blob);
             } else {
                 // Оригинальный код для веб-браузеров
-                const res = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
+                const res = await fetch(`http://localhost:8080/api/analytics/export?${params.toString()}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },

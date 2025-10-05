@@ -91,7 +91,7 @@ export default function LoginPage() {
     }
 
     try {
-      const response = await fetch("https://kcell-service.onrender.com/api/auth/login", {
+      const response = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -114,7 +114,7 @@ export default function LoginPage() {
 
       const data = await response.json()
 
-      const userResponse = await fetch("https://kcell-service.onrender.com/api/users/me", {
+      const userResponse = await fetch("http://localhost:8080/api/users/me", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

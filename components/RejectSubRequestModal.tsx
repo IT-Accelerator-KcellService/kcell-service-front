@@ -66,7 +66,7 @@ export const RejectSubRequestModal: React.FC<RejectSubRequestModalProps> = ({
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <CardTitle className="text-lg">Отклонить подзаявку</CardTitle>
+                <CardTitle className="text-lg">Отклонить заявку</CardTitle>
                 <CardDescription>
                   Подзаявка № {getSubRequestDisplayId(request, request.request_group_id)}
                 </CardDescription>
@@ -154,7 +154,7 @@ export const RejectSubRequestModal: React.FC<RejectSubRequestModalProps> = ({
               <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5" />
               <div className="text-sm text-amber-800">
                 <p className="font-medium mb-1">Внимание!</p>
-                <p>После отклонения подзаявка будет возвращена в очередь назначения и может быть назначена другому исполнителю.</p>
+                <p>После отклонения заявка будет возвращена в очередь назначения и может быть назначена другому исполнителю.</p>
               </div>
             </div>
           </div>
