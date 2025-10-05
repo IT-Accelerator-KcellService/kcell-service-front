@@ -65,7 +65,7 @@ import ClientRatingModal from "@/components/ClientRatingModal";
 import PhotoModal from "@/components/photo/PhotoModal";
 import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
 
 interface Rating {
@@ -1510,9 +1510,6 @@ export default function ExecutorDashboard() {
                 </h3>
               </div>
               <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
-                {/* Убрали счетчик подзаявок */}
-              </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
