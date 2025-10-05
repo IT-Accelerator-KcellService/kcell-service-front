@@ -17,6 +17,13 @@ import { findNearestOffice, getLocationByIP } from "@/lib/utils";
 interface ServiceCategory {
   id: number;
   name: string;
+  subcategories?: ServiceSubcategory[];
+}
+
+interface ServiceSubcategory {
+  id: number;
+  name: string;
+  category_id: number;
 }
 
 interface Office {
@@ -49,6 +56,7 @@ interface SubRequest {
   title: string;
   description: string;
   category_id: number;
+  subcategory_id?: number; // Добавляем поддержку подкатегорий
   complexity?: 'simple' | 'medium' | 'complex';
   sla?: string;
   executors?: SubRequestExecutor[]; // Массив с ID и ролями исполнителей
@@ -98,7 +106,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [subRequests, setSubRequests] = useState<SubRequest[]>([
-    { title: "", description: "", category_id: 0, executors: [] }
+    { title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }
   ]);
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set([0]));
   const [validationErrors, setValidationErrors] = useState<Set<number>>(new Set());
@@ -131,6 +139,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
   }, [isOpen]);
 
+
   // Сброс даты при изменении типа заявки
   useEffect(() => {
     if (requestType !== "planned") {
@@ -151,7 +160,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setCompletionComment("");
     setCompletionDate(new Date());
     setSelectedOfficeId(null);
-    setSubRequests([{ title: "", description: "", category_id: 0, executors: [] }]);
+    setSubRequests([{ title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }]);
     setExpandedSubRequests(new Set([0]));
     setValidationErrors(new Set());
     setBasicFieldErrors(new Set());
@@ -221,7 +230,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
   const addSubRequest = () => {
     const newIndex = subRequests.length;
-    setSubRequests([...subRequests, { title: "", description: "", category_id: 0, executors: [] }]);
+    setSubRequests([...subRequests, { title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }]);
     setExpandedSubRequests(prev => new Set([...prev, newIndex]));
   };
 
@@ -528,6 +537,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         title: sub.title,
         description: sub.description,
         category_id: sub.category_id,
+        subcategory_id: sub.subcategory_id || null,
         complexity: (userRole === 'admin-worker' || userRole === 'department-head') ? sub.complexity : undefined,
         sla: (userRole === 'admin-worker' || userRole === 'department-head') ? sub.sla : undefined,
         status: subStatus,
@@ -1170,7 +1180,16 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                               value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
                               onValueChange={(value) => {
                                 const category = categories.find(c => c.name === value);
-                                updateSubRequest(index, 'category_id', category?.id || 0);
+                                
+                                // Обновляем все поля за один раз
+                                const newSubRequests = [...subRequests];
+                                newSubRequests[index] = { 
+                                  ...newSubRequests[index], 
+                                  category_id: category?.id || 0,
+                                  subcategory_id: 0,
+                                  title: ''
+                                };
+                                setSubRequests(newSubRequests);
                               }}
                           >
                             <SelectTrigger
@@ -1192,19 +1211,50 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                           )}
                         </div>
 
+
                         <div>
                           <Label htmlFor={`subRequestTitle-${index}`} className="flex items-center gap-1 mb-2">
                             Название заявки
                           </Label>
-                          <Input
-                            id={`subRequestTitle-${index}`}
-                            className={hasAttemptedSubmit && !subRequest.title.trim() ? 'border-red-300 focus:border-red-500' : ''}
-                            placeholder="Краткое название заявки"
-                            value={subRequest.title}
-                            onChange={(e) => updateSubRequest(index, 'title', e.target.value)}
-                          />
+                          <Select
+                              value={(() => {
+                                const category = categories.find(c => c.id === subRequest.category_id);
+                                const subcategory = category?.subcategories?.find(s => s.name === subRequest.title);
+                                return subcategory?.name || subRequest.title || '';
+                              })()}
+                              onValueChange={(value) => {
+                                // Обновляем все поля за один раз
+                                const category = categories.find(c => c.id === subRequest.category_id);
+                                const subcategory = category?.subcategories?.find(s => s.name === value);
+                                
+                                const newSubRequests = [...subRequests];
+                                newSubRequests[index] = { 
+                                  ...newSubRequests[index], 
+                                  title: value,
+                                  subcategory_id: subcategory?.id || 0
+                                };
+                                setSubRequests(newSubRequests);
+                              }}
+                          >
+                            <SelectTrigger
+                                id={`subRequestTitle-${index}`}
+                                className={hasAttemptedSubmit && !subRequest.title.trim() ? 'border-red-300 focus:border-red-500' : ''}
+                            >
+                              <SelectValue placeholder="Выберите название заявки" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(() => {
+                                const category = categories.find(c => c.id === subRequest.category_id);
+                                return category?.subcategories?.map(subcategory => (
+                                    <SelectItem key={subcategory.id} value={subcategory.name}>
+                                      {subcategory.name}
+                                    </SelectItem>
+                                )) || [];
+                              })()}
+                            </SelectContent>
+                          </Select>
                           {hasAttemptedSubmit && !subRequest.title.trim() && (
-                            <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
                           )}
                         </div>
 

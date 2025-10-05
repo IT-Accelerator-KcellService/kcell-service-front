@@ -1,9 +1,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+interface ServiceSubcategory {
+  id: number;
+  name: string;
+  category_id: number;
+}
+
 interface Category {
   id: number;
   name: string;
+  subcategories?: ServiceSubcategory[];
 }
 
 interface CategoryState {
