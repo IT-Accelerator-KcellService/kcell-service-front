@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState, useRef} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
@@ -141,6 +141,8 @@ export default function DepartmentHeadDashboard() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
   const [filterIncomingType, setFilterIncomingType] = useState("all")
+  const prevFilterStatus = useRef("all")
+  const isInitialized = useRef(false)
   const [stats, setStats] = useState<Stats | null>(null);
   const [showRedirectModal, setShowRedirectModal] = useState(false);
   const [selectedRequestForRedirect, setSelectedRequestForRedirect] = useState<any>(null);
@@ -334,6 +336,7 @@ export default function DepartmentHeadDashboard() {
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
+    const status = searchParams.get("status")
 
     if (create === "true") {
       // Всегда добавляем createRequest в стек и историю
@@ -345,6 +348,11 @@ export default function DepartmentHeadDashboard() {
       setShowCreateRequestModal(false)
       // Просто обновляем стек модальных окон
       setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
+    }
+
+    // Handle status parameter from URL
+    if (status) {
+      setFilterIncomingStatus(status);
     }
   }, [searchParams])
   const fetchNotifications = async () => {
@@ -435,7 +443,18 @@ export default function DepartmentHeadDashboard() {
 
   const fetchRequests = useCallback(async () => {
     try {
-      const response: any = await api.get('/request-groups');
+      // Создаем параметры запроса
+      const params = new URLSearchParams();
+
+      // Добавляем фильтр статуса если он не "all"
+      if (filterIncomingStatus !== "all" && filterIncomingStatus !== "long_term") {
+        params.append('status', filterIncomingStatus);
+      }
+
+      const queryString = params.toString();
+      const url = queryString ? `/request-groups?${queryString}` : '/request-groups';
+      
+      const response: any = await api.get(url);
 
       const otherRequests: Request[] = response.data.otherRequests;
       const myRequests: Request[] = response.data.myRequests;
@@ -473,7 +492,7 @@ export default function DepartmentHeadDashboard() {
     } catch (error) {
       console.error("Failed to fetch requests:", error);
     }
-  }, []);
+  }, [filterIncomingStatus]);
 
   const checkUserRating = useCallback(async (requestId: number) => {
     try {
@@ -512,10 +531,21 @@ export default function DepartmentHeadDashboard() {
 
   useEffect(() => {
     // Инициализация данных при первом рендере
-    fetchRequests();
+    if (!isInitialized.current) {
+      fetchRequests();
+      isInitialized.current = true;
+    }
     fetchExecutors();
     fetchOffices();
   }, [])
+
+  // Перезагружаем данные при изменении фильтра статуса
+  useEffect(() => {
+    if (filterIncomingStatus !== prevFilterStatus.current) {
+      prevFilterStatus.current = filterIncomingStatus;
+      fetchRequests();
+    }
+  }, [filterIncomingStatus])
 
   const fetchClientInfo = async (userId: number) => {
     if (clientInfo[userId]) return
@@ -1415,6 +1445,7 @@ export default function DepartmentHeadDashboard() {
                           <SelectItem value="all">Все</SelectItem>
                           <SelectItem value="in_progress">В обработке</SelectItem>
                           <SelectItem value="awaiting_assignment">Ожидает назначения</SelectItem>
+                          <SelectItem value="assigned">Назначен</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>
