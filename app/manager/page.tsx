@@ -139,7 +139,7 @@ interface Category {
 
 export default function ManagerDashboard() {
   const {token, clearAuth, user} = useAuthStore()
-  const {categories, fetchCategories, clearCategories} = useCategoryStore()
+  const {categories, fetchCategories, clearCategories, createSubcategory, deleteSubcategory} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const approveModal = useAcceptRequestModal()
@@ -165,6 +165,14 @@ export default function ManagerDashboard() {
   const [isDeletingCategory, setIsDeletingCategory] = useState(false)
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [categoriesWithExecutors, setCategoriesWithExecutors] = useState<Set<number>>(new Set())
+  
+  // Состояния для управления подкатегориями
+  const [selectedCategoryForSubcategory, setSelectedCategoryForSubcategory] = useState<number | null>(null)
+  const [newSubcategoryName, setNewSubcategoryName] = useState("")
+  const [isCreatingSubcategory, setIsCreatingSubcategory] = useState(false)
+  const [subcategoryToDelete, setSubcategoryToDelete] = useState<number | null>(null)
+  const [isDeletingSubcategory, setIsDeletingSubcategory] = useState(false)
+  const [subcategoryError, setSubcategoryError] = useState<string | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [showProfile, setShowProfile] = useState(false)
@@ -1443,6 +1451,59 @@ export default function ManagerDashboard() {
     }
   }
 
+  // Функции для управления подкатегориями
+  const handleCreateSubcategory = async () => {
+    if (!selectedCategoryForSubcategory || !newSubcategoryName.trim()) return;
+
+    setIsCreatingSubcategory(true);
+    setSubcategoryError(null);
+
+    try {
+      await createSubcategory(token!, {
+        name: newSubcategoryName.trim(),
+        category_id: selectedCategoryForSubcategory
+      });
+      
+      successModal.showSuccess({
+        title: "Подкатегория создана",
+        message: `Подкатегория "${newSubcategoryName}" успешно создана`
+      });
+
+      setSelectedCategoryForSubcategory(null);
+      setNewSubcategoryName("");
+      fetchCategories(token!);
+    } catch (error: any) {
+      console.error("Ошибка при создании подкатегории:", error);
+      setSubcategoryError(error.response?.data?.message || "Ошибка при создании подкатегории");
+    } finally {
+      setIsCreatingSubcategory(false);
+    }
+  };
+
+  const handleDeleteSubcategory = async () => {
+    if (!subcategoryToDelete) return;
+
+    setIsDeletingSubcategory(true);
+    setSubcategoryError(null);
+
+    try {
+      await deleteSubcategory(token!, subcategoryToDelete);
+      
+      successModal.showSuccess({
+        title: "Подкатегория удалена",
+        message: "Подкатегория успешно удалена"
+      });
+
+      setSubcategoryToDelete(null);
+      fetchCategories(token!);
+    } catch (error: any) {
+      console.error("Ошибка при удалении подкатегории:", error);
+      setSubcategoryError(error.response?.data?.message || "Ошибка при удалении подкатегории");
+    } finally {
+      setIsDeletingSubcategory(false);
+    }
+  };
+
   // Функция для обновления заявки
   const handleUpdateRequest = async () => {
     if (!selectedRequest) return;
@@ -2351,7 +2412,7 @@ export default function ManagerDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle>Управление категориями услуг</CardTitle>
-                  <CardDescription>Создание и удаление категорий услуг</CardDescription>
+                  <CardDescription>Создание и удаление категорий услуг и подкатегорий</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Форма создания категории */}
@@ -2450,10 +2511,16 @@ export default function ManagerDashboard() {
                               key={category.id}
                               className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
                             >
-                              <div className="text-gray-700">
+                              <div className="text-gray-700 flex-1">
                                 <div className="text-lg font-semibold">{category.name}</div>
                                 {hasExecutors && (
                                   <div className="text-sm text-gray-500">Есть исполнители</div>
+                                )}
+                                {category.subcategories && category.subcategories.length > 0 && (
+                                  <div className="text-sm text-blue-600">
+                                    Подкатегории ({category.subcategories.length}): {category.subcategories.slice(0, 3).map(s => s.name).join(', ')}
+                                    {category.subcategories.length > 3 && ` и еще ${category.subcategories.length - 3}`}
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -2462,6 +2529,95 @@ export default function ManagerDashboard() {
                       </div>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Управление подкатегориями */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Управление подкатегориями</CardTitle>
+                  <CardDescription>Создание и удаление подкатегорий для существующих категорий</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Форма создания подкатегории */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Создать новую подкатегорию</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <Select onValueChange={(categoryId) => setSelectedCategoryForSubcategory(parseInt(categoryId))} value={selectedCategoryForSubcategory?.toString() || ""}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Выберите категорию" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map(category => (
+                            <SelectItem key={category.id} value={category.id.toString()}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="text"
+                        value={newSubcategoryName}
+                        onChange={(e) => setNewSubcategoryName(e.target.value)}
+                        placeholder="Название подкатегории"
+                        disabled={isCreatingSubcategory}
+                      />
+                    </div>
+                    <Button
+                      onClick={handleCreateSubcategory}
+                      disabled={!selectedCategoryForSubcategory || !newSubcategoryName.trim() || isCreatingSubcategory}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      {isCreatingSubcategory ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Создание...</span>
+                        </div>
+                      ) : (
+                        "Создать подкатегорию"
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Форма удаления подкатегории */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Удалить подкатегорию</Label>
+                    <Select onValueChange={(subcategoryId) => setSubcategoryToDelete(parseInt(subcategoryId))} value={subcategoryToDelete?.toString() || ""}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите подкатегорию для удаления" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.flatMap(category => 
+                          category.subcategories?.map(subcategory => (
+                            <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
+                              {category.name} → {subcategory.name}
+                            </SelectItem>
+                          )) || []
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={handleDeleteSubcategory}
+                      disabled={!subcategoryToDelete || isDeletingSubcategory}
+                      variant="destructive"
+                    >
+                      {isDeletingSubcategory ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Удаление...</span>
+                        </div>
+                      ) : (
+                        "Удалить подкатегорию"
+                      )}
+                    </Button>
+                  </div>
+
+                  {/* Отображение ошибок подкатегорий */}
+                  {subcategoryError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-sm text-red-600">{subcategoryError}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
