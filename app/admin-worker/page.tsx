@@ -1893,13 +1893,13 @@ export default function AdminWorkerDashboard() {
     fetchRequests();
     successModal.showSuccess({
       title: "Исполнители назначены",
-      message: "Исполнители успешно назначены на подзаявку"
+      message: "Исполнители успешно назначены на заявку"
     });
   };
 
   const renderCardHeader = (requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
-    const totalSubRequests = requestGroup.requests.length;
+    // Убрали счетчик подзаявок - теперь показываем только один заявка
 
     return (
       <CardHeader className={`pb-3 px-5 pt-5`}>
@@ -1911,9 +1911,6 @@ export default function AdminWorkerDashboard() {
               </h3>
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
-                {totalSubRequests} под заявок
-              </span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
@@ -2940,11 +2937,11 @@ export default function AdminWorkerDashboard() {
                       </div>
                   )}
 
-                  {/* Под заявки */}
+                  {/* Заявка (теперь показываем только первый подзаявка как полноценный заявка) */}
                       <div>
-                    <Label className={isDesktop ? '' : 'text-base font-medium'}>Под заявки</Label>
+                    <Label className={isDesktop ? '' : 'text-base font-medium'}>Заявка</Label>
                     <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
-                      {selectedRequest.requests.map((subRequest: SubRequest) => {
+                      {selectedRequest.requests.slice(0, 1).map((subRequest: SubRequest) => {
                         const isExpanded = expandedSubRequests.has(subRequest.id);
                         const hasComments = showComments === subRequest.id;
 
@@ -2963,12 +2960,12 @@ export default function AdminWorkerDashboard() {
                                               ...prev,
                                               [subRequest.id]: e.target.value
                                             }))}
-                                            placeholder="Название подзаявки"
+                                            placeholder="Название заявки"
                                             className="w-full"
                                           />
                                         </div>
                                       ) : (
-                                        <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>№ {getSubRequestDisplayId(subRequest, selectedRequest.id)} {subRequest.title}</h4>
+                                        <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>{subRequest.title}</h4>
                                       )}
                       </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
@@ -3090,7 +3087,7 @@ export default function AdminWorkerDashboard() {
                                         ...prev,
                                         [subRequest.id]: e.target.value
                                       }))}
-                                      placeholder="Описание подзаявки"
+                                      placeholder="Описание заявки"
                                       className="w-full min-h-[80px]"
                                     />
                                   ) : isDesktop ? (

@@ -108,7 +108,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [subRequests, setSubRequests] = useState<SubRequest[]>([
     { title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }
   ]);
-  const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set([0]));
   const [validationErrors, setValidationErrors] = useState<Set<number>>(new Set());
   const [basicFieldErrors, setBasicFieldErrors] = useState<Set<string>>(new Set());
   const [isRecurringTask, setIsRecurringTask] = useState(false);
@@ -161,7 +160,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setCompletionDate(new Date());
     setSelectedOfficeId(null);
     setSubRequests([{ title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }]);
-    setExpandedSubRequests(new Set([0]));
     setValidationErrors(new Set());
     setBasicFieldErrors(new Set());
     setHasAttemptedSubmit(false);
@@ -229,20 +227,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   };
 
   const addSubRequest = () => {
-    const newIndex = subRequests.length;
-    setSubRequests([...subRequests, { title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }]);
-    setExpandedSubRequests(prev => new Set([...prev, newIndex]));
+    // Функция отключена - теперь только один подзаявка
+    return;
   };
 
   const removeSubRequest = (index: number) => {
-    if (subRequests.length > 1) {
-      setSubRequests(subRequests.filter((_, i) => i !== index));
-      setExpandedSubRequests(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(index);
-        return newSet;
-      });
-    }
+    // Функция отключена - нельзя удалить единственный подзаявка
+    return;
   };
 
   const updateSubRequest = (index: number, field: keyof SubRequest, value: any) => {
@@ -326,18 +317,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     setBasicFieldErrors(newBasicFieldErrors);
   }, [requestType, locationDetails, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit]);
-
-  const toggleSubRequestExpansion = (index: number) => {
-    setExpandedSubRequests(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(index)) {
-        newSet.delete(index);
-      } else {
-        newSet.add(index);
-      }
-      return newSet;
-    });
-  };
 
   useEffect(() => {
     if (isOpen) {
@@ -429,18 +408,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     const subRequestErrors: string[] = [];
     subRequests.forEach((subRequest, index) => {
       if (!subRequest.title.trim()) {
-        subRequestErrors.push(`название подзаявки #${index + 1}`);
+        subRequestErrors.push(`название заявки`);
       }
       if (!subRequest.description.trim()) {
-        subRequestErrors.push(`описание подзаявки #${index + 1}`);
+        subRequestErrors.push(`описание заявки`);
       }
       if (!subRequest.category_id || subRequest.category_id === 0) {
-        subRequestErrors.push(`категорию подзаявки #${index + 1}`);
+        subRequestErrors.push(`категорию заявки`);
       }
     });
 
+    // Проверяем что есть хотя бы один заявка (всегда должен быть один)
     if (subRequests.length === 0) {
-      basicFieldErrors.push('хотя бы одну подзаявку');
+      basicFieldErrors.push('хотя бы одну заявку');
     }
 
     if (basicFieldErrors.length > 0 || subRequestErrors.length > 0) {
@@ -456,13 +436,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         const invalidIndices = invalidSubRequests.map(sub => {
           return subRequests.indexOf(sub) + 1;
         });
-        // Автоматически разворачиваем подзаявки с ошибками валидации
-        const newExpandedSubRequests = new Set(expandedSubRequests);
-        invalidIndices.forEach(index => {
-          newExpandedSubRequests.add(index - 1); // index - 1 потому что индексы начинаются с 1
-        });
-        setExpandedSubRequests(newExpandedSubRequests);
-        const errorMessage = `Пожалуйста, заполните сложность и время выполнения для всех подзаявок.\n\nНе заполнено для подзаявок: ${invalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
+        const errorMessage = `Пожалуйста, заполните сложность и время выполнения для заявки.\n\nЗаявка автоматически развернута для заполнения.`;
         return;
       }
     }
@@ -480,13 +454,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         const leaderInvalidIndices = subRequestsWithoutLeader.map(sub => {
           return subRequests.indexOf(sub) + 1;
         });
-        // Автоматически разворачиваем подзаявки без лидера
-        const newExpandedSubRequests = new Set(expandedSubRequests);
-        leaderInvalidIndices.forEach(index => {
-          newExpandedSubRequests.add(index - 1);
-        });
-        setExpandedSubRequests(newExpandedSubRequests);
-        const errorMessage = `Пожалуйста, назначьте лидера для всех подзаявок с исполнителями.\n\nНе назначен лидер для подзаявок: ${leaderInvalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
+        const errorMessage = `Пожалуйста, назначьте лидера для заявки с исполнителями.\n\nЗаявка автоматически развернута для заполнения.`;
         return;
       }
     }
@@ -1007,21 +975,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </>
           )}
 
-          {/* Под заявки */}
+            {/* Под заявки - теперь только один */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              {(!isRecurringTask) && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addSubRequest}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Добавить под заявку
-              </Button>
-              )}
+              {/* Кнопка добавления подзаявки отключена - теперь только один подзаявка */}
               {/* Кнопка импорта Excel для admin-worker и department-head */}
               {(userRole === 'admin-worker' || userRole === 'department-head') && (
                 <Button
@@ -1038,139 +995,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               )}
             </div>
 
-            <div className="space-y-3">
+            <div>
               {subRequests.map((subRequest, index) => (
-                <div key={index} className="relative group">
-                  {/* Основная карточка подзаявки */}
-                  <div className={`relative overflow-hidden rounded-xl border transition-all duration-200 ${
-                    hasAttemptedSubmit && (
-                      validationErrors.has(index) || 
-                      !subRequest.title.trim() || 
-                      !subRequest.description.trim() || 
-                      !subRequest.category_id ||
-                      (userRole === 'department-head' && userServiceCategoryId && 
-                       subRequest.category_id === userServiceCategoryId && 
-                       subRequest.executors && subRequest.executors.length > 0 && 
-                       !subRequest.executors.some(e => e.role === 'leader'))
-                    )
-                      ? 'border-red-200 bg-red-50/30' 
-                      : 'border-gray-200 bg-white hover:border-violet-300 hover:shadow-md'
-                  }`}>
-
-                    {/* Градиентная полоса слева */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${
-                      hasAttemptedSubmit && (
-                        validationErrors.has(index) || 
-                        !subRequest.title.trim() || 
-                        !subRequest.description.trim() || 
-                        !subRequest.category_id ||
-                        (userRole === 'department-head' && userServiceCategoryId && 
-                         subRequest.category_id === userServiceCategoryId && 
-                         subRequest.executors && subRequest.executors.length > 0 && 
-                         !subRequest.executors.some(e => e.role === 'leader'))
-                      )
-                        ? 'bg-gradient-to-b from-red-400 to-red-600' 
-                        : 'bg-gradient-to-b from-violet-400 to-violet-600'
-                    }`} />
-
-                    {/* Заголовок подзаявки */}
-                    <div className="pl-6 pr-4 py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 flex-1">
-                          {/* Номер подзаявки */}
-                          <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold shadow-sm ${
-                            hasAttemptedSubmit && (
-                              validationErrors.has(index) || 
-                              !subRequest.title.trim() || 
-                              !subRequest.description.trim() || 
-                              !subRequest.category_id ||
-                              (userRole === 'department-head' && userServiceCategoryId && 
-                               subRequest.category_id === userServiceCategoryId && 
-                               subRequest.executors && subRequest.executors.length > 0 && 
-                               !subRequest.executors.some(e => e.role === 'leader'))
-                            )
-                              ? 'bg-red-100 text-red-700 border-2 border-red-200' 
-                              : 'bg-violet-100 text-violet-700 border-2 border-violet-200'
-                          }`}>
-                            {index + 1}
-                          </div>
-
-                          {/* Информация о подзаявке */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-1">
-                              <h4 className="font-semibold text-lg text-gray-900">Под заявка #{index + 1}</h4>
-                            </div>
-
-                            {/* Сообщения об ошибках */}
-                            {hasAttemptedSubmit && validationErrors.has(index) && (
-                              <div className="flex items-center gap-2 text-red-600 text-sm">
-                                <AlertTriangle className="w-4 h-4" />
-                                <span>
-                                  {userRole === 'admin-worker'
-                                    ? 'Требуется заполнить сложность и время выполнения'
-                                    : userRole === 'department-head'
-                                      ? (() => {
-                                          const subRequest = subRequests[index];
-                                          const hasComplexityAndTime = subRequest.complexity && subRequest.sla;
-                                          const hasExecutors = subRequest.executors && subRequest.executors.length > 0;
-                                          const hasLeader = hasExecutors && subRequest.executors!.some(e => e.role === 'leader');
-
-                                                  if (!hasComplexityAndTime && !hasLeader) {
-          return 'Требуется заполнить сложность, время выполнения и назначить лидера';
-        } else if (!hasComplexityAndTime) {
-          return 'Требуется заполнить сложность и время выполнения';
-                                          } else if (!hasLeader) {
-                                            return 'Требуется назначить лидера среди исполнителей';
-                                          }
-                                          return 'Требуется заполнить обязательные поля';
-                                        })()
-                                      : 'Требуется заполнить обязательные поля'
-                                  }
-                                </span>
-                              </div>
-                            )}
-                            {hasAttemptedSubmit && !validationErrors.has(index) && (!subRequest.title.trim() || !subRequest.description.trim() || !subRequest.category_id) && (
-                              <div className="flex items-center gap-2 text-red-600 text-sm">
-                                <AlertTriangle className="w-4 h-4" />
-                                <span>Требуется заполнить название, описание и категорию</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Кнопки управления */}
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleSubRequestExpansion(index)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          >
-                            {expandedSubRequests.has(index) ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                          </Button>
-                          {subRequests.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeSubRequest(index)}
-                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
+                <div key={index}>
                                         {/* Содержимое подзаявки */}
-                    <div className={`border-t border-gray-100 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
-                      <div className="p-6 space-y-5">
+                    <div>
+                      <div className="space-y-5">
 
                         <div>
                           <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1 mb-2">
@@ -1180,11 +1010,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                               value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
                               onValueChange={(value) => {
                                 const category = categories.find(c => c.name === value);
-                                
+
                                 // Обновляем все поля за один раз
                                 const newSubRequests = [...subRequests];
-                                newSubRequests[index] = { 
-                                  ...newSubRequests[index], 
+                                newSubRequests[index] = {
+                                  ...newSubRequests[index],
                                   category_id: category?.id || 0,
                                   subcategory_id: 0,
                                   title: ''
@@ -1226,10 +1056,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                 // Обновляем все поля за один раз
                                 const category = categories.find(c => c.id === subRequest.category_id);
                                 const subcategory = category?.subcategories?.find(s => s.name === value);
-                                
+
                                 const newSubRequests = [...subRequests];
-                                newSubRequests[index] = { 
-                                  ...newSubRequests[index], 
+                                newSubRequests[index] = {
+                                  ...newSubRequests[index],
                                   title: value,
                                   subcategory_id: subcategory?.id || 0
                                 };
@@ -1505,7 +1335,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                     <>
                                       <AlertTriangle className="w-4 h-4 text-yellow-600" />
                                       <span className="text-yellow-800">
-                                        Заполните сложность и время выполнения для этой подзаявки
+                                        Заполните сложность и время выполнения для заявки
                                       </span>
                                     </>
                                   )}
@@ -1516,7 +1346,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         )}
                       </div>
                     </div>
-                  </div>
                 </div>
               ))}
             </div>
