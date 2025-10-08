@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ImportExcelModal } from "./ImportExcelModal";
 import { findNearestOffice, getLocationByIP } from "@/lib/utils";
+import { getBlocksForOffice, getLocationsForBlock, getRoomsForLocation, hasLocationsForBlock, hasRoomsForLocation } from "@/lib/office-locations";
 
 interface ServiceCategory {
   id: number;
@@ -118,6 +119,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | null>(null);
 
+  // Состояния для нового функционала расположения в офисе
+  const [selectedBlock, setSelectedBlock] = useState<string>("");
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [selectedRoom, setSelectedRoom] = useState<string>("");
+  const [customLocation, setCustomLocation] = useState<string>("");
+  const [customRoom, setCustomRoom] = useState<string>("");
+
   // Состояния для повторяющихся задач
   const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
@@ -147,6 +155,40 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
   }, [requestType]);
 
+  // Сброс блока, местонахождения и помещения при изменении офиса
+  useEffect(() => {
+    setSelectedBlock("");
+    setSelectedLocation("");
+    setSelectedRoom("");
+    setCustomLocation("");
+    setCustomRoom("");
+  }, [selectedOfficeId]);
+
+  // Сброс местонахождения и помещения при изменении блока
+  useEffect(() => {
+    setSelectedLocation("");
+    setSelectedRoom("");
+    setCustomLocation("");
+    setCustomRoom("");
+    
+    // Если для блока нет местонахождений в справочнике, автоматически устанавливаем пустую строку
+    if (selectedBlock && selectedOfficeId) {
+      const currentOffice = offices.find(o => o.id === selectedOfficeId);
+      if (currentOffice) {
+        const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+        if (!hasLocations) {
+          setSelectedLocation(""); // Устанавливаем пустую строку для перехода к помещению
+        }
+      }
+    }
+  }, [selectedBlock, selectedOfficeId, offices]);
+
+  // Сброс помещения при изменении местонахождения
+  useEffect(() => {
+    setSelectedRoom("");
+    setCustomRoom("");
+  }, [selectedLocation]);
+
   const resetForm = () => {
     setRequestType("normal");
     setLocationDetails("");
@@ -159,6 +201,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setCompletionComment("");
     setCompletionDate(new Date());
     setSelectedOfficeId(null);
+    setSelectedBlock("");
+    setSelectedLocation("");
+    setSelectedRoom("");
+    setCustomLocation("");
+    setCustomRoom("");
     setSubRequests([{ title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }]);
     setValidationErrors(new Set());
     setBasicFieldErrors(new Set());
@@ -292,17 +339,53 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       newBasicFieldErrors.add('requestType');
     }
 
-    if (!locationDetails.trim()) {
-      newBasicFieldErrors.add('locationDetails');
+    // Валидация офиса для всех ролей
+    if (!selectedOfficeId) {
+      newBasicFieldErrors.add('office');
+    }
+
+    // Валидация блока, местонахождения и помещения
+    if (!selectedBlock) {
+      newBasicFieldErrors.add('block');
+    }
+
+    // Проверка местонахождения
+    if (selectedBlock && selectedOfficeId) {
+      const currentOffice = offices.find(o => o.id === selectedOfficeId);
+      if (currentOffice) {
+        const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+        if (hasLocations) {
+          if (!selectedLocation || selectedLocation === "") {
+            newBasicFieldErrors.add('location');
+          } else if (selectedLocation === "Другое" && !customLocation.trim()) {
+            newBasicFieldErrors.add('customLocation');
+          }
+        }
+      }
+    }
+
+    // Проверка помещения
+    if (selectedBlock && selectedLocation && selectedOfficeId) {
+      const currentOffice = offices.find(o => o.id === selectedOfficeId);
+      if (currentOffice) {
+        const hasRooms = hasRoomsForLocation(currentOffice.name, selectedBlock, selectedLocation === "Другое" ? "" : selectedLocation);
+        if (hasRooms) {
+          if (!selectedRoom || selectedRoom === "") {
+            newBasicFieldErrors.add('room');
+          } else if (selectedRoom === "Другое" && !customRoom.trim()) {
+            newBasicFieldErrors.add('customRoom');
+          }
+        } else if (selectedLocation !== "Другое" && selectedLocation !== "") {
+          // Если местонахождение выбрано (не "Другое"), но помещений нет в справочнике
+          if (!customRoom.trim()) {
+            newBasicFieldErrors.add('customRoom');
+          }
+        }
+      }
     }
 
     if (photos.length === 0) {
       newBasicFieldErrors.add('photos');
-    }
-
-    // Валидация офиса для всех ролей
-    if (!selectedOfficeId) {
-      newBasicFieldErrors.add('office');
     }
 
     // Валидация для режима создания с завершением
@@ -316,7 +399,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     setBasicFieldErrors(newBasicFieldErrors);
-  }, [requestType, locationDetails, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit]);
+  }, [requestType, selectedBlock, selectedLocation, selectedRoom, customLocation, customRoom, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit, offices]);
 
   useEffect(() => {
     if (isOpen) {
@@ -381,17 +464,52 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       basicFieldErrors.push('тип заявки');
     }
 
-    if (!locationDetails.trim()) {
-      basicFieldErrors.push('расположение в офисе');
+    // Валидация офиса для всех ролей
+    if (!selectedOfficeId) {
+      basicFieldErrors.push('офис');
+    }
+
+    // Валидация блока, местонахождения и помещения
+    if (!selectedBlock) {
+      basicFieldErrors.push('блок');
+    }
+
+    const currentOffice = offices.find(o => o.id === selectedOfficeId);
+    if (currentOffice && selectedBlock) {
+      // Проверка местонахождения
+      const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+      if (hasLocations) {
+        if (!selectedLocation || selectedLocation === "") {
+          basicFieldErrors.push('местонахождение');
+        } else if (selectedLocation === "Другое" && !customLocation.trim()) {
+          basicFieldErrors.push('местонахождение (укажите вручную)');
+        }
+      }
+
+      // Проверка помещения
+      if (selectedLocation) {
+        const hasRooms = hasRoomsForLocation(
+          currentOffice.name,
+          selectedBlock, 
+          selectedLocation === "Другое" ? "" : selectedLocation
+        );
+        if (hasRooms) {
+          if (!selectedRoom || selectedRoom === "") {
+            basicFieldErrors.push('помещение');
+          } else if (selectedRoom === "Другое" && !customRoom.trim()) {
+            basicFieldErrors.push('помещение (укажите вручную)');
+          }
+        } else if (selectedLocation !== "Другое" && selectedLocation !== "") {
+          // Если местонахождение выбрано (не "Другое"), но помещений нет в справочнике
+          if (!customRoom.trim()) {
+            basicFieldErrors.push('помещение (укажите вручную)');
+          }
+        }
+      }
     }
 
     if (photos.length === 0) {
       basicFieldErrors.push('фотографии (минимум 1)');
-    }
-
-    // Валидация офиса для всех ролей
-    if (!selectedOfficeId) {
-      basicFieldErrors.push('офис');
     }
 
     // Валидация для режима создания с завершением
@@ -479,9 +597,61 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     // Для повторяющихся задач устанавливаем request_type как 'recurring', иначе используем обычный requestType
     const finalRequestType = isRecurringTask ? 'recurring' : requestType;
     formData.append('request_type', finalRequestType);
-    const currentOffice = offices.find(office => office.id === selectedOfficeId);
     formData.append('location', `Широта: ${currentOffice?.lat}, Долгота: ${currentOffice?.lon} (±${Math.round(1)} м)`);
-    formData.append('location_detail', locationDetails);
+    
+    // Формируем location_detail из блока, местонахождения и помещения
+    const locationParts = [];
+    locationParts.push(`Блок: ${selectedBlock}`);
+    
+    // Добавляем местонахождение
+    if (currentOffice) {
+      const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+      if (hasLocations) {
+        // Есть справочные местонахождения
+        const locationValue = selectedLocation === "Другое" ? customLocation : selectedLocation;
+        if (locationValue) {
+          locationParts.push(`Местонахождение: ${locationValue}`);
+        }
+      } else {
+        // Нет справочных местонахождений - используем customLocation если заполнено
+        if (customLocation) {
+          locationParts.push(`Местонахождение: ${customLocation}`);
+        }
+      }
+    }
+    
+    // Добавляем помещение
+    if (currentOffice) {
+      const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+      
+      // Определяем текущее местонахождение для проверки помещений
+      let currentLocationForRooms = "";
+      if (hasLocations) {
+        currentLocationForRooms = selectedLocation === "Другое" ? "" : selectedLocation;
+      }
+      
+      const hasRooms = hasRoomsForLocation(
+        currentOffice.name,
+        selectedBlock, 
+        currentLocationForRooms
+      );
+      
+      if (hasRooms) {
+        // Есть справочные помещения
+        const roomValue = selectedRoom === "Другое" ? customRoom : selectedRoom;
+        if (roomValue) {
+          locationParts.push(`Помещение: ${roomValue}`);
+        }
+      } else {
+        // Нет справочных помещений - используем customRoom если заполнено
+        if (customRoom) {
+          locationParts.push(`Помещение: ${customRoom}`);
+        }
+      }
+    }
+
+    const locationDetailsStr = locationParts.join(', ');
+    formData.append('location_detail', locationDetailsStr);
     formData.append('status', groupStatus);
     if (plannedDate) formData.append('planned_date', plannedDate);
     if (selectedOfficeId) {
@@ -667,19 +837,189 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </div>
           )}
 
-          <div>
-            <Label className="flex items-center gap-1 mb-2">
-              Расположение в офисе
-            </Label>
-            <Input
-              className={hasAttemptedSubmit && basicFieldErrors.has('locationDetails') ? 'border-red-300 focus:border-red-500' : ''}
-              placeholder="Например: 3 этаж, кабинет 305"
-              value={locationDetails}
-              onChange={(e) => setLocationDetails(e.target.value)}
-            />
-            {hasAttemptedSubmit && basicFieldErrors.has('locationDetails') && (
-              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-            )}
+          {/* Блок, Местонахождение, Помещение */}
+          <div className="space-y-4">
+            {/* Блок */}
+            <div>
+              <Label className="flex items-center gap-1 mb-2">
+                Блок
+              </Label>
+              <Select
+                value={selectedBlock}
+                onValueChange={(value) => setSelectedBlock(value)}
+                disabled={!selectedOfficeId}
+              >
+                <SelectTrigger 
+                  className={hasAttemptedSubmit && basicFieldErrors.has('block') ? 'border-red-300 focus:border-red-500' : ''}
+                >
+                  <SelectValue placeholder={selectedOfficeId ? "Выберите блок" : "Сначала выберите офис"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedOfficeId && (() => {
+                    const currentOffice = offices.find(o => o.id === selectedOfficeId);
+                    if (currentOffice) {
+                      const blocks = getBlocksForOffice(currentOffice.name);
+                      return blocks.map((block) => (
+                        <SelectItem key={block} value={block}>
+                          {block}
+                        </SelectItem>
+                      ));
+                    }
+                    return null;
+                  })()}
+                </SelectContent>
+              </Select>
+              {hasAttemptedSubmit && basicFieldErrors.has('block') && (
+                <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+              )}
+            </div>
+
+            {/* Местонахождение */}
+            {selectedBlock && (() => {
+              const currentOffice = offices.find(o => o.id === selectedOfficeId);
+              if (!currentOffice) return null;
+              
+              const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+              const locations = hasLocations ? getLocationsForBlock(currentOffice.name, selectedBlock) : [];
+              
+              if (hasLocations && locations.length > 0) {
+                // Показываем селект если есть местонахождения в справочнике
+                return (
+                  <div>
+                    <Label className="flex items-center gap-1 mb-2">
+                      Местонахождение
+                    </Label>
+                    <Select
+                      value={selectedLocation}
+                      onValueChange={(value) => setSelectedLocation(value)}
+                    >
+                      <SelectTrigger 
+                        className={hasAttemptedSubmit && basicFieldErrors.has('location') ? 'border-red-300 focus:border-red-500' : ''}
+                      >
+                        <SelectValue placeholder="Выберите местонахождение" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((location) => (
+                          <SelectItem key={location} value={location}>
+                            {location}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="Другое">Другое</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {hasAttemptedSubmit && basicFieldErrors.has('location') && (
+                      <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                    )}
+                    
+                    {selectedLocation === "Другое" && (
+                      <div className="mt-2">
+                        <Input
+                          placeholder="Введите местонахождение"
+                          value={customLocation}
+                          onChange={(e) => setCustomLocation(e.target.value)}
+                          className={hasAttemptedSubmit && basicFieldErrors.has('customLocation') ? 'border-red-300 focus:border-red-500' : ''}
+                        />
+                        {hasAttemptedSubmit && basicFieldErrors.has('customLocation') && (
+                          <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              } else {
+                // Если местонахождений нет в справочнике, сразу переходим к помещению
+                return null;
+              }
+            })()}
+
+            {/* Помещение */}
+            {selectedBlock && (() => {
+              const currentOffice = offices.find(o => o.id === selectedOfficeId);
+              if (!currentOffice) return null;
+              
+              // Проверяем, нужно ли показывать поле помещения
+              const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+              const shouldShowRoom = !hasLocations || (hasLocations && selectedLocation !== "");
+              
+              if (!shouldShowRoom) return null;
+
+              const hasRooms = hasRoomsForLocation(
+                currentOffice.name,
+                selectedBlock, 
+                selectedLocation === "Другое" ? "" : selectedLocation
+              );
+
+              if (hasRooms) {
+                const rooms = getRoomsForLocation(
+                  currentOffice.name,
+                  selectedBlock, 
+                  selectedLocation === "Другое" ? "" : selectedLocation
+                );
+
+                return (
+                  <div>
+                    <Label className="flex items-center gap-1 mb-2">
+                      Помещение
+                    </Label>
+                    <Select
+                      value={selectedRoom}
+                      onValueChange={(value) => setSelectedRoom(value)}
+                    >
+                      <SelectTrigger 
+                        className={hasAttemptedSubmit && basicFieldErrors.has('room') ? 'border-red-300 focus:border-red-500' : ''}
+                      >
+                        <SelectValue placeholder="Выберите помещение" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {rooms.map((room) => (
+                          <SelectItem key={room} value={room}>
+                            {room}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="Другое">Другое</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {hasAttemptedSubmit && basicFieldErrors.has('room') && (
+                      <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                    )}
+                    
+                    {selectedRoom === "Другое" && (
+                      <div className="mt-2">
+                        <Input
+                          placeholder="Введите помещение"
+                          value={customRoom}
+                          onChange={(e) => setCustomRoom(e.target.value)}
+                          className={hasAttemptedSubmit && basicFieldErrors.has('customRoom') ? 'border-red-300 focus:border-red-500' : ''}
+                        />
+                        {hasAttemptedSubmit && basicFieldErrors.has('customRoom') && (
+                          <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              } else if (selectedLocation !== "Другое") {
+                // Если местонахождение выбрано (не "Другое"), но помещений нет в справочнике
+                return (
+                  <div>
+                    <Label className="flex items-center gap-1 mb-2">
+                      Помещение *
+                    </Label>
+                    <Input
+                      placeholder="Введите помещение"
+                      value={customRoom}
+                      onChange={(e) => setCustomRoom(e.target.value)}
+                      className={hasAttemptedSubmit && basicFieldErrors.has('customRoom') ? 'border-red-300 focus:border-red-500' : ''}
+                    />
+                    {hasAttemptedSubmit && basicFieldErrors.has('customRoom') && (
+                      <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                    )}
+                  </div>
+                );
+              }
+              
+              return null;
+            })()}
           </div>
 
           <div>
