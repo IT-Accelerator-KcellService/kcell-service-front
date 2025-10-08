@@ -804,7 +804,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <SelectTrigger className={hasAttemptedSubmit && !selectedOfficeId ? 'border-red-300 focus:border-red-500' : ''}>
                   <SelectValue placeholder="Выберите офис" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                   {offices.map((office) => (
                     <SelectItem key={office.id} value={office.id.toString()}>
                       {office.name} - {office.city}
@@ -854,7 +854,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 >
                   <SelectValue placeholder={selectedOfficeId ? "Выберите блок" : "Сначала выберите офис"} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                   {selectedOfficeId && (() => {
                     const currentOffice = offices.find(o => o.id === selectedOfficeId);
                     if (currentOffice) {
@@ -898,7 +898,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                       >
                         <SelectValue placeholder="Выберите местонахождение" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                         {locations.map((location) => (
                           <SelectItem key={location} value={location}>
                             {location}
@@ -970,7 +970,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                       >
                         <SelectValue placeholder="Выберите помещение" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                         {rooms.map((room) => (
                           <SelectItem key={room} value={room}>
                             {room}
@@ -1033,7 +1033,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               <SelectTrigger className={hasAttemptedSubmit && basicFieldErrors.has('requestType') ? 'border-red-300 focus:border-red-500' : ''}>
                 <SelectValue placeholder="Выберите тип заявки" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                 <SelectItem value="normal">Обычная</SelectItem>
                 <SelectItem value="urgent">Экстренная</SelectItem>
                 {(userRole === 'admin-worker' || userRole === 'department-head') && (
@@ -1098,7 +1098,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                       <SelectItem value="daily">Ежедневно</SelectItem>
                       <SelectItem value="weekly">Еженедельно</SelectItem>
                       <SelectItem value="monthly">Ежемесячно</SelectItem>
@@ -1116,7 +1116,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                       <SelectItem value="1">Каждые 1</SelectItem>
                       <SelectItem value="2">Каждые 2</SelectItem>
                       <SelectItem value="3">Каждые 3</SelectItem>
@@ -1368,7 +1368,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                             >
                               <SelectValue placeholder="Выберите категорию" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                               {categories.map(category => (
                                   <SelectItem key={category.id} value={category.name}>
                                     {category.name}
@@ -1412,7 +1412,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                             >
                               <SelectValue placeholder="Выберите название заявки" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                               {(() => {
                                 const category = categories.find(c => c.id === subRequest.category_id);
                                 return category?.subcategories?.map(subcategory => (
@@ -1471,7 +1471,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   <SelectTrigger>
                                     <SelectValue placeholder="Выберите исполнителя для добавления" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                                     {executors
                                       .filter(executor => !subRequest.executors?.some(e => e.id === executor.id))
                                       .map(executor => (
@@ -1538,7 +1538,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                             <SelectTrigger className="w-28 h-8 text-xs">
                                               <SelectValue />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent position="popper" className="max-h-[200px]">
                                               <SelectItem value="executor">Исполнитель</SelectItem>
                                               <SelectItem value="leader">Лидер</SelectItem>
                                             </SelectContent>
@@ -1616,7 +1616,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   >
                                     <SelectValue placeholder="Выберите сложность" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                                     <SelectItem value="simple">Простая</SelectItem>
                                     <SelectItem value="medium">Средняя</SelectItem>
                                     <SelectItem value="complex">Сложная</SelectItem>
@@ -1641,7 +1641,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   >
                                     <SelectValue placeholder="Выберите время выполнения" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                                     <SelectItem value="1h">1 час</SelectItem>
                                     <SelectItem value="4h">4 часа</SelectItem>
                                     <SelectItem value="8h">8 часов</SelectItem>
