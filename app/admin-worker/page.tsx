@@ -2465,24 +2465,25 @@ export default function AdminWorkerDashboard() {
                           {/* Создание категории */}
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">Создать новую категорию</Label>
-                            <div className="flex gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                               <input
                                 type="text"
                                 value={newCategoryName}
                                 onChange={(e) => setNewCategoryName(e.target.value)}
                                 placeholder="Название категории"
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
                                 disabled={isCreatingCategory}
                               />
                               <Button
                                 onClick={handleCreateCategory}
                                 disabled={!newCategoryName.trim() || isCreatingCategory}
-                                className="bg-green-600 hover:bg-green-700 text-white"
+                                className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto min-h-[40px] text-sm sm:text-base"
                               >
                                 {isCreatingCategory ? (
                                   <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    <span>Создание...</span>
+                                    <span className="hidden sm:inline">Создание...</span>
+                                    <span className="sm:hidden">...</span>
                                   </div>
                                 ) : (
                                   "Создать"
@@ -2507,12 +2508,12 @@ export default function AdminWorkerDashboard() {
                               </div>
                             </div>
                             
-                            <div className="flex gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                               <Select onValueChange={(categoryId) => setCategoryToDelete(parseInt(categoryId))} value={categoryToDelete?.toString() || ""}>
-                                <SelectTrigger className="flex-1">
+                                <SelectTrigger className="flex-1 w-full">
                                   <SelectValue placeholder="Выберите категорию для удаления" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-none">
                                   {categories.map(category => {
                                     const hasExecutors = categoriesWithExecutors.has(category.id);
                                     return (
@@ -2537,11 +2538,13 @@ export default function AdminWorkerDashboard() {
                                 onClick={handleDeleteCategory}
                                 disabled={!categoryToDelete || isDeletingCategory || (categoryToDelete ? categoriesWithExecutors.has(categoryToDelete) : false)}
                                 variant="destructive"
+                                className="w-full sm:w-auto min-h-[40px] text-sm sm:text-base"
                               >
                                 {isDeletingCategory ? (
                                   <div className="flex items-center gap-2">
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    <span>Удаление...</span>
+                                    <span className="hidden sm:inline">Удаление...</span>
+                                    <span className="sm:hidden">...</span>
                                   </div>
                                 ) : (
                                   "Удалить"
@@ -2575,10 +2578,10 @@ export default function AdminWorkerDashboard() {
                             <Label className="text-sm font-medium">Создать новую подкатегорию</Label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               <Select onValueChange={(categoryId) => setSelectedCategoryForSubcategory(parseInt(categoryId))} value={selectedCategoryForSubcategory?.toString() || ""}>
-                                <SelectTrigger>
+                                <SelectTrigger className="w-full">
                                   <SelectValue placeholder="Выберите категорию" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-none">
                                   {categories.map(category => (
                                     <SelectItem key={category.id} value={category.id.toString()}>
                                       {category.name}
@@ -2591,19 +2594,20 @@ export default function AdminWorkerDashboard() {
                                 value={newSubcategoryName}
                                 onChange={(e) => setNewSubcategoryName(e.target.value)}
                                 placeholder="Название подкатегории"
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
                                 disabled={isCreatingSubcategory}
                               />
                             </div>
                             <Button
                               onClick={handleCreateSubcategory}
                               disabled={!selectedCategoryForSubcategory || !newSubcategoryName.trim() || isCreatingSubcategory}
-                              className="bg-green-600 hover:bg-green-700 text-white"
+                              className="bg-green-600 hover:bg-green-700 text-white w-full min-h-[40px] text-sm sm:text-base"
                             >
                               {isCreatingSubcategory ? (
                                 <div className="flex items-center gap-2">
                                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  <span>Создание...</span>
+                                  <span className="hidden sm:inline">Создание...</span>
+                                  <span className="sm:hidden">...</span>
                                 </div>
                               ) : (
                                 "Создать подкатегорию"
@@ -2614,34 +2618,38 @@ export default function AdminWorkerDashboard() {
                           {/* Удаление подкатегории */}
                           <div className="space-y-2">
                             <Label className="text-sm font-medium">Удалить подкатегорию</Label>
-                            <Select onValueChange={(subcategoryId) => setSubcategoryToDelete(parseInt(subcategoryId))} value={subcategoryToDelete?.toString() || ""}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Выберите подкатегорию для удаления" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {categories.flatMap(category => 
-                                  category.subcategories?.map(subcategory => (
-                                    <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
-                                      {category.name} → {subcategory.name}
-                                    </SelectItem>
-                                  )) || []
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <Select onValueChange={(subcategoryId) => setSubcategoryToDelete(parseInt(subcategoryId))} value={subcategoryToDelete?.toString() || ""}>
+                                <SelectTrigger className="flex-1 w-full">
+                                  <SelectValue placeholder="Выберите подкатегорию для удаления" />
+                                </SelectTrigger>
+                                <SelectContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-none">
+                                  {categories.flatMap(category => 
+                                    category.subcategories?.map(subcategory => (
+                                      <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
+                                        <span className="truncate">{category.name} → {subcategory.name}</span>
+                                      </SelectItem>
+                                    )) || []
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                onClick={handleDeleteSubcategory}
+                                disabled={!subcategoryToDelete || isDeletingSubcategory}
+                                variant="destructive"
+                                className="w-full sm:w-auto min-h-[40px] text-sm sm:text-base"
+                              >
+                                {isDeletingSubcategory ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span className="hidden sm:inline">Удаление...</span>
+                                    <span className="sm:hidden">...</span>
+                                  </div>
+                                ) : (
+                                  "Удалить"
                                 )}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              onClick={handleDeleteSubcategory}
-                              disabled={!subcategoryToDelete || isDeletingSubcategory}
-                              variant="destructive"
-                            >
-                              {isDeletingSubcategory ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  <span>Удаление...</span>
-                                </div>
-                              ) : (
-                                "Удалить подкатегорию"
-                              )}
-                            </Button>
+                              </Button>
+                            </div>
                           </div>
 
                           {/* Ошибки управления подкатегориями */}
@@ -2670,28 +2678,39 @@ export default function AdminWorkerDashboard() {
                             <Label className="text-sm font-medium">
                               Выберите пользователя ({officeUsers.length} пользователей)
                             </Label>
-                            <Select onValueChange={(userId) => setSelectedUserForPassword(parseInt(userId))} value={selectedUserForPassword?.toString() || ""}>
-                              <SelectTrigger>
+                            <Select
+                                onValueChange={(userId) => setSelectedUserForPassword(parseInt(userId))}
+                                value={selectedUserForPassword?.toString() || ""}
+                            >
+                              <SelectTrigger className="w-full max-w-full truncate text-sm sm:text-base">
                                 <SelectValue placeholder="Выберите пользователя для смены пароля" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent
+                                  className="w-[var(--radix-select-trigger-width)] max-h-60 overflow-y-auto z-50 rounded-md shadow-lg bg-white border border-gray-200"
+                                  position="popper"
+                                  sideOffset={4}
+                              >
                                 {officeUsers.length === 0 ? (
-                                  <SelectItem value="no-users" disabled>
-                                    Нет пользователей в офисе
-                                  </SelectItem>
-                                ) : (
-                                  officeUsers.map(user => (
-                                    <SelectItem key={user.id} value={user.id.toString()}>
-                                      {user.full_name} ({user.phone})
+                                    <SelectItem value="no-users" disabled className="text-gray-500 text-sm">
+                                      Нет пользователей в офисе
                                     </SelectItem>
-                                  ))
+                                ) : (
+                                    officeUsers.map((user) => (
+                                      <SelectItem
+                                          key={user.id}
+                                          value={user.id.toString()}
+                                          className="flex flex-col items-start gap-1 w-full px-3 py-2 text-sm whitespace-normal break-words"
+                                      >
+                                          <span className="font-medium break-words whitespace-normal">{user.full_name}</span>
+                                          <span className="text-gray-500 text-xs break-words whitespace-normal">{user.phone}</span>
+                                      </SelectItem>
+                                    ))
                                 )}
                               </SelectContent>
                             </Select>
+
                             {officeUsers.length === 0 && (
-                              <p className="text-sm text-gray-500">
-                                Пользователи офиса не найдены. Проверьте, что у вас есть office_id.
-                              </p>
+                                <p className="text-sm text-gray-500">Пользователи офиса не найдены.</p>
                             )}
                           </div>
 
@@ -2703,7 +2722,7 @@ export default function AdminWorkerDashboard() {
                               value={newPassword}
                               onChange={(e) => setNewPassword(e.target.value)}
                               placeholder="Введите новый пароль"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base min-h-[40px]"
                               disabled={isChangingPassword}
                               autoComplete="new-password"
                               name="new-password"
@@ -2718,7 +2737,7 @@ export default function AdminWorkerDashboard() {
                               value={confirmPassword}
                               onChange={(e) => setConfirmPassword(e.target.value)}
                               placeholder="Подтвердите новый пароль"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base min-h-[40px]"
                               disabled={isChangingPassword}
                               autoComplete="new-password"
                               name="confirm-password"
@@ -2726,16 +2745,17 @@ export default function AdminWorkerDashboard() {
                           </div>
 
                           {/* Кнопки управления */}
-                          <div className="flex gap-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
                             <Button
                               onClick={handleChangePassword}
                               disabled={!selectedUserForPassword || !newPassword.trim() || !confirmPassword.trim() || isChangingPassword}
-                              className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                              className="bg-blue-600 hover:bg-blue-700 text-white flex-1 min-h-[40px] text-sm sm:text-base"
                             >
                               {isChangingPassword ? (
                                 <div className="flex items-center gap-2">
                                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  <span>Изменение...</span>
+                                  <span className="hidden sm:inline">Изменение...</span>
+                                  <span className="sm:hidden">...</span>
                                 </div>
                               ) : (
                                 "Изменить пароль"
@@ -2750,6 +2770,7 @@ export default function AdminWorkerDashboard() {
                               }}
                               variant="outline"
                               disabled={isChangingPassword}
+                              className="w-full sm:w-auto min-h-[40px] text-sm sm:text-base"
                             >
                               Очистить
                             </Button>
@@ -2807,10 +2828,10 @@ export default function AdminWorkerDashboard() {
                             
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               <Select onValueChange={(categoryId) => setSelectedCategoryId(parseInt(categoryId))} value={selectedCategoryId?.toString() || ""}>
-                                <SelectTrigger>
+                                <SelectTrigger className="w-full">
                                   <SelectValue placeholder="Выберите категорию" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-none">
                                   {categories.map(category => (
                                     <SelectItem key={category.id} value={category.id.toString()}>
                                       {category.name}
@@ -2819,10 +2840,10 @@ export default function AdminWorkerDashboard() {
                                 </SelectContent>
                               </Select>
                               <Select onValueChange={(executorId) => setSelectedExecutorForAssignment(parseInt(executorId))} value={selectedExecutorForAssignment?.toString() || ""} disabled={isLoadingAllExecutors}>
-                                <SelectTrigger>
+                                <SelectTrigger className="w-full">
                                   <SelectValue placeholder={isLoadingAllExecutors ? "Загрузка..." : "Выберите исполнителя"} />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-none">
                                   {isLoadingAllExecutors ? (
                                     <SelectItem value="loading" disabled className="text-gray-500">
                                       Загрузка исполнителей...
@@ -2847,12 +2868,13 @@ export default function AdminWorkerDashboard() {
                             <Button
                               onClick={handleAssignExecutorToCategory}
                               disabled={!selectedCategoryId || !selectedExecutorForAssignment || isAssigningExecutor}
-                              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                              className="w-full bg-blue-600 hover:bg-blue-700 text-white min-h-[40px] text-sm sm:text-base"
                             >
                               {isAssigningExecutor ? (
                                 <div className="flex items-center gap-2">
                                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  <span>Назначение...</span>
+                                  <span className="hidden sm:inline">Назначение...</span>
+                                  <span className="sm:hidden">...</span>
                                 </div>
                               ) : (
                                 "Назначить исполнителя"
@@ -2893,7 +2915,7 @@ export default function AdminWorkerDashboard() {
                               <SelectTrigger className="w-full disabled:opacity-50 disabled:cursor-not-allowed">
                                 <SelectValue placeholder="Выберите категорию" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-none">
                                 {categories.map(category => (
                                   <SelectItem key={category.id} value={category.id.toString()}>
                                     {category.name}
@@ -2929,7 +2951,7 @@ export default function AdminWorkerDashboard() {
                                 <SelectTrigger className="w-full disabled:opacity-50 disabled:cursor-not-allowed">
                                   <SelectValue placeholder={isLoadingExecutors ? "Загрузка..." : "Выберите исполнителя"} />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-none">
                                   {isLoadingExecutors ? (
                                     <SelectItem value="loading" disabled className="text-gray-500">
                                       Загрузка исполнителей...
@@ -2973,12 +2995,13 @@ export default function AdminWorkerDashboard() {
                             <Button
                               onClick={handleChangeCategoryHead}
                               disabled={!selectedCategoryId || !selectedExecutorId || isChangingHead}
-                              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white h-10 sm:h-9"
+                              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white min-h-[40px] text-sm sm:text-base"
                             >
                               {isChangingHead ? (
                                 <div className="flex items-center gap-2">
                                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  <span>Смена...</span>
+                                  <span className="hidden sm:inline">Смена...</span>
+                                  <span className="sm:hidden">...</span>
                                 </div>
                               ) : (
                                 "Сменить руководителя"
@@ -2992,7 +3015,7 @@ export default function AdminWorkerDashboard() {
                                 setAvailableExecutors([]);
                               }}
                               disabled={isLoadingExecutors || isChangingHead}
-                              className="w-full sm:w-auto h-10 sm:h-9 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-full sm:w-auto min-h-[40px] text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Сбросить
                             </Button>
