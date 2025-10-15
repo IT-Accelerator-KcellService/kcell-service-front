@@ -107,6 +107,10 @@ export const updateUser = (
     data: { email: string; password: string; full_name: string; office_id: number }
 ) => api.put(`/users/${id}`, data);
 
+// Изменить пароль пользователя (только для админа офиса)
+export const changeUserPassword = (userId: number, newPassword: string) =>
+    api.patch(`/users/${userId}/change-password`, { new_password: newPassword });
+
 
 
 

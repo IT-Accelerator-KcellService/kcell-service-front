@@ -233,6 +233,17 @@ export default function AdminWorkerDashboard() {
   const [isDeletingSubcategory, setIsDeletingSubcategory] = useState(false);
   const [subcategoryError, setSubcategoryError] = useState<string | null>(null);
   
+  // Состояния для смены паролей
+  const [selectedUserForPassword, setSelectedUserForPassword] = useState<number | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [officeUsers, setOfficeUsers] = useState<any[]>([]);
+  
+  // Состояние для выбранного раздела управления
+  const [selectedManagementSection, setSelectedManagementSection] = useState<string>("categories");
+  
   // Состояния для управления исполнителями
   const [selectedExecutorForAssignment, setSelectedExecutorForAssignment] = useState<number | null>(null);
   const [isAssigningExecutor, setIsAssigningExecutor] = useState(false);
@@ -459,6 +470,13 @@ export default function AdminWorkerDashboard() {
       checkCategoriesWithExecutors();
     }
   }, [categories]);
+
+  // Загружаем пользователей офиса при изменении office_id
+  useEffect(() => {
+    if (user?.office_id && token) {
+      loadOfficeUsers();
+    }
+  }, [user?.office_id, token]);
 
   const filteredMyRequests = sortRequests(
       myRequests.filter((request) => {
@@ -725,6 +743,81 @@ export default function AdminWorkerDashboard() {
       setSubcategoryError(error.response?.data?.message || "Ошибка при удалении подкатегории");
     } finally {
       setIsDeletingSubcategory(false);
+    }
+  };
+
+  // Функции для смены паролей
+  const loadOfficeUsers = async () => {
+    try {
+      if (!user?.office_id) {
+        setPasswordError("Office ID не определен");
+        return;
+      }
+
+      const response = await fetch(`https://kcell-service.onrender.com/api/users/office/${user.office_id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ошибка при загрузке пользователей: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setOfficeUsers(data);
+    } catch (error: any) {
+      console.error("Ошибка при загрузке пользователей:", error);
+      setPasswordError(`Не удалось загрузить пользователей офиса: ${error.message}`);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!selectedUserForPassword || !newPassword.trim()) return;
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Пароли не совпадают");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("Пароль должен содержать минимум 6 символов");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setPasswordError(null);
+
+    try {
+      const response = await fetch(`https://kcell-service.onrender.com/api/users/${selectedUserForPassword}/change-password`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ new_password: newPassword })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Ошибка при смене пароля");
+      }
+
+      successModal.showSuccess({
+        title: "Пароль изменен",
+        message: "Пароль пользователя успешно изменен"
+      });
+
+      setSelectedUserForPassword(null);
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error("Ошибка при смене пароля:", error);
+      setPasswordError(error.message || "Ошибка при смене пароля");
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -1983,6 +2076,11 @@ export default function AdminWorkerDashboard() {
         fetchOffices(),
       ]);
 
+      // Загружаем пользователей офиса после загрузки основных данных
+      if (user?.office_id) {
+        await loadOfficeUsers();
+      }
+
     } catch (error) {
       console.error("Ошибка при обновлении:", error);
     }
@@ -2338,11 +2436,34 @@ export default function AdminWorkerDashboard() {
                 <TabsContent value="change-head">
                   <div className="w-full max-w-full overflow-hidden">
                     <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
-                      {/* Управление категориями */}
+                      {/* Селект разделов управления */}
                       <Card className="w-full">
                         <CardHeader className="pb-3 sm:pb-6">
-                          <CardTitle className="text-base sm:text-lg">Управление категориями и подкатегориями</CardTitle>
+                          <CardTitle className="text-base sm:text-lg">Управление системой</CardTitle>
+                          <CardDescription>Выберите раздел для управления</CardDescription>
                         </CardHeader>
+                        <CardContent>
+                          <Select value={selectedManagementSection} onValueChange={setSelectedManagementSection}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Выберите раздел управления" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="categories">Управление категориями</SelectItem>
+                              <SelectItem value="subcategories">Управление подкатегориями</SelectItem>
+                              <SelectItem value="passwords">Управление паролями</SelectItem>
+                              <SelectItem value="executors">Управление исполнителями</SelectItem>
+                              <SelectItem value="change-head">Смена руководителя категории</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </CardContent>
+                      </Card>
+
+                      {/* Управление категориями */}
+                      {selectedManagementSection === "categories" && (
+                        <Card className="w-full">
+                          <CardHeader className="pb-3 sm:pb-6">
+                            <CardTitle className="text-base sm:text-lg">Управление категориями</CardTitle>
+                          </CardHeader>
                         <CardContent className="space-y-3 sm:space-y-4">
                           {/* Создание категории */}
                           <div className="space-y-2">
@@ -2443,8 +2564,10 @@ export default function AdminWorkerDashboard() {
                           )}
                         </CardContent>
                       </Card>
+                      )}
 
                       {/* Управление подкатегориями */}
+                      {selectedManagementSection === "subcategories" && (
                       <Card className="w-full">
                         <CardHeader className="pb-3 sm:pb-6">
                           <CardTitle className="text-base sm:text-lg">Управление подкатегориями</CardTitle>
@@ -2535,8 +2658,135 @@ export default function AdminWorkerDashboard() {
                           )}
                         </CardContent>
                       </Card>
+                      )}
+
+                      {/* Управление паролями */}
+                      {selectedManagementSection === "passwords" && (
+                      <Card className="w-full">
+                        <CardHeader className="pb-3 sm:pb-6">
+                          <CardTitle className="text-base sm:text-lg">Управление паролями</CardTitle>
+                          <CardDescription>Изменение паролей пользователей вашего офиса</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 sm:space-y-4">
+                          {/* Выбор пользователя */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">
+                              Выберите пользователя ({officeUsers.length} пользователей)
+                            </Label>
+                            <Select onValueChange={(userId) => setSelectedUserForPassword(parseInt(userId))} value={selectedUserForPassword?.toString() || ""}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Выберите пользователя для смены пароля" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {officeUsers.length === 0 ? (
+                                  <SelectItem value="no-users" disabled>
+                                    Нет пользователей в офисе
+                                  </SelectItem>
+                                ) : (
+                                  officeUsers.map(user => (
+                                    <SelectItem key={user.id} value={user.id.toString()}>
+                                      {user.full_name} ({user.phone})
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            {officeUsers.length === 0 && (
+                              <p className="text-sm text-gray-500">
+                                Пользователи офиса не найдены. Проверьте, что у вас есть office_id.
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Новый пароль */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Новый пароль</Label>
+                            <input
+                              type="password"
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              placeholder="Введите новый пароль"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              disabled={isChangingPassword}
+                              autoComplete="new-password"
+                              name="new-password"
+                            />
+                          </div>
+
+                          {/* Подтверждение пароля */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Подтвердите пароль</Label>
+                            <input
+                              type="password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              placeholder="Подтвердите новый пароль"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              disabled={isChangingPassword}
+                              autoComplete="new-password"
+                              name="confirm-password"
+                            />
+                          </div>
+
+                          {/* Кнопки управления */}
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={handleChangePassword}
+                              disabled={!selectedUserForPassword || !newPassword.trim() || !confirmPassword.trim() || isChangingPassword}
+                              className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                            >
+                              {isChangingPassword ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  <span>Изменение...</span>
+                                </div>
+                              ) : (
+                                "Изменить пароль"
+                              )}
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setNewPassword("");
+                                setConfirmPassword("");
+                                setSelectedUserForPassword(null);
+                                setPasswordError(null);
+                              }}
+                              variant="outline"
+                              disabled={isChangingPassword}
+                            >
+                              Очистить
+                            </Button>
+                          </div>
+
+                          {/* Ошибки смены пароля */}
+                          {passwordError && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-xs sm:text-sm text-red-800 min-w-0 flex-1">{passwordError}</p>
+                              </div>
+                            </div>
+                          )}
+
+
+                          {/* Информационное сообщение */}
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="flex items-start gap-2">
+                              <CheckCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                              <div className="text-xs text-blue-800">
+                                <p className="font-medium mb-1">Важно:</p>
+                                <p>• Вы можете изменять пароли только пользователей вашего офиса</p>
+                                <p>• Новый пароль должен содержать минимум 6 символов</p>
+                                <p>• Пользователь сможет войти с новым паролем сразу после изменения</p>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      )}
 
                       {/* Управление исполнителями */}
+                      {selectedManagementSection === "executors" && (
                       <Card className="w-full">
                         <CardHeader className="pb-3 sm:pb-6">
                           <CardTitle className="text-base sm:text-lg">Управление исполнителями</CardTitle>
@@ -2625,8 +2875,10 @@ export default function AdminWorkerDashboard() {
                           )}
                         </CardContent>
                       </Card>
+                      )}
 
                       {/* Смена руководителя категории */}
+                      {selectedManagementSection === "change-head" && (
                       <Card className="w-full">
                         <CardHeader className="pb-3 sm:pb-6">
                           <CardTitle className="text-base sm:text-lg">Смена руководителя категории</CardTitle>
@@ -2760,6 +3012,7 @@ export default function AdminWorkerDashboard() {
                           )}
                         </CardContent>
                       </Card>
+                      )}
                     </div>
                   </div>
                 </TabsContent>
