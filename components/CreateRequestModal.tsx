@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ImportExcelModal } from "./ImportExcelModal";
 import { findNearestOffice, getLocationByIP } from "@/lib/utils";
+import { getBlocksForOffice, getLocationsForBlock, getRoomsForLocation, hasLocationsForBlock, hasRoomsForLocation } from "@/lib/office-locations";
 
 interface ServiceCategory {
   id: number;
@@ -108,7 +109,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [subRequests, setSubRequests] = useState<SubRequest[]>([
     { title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }
   ]);
-  const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set([0]));
   const [validationErrors, setValidationErrors] = useState<Set<number>>(new Set());
   const [basicFieldErrors, setBasicFieldErrors] = useState<Set<string>>(new Set());
   const [isRecurringTask, setIsRecurringTask] = useState(false);
@@ -118,6 +118,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [completionComment, setCompletionComment] = useState("");
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | null>(null);
+
+  // Состояния для нового функционала расположения в офисе
+  const [selectedBlock, setSelectedBlock] = useState<string>("");
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [selectedRoom, setSelectedRoom] = useState<string>("");
+  const [customLocation, setCustomLocation] = useState<string>("");
+  const [customRoom, setCustomRoom] = useState<string>("");
 
   // Состояния для повторяющихся задач
   const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
@@ -148,6 +155,40 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
   }, [requestType]);
 
+  // Сброс блока, местонахождения и помещения при изменении офиса
+  useEffect(() => {
+    setSelectedBlock("");
+    setSelectedLocation("");
+    setSelectedRoom("");
+    setCustomLocation("");
+    setCustomRoom("");
+  }, [selectedOfficeId]);
+
+  // Сброс местонахождения и помещения при изменении блока
+  useEffect(() => {
+    setSelectedLocation("");
+    setSelectedRoom("");
+    setCustomLocation("");
+    setCustomRoom("");
+    
+    // Если для блока нет местонахождений в справочнике, автоматически устанавливаем пустую строку
+    if (selectedBlock && selectedOfficeId) {
+      const currentOffice = offices.find(o => o.id === selectedOfficeId);
+      if (currentOffice) {
+        const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+        if (!hasLocations) {
+          setSelectedLocation(""); // Устанавливаем пустую строку для перехода к помещению
+        }
+      }
+    }
+  }, [selectedBlock, selectedOfficeId, offices]);
+
+  // Сброс помещения при изменении местонахождения
+  useEffect(() => {
+    setSelectedRoom("");
+    setCustomRoom("");
+  }, [selectedLocation]);
+
   const resetForm = () => {
     setRequestType("normal");
     setLocationDetails("");
@@ -160,8 +201,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setCompletionComment("");
     setCompletionDate(new Date());
     setSelectedOfficeId(null);
+    setSelectedBlock("");
+    setSelectedLocation("");
+    setSelectedRoom("");
+    setCustomLocation("");
+    setCustomRoom("");
     setSubRequests([{ title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }]);
-    setExpandedSubRequests(new Set([0]));
     setValidationErrors(new Set());
     setBasicFieldErrors(new Set());
     setHasAttemptedSubmit(false);
@@ -229,20 +274,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   };
 
   const addSubRequest = () => {
-    const newIndex = subRequests.length;
-    setSubRequests([...subRequests, { title: "", description: "", category_id: 0, subcategory_id: 0, executors: [] }]);
-    setExpandedSubRequests(prev => new Set([...prev, newIndex]));
+    // Функция отключена - теперь только один подзаявка
+    return;
   };
 
   const removeSubRequest = (index: number) => {
-    if (subRequests.length > 1) {
-      setSubRequests(subRequests.filter((_, i) => i !== index));
-      setExpandedSubRequests(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(index);
-        return newSet;
-      });
-    }
+    // Функция отключена - нельзя удалить единственный подзаявка
+    return;
   };
 
   const updateSubRequest = (index: number, field: keyof SubRequest, value: any) => {
@@ -301,17 +339,53 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       newBasicFieldErrors.add('requestType');
     }
 
-    if (!locationDetails.trim()) {
-      newBasicFieldErrors.add('locationDetails');
+    // Валидация офиса для всех ролей
+    if (!selectedOfficeId) {
+      newBasicFieldErrors.add('office');
+    }
+
+    // Валидация блока, местонахождения и помещения
+    if (!selectedBlock) {
+      newBasicFieldErrors.add('block');
+    }
+
+    // Проверка местонахождения
+    if (selectedBlock && selectedOfficeId) {
+      const currentOffice = offices.find(o => o.id === selectedOfficeId);
+      if (currentOffice) {
+        const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+        if (hasLocations) {
+          if (!selectedLocation || selectedLocation === "") {
+            newBasicFieldErrors.add('location');
+          } else if (selectedLocation === "Другое" && !customLocation.trim()) {
+            newBasicFieldErrors.add('customLocation');
+          }
+        }
+      }
+    }
+
+    // Проверка помещения
+    if (selectedBlock && selectedLocation && selectedOfficeId) {
+      const currentOffice = offices.find(o => o.id === selectedOfficeId);
+      if (currentOffice) {
+        const hasRooms = hasRoomsForLocation(currentOffice.name, selectedBlock, selectedLocation === "Другое" ? "" : selectedLocation);
+        if (hasRooms) {
+          if (!selectedRoom || selectedRoom === "") {
+            newBasicFieldErrors.add('room');
+          } else if (selectedRoom === "Другое" && !customRoom.trim()) {
+            newBasicFieldErrors.add('customRoom');
+          }
+        } else if (selectedLocation !== "Другое" && selectedLocation !== "") {
+          // Если местонахождение выбрано (не "Другое"), но помещений нет в справочнике
+          if (!customRoom.trim()) {
+            newBasicFieldErrors.add('customRoom');
+          }
+        }
+      }
     }
 
     if (photos.length === 0) {
       newBasicFieldErrors.add('photos');
-    }
-
-    // Валидация офиса для всех ролей
-    if (!selectedOfficeId) {
-      newBasicFieldErrors.add('office');
     }
 
     // Валидация для режима создания с завершением
@@ -325,19 +399,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     setBasicFieldErrors(newBasicFieldErrors);
-  }, [requestType, locationDetails, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit]);
-
-  const toggleSubRequestExpansion = (index: number) => {
-    setExpandedSubRequests(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(index)) {
-        newSet.delete(index);
-      } else {
-        newSet.add(index);
-      }
-      return newSet;
-    });
-  };
+  }, [requestType, selectedBlock, selectedLocation, selectedRoom, customLocation, customRoom, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit, offices]);
 
   useEffect(() => {
     if (isOpen) {
@@ -402,17 +464,52 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       basicFieldErrors.push('тип заявки');
     }
 
-    if (!locationDetails.trim()) {
-      basicFieldErrors.push('расположение в офисе');
+    // Валидация офиса для всех ролей
+    if (!selectedOfficeId) {
+      basicFieldErrors.push('офис');
+    }
+
+    // Валидация блока, местонахождения и помещения
+    if (!selectedBlock) {
+      basicFieldErrors.push('блок');
+    }
+
+    const currentOffice = offices.find(o => o.id === selectedOfficeId);
+    if (currentOffice && selectedBlock) {
+      // Проверка местонахождения
+      const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+      if (hasLocations) {
+        if (!selectedLocation || selectedLocation === "") {
+          basicFieldErrors.push('местонахождение');
+        } else if (selectedLocation === "Другое" && !customLocation.trim()) {
+          basicFieldErrors.push('местонахождение (укажите вручную)');
+        }
+      }
+
+      // Проверка помещения
+      if (selectedLocation) {
+        const hasRooms = hasRoomsForLocation(
+          currentOffice.name,
+          selectedBlock, 
+          selectedLocation === "Другое" ? "" : selectedLocation
+        );
+        if (hasRooms) {
+          if (!selectedRoom || selectedRoom === "") {
+            basicFieldErrors.push('помещение');
+          } else if (selectedRoom === "Другое" && !customRoom.trim()) {
+            basicFieldErrors.push('помещение (укажите вручную)');
+          }
+        } else if (selectedLocation !== "Другое" && selectedLocation !== "") {
+          // Если местонахождение выбрано (не "Другое"), но помещений нет в справочнике
+          if (!customRoom.trim()) {
+            basicFieldErrors.push('помещение (укажите вручную)');
+          }
+        }
+      }
     }
 
     if (photos.length === 0) {
       basicFieldErrors.push('фотографии (минимум 1)');
-    }
-
-    // Валидация офиса для всех ролей
-    if (!selectedOfficeId) {
-      basicFieldErrors.push('офис');
     }
 
     // Валидация для режима создания с завершением
@@ -429,18 +526,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     const subRequestErrors: string[] = [];
     subRequests.forEach((subRequest, index) => {
       if (!subRequest.title.trim()) {
-        subRequestErrors.push(`название подзаявки #${index + 1}`);
+        subRequestErrors.push(`название заявки`);
       }
       if (!subRequest.description.trim()) {
-        subRequestErrors.push(`описание подзаявки #${index + 1}`);
+        subRequestErrors.push(`описание заявки`);
       }
       if (!subRequest.category_id || subRequest.category_id === 0) {
-        subRequestErrors.push(`категорию подзаявки #${index + 1}`);
+        subRequestErrors.push(`категорию заявки`);
       }
     });
 
+    // Проверяем что есть хотя бы один заявка (всегда должен быть один)
     if (subRequests.length === 0) {
-      basicFieldErrors.push('хотя бы одну подзаявку');
+      basicFieldErrors.push('хотя бы одну заявку');
     }
 
     if (basicFieldErrors.length > 0 || subRequestErrors.length > 0) {
@@ -456,13 +554,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         const invalidIndices = invalidSubRequests.map(sub => {
           return subRequests.indexOf(sub) + 1;
         });
-        // Автоматически разворачиваем подзаявки с ошибками валидации
-        const newExpandedSubRequests = new Set(expandedSubRequests);
-        invalidIndices.forEach(index => {
-          newExpandedSubRequests.add(index - 1); // index - 1 потому что индексы начинаются с 1
-        });
-        setExpandedSubRequests(newExpandedSubRequests);
-        const errorMessage = `Пожалуйста, заполните сложность и время выполнения для всех подзаявок.\n\nНе заполнено для подзаявок: ${invalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
+        const errorMessage = `Пожалуйста, заполните сложность и время выполнения для заявки.\n\nЗаявка автоматически развернута для заполнения.`;
         return;
       }
     }
@@ -480,13 +572,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         const leaderInvalidIndices = subRequestsWithoutLeader.map(sub => {
           return subRequests.indexOf(sub) + 1;
         });
-        // Автоматически разворачиваем подзаявки без лидера
-        const newExpandedSubRequests = new Set(expandedSubRequests);
-        leaderInvalidIndices.forEach(index => {
-          newExpandedSubRequests.add(index - 1);
-        });
-        setExpandedSubRequests(newExpandedSubRequests);
-        const errorMessage = `Пожалуйста, назначьте лидера для всех подзаявок с исполнителями.\n\nНе назначен лидер для подзаявок: ${leaderInvalidIndices.join(', ')}\n\nПодзаявки автоматически развернуты для заполнения.`;
+        const errorMessage = `Пожалуйста, назначьте лидера для заявки с исполнителями.\n\nЗаявка автоматически развернута для заполнения.`;
         return;
       }
     }
@@ -511,9 +597,61 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     // Для повторяющихся задач устанавливаем request_type как 'recurring', иначе используем обычный requestType
     const finalRequestType = isRecurringTask ? 'recurring' : requestType;
     formData.append('request_type', finalRequestType);
-    const currentOffice = offices.find(office => office.id === selectedOfficeId);
     formData.append('location', `Широта: ${currentOffice?.lat}, Долгота: ${currentOffice?.lon} (±${Math.round(1)} м)`);
-    formData.append('location_detail', locationDetails);
+    
+    // Формируем location_detail из блока, местонахождения и помещения
+    const locationParts = [];
+    locationParts.push(`Блок: ${selectedBlock}`);
+    
+    // Добавляем местонахождение
+    if (currentOffice) {
+      const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+      if (hasLocations) {
+        // Есть справочные местонахождения
+        const locationValue = selectedLocation === "Другое" ? customLocation : selectedLocation;
+        if (locationValue) {
+          locationParts.push(`Местонахождение: ${locationValue}`);
+        }
+      } else {
+        // Нет справочных местонахождений - используем customLocation если заполнено
+        if (customLocation) {
+          locationParts.push(`Местонахождение: ${customLocation}`);
+        }
+      }
+    }
+    
+    // Добавляем помещение
+    if (currentOffice) {
+      const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+      
+      // Определяем текущее местонахождение для проверки помещений
+      let currentLocationForRooms = "";
+      if (hasLocations) {
+        currentLocationForRooms = selectedLocation === "Другое" ? "" : selectedLocation;
+      }
+      
+      const hasRooms = hasRoomsForLocation(
+        currentOffice.name,
+        selectedBlock, 
+        currentLocationForRooms
+      );
+      
+      if (hasRooms) {
+        // Есть справочные помещения
+        const roomValue = selectedRoom === "Другое" ? customRoom : selectedRoom;
+        if (roomValue) {
+          locationParts.push(`Помещение: ${roomValue}`);
+        }
+      } else {
+        // Нет справочных помещений - используем customRoom если заполнено
+        if (customRoom) {
+          locationParts.push(`Помещение: ${customRoom}`);
+        }
+      }
+    }
+
+    const locationDetailsStr = locationParts.join(', ');
+    formData.append('location_detail', locationDetailsStr);
     formData.append('status', groupStatus);
     if (plannedDate) formData.append('planned_date', plannedDate);
     if (selectedOfficeId) {
@@ -666,7 +804,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <SelectTrigger className={hasAttemptedSubmit && !selectedOfficeId ? 'border-red-300 focus:border-red-500' : ''}>
                   <SelectValue placeholder="Выберите офис" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                   {offices.map((office) => (
                     <SelectItem key={office.id} value={office.id.toString()}>
                       {office.name} - {office.city}
@@ -699,19 +837,189 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </div>
           )}
 
-          <div>
-            <Label className="flex items-center gap-1 mb-2">
-              Расположение в офисе
-            </Label>
-            <Input
-              className={hasAttemptedSubmit && basicFieldErrors.has('locationDetails') ? 'border-red-300 focus:border-red-500' : ''}
-              placeholder="Например: 3 этаж, кабинет 305"
-              value={locationDetails}
-              onChange={(e) => setLocationDetails(e.target.value)}
-            />
-            {hasAttemptedSubmit && basicFieldErrors.has('locationDetails') && (
-              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-            )}
+          {/* Блок, Местонахождение, Помещение */}
+          <div className="space-y-4">
+            {/* Блок */}
+            <div>
+              <Label className="flex items-center gap-1 mb-2">
+                Блок
+              </Label>
+              <Select
+                value={selectedBlock}
+                onValueChange={(value) => setSelectedBlock(value)}
+                disabled={!selectedOfficeId}
+              >
+                <SelectTrigger 
+                  className={hasAttemptedSubmit && basicFieldErrors.has('block') ? 'border-red-300 focus:border-red-500' : ''}
+                >
+                  <SelectValue placeholder={selectedOfficeId ? "Выберите блок" : "Сначала выберите офис"} />
+                </SelectTrigger>
+                <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                  {selectedOfficeId && (() => {
+                    const currentOffice = offices.find(o => o.id === selectedOfficeId);
+                    if (currentOffice) {
+                      const blocks = getBlocksForOffice(currentOffice.name);
+                      return blocks.map((block) => (
+                        <SelectItem key={block} value={block}>
+                          {block}
+                        </SelectItem>
+                      ));
+                    }
+                    return null;
+                  })()}
+                </SelectContent>
+              </Select>
+              {hasAttemptedSubmit && basicFieldErrors.has('block') && (
+                <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+              )}
+            </div>
+
+            {/* Местонахождение */}
+            {selectedBlock && (() => {
+              const currentOffice = offices.find(o => o.id === selectedOfficeId);
+              if (!currentOffice) return null;
+              
+              const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+              const locations = hasLocations ? getLocationsForBlock(currentOffice.name, selectedBlock) : [];
+              
+              if (hasLocations && locations.length > 0) {
+                // Показываем селект если есть местонахождения в справочнике
+                return (
+                  <div>
+                    <Label className="flex items-center gap-1 mb-2">
+                      Местонахождение
+                    </Label>
+                    <Select
+                      value={selectedLocation}
+                      onValueChange={(value) => setSelectedLocation(value)}
+                    >
+                      <SelectTrigger 
+                        className={hasAttemptedSubmit && basicFieldErrors.has('location') ? 'border-red-300 focus:border-red-500' : ''}
+                      >
+                        <SelectValue placeholder="Выберите местонахождение" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                        {locations.map((location) => (
+                          <SelectItem key={location} value={location}>
+                            {location}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="Другое">Другое</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {hasAttemptedSubmit && basicFieldErrors.has('location') && (
+                      <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                    )}
+                    
+                    {selectedLocation === "Другое" && (
+                      <div className="mt-2">
+                        <Input
+                          placeholder="Введите местонахождение"
+                          value={customLocation}
+                          onChange={(e) => setCustomLocation(e.target.value)}
+                          className={hasAttemptedSubmit && basicFieldErrors.has('customLocation') ? 'border-red-300 focus:border-red-500' : ''}
+                        />
+                        {hasAttemptedSubmit && basicFieldErrors.has('customLocation') && (
+                          <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              } else {
+                // Если местонахождений нет в справочнике, сразу переходим к помещению
+                return null;
+              }
+            })()}
+
+            {/* Помещение */}
+            {selectedBlock && (() => {
+              const currentOffice = offices.find(o => o.id === selectedOfficeId);
+              if (!currentOffice) return null;
+              
+              // Проверяем, нужно ли показывать поле помещения
+              const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+              const shouldShowRoom = !hasLocations || (hasLocations && selectedLocation !== "");
+              
+              if (!shouldShowRoom) return null;
+
+              const hasRooms = hasRoomsForLocation(
+                currentOffice.name,
+                selectedBlock, 
+                selectedLocation === "Другое" ? "" : selectedLocation
+              );
+
+              if (hasRooms) {
+                const rooms = getRoomsForLocation(
+                  currentOffice.name,
+                  selectedBlock, 
+                  selectedLocation === "Другое" ? "" : selectedLocation
+                );
+
+                return (
+                  <div>
+                    <Label className="flex items-center gap-1 mb-2">
+                      Помещение
+                    </Label>
+                    <Select
+                      value={selectedRoom}
+                      onValueChange={(value) => setSelectedRoom(value)}
+                    >
+                      <SelectTrigger 
+                        className={hasAttemptedSubmit && basicFieldErrors.has('room') ? 'border-red-300 focus:border-red-500' : ''}
+                      >
+                        <SelectValue placeholder="Выберите помещение" />
+                      </SelectTrigger>
+                      <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                        {rooms.map((room) => (
+                          <SelectItem key={room} value={room}>
+                            {room}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="Другое">Другое</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {hasAttemptedSubmit && basicFieldErrors.has('room') && (
+                      <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                    )}
+                    
+                    {selectedRoom === "Другое" && (
+                      <div className="mt-2">
+                        <Input
+                          placeholder="Введите помещение"
+                          value={customRoom}
+                          onChange={(e) => setCustomRoom(e.target.value)}
+                          className={hasAttemptedSubmit && basicFieldErrors.has('customRoom') ? 'border-red-300 focus:border-red-500' : ''}
+                        />
+                        {hasAttemptedSubmit && basicFieldErrors.has('customRoom') && (
+                          <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              } else if (selectedLocation !== "Другое") {
+                // Если местонахождение выбрано (не "Другое"), но помещений нет в справочнике
+                return (
+                  <div>
+                    <Label className="flex items-center gap-1 mb-2">
+                      Помещение *
+                    </Label>
+                    <Input
+                      placeholder="Введите помещение"
+                      value={customRoom}
+                      onChange={(e) => setCustomRoom(e.target.value)}
+                      className={hasAttemptedSubmit && basicFieldErrors.has('customRoom') ? 'border-red-300 focus:border-red-500' : ''}
+                    />
+                    {hasAttemptedSubmit && basicFieldErrors.has('customRoom') && (
+                      <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                    )}
+                  </div>
+                );
+              }
+              
+              return null;
+            })()}
           </div>
 
           <div>
@@ -725,7 +1033,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               <SelectTrigger className={hasAttemptedSubmit && basicFieldErrors.has('requestType') ? 'border-red-300 focus:border-red-500' : ''}>
                 <SelectValue placeholder="Выберите тип заявки" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                 <SelectItem value="normal">Обычная</SelectItem>
                 <SelectItem value="urgent">Экстренная</SelectItem>
                 {(userRole === 'admin-worker' || userRole === 'department-head') && (
@@ -790,7 +1098,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                       <SelectItem value="daily">Ежедневно</SelectItem>
                       <SelectItem value="weekly">Еженедельно</SelectItem>
                       <SelectItem value="monthly">Ежемесячно</SelectItem>
@@ -808,7 +1116,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                       <SelectItem value="1">Каждые 1</SelectItem>
                       <SelectItem value="2">Каждые 2</SelectItem>
                       <SelectItem value="3">Каждые 3</SelectItem>
@@ -1007,21 +1315,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </>
           )}
 
-          {/* Под заявки */}
+            {/* Под заявки - теперь только один */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              {(!isRecurringTask) && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addSubRequest}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Добавить под заявку
-              </Button>
-              )}
+              {/* Кнопка добавления подзаявки отключена - теперь только один подзаявка */}
               {/* Кнопка импорта Excel для admin-worker и department-head */}
               {(userRole === 'admin-worker' || userRole === 'department-head') && (
                 <Button
@@ -1038,139 +1335,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               )}
             </div>
 
-            <div className="space-y-3">
+            <div>
               {subRequests.map((subRequest, index) => (
-                <div key={index} className="relative group">
-                  {/* Основная карточка подзаявки */}
-                  <div className={`relative overflow-hidden rounded-xl border transition-all duration-200 ${
-                    hasAttemptedSubmit && (
-                      validationErrors.has(index) || 
-                      !subRequest.title.trim() || 
-                      !subRequest.description.trim() || 
-                      !subRequest.category_id ||
-                      (userRole === 'department-head' && userServiceCategoryId && 
-                       subRequest.category_id === userServiceCategoryId && 
-                       subRequest.executors && subRequest.executors.length > 0 && 
-                       !subRequest.executors.some(e => e.role === 'leader'))
-                    )
-                      ? 'border-red-200 bg-red-50/30' 
-                      : 'border-gray-200 bg-white hover:border-violet-300 hover:shadow-md'
-                  }`}>
-
-                    {/* Градиентная полоса слева */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${
-                      hasAttemptedSubmit && (
-                        validationErrors.has(index) || 
-                        !subRequest.title.trim() || 
-                        !subRequest.description.trim() || 
-                        !subRequest.category_id ||
-                        (userRole === 'department-head' && userServiceCategoryId && 
-                         subRequest.category_id === userServiceCategoryId && 
-                         subRequest.executors && subRequest.executors.length > 0 && 
-                         !subRequest.executors.some(e => e.role === 'leader'))
-                      )
-                        ? 'bg-gradient-to-b from-red-400 to-red-600' 
-                        : 'bg-gradient-to-b from-violet-400 to-violet-600'
-                    }`} />
-
-                    {/* Заголовок подзаявки */}
-                    <div className="pl-6 pr-4 py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 flex-1">
-                          {/* Номер подзаявки */}
-                          <div className={`flex items-center justify-center w-10 h-10 rounded-full text-sm font-semibold shadow-sm ${
-                            hasAttemptedSubmit && (
-                              validationErrors.has(index) || 
-                              !subRequest.title.trim() || 
-                              !subRequest.description.trim() || 
-                              !subRequest.category_id ||
-                              (userRole === 'department-head' && userServiceCategoryId && 
-                               subRequest.category_id === userServiceCategoryId && 
-                               subRequest.executors && subRequest.executors.length > 0 && 
-                               !subRequest.executors.some(e => e.role === 'leader'))
-                            )
-                              ? 'bg-red-100 text-red-700 border-2 border-red-200' 
-                              : 'bg-violet-100 text-violet-700 border-2 border-violet-200'
-                          }`}>
-                            {index + 1}
-                          </div>
-
-                          {/* Информация о подзаявке */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-1">
-                              <h4 className="font-semibold text-lg text-gray-900">Под заявка #{index + 1}</h4>
-                            </div>
-
-                            {/* Сообщения об ошибках */}
-                            {hasAttemptedSubmit && validationErrors.has(index) && (
-                              <div className="flex items-center gap-2 text-red-600 text-sm">
-                                <AlertTriangle className="w-4 h-4" />
-                                <span>
-                                  {userRole === 'admin-worker'
-                                    ? 'Требуется заполнить сложность и время выполнения'
-                                    : userRole === 'department-head'
-                                      ? (() => {
-                                          const subRequest = subRequests[index];
-                                          const hasComplexityAndTime = subRequest.complexity && subRequest.sla;
-                                          const hasExecutors = subRequest.executors && subRequest.executors.length > 0;
-                                          const hasLeader = hasExecutors && subRequest.executors!.some(e => e.role === 'leader');
-
-                                                  if (!hasComplexityAndTime && !hasLeader) {
-          return 'Требуется заполнить сложность, время выполнения и назначить лидера';
-        } else if (!hasComplexityAndTime) {
-          return 'Требуется заполнить сложность и время выполнения';
-                                          } else if (!hasLeader) {
-                                            return 'Требуется назначить лидера среди исполнителей';
-                                          }
-                                          return 'Требуется заполнить обязательные поля';
-                                        })()
-                                      : 'Требуется заполнить обязательные поля'
-                                  }
-                                </span>
-                              </div>
-                            )}
-                            {hasAttemptedSubmit && !validationErrors.has(index) && (!subRequest.title.trim() || !subRequest.description.trim() || !subRequest.category_id) && (
-                              <div className="flex items-center gap-2 text-red-600 text-sm">
-                                <AlertTriangle className="w-4 h-4" />
-                                <span>Требуется заполнить название, описание и категорию</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Кнопки управления */}
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleSubRequestExpansion(index)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          >
-                            {expandedSubRequests.has(index) ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                          </Button>
-                          {subRequests.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeSubRequest(index)}
-                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
+                <div key={index}>
                                         {/* Содержимое подзаявки */}
-                    <div className={`border-t border-gray-100 ${expandedSubRequests.has(index) ? 'block' : 'hidden'}`}>
-                      <div className="p-6 space-y-5">
+                    <div>
+                      <div className="space-y-5">
 
                         <div>
                           <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1 mb-2">
@@ -1180,11 +1350,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                               value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
                               onValueChange={(value) => {
                                 const category = categories.find(c => c.name === value);
-                                
+
                                 // Обновляем все поля за один раз
                                 const newSubRequests = [...subRequests];
-                                newSubRequests[index] = { 
-                                  ...newSubRequests[index], 
+                                newSubRequests[index] = {
+                                  ...newSubRequests[index],
                                   category_id: category?.id || 0,
                                   subcategory_id: 0,
                                   title: ''
@@ -1198,7 +1368,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                             >
                               <SelectValue placeholder="Выберите категорию" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                               {categories.map(category => (
                                   <SelectItem key={category.id} value={category.name}>
                                     {category.name}
@@ -1226,10 +1396,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                 // Обновляем все поля за один раз
                                 const category = categories.find(c => c.id === subRequest.category_id);
                                 const subcategory = category?.subcategories?.find(s => s.name === value);
-                                
+
                                 const newSubRequests = [...subRequests];
-                                newSubRequests[index] = { 
-                                  ...newSubRequests[index], 
+                                newSubRequests[index] = {
+                                  ...newSubRequests[index],
                                   title: value,
                                   subcategory_id: subcategory?.id || 0
                                 };
@@ -1242,7 +1412,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                             >
                               <SelectValue placeholder="Выберите название заявки" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                               {(() => {
                                 const category = categories.find(c => c.id === subRequest.category_id);
                                 return category?.subcategories?.map(subcategory => (
@@ -1301,7 +1471,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   <SelectTrigger>
                                     <SelectValue placeholder="Выберите исполнителя для добавления" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                                     {executors
                                       .filter(executor => !subRequest.executors?.some(e => e.id === executor.id))
                                       .map(executor => (
@@ -1368,7 +1538,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                             <SelectTrigger className="w-28 h-8 text-xs">
                                               <SelectValue />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent position="popper" className="max-h-[200px]">
                                               <SelectItem value="executor">Исполнитель</SelectItem>
                                               <SelectItem value="leader">Лидер</SelectItem>
                                             </SelectContent>
@@ -1446,7 +1616,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   >
                                     <SelectValue placeholder="Выберите сложность" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                                     <SelectItem value="simple">Простая</SelectItem>
                                     <SelectItem value="medium">Средняя</SelectItem>
                                     <SelectItem value="complex">Сложная</SelectItem>
@@ -1471,7 +1641,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   >
                                     <SelectValue placeholder="Выберите время выполнения" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                                     <SelectItem value="1h">1 час</SelectItem>
                                     <SelectItem value="4h">4 часа</SelectItem>
                                     <SelectItem value="8h">8 часов</SelectItem>
@@ -1505,7 +1675,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                     <>
                                       <AlertTriangle className="w-4 h-4 text-yellow-600" />
                                       <span className="text-yellow-800">
-                                        Заполните сложность и время выполнения для этой подзаявки
+                                        Заполните сложность и время выполнения для заявки
                                       </span>
                                     </>
                                   )}
@@ -1516,7 +1686,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         )}
                       </div>
                     </div>
-                  </div>
                 </div>
               ))}
             </div>

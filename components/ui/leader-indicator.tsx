@@ -48,7 +48,7 @@ export function LeaderIndicator({ isDesktop, size = 'md', className = '' }: Lead
             <div className="p-2">
               <p className="font-medium text-sm text-gray-900">Ответственный исполнитель</p>
               <p className="text-xs text-gray-600 mt-1">
-                Может управлять подзаявкой
+                Может управлять заявкой
               </p>
             </div>
           </TooltipContent>
@@ -115,7 +115,7 @@ export function LeaderIndicator({ isDesktop, size = 'md', className = '' }: Lead
                       </li>
                       <li className="flex items-center gap-2">
                         <div className="w-1 h-1 bg-purple-600 rounded-full"></div>
-                        Завершить подзаявку
+                        Завершить заявку
                       </li>
                       <li className="flex items-center gap-2">
                         <div className="w-1 h-1 bg-purple-600 rounded-full"></div>

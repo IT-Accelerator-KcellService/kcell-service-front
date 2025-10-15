@@ -120,7 +120,7 @@ export function RoleBasedActionMenu({
                 ? [
                   {
                     icon: Trash2,
-                    label: "Удалить подзаявку",
+                    label: "Удалить заявку",
                     onClick: () => {
                       onDelete(request)
                       setOpen(false)
@@ -253,7 +253,7 @@ export function RoleBasedActionMenu({
             ? [
                 {
                   icon: Trash2,
-                  label: "Удалить подзаявку",
+                  label: "Удалить заявку",
                   onClick: () => {
                     onDelete(request)
                     setOpen(false)
@@ -372,7 +372,7 @@ export function RoleBasedActionMenu({
                 ? [
                   {
                     icon: Trash2,
-                    label: "Удалить подзаявку",
+                    label: "Удалить заявку",
                     onClick: () => {
                       onDelete(request)
                       setOpen(false)
@@ -441,7 +441,7 @@ export function RoleBasedActionMenu({
                 ? [
                   {
                     icon: Trash2,
-                    label: "Удалить подзаявку",
+                    label: "Удалить заявку",
                     onClick: () => {
                       onDelete(request)
                       setOpen(false)
