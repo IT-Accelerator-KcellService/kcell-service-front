@@ -807,7 +807,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                   {offices.map((office) => (
                     <SelectItem key={office.id} value={office.id.toString()}>
-                      {office.name} - {office.city}
+                      {office.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
