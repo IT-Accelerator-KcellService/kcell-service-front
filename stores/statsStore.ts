@@ -30,6 +30,7 @@ export interface AdminWorkerStats {
 export interface DepHeadStats {
     totalRequests: number;
     statusCounts: {
+        awaitingAssignment: number;
         new: number;
         inWork: number;
         completed: number;
@@ -97,6 +98,7 @@ export type StatsState = {
     depHeadStats: DepHeadStats | {
         totalRequests: 0;
         statusCounts: {
+            awaitingAssignment: 0;
             new: 0;
             inWork: 0;
             completed: 0;
@@ -165,6 +167,7 @@ export const useStatsStore = create<StatsState & StatsActions>()(
             depHeadStats: {
                 totalRequests: 0,
                 statusCounts: {
+                    awaitingAssignment: 0,
                     new: 0,
                     inWork: 0,
                     completed: 0,
@@ -269,6 +272,7 @@ export const useStatsStore = create<StatsState & StatsActions>()(
                     depHeadStats: {
                         totalRequests: 0,
                         statusCounts: {
+                            awaitingAssignment: 0,
                             new: 0,
                             inWork: 0,
                             completed: 0,

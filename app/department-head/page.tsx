@@ -87,6 +87,7 @@ interface Executor{
 interface Stats {
   totalRequests: number,
   statusCounts: {
+    awaitingAssignment: number,
     new: number,
     inWork: number,
     completed: number,
@@ -1484,6 +1485,10 @@ export default function DepartmentHeadDashboard() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4 text-sm sm:text-base">
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">Ожидает назначения</span>
+                            <span className="font-bold">{stats && stats.statusCounts && stats.statusCounts.awaitingAssignment ? (stats.statusCounts.awaitingAssignment) : 0}</span>
+                          </div>
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">Всего заявок</span>
                             <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests) : 0}</span>
