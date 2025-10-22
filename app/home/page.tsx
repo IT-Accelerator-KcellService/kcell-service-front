@@ -681,6 +681,40 @@ export default function HomePage() {
         }
     };
 
+    const handleOverdueRequestsClick = () => {
+        if (role === 'admin-worker') {
+            router.push(`/admin-worker?status=overdue`);
+        } else if (role === 'department-head') {
+            router.push(`/department-head?status=overdue`);
+        } else if (role === 'manager') {
+            router.push(`/manager?status=overdue`);
+        }
+    };
+
+    const handleNormalRequestsClick = () => {
+        if (role === 'admin-worker') {
+            router.push(`/admin-worker?priority=normal`);
+        } else if (role === 'manager') {
+            router.push(`/manager?priority=normal`);
+        }
+    };
+
+    const handleUrgentRequestsClick = () => {
+        if (role === 'admin-worker') {
+            router.push(`/admin-worker?priority=urgent`);
+        } else if (role === 'manager') {
+            router.push(`/manager?priority=urgent`);
+        }
+    };
+
+    const handlePlannedRequestsClick = () => {
+        if (role === 'admin-worker') {
+            router.push(`/admin-worker?priority=planned`);
+        } else if (role === 'manager') {
+            router.push(`/manager?priority=planned`);
+        }
+    };
+
     return (
         <>
             <Header
@@ -819,7 +853,11 @@ export default function HomePage() {
                                             value={`${adminWorkerStats?.statusCounts?.completed ?? 0} (${summary.completionRate}%)`} 
                                             onClick={handleCompletedRequestsClick}
                                         />
-                                        <Stat label="Просрочено" value={`${adminWorkerStats?.statusCounts?.overdue ?? 0} (${summary.overdueRate}%)`} />
+                                        <Stat 
+                                            label="Просрочено" 
+                                            value={`${adminWorkerStats?.statusCounts?.overdue ?? 0} (${summary.overdueRate}%)`} 
+                                            onClick={handleOverdueRequestsClick}
+                                        />
                                         <Stat label="В день (ср.)" value={summary.avgPerDay} />
                                     </>
                                 )}
@@ -841,7 +879,11 @@ export default function HomePage() {
                                             value={depHeadStats?.statusCounts?.completed ?? 0} 
                                             onClick={handleCompletedRequestsClick}
                                         />
-                                        <Stat label="Просрочено" value={depHeadStats?.statusCounts?.overdue ?? 0} />
+                                        <Stat 
+                                            label="Просрочено" 
+                                            value={depHeadStats?.statusCounts?.overdue ?? 0} 
+                                            onClick={handleOverdueRequestsClick}
+                                        />
                                     </>
                                 )}
 
@@ -876,7 +918,11 @@ export default function HomePage() {
                                             value={`${summary.completed} (${summary.completionRate}%)`} 
                                             onClick={handleCompletedRequestsClick}
                                         />
-                                        <Stat label="Просрочено" value={`${summary.overdue} (${summary.overdueRate}%)`} />
+                                        <Stat 
+                                            label="Просрочено" 
+                                            value={`${summary.overdue} (${summary.overdueRate}%)`} 
+                                            onClick={handleOverdueRequestsClick}
+                                        />
                                         <Stat label="В день (ср.)" value={summary.avgPerDay} />
                                     </>
                                 )}
@@ -1063,7 +1109,18 @@ export default function HomePage() {
                                                         const pctKey = row.pctKey as "normalPercent" | "urgentPercent" | "plannedPercent"
                                                         return (
                                                             <div key={row.key} className="space-y-2">
-                                                                <div className="flex items-center justify-between text-sm">
+                                                                <div 
+                                                                    className="flex items-center justify-between text-sm cursor-pointer hover:bg-gray-50 rounded p-1 transition-colors"
+                                                                    onClick={() => {
+                                                                        if (row.key === 'normal') {
+                                                                            handleNormalRequestsClick();
+                                                                        } else if (row.key === 'urgent') {
+                                                                            handleUrgentRequestsClick();
+                                                                        } else if (row.key === 'planned') {
+                                                                            handlePlannedRequestsClick();
+                                                                        }
+                                                                    }}
+                                                                >
                                                                     <div className="flex items-center gap-2">
                                                                         {row.icon}
                                                                         <span>{row.label}</span>

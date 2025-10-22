@@ -571,7 +571,8 @@ export default function DepartmentHeadDashboard() {
   // Фильтрация входящих заявок
   const filteredIncomingRequests = incomingRequests.filter((request) => {
     const statusMatch = filterIncomingStatus === "all"   ||
-        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterIncomingStatus);
+        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
+         filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
     const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
     return statusMatch && typeMatch;
   });
@@ -1337,26 +1338,28 @@ export default function DepartmentHeadDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="mb-6">
+                <div className="mb-3">
                   {/* на телефоне только табы */}
-                  <div className="flex flex-col sm:hidden gap-3 mb-4">
-                    <TabsList className="flex flex-wrap gap-2 w-full">
-                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Входящие</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Мои</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Повторяющиеся</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Статистика
-                      </TabsTrigger>
-                      <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Управление</span>
-                      </TabsTrigger>
-                    </TabsList>
+                  <div className="w-full mb-2 sm:hidden">
+                    <div className="overflow-x-auto">
+                      <TabsList className="flex w-max min-w-full">
+                        <TabsTrigger value="incoming" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Входящие</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="my-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Мои</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Повторяющиеся</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Статистика
+                        </TabsTrigger>
+                        <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Управление</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
                   </div>
 
                   {/* на больших экранах */}
@@ -1389,7 +1392,7 @@ export default function DepartmentHeadDashboard() {
                 </div>
 
 
-                <TabsContent value="my-requests" className="pt-6 sm:pt-0">
+                <TabsContent value="my-requests" className="pt-2 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {myRequests.map((request, index: number) => (
                       <RequestCard
@@ -1432,9 +1435,9 @@ export default function DepartmentHeadDashboard() {
                   />
                 </TabsContent>
 
-                <TabsContent value="incoming" className="pt-6 sm:pt-0">
+                <TabsContent value="incoming" className="pt-2 sm:pt-0">
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-4 mb-4">
+                    <div className="flex items-center space-x-4 mb-2">
                       <Select value={filterIncomingStatus} onValueChange={setFilterIncomingStatus}>
                         <SelectTrigger className="w-48">
                           <SelectValue placeholder="Статус" />
@@ -1446,6 +1449,7 @@ export default function DepartmentHeadDashboard() {
                           <SelectItem value="assigned">Назначен</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="overdue">Просрочено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1477,7 +1481,7 @@ export default function DepartmentHeadDashboard() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="statistics" className="pt-6 sm:pt-0">
+                <TabsContent value="statistics" className="pt-2 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card className="w-full">
                       <CardHeader>
@@ -1546,7 +1550,7 @@ export default function DepartmentHeadDashboard() {
                 </TabsContent>
 
 
-                <TabsContent value="management" className="pt-6 sm:pt-0">
+                <TabsContent value="management" className="pt-2 sm:pt-0">
                   <div className="space-y-6">
                     <Card>
                       <CardHeader>

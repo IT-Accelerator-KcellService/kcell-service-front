@@ -480,8 +480,19 @@ export default function AdminWorkerDashboard() {
 
   const filteredMyRequests = sortRequests(
       myRequests.filter((request) => {
-        const statusMatch = filterMyStatus === "all"  ||
-            (filterMyStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterMyStatus);
+        let statusMatch = false;
+        
+        if (filterMyStatus === "all") {
+          statusMatch = true;
+        } else if (filterMyStatus === "long_term") {
+          statusMatch = request.requests.some(req => req.is_long_term && request.request_type !== 'recurring');
+        } else if (filterMyStatus === "overdue") {
+          // Для просроченных заявок показываем все, так как фильтрация уже выполнена на бэкенде
+          statusMatch = true;
+        } else {
+          statusMatch = request.status === filterMyStatus;
+        }
+        
         const requestType = request.request_type;
         const typeMatch = filterMyType === "all" || requestType === filterMyType;
         return statusMatch && typeMatch;
@@ -490,11 +501,21 @@ export default function AdminWorkerDashboard() {
 
   const filteredIncomingRequests = sortRequests(
       incomingRequests.filter((request) => {
-        const statusMatch = filterIncomingStatus === "all"  ||
-            (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterIncomingStatus);
+        let statusMatch = false;
+        
+        if (filterIncomingStatus === "all") {
+          statusMatch = true;
+        } else if (filterIncomingStatus === "long_term") {
+          statusMatch = request.requests.some(req => req.is_long_term && request.request_type !== 'recurring');
+        } else if (filterIncomingStatus === "overdue") {
+          // Для просроченных заявок показываем все, так как фильтрация уже выполнена на бэкенде
+          statusMatch = true;
+        } else {
+          statusMatch = request.status === filterIncomingStatus;
+        }
+        
         const requestType = request.request_type;
         const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType;
-        
         
         return statusMatch && typeMatch;
       })
@@ -516,6 +537,7 @@ export default function AdminWorkerDashboard() {
   useEffect(() => {
     const create = searchParams.get("createRequest")
     const status = searchParams.get("status")
+    const priority = searchParams.get("priority")
 
     if (create === "true") {
       // Всегда добавляем createRequest в стек и историю
@@ -535,6 +557,14 @@ export default function AdminWorkerDashboard() {
       console.log('Setting filterIncomingStatus to:', status);
       // Маппинг статусов: in_progress -> in_progress, execution -> execution, completed -> completed
       setFilterIncomingStatus(status);
+    }
+
+    // Обработка параметра priority из URL
+    if (priority) {
+      console.log('=== URL PRIORITY ===');
+      console.log('Setting filterIncomingType to:', priority);
+      // Маппинг приоритетов: normal -> normal, urgent -> urgent, planned -> planned
+      setFilterIncomingType(priority);
     }
   }, [searchParams])
 
@@ -563,6 +593,17 @@ export default function AdminWorkerDashboard() {
       isInitialized.current = true;
     }
   }, [filterIncomingStatus, isLoggedIn]);
+
+  // Перезагружаем данные при изменении фильтра типа
+  useEffect(() => {
+    if (isLoggedIn && filterIncomingType !== "all" && isInitialized.current) {
+      setPage(1);
+      setHasMore(true);
+      setIncomingRequests([]);
+      setMyRequests([]);
+      // Не вызываем fetchRequests здесь - это сделает useEffect для фильтров
+    }
+  }, [filterIncomingType, isLoggedIn]);
 
   const fetchOffices = async () => {
     try {
@@ -911,6 +952,11 @@ export default function AdminWorkerDashboard() {
         params.append('status', filterIncomingStatus);
       }
 
+      // Добавляем фильтр приоритета если он не "all"
+      if (filterIncomingType !== "all") {
+        params.append('priority', filterIncomingType);
+      }
+
       const response = await api.get<{
         otherRequests: Request[];
         myRequests: Request[];
@@ -918,7 +964,9 @@ export default function AdminWorkerDashboard() {
       
       console.log('=== FETCH REQUESTS ===');
       console.log('Filter status:', filterIncomingStatus);
+      console.log('Filter type:', filterIncomingType);
       console.log('Current page:', currentPage);
+      console.log('API URL:', `/request-groups?${params.toString()}`);
       console.log('API Response:', response.data);
       console.log('Incoming requests count:', response.data.otherRequests.length);
       console.log('My requests count:', response.data.myRequests.length);
@@ -996,7 +1044,7 @@ export default function AdminWorkerDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [loading, filterIncomingStatus]);
+  }, [loading, filterIncomingStatus, filterIncomingType]);
 
 
 
@@ -1141,15 +1189,8 @@ export default function AdminWorkerDashboard() {
 
   useEffect(() => {
     // Сбрасываем состояние при изменении фильтров (кроме filterIncomingStatus, который обрабатывается отдельно)
-    console.log('=== FILTERS EFFECT ===');
-    console.log('isInitialized:', isInitialized.current);
-    console.log('filterMyStatus:', filterMyStatus);
-    console.log('filterMyType:', filterMyType);
-    console.log('filterIncomingType:', filterIncomingType);
-    
     // Не срабатываем при инициализации, только при реальном изменении фильтров
     if (isInitialized.current && (filterMyStatus !== "all" || filterMyType !== "all" || filterIncomingType !== "all")) {
-      console.log('Resetting state and fetching requests');
       setPage(1);
       setHasMore(true);
       setIncomingRequests([]);
@@ -2178,32 +2219,34 @@ export default function AdminWorkerDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="mb-6">
+                <div className="mb-3">
                   {/* на телефоне только табы */}
-                  <div className="flex flex-col sm:hidden gap-3 mb-12">
-                    <TabsList className="flex flex-wrap gap-2 w-full">
-                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Входящие</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Мои</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Повторяющиеся</span>
-                      </TabsTrigger>
-                      {/*<TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">*/}
-                      {/*  Статистика*/}
-                      {/*</TabsTrigger>*/}
-                      <TabsTrigger value="change-head" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Управление
-                      </TabsTrigger>
-                      <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Логи
-                      </TabsTrigger>
-                      <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Регистрации
-                      </TabsTrigger>
-                    </TabsList>
+                  <div className="w-full mb-2 sm:hidden">
+                    <div className="overflow-x-auto">
+                      <TabsList className="flex w-max min-w-full">
+                        <TabsTrigger value="incoming" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Входящие</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="my-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Мои</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Повторяющиеся</span>
+                        </TabsTrigger>
+                        {/*<TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">*/}
+                        {/*  Статистика*/}
+                        {/*</TabsTrigger>*/}
+                        <TabsTrigger value="change-head" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Управление
+                        </TabsTrigger>
+                        <TabsTrigger value="logs" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Логи
+                        </TabsTrigger>
+                        <TabsTrigger value="registration-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Регистрации
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
                   </div>
 
                   {/* на больших экранах */}
@@ -2244,7 +2287,7 @@ export default function AdminWorkerDashboard() {
                 </TabsContent>
                 <TabsContent value="my-requests">
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-4 mb-4">
+                    <div className="flex items-center space-x-4 mb-2">
                       <Select value={filterMyStatus} onValueChange={setFilterMyStatus}>
                         <SelectTrigger className="w-48">
                           <SelectValue placeholder="Статус" />
@@ -2256,6 +2299,7 @@ export default function AdminWorkerDashboard() {
                           <SelectItem value="assigned">Назначен</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="overdue">Просрочено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
@@ -2316,7 +2360,7 @@ export default function AdminWorkerDashboard() {
 
                 <TabsContent value="incoming">
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-4 mb-4">
+                    <div className="flex items-center space-x-4 mb-2">
                       <Select value={filterIncomingStatus} onValueChange={setFilterIncomingStatus}>
                         <SelectTrigger className="w-48">
                           <SelectValue placeholder="Статус" />
@@ -2328,6 +2372,7 @@ export default function AdminWorkerDashboard() {
                           <SelectItem value="assigned">Назначен</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="overdue">Просрочено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>
                           <SelectItem value="rejected">Отклоненные</SelectItem>
                         </SelectContent>
