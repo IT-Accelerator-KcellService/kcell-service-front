@@ -139,7 +139,7 @@ interface Category {
 
 export default function ManagerDashboard() {
   const {token, clearAuth, user} = useAuthStore()
-  const {categories, fetchCategories, clearCategories, createSubcategory, deleteSubcategory} = useCategoryStore()
+  const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const approveModal = useAcceptRequestModal()
@@ -165,14 +165,6 @@ export default function ManagerDashboard() {
   const [isDeletingCategory, setIsDeletingCategory] = useState(false)
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [categoriesWithExecutors, setCategoriesWithExecutors] = useState<Set<number>>(new Set())
-  
-  // Состояния для управления подкатегориями
-  const [selectedCategoryForSubcategory, setSelectedCategoryForSubcategory] = useState<number | null>(null)
-  const [newSubcategoryName, setNewSubcategoryName] = useState("")
-  const [isCreatingSubcategory, setIsCreatingSubcategory] = useState(false)
-  const [subcategoryToDelete, setSubcategoryToDelete] = useState<number | null>(null)
-  const [isDeletingSubcategory, setIsDeletingSubcategory] = useState(false)
-  const [subcategoryError, setSubcategoryError] = useState<string | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
   const [showProfile, setShowProfile] = useState(false)
@@ -188,8 +180,10 @@ export default function ManagerDashboard() {
   const {requests, setRequests, clearRequests} = useRequestStore()
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
+  const [isInitialized, setIsInitialized] = useState(false)
   const prevFilterStatus = useRef("all")
-  const isInitialized = useRef(false)
+  const prevFilterType = useRef("all")
+  const initializationRef = useRef(false)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
@@ -316,9 +310,11 @@ export default function ManagerDashboard() {
         periodStartDate = null;
     }
     const statusMatch = filterStatus === "all" ||
-        (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterStatus);
+        (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
+         filterStatus === "overdue" ? true : request.status === filterStatus);
     const requestType = request.request_type;
-    const typeMatch = filterType === "all" || requestType === filterType;
+    // Для типа заявки используем бэкенд фильтрацию, поэтому фронтенд фильтрация не нужна
+    const typeMatch = true; // Всегда true, так как бэкенд уже отфильтровал по типу
     const officeMatch = office === "all" || office == String(request.office_id);
 
     const createdDate = new Date(request.created_date);
@@ -395,6 +391,7 @@ export default function ManagerDashboard() {
   useEffect(() => {
     const create = searchParams.get("createRequest")
     const status = searchParams.get("status")
+    const priority = searchParams.get("priority")
 
     if (create === "true") {
       // Всегда добавляем createRequest в стек и историю
@@ -412,6 +409,12 @@ export default function ManagerDashboard() {
     if (status) {
       // Маппинг статусов: in_progress -> in_progress, execution -> execution, completed -> completed
       setFilterStatus(status);
+    }
+
+    // Обработка параметра priority из URL
+    if (priority) {
+      // Маппинг приоритетов: normal -> normal, urgent -> urgent, planned -> planned
+      setFilterType(priority);
     }
   }, [searchParams])
 
@@ -931,13 +934,25 @@ export default function ManagerDashboard() {
   };
 
   useEffect(() => {
-    // Инициализация данных при первом рендере
-    if (!isInitialized.current) {
-      fetchRequests(1);
-      isInitialized.current = true;
-    }
+    // Только загружаем уведомления и офисы, НЕ загружаем заявки
     fetchNotifications();
     fetchOffices();
+  }, []); // Убираем зависимость от token, чтобы избежать повторных вызовов
+
+  // Инициализация заявок с задержкой, чтобы URL параметры успели установиться
+  useEffect(() => {
+    if (!isInitialized) {
+      const timer = setTimeout(() => {
+        fetchRequests(1);
+        setIsInitialized(true);
+      }, 100); // Небольшая задержка, чтобы URL параметры успели установиться
+      
+      return () => clearTimeout(timer);
+    }
+  }, [filterStatus, filterType]);
+
+  // Отдельный useEffect для загрузки категорий
+  useEffect(() => {
     if (token) {
       fetchCategories(token);
     }
@@ -958,11 +973,25 @@ export default function ManagerDashboard() {
 
   // Перезагружаем данные при изменении фильтра статуса
   useEffect(() => {
-    if (filterStatus !== prevFilterStatus.current) {
+    if (isInitialized && filterStatus !== prevFilterStatus.current) {
       prevFilterStatus.current = filterStatus;
-      fetchRequests(1); // Reset to first page when filter changes
+      setPage(1);
+      setHasMore(true);
+      setRequests([]);
+      fetchRequests(1);
     }
-  }, [filterStatus]);
+  }, [filterStatus, isInitialized]);
+
+  // Перезагружаем данные при изменении фильтра типа
+  useEffect(() => {
+    if (isInitialized && filterType !== prevFilterType.current) {
+      prevFilterType.current = filterType;
+      setPage(1);
+      setHasMore(true);
+      setRequests([]);
+      fetchRequests(1);
+    }
+  }, [filterType, isInitialized]);
 
   const fetchRequests = useCallback(async (pageToLoad = 1) => {
     try {
@@ -979,11 +1008,17 @@ export default function ManagerDashboard() {
         params.append('status', filterStatus);
       }
 
+      // Добавляем фильтр приоритета если он не "all"
+      if (filterType !== "all") {
+        params.append('priority', filterType);
+      }
+
       const queryString = params.toString();
       const url = `/request-groups?${queryString}`;
       
       const response = await api.get(url);
       const newRequests = response.data.data;
+      
       if (pageToLoad === 1) {
         setRequests(newRequests);
       } else {
@@ -1006,7 +1041,7 @@ export default function ManagerDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [checkUserRating, filterStatus]);
+  }, [checkUserRating, filterStatus, filterType]);
 
   const handleLogout = async () => {
     try {
@@ -1451,59 +1486,6 @@ export default function ManagerDashboard() {
     }
   }
 
-  // Функции для управления подкатегориями
-  const handleCreateSubcategory = async () => {
-    if (!selectedCategoryForSubcategory || !newSubcategoryName.trim()) return;
-
-    setIsCreatingSubcategory(true);
-    setSubcategoryError(null);
-
-    try {
-      await createSubcategory(token!, {
-        name: newSubcategoryName.trim(),
-        category_id: selectedCategoryForSubcategory
-      });
-      
-      successModal.showSuccess({
-        title: "Подкатегория создана",
-        message: `Подкатегория "${newSubcategoryName}" успешно создана`
-      });
-
-      setSelectedCategoryForSubcategory(null);
-      setNewSubcategoryName("");
-      fetchCategories(token!);
-    } catch (error: any) {
-      console.error("Ошибка при создании подкатегории:", error);
-      setSubcategoryError(error.response?.data?.message || "Ошибка при создании подкатегории");
-    } finally {
-      setIsCreatingSubcategory(false);
-    }
-  };
-
-  const handleDeleteSubcategory = async () => {
-    if (!subcategoryToDelete) return;
-
-    setIsDeletingSubcategory(true);
-    setSubcategoryError(null);
-
-    try {
-      await deleteSubcategory(token!, subcategoryToDelete);
-      
-      successModal.showSuccess({
-        title: "Подкатегория удалена",
-        message: "Подкатегория успешно удалена"
-      });
-
-      setSubcategoryToDelete(null);
-      fetchCategories(token!);
-    } catch (error: any) {
-      console.error("Ошибка при удалении подкатегории:", error);
-      setSubcategoryError(error.response?.data?.message || "Ошибка при удалении подкатегории");
-    } finally {
-      setIsDeletingSubcategory(false);
-    }
-  };
-
   // Функция для обновления заявки
   const handleUpdateRequest = async () => {
     if (!selectedRequest) return;
@@ -1789,7 +1771,7 @@ export default function ManagerDashboard() {
 
   const renderCardHeader = (requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
-    // Убрали счетчик подзаявок - теперь показываем только один заявка
+    const totalSubRequests = requestGroup.requests.length;
 
     return (
         <CardHeader className={`pb-3 px-5 pt-5`}>
@@ -1801,6 +1783,9 @@ export default function ManagerDashboard() {
                 </h3>
               </div>
               <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
+                {totalSubRequests} под заявок
+              </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
@@ -2163,6 +2148,7 @@ export default function ManagerDashboard() {
                     <SelectItem value="assigned">Назначен</SelectItem>
                     <SelectItem value="execution">Исполнение</SelectItem>
                     <SelectItem value="completed">Завершено</SelectItem>
+                    <SelectItem value="overdue">Просрочено</SelectItem>
                     <SelectItem value="long_term">Долгосрочные</SelectItem>
                     <SelectItem value="rejected">Отклоненные</SelectItem>
                   </SelectContent>
@@ -2409,7 +2395,7 @@ export default function ManagerDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle>Управление категориями услуг</CardTitle>
-                  <CardDescription>Создание и удаление категорий услуг и подкатегорий</CardDescription>
+                  <CardDescription>Создание и удаление категорий услуг</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Форма создания категории */}
@@ -2508,16 +2494,10 @@ export default function ManagerDashboard() {
                               key={category.id}
                               className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border"
                             >
-                              <div className="text-gray-700 flex-1">
+                              <div className="text-gray-700">
                                 <div className="text-lg font-semibold">{category.name}</div>
                                 {hasExecutors && (
                                   <div className="text-sm text-gray-500">Есть исполнители</div>
-                                )}
-                                {category.subcategories && category.subcategories.length > 0 && (
-                                  <div className="text-sm text-blue-600">
-                                    Подкатегории ({category.subcategories.length}): {category.subcategories.slice(0, 3).map(s => s.name).join(', ')}
-                                    {category.subcategories.length > 3 && ` и еще ${category.subcategories.length - 3}`}
-                                  </div>
                                 )}
                               </div>
                             </div>
@@ -2526,95 +2506,6 @@ export default function ManagerDashboard() {
                       </div>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Управление подкатегориями */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Управление подкатегориями</CardTitle>
-                  <CardDescription>Создание и удаление подкатегорий для существующих категорий</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Форма создания подкатегории */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Создать новую подкатегорию</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <Select onValueChange={(categoryId) => setSelectedCategoryForSubcategory(parseInt(categoryId))} value={selectedCategoryForSubcategory?.toString() || ""}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите категорию" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map(category => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="text"
-                        value={newSubcategoryName}
-                        onChange={(e) => setNewSubcategoryName(e.target.value)}
-                        placeholder="Название подкатегории"
-                        disabled={isCreatingSubcategory}
-                      />
-                    </div>
-                    <Button
-                      onClick={handleCreateSubcategory}
-                      disabled={!selectedCategoryForSubcategory || !newSubcategoryName.trim() || isCreatingSubcategory}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      {isCreatingSubcategory ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span>Создание...</span>
-                        </div>
-                      ) : (
-                        "Создать подкатегорию"
-                      )}
-                    </Button>
-                  </div>
-
-                  {/* Форма удаления подкатегории */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Удалить подкатегорию</Label>
-                    <Select onValueChange={(subcategoryId) => setSubcategoryToDelete(parseInt(subcategoryId))} value={subcategoryToDelete?.toString() || ""}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Выберите подкатегорию для удаления" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.flatMap(category => 
-                          category.subcategories?.map(subcategory => (
-                            <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
-                              {category.name} → {subcategory.name}
-                            </SelectItem>
-                          )) || []
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      onClick={handleDeleteSubcategory}
-                      disabled={!subcategoryToDelete || isDeletingSubcategory}
-                      variant="destructive"
-                    >
-                      {isDeletingSubcategory ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span>Удаление...</span>
-                        </div>
-                      ) : (
-                        "Удалить подкатегорию"
-                      )}
-                    </Button>
-                  </div>
-
-                  {/* Отображение ошибок подкатегорий */}
-                  {subcategoryError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-sm text-red-600">{subcategoryError}</p>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
 
@@ -3050,11 +2941,11 @@ export default function ManagerDashboard() {
                 </div>
                 )}
 
-                {/* Заявка (теперь показываем только первый подзаявка как полноценный заявка) */}
+                {/* Под заявки */}
                 <div>
-                  <Label className={isDesktop ? '' : 'text-base font-medium'}>Заявка</Label>
+                  <Label className={isDesktop ? '' : 'text-base font-medium'}>Под заявки</Label>
                   <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
-                    {selectedRequest.requests.slice(0, 1).map((subRequest: SubRequest) => {
+                    {selectedRequest.requests.map((subRequest: SubRequest) => {
                       const isExpanded = expandedSubRequests.has(subRequest.id);
                       const hasComments = showComments === subRequest.id;
 
@@ -3073,7 +2964,7 @@ export default function ManagerDashboard() {
                                             ...prev,
                                             [subRequest.id]: e.target.value
                                           }))}
-                                          placeholder="Название заявки"
+                                          placeholder="Название подзаявки"
                                           className="w-full"
                                         />
                                       </div>
@@ -3137,7 +3028,7 @@ export default function ManagerDashboard() {
                                       ...prev,
                                       [subRequest.id]: e.target.value
                                     }))}
-                                    placeholder="Описание заявки"
+                                    placeholder="Описание подзаявки"
                                     className="w-full min-h-[80px]"
                                   />
                                 ) : isDesktop ? (
