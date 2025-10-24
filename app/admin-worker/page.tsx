@@ -478,48 +478,21 @@ export default function AdminWorkerDashboard() {
     }
   }, [user?.office_id, token]);
 
-  const filteredMyRequests = sortRequests(
-      myRequests.filter((request) => {
-        let statusMatch = false;
-        
-        if (filterMyStatus === "all") {
-          statusMatch = true;
-        } else if (filterMyStatus === "long_term") {
-          statusMatch = request.requests.some(req => req.is_long_term && request.request_type !== 'recurring');
-        } else if (filterMyStatus === "overdue") {
-          // Для просроченных заявок показываем все, так как фильтрация уже выполнена на бэкенде
-          statusMatch = true;
-        } else {
-          statusMatch = request.status === filterMyStatus;
-        }
-        
-        const requestType = request.request_type;
-        const typeMatch = filterMyType === "all" || requestType === filterMyType;
-        return statusMatch && typeMatch;
-      })
-  );
+  const filteredMyRequests = myRequests.filter((request) => {
+    const statusMatch = filterMyStatus === "all"   ||
+        (filterMyStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
+         filterMyStatus === "overdue" ? true : request.status === filterMyStatus);
+    const typeMatch = filterMyType === "all" || request.request_type === filterMyType;
+    return statusMatch && typeMatch;
+  });
 
-  const filteredIncomingRequests = sortRequests(
-      incomingRequests.filter((request) => {
-        let statusMatch = false;
-        
-        if (filterIncomingStatus === "all") {
-          statusMatch = true;
-        } else if (filterIncomingStatus === "long_term") {
-          statusMatch = request.requests.some(req => req.is_long_term && request.request_type !== 'recurring');
-        } else if (filterIncomingStatus === "overdue") {
-          // Для просроченных заявок показываем все, так как фильтрация уже выполнена на бэкенде
-          statusMatch = true;
-        } else {
-          statusMatch = request.status === filterIncomingStatus;
-        }
-        
-        const requestType = request.request_type;
-        const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType;
-        
-        return statusMatch && typeMatch;
-      })
-  );
+  const filteredIncomingRequests = incomingRequests.filter((request) => {
+    const statusMatch = filterIncomingStatus === "all"   ||
+        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
+         filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
+    const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
+    return statusMatch && typeMatch;
+  });
 
   useEffect(() => {
     if (notifications.length > 0) {
