@@ -15,7 +15,8 @@ import {
   UserPlus,
   XCircle,
   ArrowRight,
-  SkipForward
+  SkipForward,
+  Share2
 } from "lucide-react"
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu"
 import { getSubRequestDisplayId } from "@/lib/subRequestUtils"
@@ -77,6 +78,7 @@ export function RoleBasedActionMenu({
   onRateClient,
   onAddComment,
   onRedirectToOtherDepartment,
+  onShareRequest,
 }: RoleBasedActionMenuProps) {
   const {user} = useAuthStore()
   const [open, setOpen] = useState(false)
@@ -85,6 +87,71 @@ export function RoleBasedActionMenu({
   const [currentY, setCurrentY] = useState(0)
   const [mounted, setMounted] = useState(false)
   const sheetRef = useRef<HTMLDivElement>(null)
+
+  // Функция для перевода статуса
+  const translateStatus = (status: string) => {
+    const statusMap: { [key: string]: string } = {
+      'in_progress': 'В процессе',
+      'awaiting_assignment': 'Ожидает назначения',
+      'assigned': 'Назначена',
+      'execution': 'Выполняется',
+      'completed': 'Завершена',
+      'rejected': 'Отклонена',
+      'cancelled': 'Отменена'
+    };
+    return statusMap[status] || status;
+  };
+
+  // Функция для генерации сообщения WhatsApp
+  const generateWhatsAppMessage = () => {
+    const requestId = isSubRequest ? getSubRequestDisplayId(request, requestGroup?.id) : request.id;
+    const requestTitle = request.title || 'Заявка';
+    const requestStatus = request.status || 'Неизвестно';
+    const requestDescription = request.description || '';
+    
+    // Ограничиваем описание до 200 символов
+    const shortDescription = requestDescription.length > 200 
+      ? requestDescription.substring(0, 200) + '...' 
+      : requestDescription;
+    
+    // Генерируем универсальную ссылку на заявку (независимо от текущей страницы)
+    let taskUrl = '';
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      
+      // Формируем URL с параметрами
+      if (isSubRequest && requestGroup) {
+        taskUrl = `${origin}?requestId=${requestGroup.id}&subRequestId=${request.id}`;
+      } else {
+        taskUrl = `${origin}?requestId=${request.id}`;
+      }
+    }
+    
+    const message = `Заявка #${requestId}\n\n` +
+      `Название: ${requestTitle}\n` +
+      `Статус: ${translateStatus(requestStatus)}\n` +
+      `Описание: ${shortDescription}\n\n` +
+      (taskUrl ? `Ссылка: ${taskUrl}` : '');
+    
+    return message;
+  };
+
+  // Функция для обработки нажатия на кнопку "Поделиться в WhatsApp"
+  const handleShareWhatsApp = () => {
+    const message = generateWhatsAppMessage();
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+    
+    // Открываем WhatsApp в новом окне/вкладке
+    window.open(whatsappUrl, '_blank');
+    
+    // Вызываем callback, если он передан
+    if (onShareRequest) {
+      onShareRequest(request);
+    }
+    
+    setOpen(false);
+  };
 
   // Для Portal
   useEffect(() => {
@@ -108,7 +175,22 @@ export function RoleBasedActionMenu({
         variant: "default" as const,
         showForRoles: ["executor", "manager", "department-head", "admin-worker","client"],
       },
-    ] : []
+      {
+        icon: Share2,
+        label: "Поделиться в WhatsApp",
+        onClick: handleShareWhatsApp,
+        variant: "default" as const,
+        showForRoles: ["executor", "manager", "department-head", "admin-worker", "client"],
+      },
+    ] : [
+      {
+        icon: Share2,
+        label: "Поделиться в WhatsApp",
+        onClick: handleShareWhatsApp,
+        variant: "default" as const,
+        showForRoles: ["executor", "manager", "department-head", "admin-worker", "client"],
+      },
+    ]
 
     const roleSpecificActions: ActionItem[] = []
 
