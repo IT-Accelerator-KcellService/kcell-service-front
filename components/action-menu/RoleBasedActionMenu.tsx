@@ -15,32 +15,11 @@ import {
   UserPlus,
   XCircle,
   ArrowRight,
-  SkipForward,
-  Share2
+  SkipForward
 } from "lucide-react"
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu"
 import { getSubRequestDisplayId } from "@/lib/subRequestUtils"
-import {useAuthStore} from "@/stores/useAuthStore"
-
-// Расширяем интерфейс Window для поддержки Android WebView
-declare global {
-  interface Window {
-    androidApp?: {
-      saveFileBase64: (fileName: string, base64: string, mimeType: string) => void;
-      reloadPage: () => void;
-      notifyReady: () => void;
-      openDeepLink?: (url: string) => void;
-    };
-    FCM?: {
-      sendTokenToServer: (token: string, userId?: string) => void;
-      getFCMToken: () => string | null;
-      debugTokenStorage: () => string;
-      forceGetToken: () => string;
-      checkTokenAfterPermission: () => string;
-      notifyReady: () => void;
-    };
-  }
-}
+import {useAuthStore} from "@/stores/useAuthStore";
 
 interface ActionItem {
   icon: any
@@ -72,7 +51,7 @@ interface RoleBasedActionMenuProps {
   onRateClient?: (requestGroup: any) => void
   onAddComment?: (request: any) => void
   onExportData?: (request: any) => void
-  onShareRequest?: (request: any, requestGroup?: any) => void
+  onShareRequest?: (request: any) => void
   onArchiveRequest?: (request: any) => void
   onRefreshRequest?: (request: any) => void
   onViewAnalytics?: (request: any) => void
@@ -98,7 +77,6 @@ export function RoleBasedActionMenu({
   onRateClient,
   onAddComment,
   onRedirectToOtherDepartment,
-  onShareRequest,
 }: RoleBasedActionMenuProps) {
   const {user} = useAuthStore()
   const [open, setOpen] = useState(false)
@@ -117,99 +95,6 @@ export function RoleBasedActionMenu({
     return executor?.user?.id === user?.id && executor?.RequestExecutor?.role === 'leader'
   })
 
-  // Функция для перевода статусов
-  const translateStatus = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "completed": return "Завершено";
-      case "in_progress": return "В обработке";
-      case "execution": return "Исполнение";
-      case "awaiting_assignment": return "Ожидание назначения";
-      case "awaiting_sla": return "Ожидание времени выполнения";
-      case "assigned": return "Назначено";
-      case "rejected": return "Отклонено";
-      case "draft": return "Черновик";
-      default: return status;
-    }
-  };
-
-  // Функция для генерации сообщения WhatsApp
-  const generateWhatsAppMessage = () => {
-    const requestId = isSubRequest ? getSubRequestDisplayId(request, requestGroup?.id) : request.id;
-    const requestTitle = request.title || 'Заявка';
-    const requestStatus = request.status || 'Неизвестно';
-    const requestDescription = request.description || '';
-    
-    // Ограничиваем описание до 200 символов
-    const shortDescription = requestDescription.length > 200 
-      ? requestDescription.substring(0, 200) + '...' 
-      : requestDescription;
-    
-    // Генерируем универсальную ссылку на заявку (независимо от текущей страницы)
-    let taskUrl = '';
-    if (typeof window !== 'undefined') {
-      const origin = window.location.origin;
-      
-      // Формируем URL с параметрами
-      if (isSubRequest && requestGroup) {
-        taskUrl = `${origin}?requestId=${requestGroup.id}&subRequestId=${request.id}`;
-      } else {
-        taskUrl = `${origin}?requestId=${request.id}`;
-      }
-      
-      // Если в Android WebView, добавляем deep link
-      const isAndroidWebView = window.FCM !== undefined || 
-                                window.androidApp !== undefined || 
-                                navigator.userAgent.includes('wv') || 
-                                navigator.userAgent.includes('Android');
-      
-      if (isAndroidWebView) {
-        // Используем схему приложения для deep linking
-        const deepLink = isSubRequest && requestGroup
-          ? `kcell://task?requestId=${requestGroup.id}&subRequestId=${request.id}`
-          : `kcell://task?requestId=${request.id}`;
-        // Добавляем deep link в сообщение
-        taskUrl += `\nПриложение: ${deepLink}`;
-      }
-    }
-    
-    const message = `Заявка #${requestId}\n\n` +
-      `Название: ${requestTitle}\n` +
-      `Статус: ${translateStatus(requestStatus)}\n` +
-      `Описание: ${shortDescription}\n\n` +
-      (taskUrl ? `Ссылка: ${taskUrl}` : '');
-    
-    return message;
-  };
-
-  // Обработчик для кнопки WhatsApp
-  const handleShareWhatsApp = () => {
-    const message = generateWhatsAppMessage();
-    const encodedMessage = encodeURIComponent(message);
-    
-    // Проверяем, работаем ли мы в Android WebView
-    const isAndroidWebView = typeof window !== 'undefined' && 
-      (window.FCM !== undefined || 
-       window.androidApp !== undefined || 
-       navigator.userAgent.includes('wv') || 
-       navigator.userAgent.includes('Android'));
-    
-    if (isAndroidWebView && window.androidApp?.openDeepLink) {
-      // Если в WebView, пробуем открыть через deep link
-      const taskUrl = generateWhatsAppMessage().split('Ссылка: ')[1]?.trim() || '';
-      if (taskUrl) {
-        console.log('Opening deep link in app:', taskUrl);
-        window.androidApp.openDeepLink(taskUrl);
-      }
-    }
-    
-    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
-    
-    if (onShareRequest) {
-      onShareRequest(request, requestGroup);
-    }
-  };
-
   // Определяем действия в зависимости от роли
   const getActionsByRole = (): ActionItem[] => {
     const baseActions: ActionItem[] = !isSubRequest ? [
@@ -223,28 +108,7 @@ export function RoleBasedActionMenu({
         variant: "default" as const,
         showForRoles: ["executor", "manager", "department-head", "admin-worker","client"],
       },
-      {
-        icon: Share2,
-        label: "Поделиться в WhatsApp",
-        onClick: () => {
-          handleShareWhatsApp()
-          setOpen(false)
-        },
-        variant: "default" as const,
-        showForRoles: ["executor", "manager", "department-head", "admin-worker","client"],
-      },
-    ] : [
-      {
-        icon: Share2,
-        label: "Поделиться в WhatsApp",
-        onClick: () => {
-          handleShareWhatsApp()
-          setOpen(false)
-        },
-        variant: "default" as const,
-        showForRoles: ["executor", "manager", "department-head", "admin-worker","client"],
-      },
-    ]
+    ] : []
 
     const roleSpecificActions: ActionItem[] = []
 
