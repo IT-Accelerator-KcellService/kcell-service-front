@@ -20,7 +20,27 @@ import {
 } from "lucide-react"
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from "@/components/ui/dropdown-menu"
 import { getSubRequestDisplayId } from "@/lib/subRequestUtils"
-import {useAuthStore} from "@/stores/useAuthStore";
+import {useAuthStore} from "@/stores/useAuthStore"
+
+// Расширяем интерфейс Window для поддержки Android WebView
+declare global {
+  interface Window {
+    androidApp?: {
+      saveFileBase64: (fileName: string, base64: string, mimeType: string) => void;
+      reloadPage: () => void;
+      notifyReady: () => void;
+      openDeepLink?: (url: string) => void;
+    };
+    FCM?: {
+      sendTokenToServer: (token: string, userId?: string) => void;
+      getFCMToken: () => string | null;
+      debugTokenStorage: () => string;
+      forceGetToken: () => string;
+      checkTokenAfterPermission: () => string;
+      notifyReady: () => void;
+    };
+  }
+}
 
 interface ActionItem {
   icon: any
@@ -135,6 +155,21 @@ export function RoleBasedActionMenu({
       } else {
         taskUrl = `${origin}?requestId=${request.id}`;
       }
+      
+      // Если в Android WebView, добавляем deep link
+      const isAndroidWebView = window.FCM !== undefined || 
+                                window.androidApp !== undefined || 
+                                navigator.userAgent.includes('wv') || 
+                                navigator.userAgent.includes('Android');
+      
+      if (isAndroidWebView) {
+        // Используем схему приложения для deep linking
+        const deepLink = isSubRequest && requestGroup
+          ? `kcell://task?requestId=${requestGroup.id}&subRequestId=${request.id}`
+          : `kcell://task?requestId=${request.id}`;
+        // Добавляем deep link в сообщение
+        taskUrl += `\nПриложение: ${deepLink}`;
+      }
     }
     
     const message = `Заявка #${requestId}\n\n` +
@@ -151,35 +186,24 @@ export function RoleBasedActionMenu({
     const message = generateWhatsAppMessage();
     const encodedMessage = encodeURIComponent(message);
     
-    // Проверяем, работает ли приложение в WebView (Android или iOS)
-    const isWebView = typeof window !== 'undefined' && (
-      window.navigator.userAgent.includes('wv') || // Android WebView
-      (window as any).webkit?.messageHandlers || // iOS WebView
-      (window as any).AndroidBridge !== undefined // Android Bridge
-    );
+    // Проверяем, работаем ли мы в Android WebView
+    const isAndroidWebView = typeof window !== 'undefined' && 
+      (window.FCM !== undefined || 
+       window.androidApp !== undefined || 
+       navigator.userAgent.includes('wv') || 
+       navigator.userAgent.includes('Android'));
     
-    if (isWebView) {
-      // В WebView просто копируем ссылку в буфер обмена
-      const messageWithUrl = message.replace('Ссылка: ', '');
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(messageWithUrl).then(() => {
-          alert('Ссылка на заявку скопирована в буфер обмена! Вставьте её в WhatsApp.');
-        });
-      } else {
-        // Fallback для старых браузеров
-        const textarea = document.createElement('textarea');
-        textarea.value = messageWithUrl;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        alert('Ссылка на заявку скопирована в буфер обмена! Вставьте её в WhatsApp.');
+    if (isAndroidWebView && window.androidApp?.openDeepLink) {
+      // Если в WebView, пробуем открыть через deep link
+      const taskUrl = generateWhatsAppMessage().split('Ссылка: ')[1]?.trim() || '';
+      if (taskUrl) {
+        console.log('Opening deep link in app:', taskUrl);
+        window.androidApp.openDeepLink(taskUrl);
       }
-    } else {
-      // В обычном браузере открываем WhatsApp
-      const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-      window.open(whatsappUrl, '_blank');
     }
+    
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
     
     if (onShareRequest) {
       onShareRequest(request, requestGroup);

@@ -28,6 +28,15 @@ declare global {
       saveFileBase64: (fileName: string, base64: string, mimeType: string) => void;
       reloadPage: () => void;
       notifyReady: () => void;
+      openDeepLink?: (url: string) => void;
+    };
+    FCM?: {
+      sendTokenToServer: (token: string, userId?: string) => void;
+      getFCMToken: () => string | null;
+      debugTokenStorage: () => string;
+      forceGetToken: () => string;
+      checkTokenAfterPermission: () => string;
+      notifyReady: () => void;
     };
     webkit?: {
       messageHandlers: {
