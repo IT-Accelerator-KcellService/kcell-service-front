@@ -123,6 +123,11 @@ export default function AdminWorkerDashboard() {
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
   const [notFoundRequestId, setNotFoundRequestId] = useState<string>('');
   const [showProfile, setShowProfile] = useState(false);
+
+  // Debug: отслеживаем изменения selectedRequest
+  useEffect(() => {
+    console.log('ADMIN: selectedRequest changed:', selectedRequest);
+  }, [selectedRequest]);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
   const [requestToRate, setRequestToRate] = useState<Request | null>(null);
@@ -265,6 +270,11 @@ export default function AdminWorkerDashboard() {
   const lastElementRef = useRef<HTMLDivElement | null>(null);
   const [offices, setOffices] = useState<any[]>([]);
 
+  // Debug: отслеживаем изменения modalStack
+  useEffect(() => {
+    console.log('ADMIN: modalStack changed:', modalStack);
+  }, [modalStack]);
+
   const lastRequestRef = useCallback((node: HTMLDivElement) => {
     lastElementRef.current = node;
   }, []);
@@ -292,8 +302,15 @@ export default function AdminWorkerDashboard() {
   }, [loading, hasMore]);
 
   const openModal = (name: string) => {
-    setModalStack(prev => [...prev, name]);
+    console.log('ADMIN: openModal called with name:', name);
+    console.log('ADMIN: Current modalStack:', modalStack);
+    setModalStack(prev => {
+      const newStack = [...prev, name];
+      console.log('ADMIN: New modalStack:', newStack);
+      return newStack;
+    });
     window.history.pushState({ modal: name }, '', window.location.pathname);
+    console.log('ADMIN: openModal finished');
   };
 
   const closeModalWithHistory = () => {
@@ -400,6 +417,139 @@ export default function AdminWorkerDashboard() {
     };
   }, [modalStack, isClosingProgrammatically]);
 
+  // Сохраняем requestId в state при первой загрузке
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [pendingSubRequestId, setPendingSubRequestId] = useState<string | null>(null);
+
+  // Обработка query параметров для открытия заявки
+  useEffect(() => {
+    console.log('=== ADMIN: QUERY PARAMS EFFECT START ===');
+    console.log('ADMIN: Full URL:', window.location.href);
+    console.log('ADMIN: searchParams.toString():', searchParams.toString());
+    console.log('ADMIN: window.location.search:', window.location.search);
+    console.log('ADMIN: window.location.pathname:', window.location.pathname);
+    
+    // Сначала пробуем получить из URL напрямую
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestIdFromUrl = urlParams.get("requestId");
+    const subRequestIdFromUrl = urlParams.get("subRequestId");
+    
+    // Если в URL нет, пробуем из searchParams
+    const requestId = requestIdFromUrl || searchParams.get("requestId");
+    const subRequestId = subRequestIdFromUrl || searchParams.get("subRequestId");
+    
+    console.log('ADMIN: requestId from URL:', requestIdFromUrl);
+    console.log('ADMIN: subRequestId from URL:', subRequestIdFromUrl);
+    console.log('ADMIN: requestId from searchParams:', searchParams.get("requestId"));
+    console.log('ADMIN: subRequestId from searchParams:', searchParams.get("subRequestId"));
+    console.log('ADMIN: requestId (final):', requestId);
+    console.log('ADMIN: subRequestId (final):', subRequestId);
+    console.log('ADMIN: pendingRequestId:', pendingRequestId);
+    console.log('ADMIN: selectedRequest:', selectedRequest);
+    console.log('ADMIN: incomingRequests.length:', incomingRequests.length);
+    console.log('ADMIN: myRequests.length:', myRequests.length);
+    console.log('ADMIN: loading:', loading);
+
+    // Сохраняем requestId в state, если он есть и еще не сохранен
+    if (requestId && !pendingRequestId) {
+      console.log('ADMIN: Saving requestId to state:', requestId);
+      setPendingRequestId(requestId);
+      if (subRequestId) {
+        setPendingSubRequestId(subRequestId);
+      }
+    }
+
+    // Ждем, пока заявки загрузятся
+    if (loading) {
+      console.log('ADMIN: Still loading, waiting...');
+      return;
+    }
+
+    // Проверяем, что заявки загружены
+    if (incomingRequests.length === 0 && myRequests.length === 0) {
+      console.log('ADMIN: No requests loaded yet');
+      return;
+    }
+
+    // Используем сохраненный requestId вместо текущего из URL
+    const idToUse = pendingRequestId || requestId;
+    const subIdToUse = pendingSubRequestId || subRequestId;
+    
+    console.log('ADMIN: idToUse:', idToUse);
+    console.log('ADMIN: subIdToUse:', subIdToUse);
+
+    if (idToUse && !selectedRequest) {
+      console.log('ADMIN: Looking for request with ID:', idToUse);
+      
+      // Объединяем все списки заявок
+      const allRequests = [...incomingRequests, ...myRequests];
+      console.log('ADMIN: allRequests.length:', allRequests.length);
+      console.log('ADMIN: allRequests IDs:', allRequests.map(r => r.id));
+      
+      const foundRequest = allRequests.find(r => r.id === parseInt(idToUse));
+      console.log('ADMIN: foundRequest:', foundRequest);
+      
+      if (foundRequest) {
+        console.log('ADMIN: Request found! Opening modal...');
+        
+        // Если указан subRequestId, фильтруем подзаявки
+        if (subIdToUse) {
+          const subRequest = foundRequest.requests.find((req: SubRequest) => req.id === parseInt(subIdToUse));
+          console.log('ADMIN: subRequest:', subRequest);
+          
+          if (subRequest) {
+            console.log('ADMIN: SubRequest found, setting selected request...');
+            setSelectedRequest(foundRequest);
+            setExpandedSubRequests(new Set([subRequest.id]));
+            console.log('ADMIN: Calling openModal...');
+            openModal('requestDetails');
+            console.log('ADMIN: openModal called');
+            // Очищаем pending requestId
+            setPendingRequestId(null);
+            setPendingSubRequestId(null);
+          } else {
+            // Подзаявка не найдена
+            console.log('ADMIN: SubRequest not found');
+            setNotFoundRequestId(`${idToUse}/${subIdToUse}`);
+            setShowNotFoundModal(true);
+            setPendingRequestId(null);
+            setPendingSubRequestId(null);
+          }
+        } else {
+          // Открываем всю группу заявок
+          console.log('ADMIN: Opening modal without subRequest, setting selected request...');
+          setSelectedRequest(foundRequest);
+          console.log('ADMIN: Calling openModal...');
+          openModal('requestDetails');
+          console.log('ADMIN: openModal called');
+          // Очищаем pending requestId
+          setPendingRequestId(null);
+          setPendingSubRequestId(null);
+        }
+        
+        // Очищаем query параметры из URL
+        console.log('ADMIN: Clearing query params from URL');
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (idToUse) {
+        // Заявка не найдена
+        console.log('ADMIN: Request not found in all requests');
+        setNotFoundRequestId(idToUse);
+        setShowNotFoundModal(true);
+        setPendingRequestId(null);
+        setPendingSubRequestId(null);
+        // Очищаем query параметры из URL
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    } else if (!idToUse) {
+      console.log('ADMIN: No requestId found');
+    } else if (selectedRequest) {
+      console.log('ADMIN: selectedRequest already exists, skipping');
+    }
+    
+    console.log('=== ADMIN: QUERY PARAMS EFFECT END ===');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, incomingRequests, myRequests, selectedRequest, loading, pendingRequestId, pendingSubRequestId, openModal]);
+
   const closeAllModalsExcept = (modalName: string) => {
     if (modalName !== 'createRequest') {
       setShowCreateRequestModal(false);
@@ -478,21 +628,48 @@ export default function AdminWorkerDashboard() {
     }
   }, [user?.office_id, token]);
 
-  const filteredMyRequests = myRequests.filter((request) => {
-    const statusMatch = filterMyStatus === "all"   ||
-        (filterMyStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
-         filterMyStatus === "overdue" ? true : request.status === filterMyStatus);
-    const typeMatch = filterMyType === "all" || request.request_type === filterMyType;
-    return statusMatch && typeMatch;
-  });
+  const filteredMyRequests = sortRequests(
+      myRequests.filter((request) => {
+        let statusMatch = false;
+        
+        if (filterMyStatus === "all") {
+          statusMatch = true;
+        } else if (filterMyStatus === "long_term") {
+          statusMatch = request.requests.some(req => req.is_long_term && request.request_type !== 'recurring');
+        } else if (filterMyStatus === "overdue") {
+          // Для просроченных заявок показываем все, так как фильтрация уже выполнена на бэкенде
+          statusMatch = true;
+        } else {
+          statusMatch = request.status === filterMyStatus;
+        }
+        
+        const requestType = request.request_type;
+        const typeMatch = filterMyType === "all" || requestType === filterMyType;
+        return statusMatch && typeMatch;
+      })
+  );
 
-  const filteredIncomingRequests = incomingRequests.filter((request) => {
-    const statusMatch = filterIncomingStatus === "all"   ||
-        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
-         filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
-    const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
-    return statusMatch && typeMatch;
-  });
+  const filteredIncomingRequests = sortRequests(
+      incomingRequests.filter((request) => {
+        let statusMatch = false;
+        
+        if (filterIncomingStatus === "all") {
+          statusMatch = true;
+        } else if (filterIncomingStatus === "long_term") {
+          statusMatch = request.requests.some(req => req.is_long_term && request.request_type !== 'recurring');
+        } else if (filterIncomingStatus === "overdue") {
+          // Для просроченных заявок показываем все, так как фильтрация уже выполнена на бэкенде
+          statusMatch = true;
+        } else {
+          statusMatch = request.status === filterIncomingStatus;
+        }
+        
+        const requestType = request.request_type;
+        const typeMatch = filterIncomingType === "all" || requestType === filterIncomingType;
+        
+        return statusMatch && typeMatch;
+      })
+  );
 
   useEffect(() => {
     if (notifications.length > 0) {

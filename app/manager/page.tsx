@@ -181,9 +181,6 @@ export default function ManagerDashboard() {
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isInitialized, setIsInitialized] = useState(false)
-  const prevFilterStatus = useRef("all")
-  const prevFilterType = useRef("all")
-  const initializationRef = useRef(false)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
@@ -934,29 +931,17 @@ export default function ManagerDashboard() {
   };
 
   useEffect(() => {
-    // Только загружаем уведомления и офисы, НЕ загружаем заявки
+    // Инициализация данных при первом рендере
+    if (!isInitialized) {
+      fetchRequests(1);
+      setIsInitialized(true);
+    }
     fetchNotifications();
     fetchOffices();
-  }, []); // Убираем зависимость от token, чтобы избежать повторных вызовов
-
-  // Инициализация заявок с задержкой, чтобы URL параметры успели установиться
-  useEffect(() => {
-    if (!isInitialized) {
-      const timer = setTimeout(() => {
-        fetchRequests(1);
-        setIsInitialized(true);
-      }, 100); // Небольшая задержка, чтобы URL параметры успели установиться
-      
-      return () => clearTimeout(timer);
-    }
-  }, [filterStatus, filterType]);
-
-  // Отдельный useEffect для загрузки категорий
-  useEffect(() => {
     if (token) {
       fetchCategories(token);
     }
-  }, [token]);
+  }, [token, filterStatus]);
 
   useEffect(() => {
     if (categories.length > 0) {
@@ -971,27 +956,36 @@ export default function ManagerDashboard() {
     }
   }, [officeFilter, roleFilter]);
 
-  // Перезагружаем данные при изменении фильтра статуса
+  // Сбрасываем состояние при изменении фильтра типа
   useEffect(() => {
-    if (isInitialized && filterStatus !== prevFilterStatus.current) {
-      prevFilterStatus.current = filterStatus;
+    if (isInitialized && filterType !== "all") {
       setPage(1);
       setHasMore(true);
       setRequests([]);
-      fetchRequests(1);
+      // Не вызываем fetchRequests здесь - это сделает useEffect для фильтров
     }
-  }, [filterStatus, isInitialized]);
+  }, [filterType]);
 
-  // Перезагружаем данные при изменении фильтра типа
+  // Сбрасываем состояние при изменении фильтра статуса
   useEffect(() => {
-    if (isInitialized && filterType !== prevFilterType.current) {
-      prevFilterType.current = filterType;
+    if (isInitialized && filterStatus !== "all") {
       setPage(1);
       setHasMore(true);
       setRequests([]);
-      fetchRequests(1);
+      // Не вызываем fetchRequests здесь - это сделает useEffect для фильтров
     }
-  }, [filterType, isInitialized]);
+  }, [filterStatus]);
+
+  // Перезагружаем данные при изменении фильтров
+  useEffect(() => {
+    if (isInitialized) {
+      fetchRequests(1); // Reset to first page when filter changes
+    } else {
+      // Если это первая загрузка и есть фильтр, загружаем с фильтром
+      fetchRequests(1);
+      setIsInitialized(true);
+    }
+  }, [filterStatus, filterType]);
 
   const fetchRequests = useCallback(async (pageToLoad = 1) => {
     try {
@@ -1018,7 +1012,6 @@ export default function ManagerDashboard() {
       
       const response = await api.get(url);
       const newRequests = response.data.data;
-      
       if (pageToLoad === 1) {
         setRequests(newRequests);
       } else {
@@ -1208,6 +1201,78 @@ export default function ManagerDashboard() {
       fetchNotifications()
     }
   }, [isLoggedIn])
+
+  // Сохраняем requestId в state при первой загрузке
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [pendingSubRequestId, setPendingSubRequestId] = useState<string | null>(null);
+
+  // Обработка query параметров для открытия заявки
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestIdFromUrl = urlParams.get("requestId");
+    const subRequestIdFromUrl = urlParams.get("subRequestId");
+    
+    const requestId = requestIdFromUrl || searchParams.get("requestId");
+    const subRequestId = subRequestIdFromUrl || searchParams.get("subRequestId");
+
+    // Сохраняем requestId в state, если он есть и еще не сохранен
+    if (requestId && !pendingRequestId) {
+      setPendingRequestId(requestId);
+      if (subRequestId) {
+        setPendingSubRequestId(subRequestId);
+      }
+    }
+
+    // Проверяем, что заявки загружены
+    if (requests.length === 0) {
+      return;
+    }
+
+    const idToUse = pendingRequestId || requestId;
+    const subIdToUse = pendingSubRequestId || subRequestId;
+
+    if (idToUse && !selectedRequest) {
+      const foundRequest = requests.find(r => r.id === parseInt(idToUse));
+      
+      if (foundRequest) {
+        // Если указан subRequestId, фильтруем подзаявки
+        if (subIdToUse) {
+          const subRequest = foundRequest.requests.find((req: SubRequest) => req.id === parseInt(subIdToUse));
+          if (subRequest) {
+            setSelectedRequest(foundRequest);
+            setExpandedSubRequests(new Set([subRequest.id]));
+            openModal('requestDetails');
+            setPendingRequestId(null);
+            setPendingSubRequestId(null);
+          } else {
+            // Подзаявка не найдена
+            setNotFoundRequestId(`${idToUse}/${subIdToUse}`);
+            setShowNotFoundModal(true);
+            setPendingRequestId(null);
+            setPendingSubRequestId(null);
+          }
+        } else {
+          // Открываем всю группу заявок
+          setSelectedRequest(foundRequest);
+          openModal('requestDetails');
+          setPendingRequestId(null);
+          setPendingSubRequestId(null);
+        }
+        
+        // Очищаем query параметры из URL
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (idToUse) {
+        // Заявка не найдена
+        setNotFoundRequestId(idToUse);
+        setShowNotFoundModal(true);
+        setPendingRequestId(null);
+        setPendingSubRequestId(null);
+        // Очищаем query параметры из URL
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, requests, selectedRequest, pendingRequestId, pendingSubRequestId, openModal]);
 
   const fetchNotifications = useCallback(async () => {
     try {

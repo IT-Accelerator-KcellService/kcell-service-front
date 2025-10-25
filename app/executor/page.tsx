@@ -576,6 +576,80 @@ export default function ExecutorDashboard() {
     };
   }, [modalStack, isClosingProgrammatically]);
 
+  // Сохраняем requestId в state при первой загрузке
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [pendingSubRequestId, setPendingSubRequestId] = useState<string | null>(null);
+
+  // Обработка query параметров для открытия заявки
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestIdFromUrl = urlParams.get("requestId");
+    const subRequestIdFromUrl = urlParams.get("subRequestId");
+    
+    const requestId = requestIdFromUrl || searchParams.get("requestId");
+    const subRequestId = subRequestIdFromUrl || searchParams.get("subRequestId");
+
+    // Сохраняем requestId в state, если он есть и еще не сохранен
+    if (requestId && !pendingRequestId) {
+      setPendingRequestId(requestId);
+      if (subRequestId) {
+        setPendingSubRequestId(subRequestId);
+      }
+    }
+
+    // Проверяем, что заявки загружены
+    if (myRequests.length === 0 && assignedRequests.length === 0 && completedRequests.length === 0) {
+      return;
+    }
+
+    const idToUse = pendingRequestId || requestId;
+    const subIdToUse = pendingSubRequestId || subRequestId;
+
+    if (idToUse && !selectedRequest) {
+      // Объединяем все списки заявок
+      const allRequests = [...myRequests, ...assignedRequests, ...completedRequests];
+      const foundRequest = allRequests.find(r => r.id === parseInt(idToUse));
+      
+      if (foundRequest) {
+        // Если указан subRequestId, фильтруем подзаявки
+        if (subIdToUse) {
+          const subRequest = foundRequest.requests.find((req: SubRequest) => req.id === parseInt(subIdToUse));
+          if (subRequest) {
+            setSelectedRequest(foundRequest);
+            setExpandedSubRequests(new Set([subRequest.id]));
+            openModal('requestDetails');
+            setPendingRequestId(null);
+            setPendingSubRequestId(null);
+          } else {
+            // Подзаявка не найдена
+            setNotFoundRequestId(`${idToUse}/${subIdToUse}`);
+            setShowNotFoundModal(true);
+            setPendingRequestId(null);
+            setPendingSubRequestId(null);
+          }
+        } else {
+          // Открываем всю группу заявок
+          setSelectedRequest(foundRequest);
+          openModal('requestDetails');
+          setPendingRequestId(null);
+          setPendingSubRequestId(null);
+        }
+        
+        // Очищаем query параметры из URL
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (idToUse) {
+        // Заявка не найдена
+        setNotFoundRequestId(idToUse);
+        setShowNotFoundModal(true);
+        setPendingRequestId(null);
+        setPendingSubRequestId(null);
+        // Очищаем query параметры из URL
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, myRequests, assignedRequests, completedRequests, selectedRequest, pendingRequestId, pendingSubRequestId, openModal]);
+
   const fetchStats = async () => {
     try {
       const res = await api.get("/analytics/stats/executor");
