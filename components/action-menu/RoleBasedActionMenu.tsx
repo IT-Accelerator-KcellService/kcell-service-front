@@ -92,7 +92,7 @@ export function RoleBasedActionMenu({
   const translateStatus = (status: string) => {
     const statusMap: { [key: string]: string } = {
       'in_progress': 'В процессе',
-      'awaiting_assignment': 'Ожидает назначения',
+      'awaiting_assignment': 'Ожидает назначения Исполнителя',
       'assigned': 'Назначена',
       'execution': 'Выполняется',
       'completed': 'Завершена',

@@ -1883,11 +1883,11 @@ export default function AdminWorkerDashboard() {
   const translateStatus = (status: string) => {
     switch (status) {
       case "draft": return "Черновик";
-      case "in_progress": return "В обработке";
+      case "in_progress": return "В обработке у Администратора";
       case "execution": return "Исполнение";
       case "completed": return "Завершено";
       case "rejected": return "Отклонено";
-      case "awaiting_assignment": return "Ожидание назначения";
+      case "awaiting_assignment": return "Ожидает назначения Исполнителя";
       case "assigned": return "Назначено";
               case "awaiting_sla": return "Ожидание времени выполнения";
       default: return status;

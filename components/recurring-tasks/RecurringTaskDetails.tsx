@@ -145,9 +145,9 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
   const translateStatus = (status: string) => {
     switch (status) {
       case 'in_progress':
-        return 'В обработке';
+        return 'В обработке у Администратора';
       case 'awaiting_assignment':
-        return 'Ожидает назначения';
+        return 'Ожидает назначения Исполнителя';
       case 'awaiting_sla':
         return 'Ожидание времени выполнения';
       case 'assigned':
