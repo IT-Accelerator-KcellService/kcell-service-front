@@ -47,6 +47,7 @@ interface RoleBasedActionMenuProps {
   onDelete?: (request: any) => void
   onToggleLongTerm?: (requestId: number, requestGroupId: number, currentStatus: boolean) => void
   onAssignExecutor?: (request: any) => void
+  onChangeExecutors?: (request: any) => void
   onUnassignExecutor?: (request: any) => void
   onRateRequest?: (request: any) => void
   onRateClient?: (requestGroup: any) => void
@@ -74,6 +75,7 @@ export function RoleBasedActionMenu({
   onDelete,
   onToggleLongTerm,
   onAssignExecutor,
+  onChangeExecutors,
   onRateRequest,
   onRateClient,
   onAddComment,
@@ -413,6 +415,22 @@ export function RoleBasedActionMenu({
                     label: "Назначить исполнителей",
                     onClick: () => {
                       onAssignExecutor(request)
+                      setOpen(false)
+                    },
+                    variant: "default" as const,
+                    primary: true,
+                    showForRoles: ["department-head"],
+                  },
+                ]
+                : []),
+            ...(request.status !== "in_progress" && request.status !== "awaiting_assignment" &&
+                request.status !== "completed" && onChangeExecutors
+                ? [
+                  {
+                    icon: UserPlus,
+                    label: "Изменить исполнителей",
+                    onClick: () => {
+                      onChangeExecutors(request)
                       setOpen(false)
                     },
                     variant: "default" as const,

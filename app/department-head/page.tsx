@@ -61,6 +61,7 @@ import {CommentsModal} from "@/components/CommentsModal";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {RejectRequestModal} from "@/components/RejectRequestModal";
 import {AssignExecutorsModal} from "@/components/AssignExecutorsModal";
+import {ChangeExecutorsModal} from "@/components/ChangeExecutorsModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
@@ -150,6 +151,8 @@ export default function DepartmentHeadDashboard() {
   const [redirectError, setRedirectError] = useState<string | null>(null);
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
   const [selectedSubRequestForAssignment, setSelectedSubRequestForAssignment] = useState<any>(null);
+  const [showChangeExecutorsModal, setShowChangeExecutorsModal] = useState(false);
+  const [selectedSubRequestForChange, setSelectedSubRequestForChange] = useState<any>(null);
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
   const [upcomingTasksRefreshTrigger, setUpcomingTasksRefreshTrigger] = useState(0);
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -1321,6 +1324,29 @@ export default function DepartmentHeadDashboard() {
     });
   };
 
+  const handleChangeExecutors = (subRequest: any) => {
+    setSelectedSubRequestForChange(subRequest);
+    setShowChangeExecutorsModal(true);
+    openModal('changeExecutorsModal');
+  };
+
+  const handleCloseChangeExecutorsModal = () => {
+    setShowChangeExecutorsModal(false);
+    setSelectedSubRequestForChange(null);
+    closeModalWithHistory();
+  };
+
+  const handleChangeExecutorsSuccess = () => {
+    // Оптимистичное обновление уже выполнено в ChangeExecutorsModal
+    // Просто показываем сообщение об успехе
+    successModal.showSuccess({
+      title: "Исполнители изменены",
+      message: "Исполнители успешно изменены для подзаявки"
+    });
+    setSelectedRequest(null);
+    closeModalWithHistory();
+  };
+
   return (
       <>
         <Header
@@ -1906,6 +1932,7 @@ export default function DepartmentHeadDashboard() {
                                         }}
                                         onRedirectToOtherDepartment={handleOpenRedirectModal}
                                         onAssignExecutor={handleAssignExecutors}
+                                        onChangeExecutors={handleChangeExecutors}
                                         onToggleLongTerm={handleToggleLongTerm}
                                         onDelete={(subReq) => {
                                           handleDeleteSubRequest(subReq);
@@ -2277,7 +2304,7 @@ export default function DepartmentHeadDashboard() {
         <BottomNav
 
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal}
+            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal || showChangeExecutorsModal}
         />
         {isDesktop && <Link
             href="/chat-bot"
@@ -2303,6 +2330,16 @@ export default function DepartmentHeadDashboard() {
             executors={executors}
             userServiceCategoryId={user?.service_category_id}
             onSuccess={handleAssignExecutorsSuccess}
+        />
+
+        {/* Модальное окно изменения исполнителей */}
+        <ChangeExecutorsModal
+            isOpen={showChangeExecutorsModal}
+            onClose={handleCloseChangeExecutorsModal}
+            subRequest={selectedSubRequestForChange}
+            executors={executors}
+            userServiceCategoryId={user?.service_category_id}
+            onSuccess={handleChangeExecutorsSuccess}
         />
 
         {/* Модал импорта Excel */}
