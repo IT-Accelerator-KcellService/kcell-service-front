@@ -2048,11 +2048,11 @@ export default function ExecutorDashboard() {
                 <CardContent className="space-y-4 pb-16">
                   <div className="grid grid-cols-2 gap-4">
                   <div>
-                      <Label>Тип заявки</Label>
+                      <Label>Тип заявки </Label>
                       <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
                   </div>
                   <div>
-                      <Label>Статус</Label>
+                      <Label>Статус </Label>
                       <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                   </div>
                   </div>

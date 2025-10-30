@@ -1307,11 +1307,11 @@ export default function ClientDashboard() {
                 <CardContent className="space-y-4 pb-16">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label className="font-medium text-gray-900">Тип заявки</Label>
+                      <Label className="font-medium text-gray-900">Тип заявки </Label>
                       <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
                     </div>
                     <div>
-                      <Label className="font-medium text-gray-900">Статус</Label>
+                      <Label className="font-medium text-gray-900">Статус </Label>
                       <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                     </div>
                   </div>
