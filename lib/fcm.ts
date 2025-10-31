@@ -1,4 +1,4 @@
-// FCM Token Management for Kcell Service Frontend
+// FCM Token Management for WorkFlow Frontend
 
 interface FCMTokenData {
     token: string;

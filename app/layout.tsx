@@ -7,7 +7,7 @@ import "../lib/fcm"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Kcell Service App - Internal Service Request Management",
+  title: "WorkFlow App - Internal Service Request Management",
   description:
     "Mobile-first internal solution for Kcell employees to submit and manage cleaning and maintenance requests across office buildings.",
   keywords: "Kcell, service requests, maintenance, internal app, Kazakhstan telecom",

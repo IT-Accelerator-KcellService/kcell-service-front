@@ -225,13 +225,13 @@ function ProgressRing({
                     transition: "transform 120ms ease",
                 }}
             >
-                <KcellMark size={size - thickness * 2 - 6} color={color} />
+                <WorkFlowMark size={size - thickness * 2 - 6} color={color} />
             </div>
         </div>
     )
 }
 
-function KcellMark({ size = 40, color = "#7B28CC" }) {
+function WorkFlowMark({ size = 40, color = "#7B28CC" }) {
     return (
         <div
             className="rounded-full grid place-items-center"
@@ -247,7 +247,7 @@ function KcellMark({ size = 40, color = "#7B28CC" }) {
             }}
             aria-hidden="true"
         >
-            {"K"}
+            {"W"}
         </div>
     )
 }
