@@ -1,5 +1,5 @@
 "use client"
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState, useMemo} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
@@ -792,13 +792,15 @@ export default function ExecutorDashboard() {
     fetchStats()
   }, []);
 
-  const filteredRequests = myRequests.filter((request:any) => {
-    const statusMatch = filterStatus === "all"   ||
-        (filterStatus === "long_term" ? request.requests.some((req: { is_long_term: any }) => req.is_long_term && request.request_type !== 'recurring') : request.status === filterStatus);
-    const requestType = request.request_type
-    const typeMatch = filterType === "all" || requestType === filterType
-    return statusMatch && typeMatch
-  })
+  const filteredRequests = useMemo(() => {
+    return myRequests.filter((request:any) => {
+      const statusMatch = filterStatus === "all"   ||
+          (filterStatus === "long_term" ? request.requests.some((req: { is_long_term: any }) => req.is_long_term && request.request_type !== 'recurring') : request.status === filterStatus);
+      const requestType = request.request_type
+      const typeMatch = filterType === "all" || requestType === filterType
+      return statusMatch && typeMatch
+    })
+  }, [myRequests, filterStatus, filterType])
 
   const closeAllModalsExcept = async (modalName: string) => {
 

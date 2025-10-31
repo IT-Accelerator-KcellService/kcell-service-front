@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useMemo, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { MapPin, Calendar as CalendarLucid, ImageIcon, User } from "lucide-react"
 import { RequestGroup } from "@/stores/useRequestStore"
@@ -15,7 +15,7 @@ interface RequestCardProps {
   userRole?: string
 }
 
-export function RequestCard({
+function RequestCardComponent({
   request,
   onCardClick,
   renderCardHeader,
@@ -25,23 +25,31 @@ export function RequestCard({
   userRole
 }: RequestCardProps) {
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString("ru-RU", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     })
-  }
+  }, [])
+  
+  const formattedDate = useMemo(() => formatDate(request.created_date), [request.created_date, formatDate])
+  
+  const cardClassName = useMemo(() => {
+    return `hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
+      request.is_long_term && request.request_type !== 'recurring'
+        ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
+        : 'bg-white hover:shadow-purple-400/20'
+    }`
+  }, [request.is_long_term, request.request_type])
+  
+  const handleClick = useCallback(() => onCardClick(request), [onCardClick, request])
 
   return (
     <Card
       ref={isLast ? lastElementRef : null}
-      className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
-        request.is_long_term && request.request_type !== 'recurring'
-          ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
-          : 'bg-white hover:shadow-purple-400/20'
-      }`}
-      onClick={() => onCardClick(request)}
+      className={cardClassName}
+      onClick={handleClick}
     >
       {renderCardHeader(request)}
 
@@ -55,7 +63,7 @@ export function RequestCard({
 
           <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
             <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
-            <span className="truncate font-medium">{formatDate(request.created_date)}</span>
+            <span className="truncate font-medium">{formattedDate}</span>
           </div>
         </div>
 
@@ -174,3 +182,15 @@ export function RequestCard({
     </Card>
   )
 }
+
+export const RequestCard = React.memo(RequestCardComponent, (prevProps, nextProps) => {
+  // Кастомная функция сравнения для оптимизации
+  return (
+    prevProps.request.id === nextProps.request.id &&
+    prevProps.request.status === nextProps.request.status &&
+    prevProps.request.created_date === nextProps.request.created_date &&
+    prevProps.isLast === nextProps.isLast &&
+    prevProps.userRole === nextProps.userRole &&
+    JSON.stringify(prevProps.clientRating) === JSON.stringify(nextProps.clientRating)
+  )
+})

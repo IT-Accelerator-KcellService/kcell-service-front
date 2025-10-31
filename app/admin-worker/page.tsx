@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useState, useRef, useEffect, useCallback} from "react"
+import React, {useState, useRef, useEffect, useCallback, useMemo} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -628,7 +628,7 @@ export default function AdminWorkerDashboard() {
     }
   }, [user?.office_id, token]);
 
-  const filteredMyRequests = sortRequests(
+  const filteredMyRequests = useMemo(() => sortRequests(
       myRequests.filter((request) => {
         let statusMatch = false;
         
@@ -647,9 +647,9 @@ export default function AdminWorkerDashboard() {
         const typeMatch = filterMyType === "all" || requestType === filterMyType;
         return statusMatch && typeMatch;
       })
-  );
+  ), [myRequests, filterMyStatus, filterMyType]);
 
-  const filteredIncomingRequests = sortRequests(
+  const filteredIncomingRequests = useMemo(() => sortRequests(
       incomingRequests.filter((request) => {
         let statusMatch = false;
         
@@ -669,7 +669,7 @@ export default function AdminWorkerDashboard() {
         
         return statusMatch && typeMatch;
       })
-  );
+  ), [incomingRequests, filterIncomingStatus, filterIncomingType]);
 
   useEffect(() => {
     if (notifications.length > 0) {

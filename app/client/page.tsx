@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useCallback, useEffect, useRef, useState} from "react"
+import React, {useCallback, useEffect, useRef, useState, useMemo} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
@@ -81,8 +81,19 @@ interface Stats {
 }
 
 export default function ClientDashboard() {
-  const {role, token, clearAuth, user} = useAuthStore()
-  const {categories, fetchCategories, clearCategories} = useCategoryStore()
+  // Optimized Zustand selectors to prevent unnecessary re-renders
+  const role = useAuthStore(state => state.role)
+  const token = useAuthStore(state => state.token)
+  const user = useAuthStore(state => state.user)
+  const clearAuth = useAuthStore(state => state.clearAuth)
+  const categories = useCategoryStore(state => state.categories)
+  const fetchCategories = useCategoryStore(state => state.fetchCategories)
+  const clearCategories = useCategoryStore(state => state.clearCategories)
+  const requests = useRequestStore(state => state.requests)
+  const addRequests = useRequestStore(state => state.addRequests)
+  const clearRequests = useRequestStore(state => state.clearRequests)
+  const removeRequest = useRequestStore(state => state.removeRequest)
+  
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const rejectModal = useRejectRequestModal()
@@ -104,13 +115,15 @@ export default function ClientDashboard() {
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
   const [clientRatings, setClientRatings] = useState<Record<number, any>>({});
-  const { requests, addRequests, clearRequests, removeRequest } = useRequestStore();
 
   const [showProfile, setShowProfile] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
-  const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
+  const notifications = useNotificationStore(state => state.notifications)
+  const setNotifications = useNotificationStore(state => state.setNotifications)
+  const setNotificationLoading = useNotificationStore(state => state.setNotificationLoading)
+  const clearNotifications = useNotificationStore(state => state.clearNotifications)
   const [loading, setLoading] = useState(true)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
@@ -138,7 +151,7 @@ export default function ClientDashboard() {
     lastElementRef.current = node;
   }, []);
 
-  const filteredRequests = requests
+  const filteredRequests = useMemo(() => requests
       .filter((request) => {
         const statusMatch = filterStatus === "all" || 
           (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term) : request.status === filterStatus)
@@ -153,7 +166,7 @@ export default function ClientDashboard() {
         const safeDateA = isNaN(dateA) ? 0 : dateA;
         const safeDateB = isNaN(dateB) ? 0 : dateB;
         return safeDateB - safeDateA;
-      });
+      }), [requests, filterStatus, filterType]);
 
   useEffect(() => {
     if (loading) return;
@@ -178,21 +191,23 @@ export default function ClientDashboard() {
     setPage(1);
     setHasMore(true);
     fetchRequests(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openModal = (name: string) => {
+  const openModal = useCallback((name: string) => {
     setModalStack(prev => [...prev, name]);
     window.history.pushState({ modal: name }, '', window.location.pathname);
-  };
+  }, []);
 
-  const closeModalWithHistory = () => {
+  const closeModalWithHistory = useCallback(() => {
     setIsClosingProgrammatically(true);
-    const newStack = modalStack.slice(0, -1);
-    setModalStack(newStack);
-
-    // Откатываем историю браузера назад
-    window.history.back();
-  };
+    setModalStack(prev => {
+      const newStack = prev.slice(0, -1);
+      // Откатываем историю браузера назад
+      window.history.back();
+      return newStack;
+    });
+  }, []);
 
 
   const [hydrated, setHydrated] = useState(false);
@@ -308,6 +323,7 @@ export default function ClientDashboard() {
       setNotificationLoading(false)
     }
     fetchOffices()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -330,6 +346,7 @@ export default function ClientDashboard() {
     if (!stats) {
       fetchStats()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -996,7 +1013,7 @@ export default function ClientDashboard() {
     }
   };
 
-  const renderCardHeader = (requestGroup: RequestGroup) => {
+  const renderCardHeader = useCallback((requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     // Убрали счетчик подзаявок - теперь показываем только один заявка
 
@@ -1045,7 +1062,12 @@ export default function ClientDashboard() {
           </div>
         </CardHeader>
     );
-  };
+  }, [isDesktop, userRatings, openModal]);
+  
+  const handleCardClick = useCallback((request: RequestGroup) => {
+    setSelectedRequest(request);
+    openModal('requestDetails');
+  }, [openModal]);
 
   return (
       <>
@@ -1211,10 +1233,7 @@ export default function ClientDashboard() {
                           <RequestCard
                               key={`incoming-${requestGroup.id}`}
                               request={requestGroup}
-                              onCardClick={(request) => {
-                                setSelectedRequest(request);
-                                openModal('requestDetails');
-                              }}
+                              onCardClick={handleCardClick}
                               renderCardHeader={renderCardHeader}
                               isLast={isLast}
                               lastElementRef={lastRequestRef}

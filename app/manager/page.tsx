@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useCallback, useEffect, useRef, useState} from "react"
+import React, {useCallback, useEffect, useRef, useState, useMemo} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
@@ -55,7 +55,9 @@ import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import {RoleBasedActionMenu} from "@/components/action-menu/RoleBasedActionMenu";
-import {LogsViewer} from "@/components/logs-viewer";
+const LogsViewer = dynamic(() => import("@/components/logs-viewer").then(mod => ({ default: mod.LogsViewer })), {
+  loading: () => <div className="text-center py-8">Загрузка логов...</div>
+});
 import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 import {IconInfoModal} from "@/components/IconInfoModal";
 import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
@@ -70,7 +72,11 @@ import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import {RequestCard} from "@/components/RequestCard";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
-import ManagerAnalytics from "@/components/ManagerAnalytics";
+import dynamic from 'next/dynamic';
+
+const ManagerAnalytics = dynamic(() => import("@/components/ManagerAnalytics"), {
+  loading: () => <div className="text-center py-8">Загрузка аналитики...</div>
+});
 import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover"
 import {Calendar} from "@/components/ui/calendar";
 import {ru} from "date-fns/locale";
@@ -138,8 +144,13 @@ interface Category {
 }
 
 export default function ManagerDashboard() {
-  const {token, clearAuth, user} = useAuthStore()
-  const {categories, fetchCategories, clearCategories} = useCategoryStore()
+  // Optimized Zustand selectors
+  const token = useAuthStore(state => state.token)
+  const user = useAuthStore(state => state.user)
+  const clearAuth = useAuthStore(state => state.clearAuth)
+  const categories = useCategoryStore(state => state.categories)
+  const fetchCategories = useCategoryStore(state => state.fetchCategories)
+  const clearCategories = useCategoryStore(state => state.clearCategories)
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const approveModal = useAcceptRequestModal()
@@ -177,7 +188,9 @@ export default function ManagerDashboard() {
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [showMapModal, setShowMapModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
-  const {requests, setRequests, clearRequests} = useRequestStore()
+  const requests = useRequestStore(state => state.requests)
+  const setRequests = useRequestStore(state => state.setRequests)
+  const clearRequests = useRequestStore(state => state.clearRequests)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isInitialized, setIsInitialized] = useState(false)
@@ -289,36 +302,38 @@ export default function ManagerDashboard() {
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
 
-  const filteredRequests = requests.filter((request) => {
-    const now = new Date();
-    let periodStartDate: Date | null;
+  const filteredRequests = useMemo(() => {
+    return requests.filter((request) => {
+      const now = new Date();
+      let periodStartDate: Date | null;
 
-    switch (period) {
-      case 'week':
-        periodStartDate = subDays(now, 7);
-        break;
-      case 'month':
-        periodStartDate = subMonths(now, 1);
-        break;
-      case 'year':
-        periodStartDate = subYears(now, 1);
-        break;
-      default:
-        periodStartDate = null;
-    }
-    const statusMatch = filterStatus === "all" ||
-        (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
-         filterStatus === "overdue" ? true : request.status === filterStatus);
-    const requestType = request.request_type;
-    // Для типа заявки используем бэкенд фильтрацию, поэтому фронтенд фильтрация не нужна
-    const typeMatch = true; // Всегда true, так как бэкенд уже отфильтровал по типу
-    const officeMatch = office === "all" || office == String(request.office_id);
+      switch (period) {
+        case 'week':
+          periodStartDate = subDays(now, 7);
+          break;
+        case 'month':
+          periodStartDate = subMonths(now, 1);
+          break;
+        case 'year':
+          periodStartDate = subYears(now, 1);
+          break;
+        default:
+          periodStartDate = null;
+      }
+      const statusMatch = filterStatus === "all" ||
+          (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
+           filterStatus === "overdue" ? true : request.status === filterStatus);
+      const requestType = request.request_type;
+      // Для типа заявки используем бэкенд фильтрацию, поэтому фронтенд фильтрация не нужна
+      const typeMatch = true; // Всегда true, так как бэкенд уже отфильтровал по типу
+      const officeMatch = office === "all" || office == String(request.office_id);
 
-    const createdDate = new Date(request.created_date);
-    const periodMatch = !periodStartDate || isAfter(createdDate, periodStartDate);
+      const createdDate = new Date(request.created_date);
+      const periodMatch = !periodStartDate || isAfter(createdDate, periodStartDate);
 
-    return statusMatch && typeMatch && officeMatch && periodMatch;
-  })
+      return statusMatch && typeMatch && officeMatch && periodMatch;
+    })
+  }, [requests, period, filterStatus, office])
 
   useEffect(() => {
     if (loading) return;
@@ -347,19 +362,20 @@ export default function ManagerDashboard() {
     }
   }, []);
 
-  const openModal = (name: string) => {
+  const openModal = useCallback((name: string) => {
     setModalStack(prev => [...prev, name]);
     window.history.pushState({ modal: name }, '', window.location.pathname);
-  };
+  }, []);
 
-  const closeModalWithHistory = () => {
+  const closeModalWithHistory = useCallback(() => {
     setIsClosingProgrammatically(true);
-    const newStack = modalStack.slice(0, -1);
-    setModalStack(newStack);
-
-    // Откатываем историю браузера назад
-    window.history.back();
-  };
+    setModalStack(prev => {
+      const newStack = prev.slice(0, -1);
+      // Откатываем историю браузера назад
+      window.history.back();
+      return newStack;
+    });
+  }, []);
 
   const checkUserRating = useCallback(async (requestId: number) => {
     try {
@@ -1834,7 +1850,12 @@ export default function ManagerDashboard() {
     setEndDate(undefined);
   };
 
-  const renderCardHeader = (requestGroup: RequestGroup) => {
+  const handleCardClick = useCallback((request: RequestGroup) => {
+    setSelectedRequest(request);
+    openModal('requestDetails');
+  }, [openModal]);
+
+  const renderCardHeader = useCallback((requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     const totalSubRequests = requestGroup.requests.length;
 
@@ -1889,7 +1910,7 @@ export default function ManagerDashboard() {
           </div>
         </CardHeader>
     );
-  };
+  }, [isDesktop, openModal, checkUserRating]);
 
 
   const handleRateExecutor = async () => {
@@ -2237,10 +2258,7 @@ export default function ManagerDashboard() {
                       <RequestCard
                           key={`incoming-${requestGroup.id}`}
                           request={requestGroup}
-                          onCardClick={(request) => {
-                            setSelectedRequest(request);
-                            openModal('requestDetails');
-                          }}
+                          onCardClick={handleCardClick}
                           renderCardHeader={renderCardHeader}
                           isLast={isLast}
                           lastElementRef={lastRequestRef}

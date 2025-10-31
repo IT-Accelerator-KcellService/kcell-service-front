@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState, useMemo} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
@@ -649,13 +649,15 @@ export default function DepartmentHeadDashboard() {
   }, [selectedRequest])
 
   // Фильтрация входящих заявок
-  const filteredIncomingRequests = incomingRequests.filter((request) => {
-    const statusMatch = filterIncomingStatus === "all"   ||
-        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') :
-         filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
-    const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
-    return statusMatch && typeMatch;
-  });
+  const filteredIncomingRequests = useMemo(() => {
+    return incomingRequests.filter((request) => {
+      const statusMatch = filterIncomingStatus === "all"   ||
+          (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') :
+           filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
+      const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
+      return statusMatch && typeMatch;
+    });
+  }, [incomingRequests, filterIncomingStatus, filterIncomingType]);
 
   const handleCreateDepartmentRequest = async (formData: FormData) => {
     setIsSubmitting(true);
