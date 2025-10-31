@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState, useRef, useMemo} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
@@ -143,8 +143,16 @@ export default function DepartmentHeadDashboard() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
   const [filterIncomingType, setFilterIncomingType] = useState("all")
-  const [isInitialized, setIsInitialized] = useState(false)
+  const prevFilterStatus = useRef("all")
+  const isInitialized = useRef(false)
   const [stats, setStats] = useState<Stats | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useRef<HTMLDivElement | null>(null);
+  const isLoadingRef = useRef(false); // Защита от дублирования запросов
+  const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Throttle для observer
   const [showRedirectModal, setShowRedirectModal] = useState(false);
   const [selectedRequestForRedirect, setSelectedRequestForRedirect] = useState<any>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -518,60 +526,6 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-
-  const fetchRequests = useCallback(async () => {
-    try {
-      // Создаем параметры запроса
-      const params = new URLSearchParams();
-
-      // Добавляем фильтр статуса если он не "all"
-      if (filterIncomingStatus !== "all" && filterIncomingStatus !== "long_term") {
-        params.append('status', filterIncomingStatus);
-      }
-
-      const queryString = params.toString();
-      const url = queryString ? `/request-groups?${queryString}` : '/request-groups';
-      
-      const response: any = await api.get(url);
-
-      const otherRequests: Request[] = response.data.otherRequests;
-      const myRequests: Request[] = response.data.myRequests;
-
-      const sortedOtherRequests = otherRequests.sort((a, b) => {
-        // 1. приоритет "waiting_for_assignment"
-        if (a.status === "awaiting_assignment" && b.status !== "awaiting_assignment") return -1;
-        if (b.status === "awaiting_assignment" && a.status !== "awaiting_assignment") return 1;
-
-        // 2. приоритет "in_progress"
-        if (a.status === "in_progress" && b.status !== "in_progress") return -1;
-        if (b.status === "in_progress" && a.status !== "in_progress") return 1;
-
-        // 3. среди одинаковых статусов — приоритет экстренным
-        if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
-        if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
-
-        // 4. по дате (новые сверху)
-        const dateA = new Date(a.created_date).getTime();
-        const dateB = new Date(b.created_date).getTime();
-        return dateB - dateA;
-      });
-      setIncomingRequests(sortedOtherRequests);
-      setMyRequests(myRequests);
-
-      // Проверяем рейтинги для завершенных заявок
-      const allRequests = [...sortedOtherRequests, ...myRequests];
-      allRequests.forEach((requestGroup) => {
-        requestGroup.requests.forEach((subRequest) => {
-          if (subRequest.status === "completed") {
-            checkUserRating(subRequest.id);
-          }
-        });
-      });
-    } catch (error) {
-      console.error("Failed to fetch requests:", error);
-    }
-  }, [filterIncomingStatus]);
-
   const checkUserRating = useCallback(async (requestId: number) => {
     try {
       const response = await api.get(`/ratings/request/${requestId}`);
@@ -589,6 +543,84 @@ export default function DepartmentHeadDashboard() {
       console.error("Failed to check user rating:", error);
     }
   }, []);
+
+  const fetchRequests = useCallback(async (currentPage = 1, pageSize = 10) => {
+    // Защита от множественных одновременных запросов (включая страницу 1)
+    if (isLoadingRef.current) {
+      console.log('Fetch already in progress, skipping page', currentPage);
+      return;
+    }
+    isLoadingRef.current = true;
+    setLoading(true);
+
+    try {
+      // Создаем параметры запроса
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString()
+      });
+
+      // Добавляем фильтр статуса если он не "all"
+      if (filterIncomingStatus !== "all" && filterIncomingStatus !== "long_term") {
+        params.append('status', filterIncomingStatus);
+      }
+
+      const response: any = await api.get(`/request-groups?${params.toString()}`);
+
+      const otherRequests: Request[] = response.data.otherRequests || [];
+      const myRequests: Request[] = response.data.myRequests || [];
+      
+      console.log('=== FETCH REQUESTS DEPARTMENT-HEAD ===');
+      console.log('Current page:', currentPage);
+      console.log('Page size:', pageSize);
+      console.log('Other requests count:', otherRequests.length);
+      console.log('My requests count:', myRequests.length);
+      console.log('Total received:', otherRequests.length + myRequests.length);
+      console.log('Note: Sorting is done on backend');
+
+      // Проверяем рейтинги для завершенных заявок (до обновления состояния)
+      const allRequests = [...otherRequests, ...myRequests];
+      allRequests.forEach((requestGroup) => {
+        requestGroup.requests.forEach((subRequest) => {
+          if (subRequest.status === "completed") {
+            checkUserRating(subRequest.id);
+          }
+        });
+      });
+
+      // Обновляем состояние с учетом пагинации
+      // Бэкенд уже отсортировал данные, используем их напрямую
+      setIncomingRequests((prev) => {
+        const newItems = currentPage === 1
+          ? otherRequests
+          : [...prev, ...otherRequests.filter(item => !prev.some(p => p.id === item.id))];
+        console.log('Incoming requests - previous:', prev.length, 'new:', newItems.length);
+        return newItems;
+      });
+      
+      setMyRequests((prev) => {
+        const newItems = currentPage === 1
+          ? myRequests
+          : [...prev, ...myRequests.filter(item => !prev.some(p => p.id === item.id))];
+        console.log('My requests - previous:', prev.length, 'new:', newItems.length);
+        return newItems;
+      });
+
+      // Обновляем флаг hasMore
+      // Проверяем, есть ли еще данные - если хотя бы один массив вернул полный pageSize, значит есть еще
+      const otherRequestsLength = otherRequests.length;
+      const myRequestsLength = myRequests.length;
+      const hasMoreData = otherRequestsLength >= pageSize || myRequestsLength >= pageSize;
+      console.log('Has more data:', hasMoreData, '(other:', otherRequestsLength, 'my:', myRequestsLength, 'pageSize:', pageSize, ')');
+      setHasMore(hasMoreData);
+    } catch (error) {
+      console.error("Failed to fetch requests:", error);
+    } finally {
+      isLoadingRef.current = false;
+      setLoading(false);
+    }
+  }, [filterIncomingStatus, checkUserRating]);
+
   const fetchExecutors = useCallback(async () => {
     try {
       const response = await api.get('/executors')
@@ -607,26 +639,97 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
+  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+    lastElementRef.current = node;
+  }, []);
+
   useEffect(() => {
-    // Инициализация данных при первом рендере (только если нет фильтра из URL)
-    if (!isInitialized && filterIncomingStatus === "all") {
-      fetchRequests();
-      setIsInitialized(true);
+    if (loading) return;
+    
+    // Не создаем observer если нет данных или пагинация отключена
+    if (!hasMore && page === 1 && incomingRequests.length === 0) return;
+
+    if (observer.current) {
+      observer.current.disconnect();
     }
-    fetchExecutors();
-    fetchOffices();
-  }, [filterIncomingStatus])
+
+    observer.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !loading && !isLoadingRef.current) {
+        // Throttle: предотвращаем множественные вызовы при быстром скролле
+        if (throttleTimeoutRef.current) {
+          return;
+        }
+        
+        throttleTimeoutRef.current = setTimeout(() => {
+          throttleTimeoutRef.current = null;
+        }, 500); // 500ms throttle
+        
+        setPage((prevPage) => {
+          const nextPage = prevPage + 1;
+          console.log('Observer triggered: loading page', nextPage);
+          fetchRequests(nextPage);
+          return nextPage;
+        });
+      }
+    }, {
+      // Опции для лучшей производительности
+      rootMargin: '100px', // Начинаем загрузку за 100px до конца
+    });
+
+    if (lastElementRef.current) {
+      observer.current.observe(lastElementRef.current);
+    }
+
+    // Cleanup функция для observer
+    return () => {
+      if (observer.current) {
+        observer.current.disconnect();
+      }
+      if (throttleTimeoutRef.current) {
+        clearTimeout(throttleTimeoutRef.current);
+        throttleTimeoutRef.current = null;
+      }
+    };
+  }, [loading, hasMore, page, incomingRequests.length]);
+
+  useEffect(() => {
+    // Инициализация данных при первом рендере
+    if (!isInitialized.current) {
+      fetchExecutors();
+      fetchOffices();
+      // Загружаем первую страницу при инициализации
+      fetchRequests(1);
+      isInitialized.current = true;
+    }
+  }, []);
 
   // Перезагружаем данные при изменении фильтра статуса
   useEffect(() => {
-    if (isInitialized) {
-      fetchRequests();
-    } else {
-      // Если это первая загрузка и есть фильтр, загружаем с фильтром
-      fetchRequests();
-      setIsInitialized(true);
+    if (filterIncomingStatus !== prevFilterStatus.current && isInitialized.current) {
+      prevFilterStatus.current = filterIncomingStatus;
+      
+      // Отключаем observer перед сбросом
+      if (observer.current) {
+        observer.current.disconnect();
+      }
+      
+      // Сбрасываем все состояния пагинации
+      setPage(1);
+      setHasMore(true);
+      setIncomingRequests([]);
+      setMyRequests([]);
+      isLoadingRef.current = false; // Сбрасываем флаг загрузки
+      
+      // Очищаем throttle
+      if (throttleTimeoutRef.current) {
+        clearTimeout(throttleTimeoutRef.current);
+        throttleTimeoutRef.current = null;
+      }
+      
+      // Загружаем первую страницу
+      fetchRequests(1);
     }
-  }, [filterIncomingStatus])
+  }, [filterIncomingStatus, fetchRequests])
 
   const fetchClientInfo = async (userId: number) => {
     if (clientInfo[userId]) return
@@ -648,14 +751,16 @@ export default function DepartmentHeadDashboard() {
     }
   }, [selectedRequest])
 
-  // Фильтрация входящих заявок
-  const filteredIncomingRequests = incomingRequests.filter((request) => {
-    const statusMatch = filterIncomingStatus === "all"   ||
-        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') :
-         filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
-    const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
-    return statusMatch && typeMatch;
-  });
+  // Фильтрация входящих заявок (мемоизировано для производительности)
+  const filteredIncomingRequests = useMemo(() => {
+    return incomingRequests.filter((request) => {
+      const statusMatch = filterIncomingStatus === "all"   ||
+          (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') :
+           filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
+      const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
+      return statusMatch && typeMatch;
+    });
+  }, [incomingRequests, filterIncomingStatus, filterIncomingType]);
 
   const handleCreateDepartmentRequest = async (formData: FormData) => {
     setIsSubmitting(true);
@@ -1569,17 +1674,22 @@ export default function DepartmentHeadDashboard() {
                       </Select>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredIncomingRequests.map((request, index: number) => (
+                      {filteredIncomingRequests.map((request, index: number) => {
+                        const isLast = index === filteredIncomingRequests.length - 1;
+                        return (
                           <RequestCard
-                              key={index}
-                              request={request}
-                              onCardClick={(request) => {
-                                setSelectedRequest(request);
-                                openModal('requestDetails');
-                              }}
-                              renderCardHeader={renderCardHeader}
+                            key={`incoming-${request.id}`}
+                            request={request}
+                            onCardClick={(request) => {
+                              setSelectedRequest(request);
+                              openModal('requestDetails');
+                            }}
+                            renderCardHeader={renderCardHeader}
+                            isLast={isLast}
+                            lastElementRef={lastRequestRef}
                           />
-                    ))}
+                        );
+                      })}
                   </div>
                   </div>
                 </TabsContent>
