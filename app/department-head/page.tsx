@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState, useMemo} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
@@ -649,13 +649,15 @@ export default function DepartmentHeadDashboard() {
   }, [selectedRequest])
 
   // Фильтрация входящих заявок
-  const filteredIncomingRequests = incomingRequests.filter((request) => {
-    const statusMatch = filterIncomingStatus === "all"   ||
-        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') :
-         filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
-    const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
-    return statusMatch && typeMatch;
-  });
+  const filteredIncomingRequests = useMemo(() => {
+    return incomingRequests.filter((request) => {
+      const statusMatch = filterIncomingStatus === "all"   ||
+          (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') :
+           filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
+      const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
+      return statusMatch && typeMatch;
+    });
+  }, [incomingRequests, filterIncomingStatus, filterIncomingType]);
 
   const handleCreateDepartmentRequest = async (formData: FormData) => {
     setIsSubmitting(true);
@@ -1496,10 +1498,10 @@ export default function DepartmentHeadDashboard() {
 
 
                 <TabsContent value="my-requests" className="pt-2 sm:pt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
                   {myRequests.map((request, index: number) => (
                       <RequestCard
-                          key={index}
+                          key={request.id || index}
                           request={request}
                           onCardClick={(request) => {
                               setSelectedRequest(request);
@@ -1568,10 +1570,10 @@ export default function DepartmentHeadDashboard() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
                       {filteredIncomingRequests.map((request, index: number) => (
                           <RequestCard
-                              key={index}
+                              key={request.id || index}
                               request={request}
                               onCardClick={(request) => {
                                 setSelectedRequest(request);
@@ -1886,7 +1888,7 @@ export default function DepartmentHeadDashboard() {
                         const hasComments = showComments === subRequest.id;
 
                         return (
-                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow duration-200 will-change-transform ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
                               {/* Заголовок под заявки */}
                               <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-3">
@@ -2072,7 +2074,7 @@ export default function DepartmentHeadDashboard() {
                                       key={index}
                                       src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                   onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
@@ -2098,7 +2100,7 @@ export default function DepartmentHeadDashboard() {
                                       key={index}
                                       src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                             onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');

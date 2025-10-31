@@ -74,9 +74,9 @@
   animation: fadeInUp 0.6s ease-out;
 }
 
-/* Smooth scrolling for better UX */
+/* Optimized scrolling - removed smooth for better performance */
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto; /* auto instead of smooth for better scroll performance */
 }
 
 /* Custom gradient backgrounds */
@@ -98,9 +98,10 @@ input, textarea, select {
   }
 }
 
-/* Hover effects for cards */
+/* Optimized hover effects for cards */
 .card-hover {
-  transition: all 0.3s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform;
 }
 
 .card-hover:hover {
@@ -178,9 +179,10 @@ input, textarea, select {
   overflow: hidden;
 }
 
-/* Smooth transitions for notification items */
+/* Optimized transitions for notification items */
 .notification-item {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .notification-item:hover {
@@ -221,9 +223,10 @@ input, textarea, select {
   }
 }
 
-/* Improved button hover effects */
+/* Optimized button hover effects */
 .btn-threads {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .btn-threads:hover {
@@ -231,9 +234,10 @@ input, textarea, select {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Card hover effects */
+/* Optimized card hover effects */
 .card-threads {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .card-threads:hover {

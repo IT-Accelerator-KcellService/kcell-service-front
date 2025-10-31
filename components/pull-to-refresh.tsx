@@ -140,7 +140,11 @@ export default function PullToRefresh(props: PullToRefreshProps) {
             className="relative h-[calc(100vh_-_theme(spacing.14))] sm:h-[calc(100vh_-_theme(spacing.16))] overflow-y-auto overscroll-contain"
             role="region"
             aria-label="Лента"
-            style={{ WebkitOverflowScrolling: "auto" as any }}
+            style={{ 
+                WebkitOverflowScrolling: "touch" as any,
+                scrollBehavior: "auto",
+                contain: "layout style paint"
+            }}
         >
             <div
                 className={cn("pointer-events-none sticky top-0 z-10 flex items-end justify-center bg-transparent")}
