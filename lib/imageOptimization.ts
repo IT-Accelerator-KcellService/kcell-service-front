@@ -40,11 +40,26 @@ export function optimizeCloudinaryUrl(
   }
 }
 
-/**
- * Оптимизированный URL для маленьких превью (48x48 в RequestCard)
- */
+
 export function getThumbnailUrl(url: string | null | undefined): string {
-  return optimizeCloudinaryUrl(url, 48, 48);
+  if (!url || url.startsWith('/')) {
+    return url || '/placeholder.svg';
+  }
+
+  if (!url.includes('cloudinary') || url.includes('w_') || url.includes('q_')) {
+    return url;
+  }
+
+  try {
+    const optimizedUrl = url.replace(
+      /\/upload\//,
+      `/upload/w_32,h_32,q_30,f_auto,c_fill/`
+    );
+    
+    return optimizedUrl;
+  } catch (error) {
+    return url;
+  }
 }
 
 /**

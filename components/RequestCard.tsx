@@ -123,8 +123,7 @@ function RequestCardComponent({
               <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
             </div>
             <div className="flex gap-2 overflow-x-auto">
-              {/* Показываем максимум 4 превью с оптимизацией Cloudinary */}
-              {request.photos.slice(0, 4).map((photo, index) => (
+              {request.photos.slice(0, 2).map((photo, index) => (
                 <LazyImage
                   key={index}
                   src={getThumbnailUrl(photo.photo_url)}
