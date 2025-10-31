@@ -88,6 +88,7 @@ interface Executor{
 interface Stats {
   totalRequests: number,
   statusCounts: {
+    awaitingAssignment: number,
     new: number,
     inWork: number,
     completed: number,
@@ -650,7 +651,8 @@ export default function DepartmentHeadDashboard() {
   // Фильтрация входящих заявок
   const filteredIncomingRequests = incomingRequests.filter((request) => {
     const statusMatch = filterIncomingStatus === "all"   ||
-        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterIncomingStatus);
+        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') :
+         filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
     const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
     return statusMatch && typeMatch;
   });
@@ -1156,7 +1158,7 @@ export default function DepartmentHeadDashboard() {
 
   const renderCardHeader = (requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
-    const totalSubRequests = requestGroup.requests.length;
+    // Убрали счетчик подзаявок - теперь показываем только один заявка
 
     return (
         <CardHeader className={`pb-3 px-5 pt-5`}>
@@ -1168,9 +1170,6 @@ export default function DepartmentHeadDashboard() {
               </h3>
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
-                {totalSubRequests} под заявок
-              </span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
@@ -1320,7 +1319,7 @@ export default function DepartmentHeadDashboard() {
     // Просто показываем сообщение об успехе
     successModal.showSuccess({
       title: "Исполнители назначены",
-      message: "Исполнители успешно назначены на подзаявку"
+      message: "Исполнители успешно назначены на заявку"
     });
   };
 
@@ -1442,26 +1441,28 @@ export default function DepartmentHeadDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="mb-6">
+                <div className="mb-3">
                   {/* на телефоне только табы */}
-                  <div className="flex flex-col sm:hidden gap-3 mb-4">
-                    <TabsList className="flex flex-wrap gap-2 w-full">
-                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Входящие</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Мои</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Повторяющиеся</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Статистика
-                      </TabsTrigger>
-                      <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Управление</span>
-                      </TabsTrigger>
-                    </TabsList>
+                  <div className="w-full mb-2 sm:hidden">
+                    <div className="overflow-x-auto">
+                      <TabsList className="flex w-max min-w-full">
+                        <TabsTrigger value="incoming" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Входящие</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="my-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Мои</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Повторяющиеся</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Статистика
+                        </TabsTrigger>
+                        <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Управление</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
                   </div>
 
                   {/* на больших экранах */}
@@ -1494,7 +1495,7 @@ export default function DepartmentHeadDashboard() {
                 </div>
 
 
-                <TabsContent value="my-requests" className="pt-6 sm:pt-0">
+                <TabsContent value="my-requests" className="pt-2 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {myRequests.map((request, index: number) => (
                       <RequestCard
@@ -1537,9 +1538,9 @@ export default function DepartmentHeadDashboard() {
                   />
                 </TabsContent>
 
-                <TabsContent value="incoming" className="pt-6 sm:pt-0">
+                <TabsContent value="incoming" className="pt-2 sm:pt-0">
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-4 mb-4">
+                    <div className="flex items-center space-x-4 mb-2">
                       <Select value={filterIncomingStatus} onValueChange={setFilterIncomingStatus}>
                         <SelectTrigger className="w-48">
                           <SelectValue placeholder="Статус" />
@@ -1551,6 +1552,7 @@ export default function DepartmentHeadDashboard() {
                           <SelectItem value="assigned">Назначен</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="overdue">Просрочено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1582,7 +1584,7 @@ export default function DepartmentHeadDashboard() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="statistics" className="pt-6 sm:pt-0">
+                <TabsContent value="statistics" className="pt-2 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card className="w-full">
                       <CardHeader>
@@ -1590,6 +1592,10 @@ export default function DepartmentHeadDashboard() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4 text-sm sm:text-base">
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">Ожидает назначения</span>
+                            <span className="font-bold">{stats && stats.statusCounts && stats.statusCounts.awaitingAssignment ? (stats.statusCounts.awaitingAssignment) : 0}</span>
+                          </div>
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">Всего заявок</span>
                             <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests) : 0}</span>
@@ -1647,7 +1653,7 @@ export default function DepartmentHeadDashboard() {
                 </TabsContent>
 
 
-                <TabsContent value="management" className="pt-6 sm:pt-0">
+                <TabsContent value="management" className="pt-2 sm:pt-0">
                   <div className="space-y-6">
                     <Card>
                       <CardHeader>
@@ -1871,11 +1877,11 @@ export default function DepartmentHeadDashboard() {
                       </div>
                   )}
 
-                  {/* Под заявки */}
+                  {/* Заявка (теперь показываем только первый подзаявка как полноценный заявка) */}
                       <div>
-                    <Label className={isDesktop ? '' : 'text-base font-medium'}>Под заявки</Label>
+                    <Label className={isDesktop ? '' : 'text-base font-medium'}>Заявка</Label>
                     <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
-                      {selectedRequest.requests.map((subRequest: SubRequest) => {
+                      {selectedRequest.requests.slice(0, 1).map((subRequest: SubRequest) => {
                         const isExpanded = expandedSubRequests.has(subRequest.id);
                         const hasComments = showComments === subRequest.id;
 
@@ -1886,7 +1892,7 @@ export default function DepartmentHeadDashboard() {
                                 <div className="flex justify-between items-start mb-3">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>№ {getSubRequestDisplayId(subRequest, selectedRequest.id)} {subRequest.title}</h4>
+                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>{subRequest.title}</h4>
                   </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
@@ -2211,9 +2217,9 @@ export default function DepartmentHeadDashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle>Перенаправить подзаявку #{selectedRequestForRedirect.id}</CardTitle>
+                <CardTitle>Перенаправить заявку #{selectedRequestForRedirect.id}</CardTitle>
                 <CardDescription>
-                  Выберите категорию, к которой нужно перенаправить подзаявку
+                  Выберите категорию, к которой нужно перенаправить заявку
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
