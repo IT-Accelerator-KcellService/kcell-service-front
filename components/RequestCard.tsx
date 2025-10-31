@@ -33,9 +33,9 @@ function RequestCardComponent({
       year: "numeric",
     })
   }, [])
-  
+
   const formattedDate = useMemo(() => formatDate(request.created_date), [request.created_date, formatDate])
-  
+
   const cardClassName = useMemo(() => {
     return `hover:shadow-xl transition-shadow duration-200 border-0 shadow-lg relative overflow-hidden cursor-pointer will-change-transform ${
       request.is_long_term && request.request_type !== 'recurring'
@@ -43,7 +43,7 @@ function RequestCardComponent({
         : 'bg-white hover:shadow-purple-400/20'
     }`
   }, [request.is_long_term, request.request_type])
-  
+
   const handleClick = useCallback(() => onCardClick(request), [onCardClick, request])
 
   return (
@@ -196,16 +196,16 @@ export const RequestCard = React.memo(RequestCardComponent, (prevProps, nextProp
   ) {
     return false
   }
-  
+
   // Быстрое сравнение clientRating без JSON.stringify
   if (prevProps.clientRating === nextProps.clientRating) {
     return true
   }
-  
+
   if (!prevProps.clientRating || !nextProps.clientRating) {
     return prevProps.clientRating === nextProps.clientRating
   }
-  
+
   // Сравнение массива рейтингов
   if (Array.isArray(prevProps.clientRating) && Array.isArray(nextProps.clientRating)) {
     if (prevProps.clientRating.length !== nextProps.clientRating.length) {
@@ -214,7 +214,7 @@ export const RequestCard = React.memo(RequestCardComponent, (prevProps, nextProp
     return prevProps.clientRating[0]?.rating === nextProps.clientRating[0]?.rating &&
            prevProps.clientRating[0]?.comment === nextProps.clientRating[0]?.comment
   }
-  
+
   // Сравнение объекта рейтинга
   return prevProps.clientRating.rating === nextProps.clientRating.rating &&
          prevProps.clientRating.comment === nextProps.clientRating.comment
