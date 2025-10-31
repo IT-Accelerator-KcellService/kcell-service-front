@@ -56,6 +56,11 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Оптимизация рендеринга для слабых устройств */
+  [data-card] {
+    content-visibility: auto;
+    contain-intrinsic-size: 200px;
+  }
 }
 
 /* Custom animations */

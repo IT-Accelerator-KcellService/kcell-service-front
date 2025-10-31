@@ -1570,7 +1570,7 @@ export default function ExecutorDashboard() {
     });
   };
 
-  const renderCardHeader = (requestGroup: RequestGroup) => {
+  const renderCardHeader = useCallback((requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     // Убрали счетчик подзаявок - теперь показываем только один заявка
     const isRecurring = requestGroup.request_type === 'recurring';
@@ -1636,7 +1636,7 @@ export default function ExecutorDashboard() {
         </div>
       </CardHeader>
     );
-  };
+  }, [isDesktop]);
 
   const handleRefresh = async () => {
     try {

@@ -35,7 +35,7 @@ function RequestCardComponent({
   }, [])
 
   const formattedDate = useMemo(() => formatDate(request.created_date), [request.created_date, formatDate])
-
+  
   const cardClassName = useMemo(() => {
     return `hover:shadow-xl transition-shadow duration-200 border-0 shadow-lg relative overflow-hidden cursor-pointer will-change-transform ${
       request.is_long_term && request.request_type !== 'recurring'
@@ -43,16 +43,20 @@ function RequestCardComponent({
         : 'bg-white hover:shadow-purple-400/20'
     }`
   }, [request.is_long_term, request.request_type])
-
+  
   const handleClick = useCallback(() => onCardClick(request), [onCardClick, request])
+  
+  // Мемоизируем renderCardHeader результат для избежания повторных вычислений
+  const headerContent = useMemo(() => renderCardHeader(request), [renderCardHeader, request])
 
   return (
     <Card
       ref={isLast ? lastElementRef : null}
       className={cardClassName}
       onClick={handleClick}
+      style={{ contentVisibility: 'auto' }}
     >
-      {renderCardHeader(request)}
+      {headerContent}
 
       <CardContent className="px-5 pb-5 pt-0 space-y-3">
         {/* Основная информация в сетке */}

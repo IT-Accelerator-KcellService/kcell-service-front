@@ -1571,7 +1571,8 @@ export default function DepartmentHeadDashboard() {
                       </Select>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
-                      {filteredIncomingRequests.map((request, index: number) => (
+                      {/* Ограничиваем количество рендеримых карточек для улучшения производительности */}
+                      {filteredIncomingRequests.slice(0, 50).map((request, index: number) => (
                           <RequestCard
                               key={request.id || index}
                               request={request}

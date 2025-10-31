@@ -1227,7 +1227,8 @@ export default function ClientDashboard() {
                     </Select>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
-                    {filteredRequests.map((requestGroup, index) => {
+                    {/* Ограничиваем количество рендеримых карточек для улучшения производительности */}
+                    {filteredRequests.slice(0, 50).map((requestGroup, index) => {
                       const isLast = index === filteredRequests.length - 1;
                       return (
                           <RequestCard

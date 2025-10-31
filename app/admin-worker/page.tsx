@@ -2181,7 +2181,7 @@ export default function AdminWorkerDashboard() {
     });
   };
 
-  const renderCardHeader = (requestGroup: RequestGroup) => {
+  const renderCardHeader = useCallback((requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     // Убрали счетчик подзаявок - теперь показываем только один заявка
 
@@ -2239,7 +2239,7 @@ export default function AdminWorkerDashboard() {
         </div>
       </CardHeader>
     );
-  };
+  }, [isDesktop]);
 
   const handleRefresh = async () => {
     try {
@@ -2541,7 +2541,8 @@ export default function AdminWorkerDashboard() {
 
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
-                      {filteredIncomingRequests.map((request, index) => {
+                      {/* Ограничиваем количество рендеримых карточек для улучшения производительности */}
+                      {filteredIncomingRequests.slice(0, 50).map((request, index) => {
                         const isLast = index === filteredIncomingRequests.length - 1;
                         return (
                           <RequestCard
