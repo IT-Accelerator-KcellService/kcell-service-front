@@ -181,6 +181,7 @@ export default function ManagerDashboard() {
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isInitialized, setIsInitialized] = useState(false)
+  const filtersInitializedFromURL = useRef(false) // Флаг, что фильтры были инициализированы из URL
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
@@ -402,17 +403,22 @@ export default function ManagerDashboard() {
       setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
 
-    // Обработка параметра status из URL
+    // Обработка параметров фильтров из URL
+    // Устанавливаем фильтры из URL только при первом рендере или явном изменении параметров
+    // НЕ сбрасываем фильтры, если параметров нет в URL - сохраняем выбранные пользователем значения
     if (status) {
-      // Маппинг статусов: in_progress -> in_progress, execution -> execution, completed -> completed
+      // Если в URL есть параметр status, обновляем фильтр
       setFilterStatus(status);
+      filtersInitializedFromURL.current = true;
     }
+    // Если параметра нет, НЕ меняем filterStatus - сохраняем текущее значение
 
-    // Обработка параметра priority из URL
     if (priority) {
-      // Маппинг приоритетов: normal -> normal, urgent -> urgent, planned -> planned
+      // Если в URL есть параметр priority, обновляем фильтр
       setFilterType(priority);
+      filtersInitializedFromURL.current = true;
     }
+    // Если параметра нет, НЕ меняем filterType - сохраняем текущее значение
   }, [searchParams])
 
   useEffect(() => {
@@ -1796,8 +1802,9 @@ export default function ManagerDashboard() {
       setNewOfficeName("")
       setNewOfficeCity("")
       setNewOfficeAddress("")
-      setFilterStatus("all")
-      setFilterType("all")
+      // Фильтры не сбрасываем при обновлении - сохраняем выбранные значения
+      // setFilterStatus("all")
+      // setFilterType("all")
       setNewUser({ id: 0, full_name: "", phone: "", office_id: 0, role: "", category_id: 0 });
       setSearchInput("")
       setEditedOffice({name: "", city: "", address: ""})

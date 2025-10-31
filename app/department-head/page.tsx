@@ -550,6 +550,9 @@ export default function DepartmentHeadDashboard() {
       console.log('Fetch already in progress, skipping page', currentPage);
       return;
     }
+    
+    console.log('fetchRequests called:', { currentPage, filterIncomingStatus });
+    
     isLoadingRef.current = true;
     setLoading(true);
 
@@ -610,8 +613,21 @@ export default function DepartmentHeadDashboard() {
       // Проверяем, есть ли еще данные - если хотя бы один массив вернул полный pageSize, значит есть еще
       const otherRequestsLength = otherRequests.length;
       const myRequestsLength = myRequests.length;
-      const hasMoreData = otherRequestsLength >= pageSize || myRequestsLength >= pageSize;
-      console.log('Has more data:', hasMoreData, '(other:', otherRequestsLength, 'my:', myRequestsLength, 'pageSize:', pageSize, ')');
+      
+      // Более точная логика: если текущая страница 1 и данные меньше pageSize, то точно нет следующих страниц
+      // Если данные равны pageSize, возможно есть еще
+      let hasMoreData = false;
+      if (currentPage === 1) {
+        // На первой странице: если данные меньше pageSize, значит больше нет
+        // Если данные равны pageSize, возможно есть еще
+        hasMoreData = otherRequestsLength >= pageSize || myRequestsLength >= pageSize;
+      } else {
+        // На последующих страницах: если данные меньше pageSize, значит это последняя страница
+        // Если данные равны pageSize, возможно есть еще
+        hasMoreData = otherRequestsLength >= pageSize || myRequestsLength >= pageSize;
+      }
+      
+      console.log('Has more data:', hasMoreData, '(other:', otherRequestsLength, 'my:', myRequestsLength, 'pageSize:', pageSize, 'page:', currentPage, ')');
       setHasMore(hasMoreData);
     } catch (error) {
       console.error("Failed to fetch requests:", error);
@@ -648,15 +664,24 @@ export default function DepartmentHeadDashboard() {
     
     // Не создаем observer если нет данных или пагинация отключена
     if (!hasMore && page === 1 && incomingRequests.length === 0) return;
+    
+    // Не создаем observer если данные еще загружаются или запрос в процессе
+    if (isLoadingRef.current) return;
 
     if (observer.current) {
       observer.current.disconnect();
     }
 
     observer.current = new IntersectionObserver((entries) => {
+      // Проверяем все условия перед загрузкой следующей страницы
       if (entries[0].isIntersecting && hasMore && !loading && !isLoadingRef.current) {
         // Throttle: предотвращаем множественные вызовы при быстром скролле
         if (throttleTimeoutRef.current) {
+          return;
+        }
+        
+        // Проверяем еще раз перед установкой throttle (race condition protection)
+        if (isLoadingRef.current || loading || !hasMore) {
           return;
         }
         
@@ -664,9 +689,15 @@ export default function DepartmentHeadDashboard() {
           throttleTimeoutRef.current = null;
         }, 500); // 500ms throttle
         
+        // Проверяем еще раз все условия (race condition protection)
+        if (isLoadingRef.current || loading || !hasMore) {
+          return;
+        }
+        
         setPage((prevPage) => {
           const nextPage = prevPage + 1;
           console.log('Observer triggered: loading page', nextPage);
+          // fetchRequests сам установит isLoadingRef.current = true
           fetchRequests(nextPage);
           return nextPage;
         });
@@ -676,12 +707,17 @@ export default function DepartmentHeadDashboard() {
       rootMargin: '100px', // Начинаем загрузку за 100px до конца
     });
 
-    if (lastElementRef.current) {
-      observer.current.observe(lastElementRef.current);
-    }
+    // Добавляем небольшую задержку перед подключением observer
+    // чтобы избежать немедленного срабатывания после загрузки данных
+    const timeoutId = setTimeout(() => {
+      if (lastElementRef.current && !loading && !isLoadingRef.current) {
+        observer.current?.observe(lastElementRef.current);
+      }
+    }, 100);
 
     // Cleanup функция для observer
     return () => {
+      clearTimeout(timeoutId);
       if (observer.current) {
         observer.current.disconnect();
       }
@@ -690,7 +726,7 @@ export default function DepartmentHeadDashboard() {
         throttleTimeoutRef.current = null;
       }
     };
-  }, [loading, hasMore, page, incomingRequests.length]);
+  }, [loading, hasMore, page, fetchRequests]);
 
   useEffect(() => {
     // Инициализация данных при первом рендере
@@ -698,15 +734,27 @@ export default function DepartmentHeadDashboard() {
       fetchExecutors();
       fetchOffices();
       // Загружаем первую страницу при инициализации
-      fetchRequests(1);
+      // Используем задержку чтобы избежать конфликта с другими useEffect
+      const timeoutId = setTimeout(() => {
+        if (!isLoadingRef.current) {
+          fetchRequests(1);
+        }
+      }, 100);
       isInitialized.current = true;
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
     }
-  }, []);
+  }, [fetchRequests]);
 
   // Перезагружаем данные при изменении фильтра статуса
   useEffect(() => {
     if (filterIncomingStatus !== prevFilterStatus.current && isInitialized.current) {
+      const previousFilter = prevFilterStatus.current;
       prevFilterStatus.current = filterIncomingStatus;
+      
+      console.log('Filter changed from', previousFilter, 'to:', filterIncomingStatus);
       
       // Отключаем observer перед сбросом
       if (observer.current) {
@@ -718,7 +766,8 @@ export default function DepartmentHeadDashboard() {
       setHasMore(true);
       setIncomingRequests([]);
       setMyRequests([]);
-      isLoadingRef.current = false; // Сбрасываем флаг загрузки
+      setLoading(false); // Сбрасываем состояние загрузки
+      isLoadingRef.current = false; // Важно: сбрасываем флаг загрузки перед новым запросом
       
       // Очищаем throttle
       if (throttleTimeoutRef.current) {
@@ -726,10 +775,23 @@ export default function DepartmentHeadDashboard() {
         throttleTimeoutRef.current = null;
       }
       
-      // Загружаем первую страницу
-      fetchRequests(1);
+      // Небольшая задержка перед загрузкой, чтобы убедиться что все состояния сброшены
+      const timeoutId = setTimeout(() => {
+        // Проверяем что нет активной загрузки перед вызовом
+        if (!isLoadingRef.current) {
+          fetchRequests(1);
+        } else {
+          console.log('Skipping fetchRequests: already loading');
+        }
+      }, 50);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        // Если компонент размонтируется, сбрасываем флаг
+        isLoadingRef.current = false;
+      };
     }
-  }, [filterIncomingStatus, fetchRequests])
+  }, [filterIncomingStatus, fetchRequests]) // Добавляем fetchRequests обратно для корректной работы
 
   const fetchClientInfo = async (userId: number) => {
     if (clientInfo[userId]) return
