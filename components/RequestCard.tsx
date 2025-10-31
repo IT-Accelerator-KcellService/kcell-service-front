@@ -80,10 +80,10 @@ function RequestCardComponent({
   const formattedDate = useMemo(() => formatDate(request.created_date), [request.created_date, formatDate])
   
   const cardClassName = useMemo(() => {
-    return `hover:shadow-xl transition-shadow duration-200 border-0 shadow-lg relative overflow-hidden cursor-pointer will-change-transform ${
+    return `hover:shadow-md transition-shadow duration-200 border-0 shadow-sm relative overflow-hidden cursor-pointer will-change-transform ${
       request.is_long_term && request.request_type !== 'recurring'
-        ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
-        : 'bg-white hover:shadow-purple-400/20'
+        ? 'bg-blue-50 hover:shadow-blue-200/50 border-l-4 border-blue-500' 
+        : 'bg-white hover:shadow-gray-200/50'
     }`
   }, [request.is_long_term, request.request_type])
   
@@ -131,9 +131,9 @@ function RequestCardComponent({
                   className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm flex-shrink-0"
                 />
               ))}
-              {request.photos.length > 4 && (
-                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                  <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+              {request.photos.length > 2 && (
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-purple-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                  <span className="text-xs font-bold text-white">+{request.photos.length - 2}</span>
                 </div>
               )}
             </div>
