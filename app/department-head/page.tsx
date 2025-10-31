@@ -550,9 +550,9 @@ export default function DepartmentHeadDashboard() {
       console.log('Fetch already in progress, skipping page', currentPage);
       return;
     }
-    
+
     console.log('fetchRequests called:', { currentPage, filterIncomingStatus });
-    
+
     isLoadingRef.current = true;
     setLoading(true);
 
@@ -572,7 +572,7 @@ export default function DepartmentHeadDashboard() {
 
       const otherRequests: Request[] = response.data.otherRequests || [];
       const myRequests: Request[] = response.data.myRequests || [];
-      
+
       console.log('=== FETCH REQUESTS DEPARTMENT-HEAD ===');
       console.log('Current page:', currentPage);
       console.log('Page size:', pageSize);
@@ -600,7 +600,7 @@ export default function DepartmentHeadDashboard() {
         console.log('Incoming requests - previous:', prev.length, 'new:', newItems.length);
         return newItems;
       });
-      
+
       setMyRequests((prev) => {
         const newItems = currentPage === 1
           ? myRequests
@@ -613,7 +613,7 @@ export default function DepartmentHeadDashboard() {
       // Проверяем, есть ли еще данные - если хотя бы один массив вернул полный pageSize, значит есть еще
       const otherRequestsLength = otherRequests.length;
       const myRequestsLength = myRequests.length;
-      
+
       // Более точная логика: если текущая страница 1 и данные меньше pageSize, то точно нет следующих страниц
       // Если данные равны pageSize, возможно есть еще
       let hasMoreData = false;
@@ -626,7 +626,7 @@ export default function DepartmentHeadDashboard() {
         // Если данные равны pageSize, возможно есть еще
         hasMoreData = otherRequestsLength >= pageSize || myRequestsLength >= pageSize;
       }
-      
+
       console.log('Has more data:', hasMoreData, '(other:', otherRequestsLength, 'my:', myRequestsLength, 'pageSize:', pageSize, 'page:', currentPage, ')');
       setHasMore(hasMoreData);
     } catch (error) {
@@ -661,10 +661,10 @@ export default function DepartmentHeadDashboard() {
 
   useEffect(() => {
     if (loading) return;
-    
+
     // Не создаем observer если нет данных или пагинация отключена
     if (!hasMore && page === 1 && incomingRequests.length === 0) return;
-    
+
     // Не создаем observer если данные еще загружаются или запрос в процессе
     if (isLoadingRef.current) return;
 
@@ -679,21 +679,21 @@ export default function DepartmentHeadDashboard() {
         if (throttleTimeoutRef.current) {
           return;
         }
-        
+
         // Проверяем еще раз перед установкой throttle (race condition protection)
         if (isLoadingRef.current || loading || !hasMore) {
           return;
         }
-        
+
         throttleTimeoutRef.current = setTimeout(() => {
           throttleTimeoutRef.current = null;
         }, 500); // 500ms throttle
-        
+
         // Проверяем еще раз все условия (race condition protection)
         if (isLoadingRef.current || loading || !hasMore) {
           return;
         }
-        
+
         setPage((prevPage) => {
           const nextPage = prevPage + 1;
           console.log('Observer triggered: loading page', nextPage);
@@ -741,7 +741,7 @@ export default function DepartmentHeadDashboard() {
         }
       }, 100);
       isInitialized.current = true;
-      
+
       return () => {
         clearTimeout(timeoutId);
       };
@@ -753,14 +753,14 @@ export default function DepartmentHeadDashboard() {
     if (filterIncomingStatus !== prevFilterStatus.current && isInitialized.current) {
       const previousFilter = prevFilterStatus.current;
       prevFilterStatus.current = filterIncomingStatus;
-      
+
       console.log('Filter changed from', previousFilter, 'to:', filterIncomingStatus);
-      
+
       // Отключаем observer перед сбросом
       if (observer.current) {
         observer.current.disconnect();
       }
-      
+
       // Сбрасываем все состояния пагинации
       setPage(1);
       setHasMore(true);
@@ -768,13 +768,13 @@ export default function DepartmentHeadDashboard() {
       setMyRequests([]);
       setLoading(false); // Сбрасываем состояние загрузки
       isLoadingRef.current = false; // Важно: сбрасываем флаг загрузки перед новым запросом
-      
+
       // Очищаем throttle
       if (throttleTimeoutRef.current) {
         clearTimeout(throttleTimeoutRef.current);
         throttleTimeoutRef.current = null;
       }
-      
+
       // Небольшая задержка перед загрузкой, чтобы убедиться что все состояния сброшены
       const timeoutId = setTimeout(() => {
         // Проверяем что нет активной загрузки перед вызовом
@@ -784,7 +784,7 @@ export default function DepartmentHeadDashboard() {
           console.log('Skipping fetchRequests: already loading');
         }
       }, 50);
-      
+
       return () => {
         clearTimeout(timeoutId);
         // Если компонент размонтируется, сбрасываем флаг
@@ -2058,7 +2058,7 @@ export default function DepartmentHeadDashboard() {
                         const hasComments = showComments === subRequest.id;
 
                         return (
-                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow duration-200 will-change-transform ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
                               {/* Заголовок под заявки */}
                               <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-3">
@@ -2244,7 +2244,7 @@ export default function DepartmentHeadDashboard() {
                                       key={index}
                                       src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                   onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
@@ -2270,7 +2270,7 @@ export default function DepartmentHeadDashboard() {
                                       key={index}
                                       src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                             onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');

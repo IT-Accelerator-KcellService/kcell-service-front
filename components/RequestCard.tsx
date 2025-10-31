@@ -1,6 +1,7 @@
 "use client"
 
-import React from "react"
+import React, { useMemo, useCallback } from "react"
+import Image from "next/image"
 import { Card, CardContent } from "@/components/ui/card"
 import { MapPin, Calendar as CalendarLucid, ImageIcon, User } from "lucide-react"
 import { RequestGroup } from "@/stores/useRequestStore"
@@ -15,7 +16,7 @@ interface RequestCardProps {
   userRole?: string
 }
 
-export function RequestCard({
+function RequestCardComponent({
   request,
   onCardClick,
   renderCardHeader,
@@ -25,25 +26,37 @@ export function RequestCard({
   userRole
 }: RequestCardProps) {
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString("ru-RU", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     })
-  }
+  }, [])
+
+  const formattedDate = useMemo(() => formatDate(request.created_date), [request.created_date, formatDate])
+  
+  const cardClassName = useMemo(() => {
+    return `hover:shadow-xl transition-shadow duration-200 border-0 shadow-lg relative overflow-hidden cursor-pointer will-change-transform ${
+      request.is_long_term && request.request_type !== 'recurring'
+        ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
+        : 'bg-white hover:shadow-purple-400/20'
+    }`
+  }, [request.is_long_term, request.request_type])
+  
+  const handleClick = useCallback(() => onCardClick(request), [onCardClick, request])
+  
+  // Мемоизируем renderCardHeader результат для избежания повторных вычислений
+  const headerContent = useMemo(() => renderCardHeader(request), [renderCardHeader, request])
 
   return (
     <Card
       ref={isLast ? lastElementRef : null}
-      className={`hover:shadow-xl transition-all duration-300 border-0 shadow-lg relative overflow-hidden cursor-pointer ${
-        request.is_long_term && request.request_type !== 'recurring'
-          ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
-          : 'bg-white hover:shadow-purple-400/20'
-      }`}
-      onClick={() => onCardClick(request)}
+      className={cardClassName}
+      onClick={handleClick}
+      style={{ contentVisibility: 'auto' }}
     >
-      {renderCardHeader(request)}
+      {headerContent}
 
       <CardContent className="px-5 pb-5 pt-0 space-y-3">
         {/* Основная информация в сетке */}
@@ -55,7 +68,7 @@ export function RequestCard({
 
           <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
             <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
-            <span className="truncate font-medium">{formatDate(request.created_date)}</span>
+            <span className="truncate font-medium">{formattedDate}</span>
           </div>
         </div>
 
@@ -69,13 +82,14 @@ export function RequestCard({
             <div className="flex gap-2 overflow-x-auto">
               {request.photos.slice(0, 4).map((photo, index) => (
                 <div key={index} className="flex-shrink-0">
-                  <img
+                  <Image
                     src={photo.photo_url || "/placeholder.svg"}
                     alt={`Фото ${index + 1}`}
+                    width={48}
+                    height={48}
                     className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
-                    onError={(e) => {
-                      e.currentTarget.src = `/placeholder.svg?height=48&width=48`
-                    }}
+                    loading="lazy"
+                    unoptimized={!photo.photo_url || photo.photo_url.startsWith('/')}
                   />
                 </div>
               ))}
@@ -174,3 +188,38 @@ export function RequestCard({
     </Card>
   )
 }
+
+export const RequestCard = React.memo(RequestCardComponent, (prevProps, nextProps) => {
+  // Оптимизированная функция сравнения - без JSON.stringify
+  if (
+    prevProps.request.id !== nextProps.request.id ||
+    prevProps.request.status !== nextProps.request.status ||
+    prevProps.request.created_date !== nextProps.request.created_date ||
+    prevProps.isLast !== nextProps.isLast ||
+    prevProps.userRole !== nextProps.userRole
+  ) {
+    return false
+  }
+
+  // Быстрое сравнение clientRating без JSON.stringify
+  if (prevProps.clientRating === nextProps.clientRating) {
+    return true
+  }
+
+  if (!prevProps.clientRating || !nextProps.clientRating) {
+    return prevProps.clientRating === nextProps.clientRating
+  }
+
+  // Сравнение массива рейтингов
+  if (Array.isArray(prevProps.clientRating) && Array.isArray(nextProps.clientRating)) {
+    if (prevProps.clientRating.length !== nextProps.clientRating.length) {
+      return false
+    }
+    return prevProps.clientRating[0]?.rating === nextProps.clientRating[0]?.rating &&
+           prevProps.clientRating[0]?.comment === nextProps.clientRating[0]?.comment
+  }
+
+  // Сравнение объекта рейтинга
+  return prevProps.clientRating.rating === nextProps.clientRating.rating &&
+         prevProps.clientRating.comment === nextProps.clientRating.comment
+})

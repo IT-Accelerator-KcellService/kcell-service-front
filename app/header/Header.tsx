@@ -1,7 +1,7 @@
 import {Bell, Loader2, LogOut, User, CheckCircle, Clock, AlertCircle, RefreshCw} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Badge} from "@/components/ui/badge";
-import React, {useEffect, useRef, useState} from "react";
+import React, {useEffect, useRef, useState, useCallback, useMemo} from "react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import api from "@/lib/api";
 import { createClickableRequestIds } from '@/lib/notificationUtils';
@@ -89,8 +89,8 @@ const Header: React.FC<HeaderProps> = ({
         loadNotifications(1, true);
     }, []);
 
-    // Обработчик скролла для подгрузки
-    const handleScroll = () => {
+    // Обработчик скролла для подгрузки с throttle
+    const handleScroll = useCallback(() => {
         const el = containerRef.current;
         if (!el || isLoading || !hasMore) return;
 
@@ -100,16 +100,26 @@ const Header: React.FC<HeaderProps> = ({
             setPage(nextPage);
             loadNotifications(nextPage);
         }
-    };
+    }, [isLoading, hasMore, page]);
+
+    // Throttle функция с useRef для сохранения состояния между рендерами
+    const throttleRef = useRef<NodeJS.Timeout | null>(null);
+    const throttledHandleScroll = useCallback(() => {
+        if (throttleRef.current) return;
+        throttleRef.current = setTimeout(() => {
+            handleScroll();
+            throttleRef.current = null;
+        }, 100);
+    }, [handleScroll]);
 
     // Подписка на скролл
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
 
-        el.addEventListener('scroll', handleScroll);
-        return () => el.removeEventListener('scroll', handleScroll);
-    }, [isLoading, hasMore, page]);
+        el.addEventListener('scroll', throttledHandleScroll, { passive: true });
+        return () => el.removeEventListener('scroll', throttledHandleScroll);
+    }, [throttledHandleScroll]);
 
     // Пометить как прочитанное
     const handleNotificationClick = async (notification: Notification) => {

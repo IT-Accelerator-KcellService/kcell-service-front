@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useState, useRef, useEffect, useCallback} from "react"
+import React, {useState, useRef, useEffect, useCallback, useMemo} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -628,7 +628,7 @@ export default function AdminWorkerDashboard() {
     }
   }, [user?.office_id, token]);
 
-  const filteredMyRequests = sortRequests(
+  const filteredMyRequests = useMemo(() => sortRequests(
       myRequests.filter((request) => {
         let statusMatch = false;
         
@@ -647,9 +647,9 @@ export default function AdminWorkerDashboard() {
         const typeMatch = filterMyType === "all" || requestType === filterMyType;
         return statusMatch && typeMatch;
       })
-  );
+  ), [myRequests, filterMyStatus, filterMyType]);
 
-  const filteredIncomingRequests = sortRequests(
+  const filteredIncomingRequests = useMemo(() => sortRequests(
       incomingRequests.filter((request) => {
         let statusMatch = false;
         
@@ -669,7 +669,7 @@ export default function AdminWorkerDashboard() {
         
         return statusMatch && typeMatch;
       })
-  );
+  ), [incomingRequests, filterIncomingStatus, filterIncomingType]);
 
   useEffect(() => {
     if (notifications.length > 0) {
@@ -2181,7 +2181,7 @@ export default function AdminWorkerDashboard() {
     });
   };
 
-  const renderCardHeader = (requestGroup: RequestGroup) => {
+  const renderCardHeader = useCallback((requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     // Убрали счетчик подзаявок - теперь показываем только один заявка
 
@@ -2239,7 +2239,7 @@ export default function AdminWorkerDashboard() {
         </div>
       </CardHeader>
     );
-  };
+  }, [isDesktop]);
 
   const handleRefresh = async () => {
     try {
@@ -2540,8 +2540,9 @@ export default function AdminWorkerDashboard() {
                       </Select>
 
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredIncomingRequests.map((request, index) => {
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
+                      {/* Ограничиваем количество рендеримых карточек для улучшения производительности */}
+                      {filteredIncomingRequests.slice(0, 50).map((request, index) => {
                         const isLast = index === filteredIncomingRequests.length - 1;
                         return (
                           <RequestCard
@@ -3417,7 +3418,7 @@ export default function AdminWorkerDashboard() {
                         const hasComments = showComments === subRequest.id;
 
                         return (
-                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow duration-200 will-change-transform ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
                               {/* Заголовок под заявки */}
                               <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-3 gap-4">
@@ -3827,7 +3828,7 @@ export default function AdminWorkerDashboard() {
                                           key={index}
                                           src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                       onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
@@ -3853,7 +3854,7 @@ export default function AdminWorkerDashboard() {
                                         key={index}
                                         src={photo.photo_url || "/placeholder.svg"}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                       onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
