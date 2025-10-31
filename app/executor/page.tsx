@@ -1,396 +1,988 @@
 "use client"
+import React, {useCallback, useEffect, useState} from "react"
+import {Button} from "@/components/ui/button"
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
+import {Badge} from "@/components/ui/badge"
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
+import {Label} from "@/components/ui/label"
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 
-import React, { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-
-
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
-  Clock,
   AlertTriangle,
+  Calendar as CalendarLucid,
   CheckCircle,
-  Camera,
-  Bell,
-  User,
-  LogOut,
-  Filter,
-  MessageCircle,
-  Star,
-  Plus,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Hourglass,
   MapPin,
-  Calendar, Loader2, ImageIcon, Zap, XCircle, AlertCircle,
+  MessageCircle,
+  Pause,
+  Plus,
+  Star,
+  User,
+  Users,
+  XCircle,
+  Zap,
 } from "lucide-react"
 import Header from "@/app/header/Header";
-import UserProfile from "@/app/client/UserProfile";
 import axios from "axios";
-import dynamic from "next/dynamic";
-import api from "@/lib/api";
-import {useRouter} from "next/navigation";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from "@/components/ui/alert-dialog";
+import api, { getOffices } from "@/lib/api";
+import {useRouter, useSearchParams} from "next/navigation";
+import {useNotificationStore} from "@/stores/notificationStore";
+import {useSuccessModal} from "@/hooks/use-success-modal";
+import {SuccessModal} from "@/components/success-model";
+import {BottomNav} from "@/components/BottomNav";
+import {useMediaQuery} from "@/hooks/use-media-query";
+import PerformerCard from "@/components/rating";
+import {ProfileModal} from "@/components/ProfileModal";
+import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
+import {Request, RequestGroup, SubRequest, useRequestStore} from "@/stores/useRequestStore";
+import PullToRefresh from "@/components/pull-to-refresh";
+import Link from "next/link";
+import {useStatsStore} from "@/stores/statsStore";
+import {useAuthStore} from "@/stores/useAuthStore";
+import {useCategoryStore} from "@/stores/useCategoryStore";
+import {RejectModal} from "@/components/reject-modal";
+import {RoleBasedActionMenu} from "@/components/action-menu/RoleBasedActionMenu";
+import {IconInfoModal} from "@/components/IconInfoModal";
+import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
+import { createClickableRequestIds } from '@/lib/notificationUtils';
+import { RequestNotFoundModal } from '@/components/RequestNotFoundModal';
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
+import {RejectRequestModal} from "@/components/RejectRequestModal";
+import {useRejectRequestModal} from "@/hooks/use-reject-modal";
+import {MapModal} from "@/components/MapModal";
+import {CreateRequestModal} from "@/components/CreateRequestModal";
+import {CommentsModal} from "@/components/CommentsModal";
+import {RequestCard} from "@/components/RequestCard";
+import {CompleteTaskModal} from "@/components/CompleteTaskModal";
+import {CompletedTaskReport} from "@/components/CompletedTaskReport";
+import {RejectSubRequestModal} from "@/components/RejectSubRequestModal";
+import SubRequestInfo from "@/components/SubRequestInfo";
+import Executors from "@/components/Executors";
+import ClientRatingModal from "@/components/ClientRatingModal";
+import PhotoModal from "@/components/photo/PhotoModal";
+import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 
 const API_BASE_URL = 'https://kcell-service.onrender.com/api';
 
-const MapView = dynamic(() => import('@/app/map/MapView'), {
-  ssr: false,
-  loading: () => <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center">Загрузка карты...</div>
-})
-const roleTranslations: Record<string, string> = {
-  client: "Клиент",
-  "admin-worker": "Администратор офиса",
-  "department-head": "Руководитель направления",
-  executor: "Испольнитель",
-  manager: "Руководитель"
-};
 
-
-interface Category {
-  id: number;
-  name: string;
+interface Rating {
+  id: number
+  rating: number
+  request_id: number
+  created_at: string
 }
 
-interface Photo {
-  id: number;
-  request_id: number;
-  photo_url: string;
-  type: string;
-}
-
-export interface Request {
-  executor_id: any;
-  actual_completion_date: any;
-  sla: React.JSX.Element;
-  date_submitted: string;
-  category: Category;
-  office: any;
-  complexity: string;
-  id: number;
-  title: string;
-  description: string;
-  status: string;
-  request_type: string;
-  location: string;
-  location_detail: string;
-  created_date: string;
-  executor: {user: { full_name: any } };
-  rating?: number;
-  category_id?: number;
-  photos?: Photo[];
-  office_id: number;
-}
-
-interface Comment {
-  id: number,
-  request_id: number,
-  sender_id: number,
-  comment: string,
-  timestamp: Date
+interface Stats {
+  totalRequests: number,
+  overdue: number,
+  inWork: number,
+  completed: number,
+  onTime: number,
+  late: number,
+  averageExecutionHours: string,
+  averageRating: string
 }
 
 export default function ExecutorDashboard() {
+  const {token, clearAuth, user} = useAuthStore()
+  const {categories, fetchCategories, clearCategories} = useCategoryStore()
+  const searchParams = useSearchParams()
+  const successModal = useSuccessModal()
+  const rejectModal = useRejectRequestModal()
   const router = useRouter()
-  const [assignedRequests, setAssignedRequests] = useState<any>([])
-  const [myRequests, setMyRequests] = useState<Request[]>([])
-  const [completedRequests, setCompletedRequests] = useState<any>([])
+  const {assignedRequests, setAssignedRequests, myRequests, setMyRequests, completedRequests, setCompletedRequests, clearRequests} = useRequestStore()
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [showMapModal, setShowMapModal] = useState(false);
+  const [showIconInfo, setShowIconInfo] = useState<{type: 'status' | 'longTerm', value: string} | null>(null);
+  const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set());
+  const [showNotFoundModal, setShowNotFoundModal] = useState(false);
+  const [notFoundRequestId, setNotFoundRequestId] = useState<string>('');
+  const [userRatings, setUserRatings] = useState<Record<number, Rating>>({})
+
   const [activeTab, setActiveTab] = useState("tasks")
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [selectedTask, setSelectedTask] = useState<any>(null)
-  const [selectedTaskDetails, setSelectedTaskDetails] = useState<any>(null)
+  const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
-  const [newRequestType, setNewRequestType] = useState("")
-  const [newRequestTitle, setNewRequestTitle] = useState("")
-  const [newRequestLocation, setNewRequestLocation] = useState("")
-  const [serviceCategories, setServiceCategories] = useState<{id: number, name: string}[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
   const [showProfile, setShowProfile] = useState(false)
+  const [showComments, setShowComments] = useState<number | null>(null);
+  
   const [isLoggedIn, setIsLoggedIn] = useState(true)
-  const [notifications, setNotifications] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [requestLocation, setRequestLocation] = useState("")
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [description, setDescription] = useState("");
-  const [comment, setComment] = useState("");
-  const [comments, setComments] = useState([]);
-  const [completedRequestComment, setCompletedRequestComment] = useState("");
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
-  const [completeFormErrors, setCompleteFormErrors] = useState<string | null>(null);
-  const [newRequestOfficeId, setNewRequestOfficeId] = useState("")
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [editCommentId, setEditCommentId] = useState<number | null>(null);
-  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [createMode, setCreateMode] = useState<'create' | 'createAndComplete'>('create');
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [executorId, setExecutorId] = useState<number | null>(null);
   const [myRating, setMyRating] = useState<number | null>(null)
+  const [stats, setStats] = useState<Stats | null>(null);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
+
+  const [modalStack, setModalStack] = useState<string[]>([]);
+  const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
+  const [offices, setOffices] = useState<any[]>([]);
+
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [selectedRequestForReject, setSelectedRequestForReject] = useState<any>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState<string | null>(null);
+  const [showRedirectModal, setShowRedirectModal] = useState(false);
+  const [selectedRequestForRedirect, setSelectedRequestForRedirect] = useState<any>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [redirectError, setRedirectError] = useState<string | null>(null);
+  const [showCompleteTaskModal, setShowCompleteTaskModal] = useState(false);
+  const [selectedTaskForComplete, setSelectedTaskForComplete] = useState<any>(null);
+  const [showRejectSubRequestModal, setShowRejectSubRequestModal] = useState(false);
+  const [selectedSubRequestForReject, setSelectedSubRequestForReject] = useState<any>(null);
+  
+  // Состояние для рейтинга клиента
+  const [showClientRatingModal, setShowClientRatingModal] = useState(false);
+  const [clientRatingValue, setClientRatingValue] = useState(0);
+  const [clientRatingComment, setClientRatingComment] = useState("");
+  const [requestGroupToRate, setRequestGroupToRate] = useState<any>(null);
+  const [clientRatings, setClientRatings] = useState<Record<number, any>>({});
+
+  const openModal = (name: string) => {
+    setModalStack(prev => [...prev, name]);
+    window.history.pushState({ modal: name }, '', window.location.pathname);
+  };
+
+  const closeModalWithHistory = () => {
+    setIsClosingProgrammatically(true);
+    const newStack = modalStack.slice(0, -1);
+    setModalStack(newStack);
+
+    // Откатываем историю браузера назад
+    window.history.back();
+  };
+
+  const handleCloseRejectModal = () => {
+    setShowRejectModal(false);
+    setSelectedRequestForReject(null);
+    setRejectError(null);
+    closeModalWithHistory();
+  };
+
+  const handleRejectRequest = async (reason: string) => {
+    if (!selectedRequestForReject) return;
+
+    setIsRejecting(true);
+    setRejectError(null);
+
+    try {
+      // Отправляем запрос на отклонение заявки
+      await api.put(`/requests/${selectedRequestForReject.id}`, {
+        status: "awaiting_assignment",
+        patch_code: 1
+      });
+
+      // Обновляем состояние в UI
+      setAssignedRequests(prev => 
+        prev.filter(req => req.id !== selectedRequestForReject.id)
+      );
+
+      setMyRequests(prev => 
+        prev.map(req => 
+          req.id === selectedRequestForReject.id 
+            ? { ...req, status: "awaiting_assignment", executor_id: null }
+            : req
+        )
+      );
+
+      // Асинхронно отправляем уведомление об отклонении (не ждем ответа)
+      api.post('/notifications/reject-assigned', {
+        request_id: selectedRequestForReject.id,
+        reason: reason
+      }).catch(error => {
+        console.error("Ошибка при отправке уведомления об отклонении:", error);
+      });
+
+      // Закрываем модальное окно
+      handleCloseRejectModal();
+
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: "Заявка отклонена",
+        message: "Заявка успешно отклонена и возвращена в очередь назначения"
+      });
+
+    } catch (error: any) {
+      console.error("Ошибка при отклонении заявки:", error);
+      setRejectError(error.response?.data?.error || "Не удалось отклонить заявку");
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  const handleRejectSubRequestSubmit = async (reason: string) => {
+    if (!selectedSubRequestForReject) return;
+
+    setIsRejecting(true);
+    setRejectError(null);
+
+    // Находим группу заявок, к которой принадлежит подзаявка
+    const allRequests = [
+      ...useRequestStore.getState().requests,
+      ...useRequestStore.getState().myRequests,
+      ...useRequestStore.getState().incomingRequests,
+      ...useRequestStore.getState().assignedRequests,
+      ...useRequestStore.getState().completedRequests
+    ];
+    
+    const requestGroup = allRequests.find(group => 
+      group.requests.some(subReq => subReq.id === selectedSubRequestForReject.id)
+    );
+
+    try {
+      // Оптимистичное обновление - сразу обновляем UI
+      const { updateSubRequestExecutors, updateRequestGroupStatus } = useRequestStore.getState();
+      
+      if (requestGroup) {
+        // Обновляем подзаявку: убираем исполнителей, меняем статус
+        updateSubRequestExecutors(requestGroup.id, selectedSubRequestForReject.id, [], 'awaiting_assignment');
+        
+        // Обновляем статус группы заявок
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
+      // Проверяем, есть ли в главной заявке другие подзаявки, где назначен этот исполнитель
+      const hasOtherSubRequestsWithExecutor = requestGroup?.requests?.some((subReq: any) =>
+          subReq.id !== selectedSubRequestForReject.id &&
+          subReq.executors?.some((executor: any) => executor.user.id === user?.id)
+      );
+
+      if (!hasOtherSubRequestsWithExecutor) {
+        // Если нет других подзаявок с этим исполнителем, удаляем заявку из UI
+        setMyRequests(prev => 
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        setCompletedRequests(prev =>
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        setAssignedRequests(prev =>
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+      }
+      
+      // Отправляем запрос на сервер
+      await api.put(`/requests/${selectedSubRequestForReject.id}`, {
+        status: "awaiting_assignment",
+        patch_code: 1
+      });
+
+      // Асинхронно отправляем уведомление об отклонении (не ждем ответа)
+      api.post('/notifications/reject-assigned', {
+        request_id: selectedSubRequestForReject.id,
+        reason: reason
+      }).catch(error => {
+        console.error("Ошибка при отправке уведомления об отклонении:", error);
+      });
+
+      // Закрываем модальное окно
+      setShowRejectSubRequestModal(false);
+      setSelectedSubRequestForReject(null);
+      setSelectedRequest(null);
+      closeModalWithHistory();
+
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: "Подзаявка отклонена",
+        message: "Подзаявка успешно отклонена и возвращена в очередь назначения"
+      });
+
+    } catch (error: any) {
+      // В случае ошибки откатываем изменения
+      if (requestGroup) {
+        const { updateSubRequestExecutors, updateRequestGroupStatus } = useRequestStore.getState();
+        
+        // Возвращаем оригинальных исполнителей и статус
+        updateSubRequestExecutors(requestGroup.id, selectedSubRequestForReject.id, selectedSubRequestForReject.executors || [], selectedSubRequestForReject.status);
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
+      console.error("Ошибка при отклонении заявки:", error);
+      setRejectError(error.response?.data?.error || "Не удалось отклонить заявку");
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  const handleOpenRedirectModal = async (request: any) => {
+    setSelectedRequestForRedirect(request);
+    setRedirectError(null);
+    setShowRedirectModal(true);
+    openModal('redirectModal');
+  };
+
+  const handleCloseRedirectModal = () => {
+    setShowRedirectModal(false);
+    setSelectedRequestForRedirect(null);
+    setRedirectError(null);
+    closeModalWithHistory();
+  };
+
+  const handleRedirectRequest = async () => {
+    if (!selectedRequestForRedirect || !selectedCategoryId) return;
+
+    setIsRedirecting(true);
+    setRedirectError(null);
+
+    // Находим группу заявок, к которой принадлежит подзаявка
+    const allRequests = [
+      ...useRequestStore.getState().requests,
+      ...useRequestStore.getState().myRequests,
+      ...useRequestStore.getState().incomingRequests,
+      ...useRequestStore.getState().assignedRequests,
+      ...useRequestStore.getState().completedRequests
+    ];
+    
+    const requestGroup = allRequests.find(group => 
+      group.requests.some(subReq => subReq.id === selectedRequestForRedirect.id)
+    );
+
+    try {
+      // Оптимистичное обновление - сразу обновляем UI
+      const { updateSubRequestExecutors, updateSubRequestRedirect, updateRequestGroupStatus } = useRequestStore.getState();
+      
+      if (requestGroup) {
+        // Обновляем подзаявку: меняем категорию, убираем исполнителей, меняем статус
+        updateSubRequestExecutors(requestGroup.id, selectedRequestForRedirect.id, [], 'awaiting_assignment');
+        updateSubRequestRedirect(requestGroup.id, selectedRequestForRedirect.id, selectedCategoryId);
+        
+        // Обновляем статус группы заявок
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
+      // Проверяем, есть ли в главной заявке другие подзаявки, где назначен этот исполнитель
+      const hasOtherSubRequestsWithExecutor = requestGroup?.requests?.some((subReq: any) =>
+          subReq.id !== selectedRequestForRedirect.id &&
+          subReq.executors?.some((executor: any) => executor.user.id === user?.id)
+      );
+
+      if (hasOtherSubRequestsWithExecutor) {
+        // Если есть другие подзаявки с этим исполнителем, просто показываем сообщение
+        successModal.showSuccess({
+          title: "Подзаявка перенаправлена",
+          message: `Подзаявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+        });
+      } else {
+        // Если нет других подзаявок с этим исполнителем, удаляем заявку из UI
+        setMyRequests(prev => 
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        setCompletedRequests(prev =>
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        setAssignedRequests(prev =>
+          prev.filter(req => req.id !== requestGroup?.id)
+        );
+        successModal.showSuccess({
+          title: "Заявка перенаправлена",
+          message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+        });
+      }
+      
+      // Отправляем запрос на сервер
+      await api.patch(`/requests/${selectedRequestForRedirect.id}`, {
+        status: "awaiting_assignment",
+        executor_id: null,
+        actual_completion_date: null,
+        category_id: selectedCategoryId,
+        patch_code: 1
+      });
+
+      // Закрываем все модальные окна
+      handleCloseRedirectModal();
+      if (selectedRequest) {
+        setSelectedRequest(null);
+        closeModalWithHistory();
+      }
+
+    } catch (error: any) {
+      // В случае ошибки откатываем изменения
+      if (requestGroup) {
+        const { updateSubRequestExecutors, updateSubRequestRedirect, updateRequestGroupStatus } = useRequestStore.getState();
+        
+        // Возвращаем оригинальную категорию и исполнителей
+        updateSubRequestExecutors(requestGroup.id, selectedRequestForRedirect.id, selectedRequestForRedirect.executors || [], selectedRequestForRedirect.status);
+        updateSubRequestRedirect(requestGroup.id, selectedRequestForRedirect.id, selectedRequestForRedirect.category_id);
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
+      console.error("Ошибка при перенаправлении заявки:", error);
+      setRedirectError(error.response?.data?.error || "Не удалось перенаправить заявку");
+    } finally {
+      setIsRedirecting(false);
+    }
+  };
+
+  const handleToggleLongTerm = async (requestId: number, requestGroupId: number, currentStatus: boolean) => {
+    try {
+      await api.patch(`/requests/${requestId}/long-term`, {
+        is_long_term: !currentStatus
+      });
+
+      // Обновляем состояние в UI - обновляем под заявку внутри группы заявок
+      const updateRequestGroups = (prev: RequestGroup[]) =>
+          prev.map(group => {
+            if (group.id === requestGroupId) {
+              return {
+                ...group,
+                requests: group.requests.map(subRequest =>
+                    subRequest.id === requestId
+                        ? { ...subRequest, is_long_term: !currentStatus }
+                        : subRequest
+                )
+              };
+            }
+            return group;
+          });
+
+      // Обновляем selectedRequest если он открыт и это та же группа заявок
+      if (selectedRequest && selectedRequest.id === requestGroupId) {
+        setSelectedRequest((prev: RequestGroup | null) => {
+          if (prev) {
+            return {
+              ...prev,
+              requests: prev.requests.map(subRequest =>
+                  subRequest.id === requestId
+                      ? { ...subRequest, is_long_term: !currentStatus }
+                      : subRequest
+              )
+            };
+          }
+          return prev;
+        });
+      }
+
+      // Обновляем все списки заявок
+      setAssignedRequests(updateRequestGroups);
+      setMyRequests(updateRequestGroups);
+      setCompletedRequests(updateRequestGroups);
+
+      // Показываем сообщение об успехе
+      successModal.showSuccess({
+        title: currentStatus ? "Задача снята с долгосрочных" : "Задача помечена как долгосрочная",
+        message: currentStatus 
+          ? "Задача больше не отображается как долгосрочная" 
+          : "Задача помечена как долгосрочная и будет выделена синим цветом"
+      });
+
+    } catch (error: any) {
+      console.error("Ошибка при изменении статуса долгосрочной задачи:", error);
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: error.response?.data?.error || "Не удалось изменить статус задачи"
+      });
+    }
+  };
+
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await api.get("/users/me");
-        const user = response.data;
+    setHydrated(true); // сработает только на клиенте
+  }, []);
 
-        if (!user || user.role !== "executor") {
-          router.push("/login")
-        } else {
-          setIsLoggedIn(true);
-          setCurrentUserId(user.id);
-          setNewRequestOfficeId(String(user.office_id));
+  useEffect(() => {
+    if (!hydrated) return; // ждём восстановления данных
+
+    if (!user || user.role !== "executor") {
+      Promise.all([
+        clearNotifications,
+        clearAuth,
+        useStatsStore.getState().resetStats,
+        clearRequests,
+        clearCategories,
+      ])
+      router.push("/login");
+    } else {
+      // пользователь валидный
+      setIsLoggedIn(true);
+      setCurrentUserId(user.id);
+    }
+  }, [hydrated, user, router]);
+
+  // ✅ ОБНОВЛЁННЫЙ handleBackButton
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      // Если закрытие происходит программно, сбрасываем флаг и не обрабатываем событие
+      if (isClosingProgrammatically) {
+        setIsClosingProgrammatically(false);
+        return;
+      }
+
+      if (modalStack.length > 0) {
+        e.preventDefault();
+        const lastModal = modalStack[modalStack.length - 1];
+
+        switch (lastModal) {
+          case 'createRequest':
+            setShowCreateRequestModal(false);
+            break;
+          case 'taskComplete':
+            setSelectedRequest(null);
+            break;
+          case 'taskDetails':
+            setSelectedRequest(null);
+            break;
+          case 'requestDetails':
+            setSelectedRequest(null);
+            break;
+          case 'mapModal':
+            setShowMapModal(false);
+            break;
+          case 'photoPreview':
+            setSelectedPhoto(null);
+            break;
+          case 'notification':
+            setIsModalOpen(false);
+            break;
+          case 'rejectModal':
+            handleCloseRejectModal();
+            break;
+          case 'redirectModal':
+            handleCloseRedirectModal();
+            break;
+          case 'deleteRequestModal':
+            setShowDeleteRequestModal(false);
+            break;
+          default:
+            break;
         }
-      } catch (error) {
-        console.error("Ошибка при проверке авторизации", error);
-        router.push("/login")
+
+        // Удаляем текущую модалку из стека
+        setModalStack(prev => prev.slice(0, -1));
       }
     };
 
-    checkAuth();
+    window.addEventListener('popstate', handlePopState);
+
+    // Инициализация истории
+    if (!window.history.state?.modal) {
+      window.history.replaceState({ modal: null }, '', window.location.pathname);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [modalStack, isClosingProgrammatically]);
+
+  // Сохраняем requestId в state при первой загрузке
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [pendingSubRequestId, setPendingSubRequestId] = useState<string | null>(null);
+
+  // Обработка query параметров для открытия заявки
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestIdFromUrl = urlParams.get("requestId");
+    const subRequestIdFromUrl = urlParams.get("subRequestId");
+    
+    const requestId = requestIdFromUrl || searchParams.get("requestId");
+    const subRequestId = subRequestIdFromUrl || searchParams.get("subRequestId");
+
+    // Сохраняем requestId в state, если он есть и еще не сохранен
+    if (requestId && !pendingRequestId) {
+      setPendingRequestId(requestId);
+      if (subRequestId) {
+        setPendingSubRequestId(subRequestId);
+      }
+    }
+
+    // Проверяем, что заявки загружены
+    if (myRequests.length === 0 && assignedRequests.length === 0 && completedRequests.length === 0) {
+      return;
+    }
+
+    const idToUse = pendingRequestId || requestId;
+    const subIdToUse = pendingSubRequestId || subRequestId;
+
+    if (idToUse && !selectedRequest) {
+      // Объединяем все списки заявок
+      const allRequests = [...myRequests, ...assignedRequests, ...completedRequests];
+      const foundRequest = allRequests.find(r => r.id === parseInt(idToUse));
+      
+      if (foundRequest) {
+        // Если указан subRequestId, фильтруем подзаявки
+        if (subIdToUse) {
+          const subRequest = foundRequest.requests.find((req: SubRequest) => req.id === parseInt(subIdToUse));
+          if (subRequest) {
+            setSelectedRequest(foundRequest);
+            setExpandedSubRequests(new Set([subRequest.id]));
+            openModal('requestDetails');
+            setPendingRequestId(null);
+            setPendingSubRequestId(null);
+          } else {
+            // Подзаявка не найдена
+            setNotFoundRequestId(`${idToUse}/${subIdToUse}`);
+            setShowNotFoundModal(true);
+            setPendingRequestId(null);
+            setPendingSubRequestId(null);
+          }
+        } else {
+          // Открываем всю группу заявок
+          setSelectedRequest(foundRequest);
+          openModal('requestDetails');
+          setPendingRequestId(null);
+          setPendingSubRequestId(null);
+        }
+        
+        // Очищаем query параметры из URL
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (idToUse) {
+        // Заявка не найдена
+        setNotFoundRequestId(idToUse);
+        setShowNotFoundModal(true);
+        setPendingRequestId(null);
+        setPendingSubRequestId(null);
+        // Очищаем query параметры из URL
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, myRequests, assignedRequests, completedRequests, selectedRequest, pendingRequestId, pendingSubRequestId, openModal]);
+
+  const fetchStats = async () => {
+    try {
+      const res = await api.get("/analytics/stats/executor");
+      setStats(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const fetchOffices = async () => {
+    try {
+      const res = await getOffices();
+      setOffices(res.data);
+    } catch (error) {
+      console.error('Ошибка при загрузке офисов:', error);
+    }
+  }
+
+  const handleDeleteRequest = async (request: Request) => {
+    try {
+      await api.delete(`/request-groups/${request.id}`)
+      fetchRequests()
+      successModal.showSuccess({
+        title: "Заявка удалена",
+        message: "Заявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Failed to delete request:", error)
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Не удалось удалить заявку."
+      })
+    }
+  }
+
+  const handleDeleteSubRequest = async (subRequest: SubRequest) => {
+    try {
+      await api.delete(`/requests/${subRequest.id}`)
+
+      // Обновляем состояние - удаляем под заявку из группы
+      if (selectedRequest) {
+        const updatedRequests = selectedRequest.requests.filter((req: { id: number }) => req.id !== subRequest.id)
+        const updatedRequestGroup = {
+          ...selectedRequest,
+          requests: updatedRequests
+        }
+        setSelectedRequest(updatedRequestGroup)
+
+        // Обновляем в store
+        const currentMyRequests = useRequestStore.getState().myRequests
+        const updatedStoreMyRequests = currentMyRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        ).filter(req => req.requests.length > 0)
+        const currentAssignedRequests = useRequestStore.getState().assignedRequests
+        const updatedStoreAssignedRequests = currentAssignedRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        ).filter(req => req.requests.length > 0)
+        const currentCompletedRequests = useRequestStore.getState().completedRequests
+        const updatedStoreCompletedRequests = currentCompletedRequests.map(req =>
+            req.id === selectedRequest.id ? updatedRequestGroup : req
+        ).filter(req => req.requests.length > 0)
+        useRequestStore.getState().setMyRequests(updatedStoreMyRequests)
+        useRequestStore.getState().setAssignedRequests(updatedStoreAssignedRequests)
+        useRequestStore.getState().setCompletedRequests(updatedStoreCompletedRequests)
+
+        // Если это была последняя под заявка в группе, закрываем модальное окно
+        if (updatedRequests.length === 0) {
+          setSelectedRequest(null);
+          closeModalWithHistory();
+        }
+      }
+
+      successModal.showSuccess({
+        title: "Под заявка удалена",
+        message: "Под заявка была успешно удалена."
+      })
+    } catch (error) {
+      console.error("Error deleting sub-request:", error)
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Не удалось удалить под заявку."
+      })
+    }
+  }
+
+  // Функция для оценки клиента
+  const handleRateClient = async () => {
+    if (requestGroupToRate && clientRatingValue > 0) {
+      try {
+        // Проверяем, существует ли уже рейтинг для этой группы заявок
+        const existingRating = clientRatings[requestGroupToRate.id];
+        const isUpdate = !!existingRating;
+        
+        // Отправляем запрос на сервер (POST для создания, PUT для обновления)
+        const response = await api[isUpdate ? 'put' : 'post'](`/client-ratings`, {
+          rating: clientRatingValue,
+          request_group_id: requestGroupToRate.id,
+          comment: clientRatingComment
+        });
+
+        // Обновляем локальное состояние
+        setClientRatings(prev => ({
+          ...prev,
+          [requestGroupToRate.id]: {
+            id: response.data.id,
+            rating: clientRatingValue,
+            comment: clientRatingComment,
+            request_group_id: requestGroupToRate.id,
+            created_at: new Date().toISOString()
+          }
+        }));
+
+        setShowClientRatingModal(false);
+        setClientRatingValue(0);
+        setClientRatingComment("");
+        setRequestGroupToRate(null);
+        closeModalWithHistory();
+      } catch (error) {
+        console.error("Failed to rate client:", error);
+        rejectModal.showReject({
+          title: "Ошибка",
+          message: "Не удалось отправить оценку клиента"
+        });
+      }
+    }
+  };
+
+  const fetchExecutorId = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      const executorResponse = await api.get(`/executors/${user.id}/user`);
+      setExecutorId(executorResponse.data.id);
+    } catch (executorError) {
+      console.error("Ошибка при получении executor_id:", executorError);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchStats()
   }, []);
 
   const filteredRequests = myRequests.filter((request:any) => {
-    const statusMatch = filterStatus === "all" || request.status === filterStatus
+    const statusMatch = filterStatus === "all"   ||
+        (filterStatus === "long_term" ? request.requests.some((req: { is_long_term: any }) => req.is_long_term && request.request_type !== 'recurring') : request.status === filterStatus);
     const requestType = request.request_type
     const typeMatch = filterType === "all" || requestType === filterType
     return statusMatch && typeMatch
   })
 
+  const closeAllModalsExcept = async (modalName: string) => {
 
-  const fetchComments = async () => {
-    if (!selectedTaskDetails?.id) return;
-    try {
-      const res = await api.get(`/comments/request/${selectedTaskDetails.id}`);
-      setComments(res.data);
-    } catch (err) {
-      console.error("Ошибка при загрузке комментариев", err);
+    if (modalName !== 'createRequest') {
+      setShowCreateRequestModal(false);
     }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await api.delete(`/comments/${id}`);
-      fetchComments();
-      setEditCommentId(null);
-      setComment("")
-    } catch (err) {
-      console.error("Ошибка при удалении", err);
+    if (modalName !== 'taskComplete') {
+      setSelectedRequest(null);
     }
-  };
-
-  const handleSend = () => {
-    if (comment.trim() === "") return;
-
-    if (editCommentId) {
-      api
-          .put(`/comments/${editCommentId}`, {
-            comment: comment.trim(),
-            request_id: selectedTaskDetails.id,
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-            setEditCommentId(null);
-          })
-          .catch((err) => console.error("Ошибка при обновлении", err));
-    } else {
-      api
-          .post(`/comments`, {
-            comment: comment.trim(),
-            request_id: selectedTaskDetails.id,
-          })
-          .then(() => {
-            fetchComments();
-            setComment("");
-          })
-          .catch((err) => console.error("Ошибка при добавлении", err));
+    if (modalName !== 'taskDetails') {
+      setSelectedRequest(null);
     }
-  };
-
-  const handleEdit = (id: number, oldComment: string) => {
-    setComment(oldComment);
-    setEditCommentId(id);
+    if (modalName !== 'requestDetails') {
+      setSelectedRequest(null);
+    }
+    if (modalName !== 'mapModal') {
+      setShowMapModal(false);
+    }
+    if (modalName !== 'photoPreview') {
+      setSelectedPhoto(null);
+    }
+    if (modalName !== 'notification') {
+      setIsModalOpen(false);
+    }
+    if (modalName !== 'rejectModal') {
+      handleCloseRejectModal();
+    }
+    if (modalName !== 'deleteRequestModal') {
+      setShowDeleteRequestModal(false);
+    }
+    // Очищаем стек и добавляем только текущую модалку
+    setModalStack([modalName]);
+    // Используем pushState вместо replaceState для правильной работы истории
+    window.history.pushState({ modal: modalName }, '', window.location.pathname);
   };
 
   useEffect(() => {
-    if (selectedTaskDetails?.id) {
-      fetchComments();
+    // Инициализация данных при первом рендере
+    fetchNotifications();
+    fetchRequests();
+    fetchOffices();
+    if (!executorId && user?.id) {
+      fetchExecutorId();
     }
-  }, [selectedTaskDetails]);
+  }, [])
 
-  useEffect(() => {
-    if (isLoggedIn) {
-      fetchCategories()
-      fetchNotifications()
-      fetchRequests()
-    }
-  }, [isLoggedIn])
-
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('/service-categories')
-      setServiceCategories(response.data)
-      if (response.data.length > 0) {
-        setSelectedCategoryId(response.data[0].id)
-      }
-    } catch (error) {
-      console.error("Failed to fetch categories:", error)
-    }
-  }
-
-  const handleCreateRequest = async () => {
-    if (
-        !newRequestTitle ||
-        !description ||
-        !newRequestType ||
-        !requestLocation ||
-        !newRequestLocation ||
-        !selectedCategoryId
-    ) {
-      setFormErrors("Пожалуйста, заполните все обязательные поля.");
-      return;
-    }
-
+  const handleCreateRequest = async (formData: FormData) => {
     setIsSubmitting(true);
     setFormErrors(null);
 
     try {
-      const response = await api.post('/requests', {
-        title: newRequestTitle,
-        description: description,
-        office_id: Number(newRequestOfficeId),
-        request_type: newRequestType === "urgent" ? "urgent" : "normal",
-        location: requestLocation,
-        location_detail: newRequestLocation,
-        category_id: selectedCategoryId,
-        status: "in_progress"
-      })
+      // Извлекаем after_photos и удаляем их из formData
+      const afterPhotos = formData.getAll('after_photos');
+      formData.delete('after_photos');
 
-      const requestId = response.data.id;
+      // Отправляем основной запрос на создание заявки с фото
+      let response = await api.post('/request-groups', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
-      console.log("Created request ID:", requestId);
-      let createdPhotos;
-      if (photos.length > 0) {
-        const formData = new FormData();
-        photos.forEach((photo) => {
-          formData.append('photos', photo);
-        });
-        formData.append('type', 'before');
+             const newRequestGroup = response.data;
+       console.log('New request group:', newRequestGroup);
 
-        try {
-          createdPhotos = await axios.post(`${API_BASE_URL}/request-photos/${requestId}/photos`, formData, {
-            withCredentials: true,
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-          });
+             // Если есть after_photos, загружаем их отдельным запросом
+       let uploadedPhotos;
+      if (afterPhotos.length > 0) {
+        const afterFormData = new FormData();
+         afterPhotos.forEach(photo => afterFormData.append('photos', photo));
+        afterFormData.append('type', 'after');
+         try {
+           response = await api.post(`/request-photos/${newRequestGroup.id}/photos`, afterFormData, {
+             headers: { 'Content-Type': 'multipart/form-data' }
+           });
+           uploadedPhotos = response.data.photos;
+         } catch (photoError) {
+           console.error("Ошибка при загрузке after_photos:", photoError);
+         }
+       }
 
-          console.log("Фотографии успешно загружены");
-        } catch (photoUploadError) {
-          await api.delete(`/requests/${requestId}`);
-          console.error("Ошибка при загрузке фото. Заявка удалена.");
-          alert("Ошибка при загрузке фото. Заявка не была создана.");
-          return;
+        // Добавляем uploadedPhotos в newRequestGroup
+        let updatedRequestGroup = { ...newRequestGroup };
+        
+        if (uploadedPhotos && uploadedPhotos.length > 0) {
+          // Проверяем структуру uploadedPhotos и добавляем их к существующим фотографиям
+          const existingPhotos = newRequestGroup.photos || [];
+          const newPhotos = Array.isArray(uploadedPhotos) ? uploadedPhotos : [uploadedPhotos];
+          
+          updatedRequestGroup = {
+            ...newRequestGroup,
+            photos: [...existingPhotos, ...newPhotos]
+          };
         }
-      }
-      const newRequest = {
-        ...response.data,
-        photos: createdPhotos?.data?.photos,
-      }
-      setMyRequests(prev => [newRequest, ...prev])
-      setShowCreateRequestModal(false)
-      setNewRequestType("")
-      setNewRequestTitle("")
-      setRequestLocation("")
-      setNewRequestLocation("")
-      setDescription("")
-    } catch (error) {
-      console.error("Failed to create request:", error)
-      setFormErrors("Не удалось создать заявку. Повторите попытку позже.");
+
+              // Обновляем состояние в зависимости от режима
+        if (createMode === 'createAndComplete') {
+          setMyRequests(prev => [updatedRequestGroup, ...prev]);
+      successModal.showSuccess({
+        title: "Заявка создана и завершена!",
+        message: "Заявка успешно создана, выполнена и закрыта с отчётом."
+      });
+        } else {
+          setMyRequests(prev => [updatedRequestGroup, ...prev]);
+          successModal.showSuccess({
+            title: "Заявка создана!",
+            message: "Заявка успешно создана и взята в работу."
+          });
+        }
+
+      // Сброс формы
+      resetForm();
+    } catch (error: any) {
+      console.error("Ошибка при создании группы заявок:", error);
+      setFormErrors(
+          error.response?.data?.error || "Не удалось создать заявку. Повторите попытку."
+      );
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  const handleButtonClick = () => {
-    fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-
-    const fileArray = Array.from(files);
-    const remainingSlots = 3 - photoPreviews.length;
-
-    const selectedFiles = fileArray.slice(0, remainingSlots);
-
-    const previewUrls = selectedFiles.map((file) => URL.createObjectURL(file));
-
-    setPhotos((prev) => [...prev, ...selectedFiles]);
-    setPhotoPreviews((prev) => [...prev, ...previewUrls]);
-
-    event.target.value = '';
+  const resetForm = () => {
+    setShowCreateRequestModal(false);
+    setRequestLocation("");
+    setCreateMode('create');
   };
 
-  const fetchNotifications = async () => {
-    try {
-      const response = await api.get("/notifications/me")
-      setNotifications(response.data.notifications);
-    } catch (error) {
-      console.error("Ошибка при загрузке уведомлений", error)
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    if (notifications.length > 0) {
+      setNotificationLoading(false)
     }
-  }
+  }, [])
 
+  useEffect(() => {
+    if (isLoggedIn) {
+      setNotificationLoading(true)
+      fetchNotifications()
+    }
+  }, [isLoggedIn])
 
-  const handleNotificationClick = async (notification:any) => {
+  useEffect(() => {
+    const create = searchParams.get("createRequest")
+    if (create === "true") {
+      // Всегда добавляем createRequest в стек и историю
+      setModalStack(['createRequest']);
+      window.history.pushState({ modal: 'createRequest' }, '', window.location.pathname);
+      setShowCreateRequestModal(true)
+    }
+    if(create === "false") {
+      setShowCreateRequestModal(false)
+      // Просто обновляем стек модальных окон
+      setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
+    }
+  }, [searchParams])
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await api.get('notifications/me?page=1&pageSize=5')
+      setNotifications(res.data.notifications)
+    } catch (error) {
+      console.error('Ошибка при загрузке уведомлений:', error)
+    } finally {
+      setNotificationLoading(false)
+    }
+  }, []);
+
+  const handleNotificationClick = async (notification: any) => {
+    setSelectedNotification(notification)
+    setIsModalOpen(true)
+    openModal('notification')
     if (!notification.is_read) {
       try {
-        setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: true } : n))
+        const updatedNotifications = notifications.map((n:any) =>
+            n.id === notification.id ? { ...n, is_read: true } : n
         )
+        setNotifications(updatedNotifications)
         await api.patch(`/notifications/${notification.id}/read`)
       } catch (error) {
-        setNotifications((prev:any) =>
-            prev.map((n:any) => (n.id === notification.id ? { ...n, is_read: false } : n))
+        const updatedNotifications = notifications.map((n:any) =>
+            n.id === notification.id ? { ...n, is_read: false } : n
         )
+        setNotifications(updatedNotifications)
         console.error("Ошибка при пометке уведомления как прочитано", error)
       }
     }
-
-    setSelectedNotification(notification)
-    setIsModalOpen(true)
-  }
-
-  const getBgColor = (title:any) => {
-    if (title.includes("принята")) return "bg-blue-50"
-    if (title.includes("завершена")) return "bg-green-50"
-    if (title.includes("просрочена")) return "bg-red-50"
-    return "bg-gray-100"
-  }
-
-  const formatTimeAgo = (dateStr:any) => {
-    const date = new Date(dateStr)
-    const diff = (Date.now() - date.getTime()) / 1000
-    if (diff < 60) return "только что"
-    if (diff < 3600) return `${Math.floor(diff / 60)} минут назад`
-    if (diff < 86400) return `${Math.floor(diff / 3600)} часов назад`
-    return `${Math.floor(diff / 86400)} дней назад`
   }
 
   const handleOpenCreateRequest = () => {
@@ -413,54 +1005,99 @@ export default function ExecutorDashboard() {
     } else {
       setRequestLocation("Ваш браузер не поддерживает геолокацию");
     }
-
     setShowCreateRequestModal(true);
+    openModal('createRequest');
   };
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
-      const response = await api.get('requests/executor/me')
+      const response = await api.get('request-groups')
       const responseRating = await api.get('ratings/executor')
       const responseMyRating = await api.get('executors/average-rating')
       setMyRating(responseMyRating.data.average_rating)
-      const ratingsMap = new Map<number, number>()
+      const ratingsMap = new Map<number, any>()
       for (const r of responseRating.data) {
-        ratingsMap.set(r.request_id, parseFloat(r.rating))
+        ratingsMap.set(r.request_id, {
+          rating: parseFloat(r.rating),
+          comments: r.comments || []
+        })
       }
 
-      const completed = response.data.completedRequests.map((req: Request) => ({
-        ...req,
-        rating: ratingsMap.get(req.id) || null,
+      const completed = response.data.completedRequests.map((reqGroup: RequestGroup) => ({
+        ...reqGroup,
+        requests: reqGroup.requests.map((req: SubRequest) => {
+          const ratingData = ratingsMap.get(req.id);
+          return {
+            ...req,
+            rating: ratingData?.rating || null,
+            ratings: ratingData ? [{
+              rating: ratingData.rating,
+              comments: ratingData.comments
+            }] : undefined
+          };
+        }),
       }))
 
       setCompletedRequests(completed)
       setAssignedRequests(response.data.assignedRequests);
       setMyRequests(response.data.myRequests);
+      
+      // Заполняем userRatings данными из /ratings/executor
+      const userRatingsData: Record<number, any> = {};
+      for (const r of responseRating.data) {
+        userRatingsData[r.request_id] = {
+          rating: parseFloat(r.rating),
+          comments: r.comments || [],
+          request_id: r.request_id
+        };
+      }
+      setUserRatings(userRatingsData);
+      
+      // Обрабатываем рейтинги клиентов из ответа API
+      const processClientRatings = (requestGroups: any[]) => {
+        setClientRatings(prevRatings => {
+          const newRatings = { ...prevRatings };
+          requestGroups.forEach((requestGroup: any) => {
+            if (requestGroup.clientRatings && requestGroup.clientRatings.length > 0) {
+              const rating = requestGroup.clientRatings[0]; // Берем первый рейтинг
+              newRatings[requestGroup.id] = {
+                id: rating.id,
+                rating: rating.rating,
+                comment: rating.comment,
+                request_group_id: requestGroup.id,
+                created_at: rating.created_at,
+                ratedClient: rating.ratedClient
+              };
+            }
+          });
+          return newRatings;
+        });
+      };
+
+      // Обрабатываем рейтинги клиентов для всех групп заявок
+      processClientRatings([...response.data.completedRequests, ...response.data.assignedRequests, ...response.data.myRequests]);
 
     } catch (error) {
       console.error("Failed to fetch requests:", error)
     }
-  }
+  }, []);
 
   const translateStatus = (status: string) => {
     switch (status) {
       case "draft": return "Черновик";
-      case "in_progress": return "В обработке";
+      case "in_progress": return "В обработке у Администратора";
       case "execution": return "Исполнение";
       case "completed": return "Завершено";
       case "rejected": return "Отклонено";
-      case "awaiting_assignment": return "Ожидание назначения";
+      case "awaiting_assignment": return "Ожидает назначения Исполнителя";
+      case "awaiting_sla": return "Ожидание времени выполнения";
       case "assigned": return "назначенный";
+      case "pending": return "Ожидает";
+      case "overdue": return "Просрочено";
+      case "skipped": return "Пропущено";
+      case "active": return "Активна";
+      case "paused": return "Приостановлена";
       default: return status;
-    }
-  };
-
-  const translateComplexity = (complexity: string) => {
-    switch (complexity) {
-      case "complex": return "комплексный";
-      case "simple": return "простой";
-      case "medium": return "средний";
-      default: return complexity;
     }
   };
 
@@ -469,9 +1106,23 @@ export default function ExecutorDashboard() {
       case "urgent": return "Экстренная"
       case "normal": return "Обычная"
       case "planned": return "Плановая"
+      case "recurring": return "Повторяющаяся"
       default: return type
     }
   }
+
+  const translateRecurringStatus = (status: string) => {
+    switch (status) {
+      case "active": return "Активна";
+      case "paused": return "Приостановлена";
+      case "completed": return "Завершена";
+      case "pending": return "Ожидает";
+      case "overdue": return "Просрочено";
+      case "skipped": return "Пропущено";
+      default: return status;
+    }
+  };
+
   const getTypeColor = (type: string) => {
     switch (type) {
       case "urgent":
@@ -499,102 +1150,268 @@ export default function ExecutorDashboard() {
   }
 
   const handleStartTask = async (taskId: string) => {
-    await api.patch(`/requests/${taskId}/execute`)
-    setAssignedRequests((prevTasks: any) =>
-        prevTasks.map((task: any) => (task.id === taskId ? {...task, status: "execution"} : task)),
-    )
-    setMyRequests((prevTasks: any) =>
-        prevTasks.map((task: any) => (task.id === taskId ? {...task, status: "execution"} : task)),
-    )
-    console.log("Starting task:", taskId)
-  }
-
-  const handleCompleteTask = async (taskId: string) => {
     try {
-      if (!completedRequestComment.trim()) {
-        setCompleteFormErrors("Пожалуйста, заполните поле и добавьте фото.")
-        setIsSubmitting(false);
-        return
+      // Оптимистичное обновление UI
+      const updateRequestStatus = (requests: any[]) =>
+        requests.map((request: any) => {
+          // Обновляем статус главной заявки, если все подзаявки в execution
+          if (request.requests && request.requests.length > 0) {
+            const updatedRequests = request.requests.map((subReq: any) => 
+              subReq.id === parseInt(taskId) ? { ...subReq, status: "execution" } : subReq
+            );
+            
+            // Проверяем, нужно ли обновить статус главной заявки
+            const allInExecution = updatedRequests.every((subReq: any) => 
+              subReq.status === "execution" || subReq.status === "completed"
+            );
+            const allAssignedOrInExecution = updatedRequests.every((subReq: any) => 
+              subReq.status === "assigned" || subReq.status === "execution" || subReq.status === "completed"
+            );
+            
+            if (allInExecution && allAssignedOrInExecution) {
+              return { ...request, status: "execution", requests: updatedRequests };
+            }
+            return { ...request, requests: updatedRequests };
+          }
+          return request;
+        });
+
+      // Оптимистично обновляем UI
+      setAssignedRequests(updateRequestStatus);
+      setMyRequests(updateRequestStatus);
+      
+      // Обновляем selectedRequest если он содержит эту подзаявку
+      if (selectedRequest && selectedRequest.requests) {
+        const updatedSelectedRequest = updateRequestStatus([selectedRequest])[0];
+        setSelectedRequest(updatedSelectedRequest);
       }
 
-      setCompleteFormErrors(null)
-      // 1. PATCH для завершения задачи
-      const response = await api.patch(`/requests/${taskId}/complete`, {
-        comment: completedRequestComment
+      // Отправляем запрос на сервер
+      await api.patch(`/requests/${taskId}/execute`);
+      
+      // Показываем уведомление об успехе
+      successModal.showSuccess({
+        title: "Задача начата",
+        message: "Вы успешно начали выполнение задачи"
       });
 
-      // 2. Если есть фото, загружаем их
-      if (photos.length > 0) {
+      // Не вызываем fetchRequests() чтобы сохранить оптимистичные обновления
+      
+    } catch (error: any) {
+      console.error("Ошибка при начале выполнения задачи:", error);
+      
+      // Откатываем оптимистичное обновление при ошибке
+      fetchRequests();
+      
+      // Показываем ошибку пользователю
+      rejectModal.showReject({
+        title: "Ошибка",
+        message: "Не удалось начать выполнение задачи"
+      });
+    }
+  }
+
+  const handleCompleteTask = async (task: any) => {
+    setSelectedTaskForComplete(task);
+    setShowCompleteTaskModal(true);
+  };
+
+  const handleRejectSubRequest = async (subRequest: any) => {
+    setSelectedSubRequestForReject(subRequest);
+    setShowRejectSubRequestModal(true);
+  };
+
+  const handleCompleteTaskSubmit = async (comment: string, photos: File[]) => {
+    if (!selectedTaskForComplete) return;
+    
+    // Валидация фотографий
+    if (photos.length === 0) {
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Пожалуйста, добавьте хотя бы одну фотографию результата"
+      });
+      return;
+    }
+    
+    if (photos.length > 3) {
+      successModal.showSuccess({
+        title: "Ошибка",
+        message: "Максимальное количество фотографий - 3"
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    // Находим группу заявок, к которой принадлежит подзаявка
+    const allRequests = [
+      ...useRequestStore.getState().requests,
+      ...useRequestStore.getState().myRequests,
+      ...useRequestStore.getState().incomingRequests,
+      ...useRequestStore.getState().assignedRequests,
+      ...useRequestStore.getState().completedRequests
+    ];
+    
+    const requestGroup = allRequests.find(group => 
+      group.requests.some(subReq => subReq.id === selectedTaskForComplete.id)
+    );
+    
+    // Сохраняем оригинальное состояние для отката
+    const originalSubRequest = requestGroup?.requests.find(subReq => subReq.id === selectedTaskForComplete.id);
+    const originalGroupPhotos = requestGroup?.photos || [];
+    
+    try {
+      // Оптимистичное обновление - сразу обновляем UI
+      const { updateSubRequestComplete, updateRequestGroupStatus } = useRequestStore.getState();
+      
+      if (requestGroup) {
+        // Создаем временные фотографии для оптимистичного обновления
+        const tempPhotos = photos.map((photo, index) => ({
+          id: `temp-${Date.now()}-${index}`,
+          photo_url: URL.createObjectURL(photo),
+          type: 'after',
+          request_id: selectedTaskForComplete.id
+        }));
+        
+        // Обновляем подзаявку: добавляем комментарий, фотографии, меняем статус
+        updateSubRequestComplete(requestGroup.id, selectedTaskForComplete.id, comment, tempPhotos);
+        
+        // Обновляем статус группы заявок
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
+      // Отправляем запрос на сервер
+      const response = await api.patch(`/requests/${selectedTaskForComplete.id}/complete`, {
+        comment: comment
+      });
+
+      let uploadedPhotos: any[] = [];
+      if (photos.length > 0 && requestGroup) {
         const formData = new FormData();
         photos.forEach((photo) => {
           formData.append('photos', photo);
         });
-        formData.append('type', 'before');
-
+        formData.append('type', 'after');
         try {
-          await axios.post(`${API_BASE_URL}/request-photos/${response.data.id}/photos`, formData, {
+          const photoResponse = await axios.post(`${API_BASE_URL}/request-photos/${response.data.requestGroup.id}/photos`, formData, {
             withCredentials: true,
             headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
+              Authorization: `Bearer ${token}`
             }
           });
+          uploadedPhotos = photoResponse.data.photos || [];
+          console.log('Загруженные фотографии:', uploadedPhotos);
         } catch (photoUploadError) {
-          await api.delete(`/requests/${response.data.id}`);
-          alert("Ошибка при загрузке фото. Заявка не была создана.");
+          console.error("Ошибка при загрузке фотографий:", photoUploadError);
+          // Откатываем создание заявки при ошибке загрузки фото
+          try {
+            await api.delete(`/requests/${response.data.id}`);
+          } catch (deleteError) {
+            console.error("Ошибка при откате заявки:", deleteError);
+          }
+          successModal.showSuccess({
+            title: "Ошибка",
+            message: "Не удалось загрузить фотографии. Заявка не была завершена."
+          });
+          setIsSubmitting(false);
           return;
         }
-      } else {
-        setCompleteFormErrors("Пожалуйста, заполните поле и добавьте фото.")
-        setIsSubmitting(false);
-        return
       }
-      setCompleteFormErrors(null)
+      
+      // Обновляем подзаявку с реальными данными с сервера (с фотографиями или без них)
+      if (requestGroup) {
+        const { updateSubRequestComplete } = useRequestStore.getState();
+        console.log('Обновляем с реальными фотографиями:', uploadedPhotos);
+        updateSubRequestComplete(requestGroup.id, selectedTaskForComplete.id, comment, uploadedPhotos);
+      }
 
-      // 3. Переносим задачу в список завершённых
-      setAssignedRequests((prevTasks: any) => {
-        const taskToComplete = prevTasks.find((task: any) => task.id === taskId);
-        if (taskToComplete) {
-          setCompletedRequests((prevCompleted: any) => [
-            {
-              ...taskToComplete,
-              status: "completed",
-              completedDate: new Date().toISOString(),
-              rating: 0,
-              plannedDate: null
-            },
-            ...prevCompleted,
-          ]);
-          return prevTasks.filter((task: any) => task.id !== taskId);
+      // Проверяем, нужно ли переместить заявку в completedRequests
+      if (requestGroup) {
+        // Получаем обновленное состояние из хранилища
+        const currentState = useRequestStore.getState();
+        const allCurrentRequests = [
+          ...currentState.requests,
+          ...currentState.myRequests,
+          ...currentState.incomingRequests,
+          ...currentState.assignedRequests,
+          ...currentState.completedRequests
+        ];
+        
+        const updatedGroup = allCurrentRequests.find(group => 
+          group.id === requestGroup.id
+        );
+        
+        if (updatedGroup && updatedGroup.status === 'completed') {
+          // Удаляем из assignedRequests и myRequests
+          const { setAssignedRequests, setMyRequests, setCompletedRequests } = useRequestStore.getState();
+          
+          setAssignedRequests(prev => 
+            prev.filter(req => req.id !== requestGroup.id)
+          );
+          setMyRequests(prev => 
+            prev.filter(req => req.id !== requestGroup.id)
+          );
+          
+          // Добавляем в completedRequests, если еще нет
+          setCompletedRequests(prev => {
+            const exists = prev.some(req => req.id === requestGroup.id);
+            if (!exists) {
+              return [...prev, updatedGroup];
+            }
+            return prev;
+          });
         }
-        return prevTasks;
-      });
+      }
 
-      // 4. Сбрасываем состояние
-      fetchRequests()
-      setSelectedTask(null);
-      setPhotos([]);
-      setPhotoPreviews([]);
-      setCompletedRequestComment("");
+      setSelectedRequest(null);
+
+      successModal.showSuccess({
+        title: "Успешно",
+        message: "Заявка успешно завершена"
+      });
+      
+      setShowCompleteTaskModal(false);
+      setSelectedTaskForComplete(null);
       setIsSubmitting(false);
-      console.log("Задача успешно завершена:", taskId);
     } catch (error) {
+      // В случае ошибки откатываем изменения
+      if (requestGroup && originalSubRequest) {
+        const { updateSubRequestComplete, updateRequestGroupStatus } = useRequestStore.getState();
+        
+        // Возвращаем оригинальное состояние подзаявки и фотографии группы
+        updateSubRequestComplete(
+          requestGroup.id, 
+          selectedTaskForComplete.id, 
+          originalSubRequest.comment || '', 
+          originalGroupPhotos
+        );
+        updateRequestGroupStatus(requestGroup.id);
+      }
+      
       console.error("Ошибка при завершении задачи", error);
-      alert("Ошибка при завершении задачи.");
+      
+      rejectModal.showReject({
+        title: "Ошибка",
+        message: "Не удалось завершить задачу"
+      });
+      setIsSubmitting(false);
     }
   };
 
   const handleLogout = async () => {
     try {
-      await api.post('/auth/logout')
+      clearNotifications()
+      clearAuth()
+      useStatsStore.getState().resetStats()
+      clearRequests()
+      clearCategories()
+
       setIsLoggedIn(false)
-      localStorage.removeItem('token')
       router.push("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }
   }
-
-
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -610,6 +1427,16 @@ export default function ExecutorDashboard() {
         return "bg-violet-500 text-white border-violet-500"
       case "rejected":
         return "bg-red-500 text-white border-red-500"
+      case "pending":
+        return "bg-blue-500 text-white border-blue-500"
+      case "overdue":
+        return "bg-orange-500 text-white border-orange-500"
+      case "skipped":
+        return "bg-gray-500 text-white border-gray-500"
+      case "active":
+        return "bg-green-500 text-white border-green-500"
+      case "paused":
+        return "bg-yellow-500 text-gray-900 border-yellow-500"
       default:
         return "bg-gray-400 text-white border-gray-400"
     }
@@ -629,12 +1456,22 @@ export default function ExecutorDashboard() {
         return <User className="w-3 h-3" />
       case "rejected":
         return <XCircle className="w-3 h-3" />
+      case "pending":
+        return <Clock className="w-3 h-3" />
+      case "overdue":
+        return <AlertTriangle className="w-3 h-3" />
+      case "skipped":
+        return <XCircle className="w-3 h-3" />
+      case "active":
+        return <CheckCircle className="w-3 h-3" />
+      case "paused":
+        return <Pause className="w-3 h-3" />
       default:
         return null
     }
   }
 
-  const getComplexityColor = (complexity: "simple" | "medium" | "complex" | undefined) => {
+  const getComplexityColor = (complexity: string) => {
     switch (complexity?.toLowerCase()) {
       case "complex":
         return "bg-gradient-to-r from-red-500 to-pink-500 text-white border-red-500"
@@ -647,1112 +1484,765 @@ export default function ExecutorDashboard() {
     }
   }
 
-  const getRequestTypeColor = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return "bg-gradient-to-r from-red-500 to-red-600 text-white border-red-500"
-      case "planned":
-        return "bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-blue-500"
-      case "normal":
-        return "bg-gradient-to-r from-purple-500 to-violet-600 text-white border-purple-500"
-      default:
-        return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
-    }
-  }
+  const renderStatusWithTooltip = (status: string) => {
+    const icon = getStatusIcon(status);
+    const text = translateStatus(status);
 
-  const getRequestTypeIcon = (requestType: string) => {
-    switch (requestType.toLowerCase()) {
-      case "urgent":
-        return <AlertCircle className="w-3 h-3" />
-      case "planned":
-        return <Calendar className="w-3 h-3" />
-      case "normal":
-        return <Clock className="w-3 h-3" />
-      default:
-        return null
+    if (isDesktop) {
+      return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 cursor-help">
+                  {icon}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{text}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+      );
+    } else {
+      return (
+          <div
+              className="flex items-center gap-1 cursor-pointer p-1 rounded"
+              onClick={() => setShowIconInfo({type: 'status', value: text})}
+          >
+            {icon}
+          </div>
+      );
     }
-  }
+  };
+
+  const renderLongTermWithTooltip = (isLongTerm: boolean) => {
+    if (!isLongTerm) return null;
+
+    if (isDesktop) {
+    return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1 cursor-help">
+                  <Hourglass className="w-3 h-3 text-blue-600" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Долгосрочная задача</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+      );
+    } else {
+      return (
+          <div
+              className="flex items-center gap-1 cursor-pointer p-1 rounded"
+              onClick={() => setShowIconInfo({type: 'longTerm', value: 'Долгосрочная задача'})}
+          >
+            <Hourglass className="w-3 h-3 text-blue-600" />
+          </div>
+      );
+    }
+  };
+
+  const getRecurrenceText = (recurrenceType: string, interval: number) => {
+    switch (recurrenceType) {
+      case 'daily':
+        return interval === 1 ? 'Ежедневно' : `Каждые ${interval} дней`;
+      case 'weekly':
+        return interval === 1 ? 'Еженедельно' : `Каждые ${interval} недель`;
+      case 'monthly':
+        return interval === 1 ? 'Ежемесячно' : `Каждые ${interval} месяцев`;
+      case 'yearly':
+        return interval === 1 ? 'Ежегодно' : `Каждые ${interval} лет`;
+      default:
+        return 'Повторяющаяся';
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("ru-RU", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-    })
-  }
+    });
+  };
 
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-        <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
-    ))
-  }
+  const renderCardHeader = (requestGroup: RequestGroup) => {
+    const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
+    // Убрали счетчик подзаявок - теперь показываем только один заявка
+    const isRecurring = requestGroup.request_type === 'recurring';
 
-  const completedInTime = completedRequests.filter((req: { actual_completion_date: string | number | Date; sla: { props: { deadline: string | number | Date } } }) => {
-    const completedAt = new Date(req.actual_completion_date);
-    const slaDeadline = new Date(req.sla?.props?.deadline);
-    return completedAt <= slaDeadline;
-  });
+    return (
+        <CardHeader className={`pb-3 px-5 pt-5`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className={`font-bold text-base leading-tight line-clamp-2 text-gray-900`}>
+                  Заявка #{requestGroup.id}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
+                {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
+              </span>
+              </div>
+            </div>
+            
+            {/* Информация о повторяющейся задаче */}
+            {isRecurring && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full text-blue-600 bg-blue-50 border border-blue-200">
+                  🔄 {getRecurrenceText(requestGroup.recurrence_type || 'daily', requestGroup.recurrence_interval || 1)}
+                </span>
+                {requestGroup.next_due_date && (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full text-green-600 bg-green-50 border border-green-200">
+                    📅 Следующая: {formatDate(requestGroup.next_due_date)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-1 items-center">
+              {renderStatusWithTooltip(requestGroup.status)}
+              {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
+            <RoleBasedActionMenu
+                  request={requestGroup}
+                  requestGroup={requestGroup}
+              isDesktop={isDesktop}
+              userRole="executor"
+                  isSubRequest={false}
+              onViewDetails={(request) => {
+                    setSelectedRequest(request);
+                    openModal('requestDetails');
+                  }}
+                  onRateClient={(requestGroup) => {
+                    setRequestGroupToRate(requestGroup);
+                    const currentRating = clientRatings[requestGroup.id]?.rating || 0;
+                    setClientRatingValue(currentRating);
+                    setClientRatingComment("");
+                    setShowClientRatingModal(true);
+                    openModal('clientRatingModal');
+                  }}
+                  onDelete={(requestGroup) => {
+                    setSelectedRequest(requestGroup);
+                    setShowDeleteRequestModal(true);
+                  }}
+            />
+          </div>
+        </div>
+      </CardHeader>
+    );
+  };
 
-  const overdue = completedRequests.length - completedInTime.length;
+  const handleRefresh = async () => {
+    try {
+      setSelectedCategoryId(null)
+      setMyRating(null)
+      setFormErrors(null)
+      setStats(null)
+      setCreateMode('create')
+      setExecutorId(null)
+      setUserRatings({})
+      setOffices([])
 
-  const ratings = completedRequests.map((req: { rating: any }) => req.rating).filter(Boolean) as number[];
-  const averageRating = ratings.length
-      ? (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1)
-      : '—';
+      clearRequests();
+      clearNotifications()
 
-  const durations = completedRequests.map((req: { date_submitted: string | number | Date; actual_completion_date: string | number | Date }) => {
-    const submitted = new Date(req.date_submitted).getTime();
-    const completed = new Date(req.actual_completion_date).getTime();
-    return (completed - submitted) / (1000 * 60 * 60); // в часах
-  });
-  const averageDuration = durations.length
-      ? (durations.reduce((sum: any, d: any) => sum + d, 0) / durations.length).toFixed(1)
-      : '—';
+      await Promise.all([
+        fetchRequests(),
+        fetchStats(),
+        fetchCategories(token!),
+        fetchNotifications(),
+          fetchOffices()
+      ]);
 
+    } catch (error) {
+      console.error("Ошибка при обновлении:", error);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <Header
-          setShowProfile={setShowProfile}
-          handleLogout={handleLogout}
-          notificationCount={notifications.length}
-          role="Исполнитель"
-      />
-      <UserProfile open={showProfile} onClose={() => setShowProfile(false)} />
+      <>
+        <Header
+            setShowProfile={setShowProfile}
+            handleLogout={handleLogout}
+            notificationCount={notifications.length}
+            role="Исполнитель"
+            onRefresh={handleRefresh}
+            onRequestClick={(requestId) => {
+              // Парсим ID заявки (может быть в формате "123" или "123/1")
+              const parsedId = parseInt(requestId.split('/')[0]);
+              const allRequests = [...myRequests, ...assignedRequests, ...completedRequests];
+              const request = allRequests.find(r => r.id === parsedId);
+              if (request) {
+                setSelectedRequest(request);
+                openModal('requestDetails');
+                return true; // Заявка найдена
+              }
+              return false; // Заявка не найдена
+            }}
+        />
+        <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Экстренные</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {[...assignedRequests, ...myRequests].filter(req => req.request_type === "urgent").length}
-                  </p>
-                </div>
+      <PullToRefresh onRefresh={handleRefresh}>
+      <div className="min-h-screen bg-gray-50">
+        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
+          {isDesktop ? (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <AlertTriangle className="w-6 h-6 text-red-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Просрочено</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats?.overdue || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Clock className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">В работе</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats?.inWork || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <CheckCircle className="w-6 h-6 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Завершено</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats?.completed || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <Star className="w-6 h-6 text-yellow-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Рейтинг</p>
+                        <p className="text-2xl font-bold text-gray-900">{myRating}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Clock className="w-6 h-6 text-blue-600" />
+          ):null}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-2">
+                  {isDesktop && (
+                      <Button
+                          onClick={() => router.push('/create-request')}
+                          className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Создать заявку
+                      </Button>
+                  )}
+                  <TabsList className="flex flex-wrap gap-2">
+                    <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
+                    <TabsTrigger value="myTasks">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="completed">Завершенные</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                  </TabsList>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">В работе</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {assignedRequests?.filter((r:any) => r.status === "execution").length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Завершено</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {completedRequests?.length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Star className="w-6 h-6 text-yellow-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                  <p className="text-2xl font-bold text-gray-900">{myRating}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <div className="flex justify-between items-center mb-6">
-                <TabsList>
-                  <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
-                  <TabsTrigger value="myTasks">Мой заявки</TabsTrigger>
-                  <TabsTrigger value="completed">Завершенные</TabsTrigger>
-                  <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                </TabsList>
-                <Button
-                  onClick={() => {
-                    setNewRequestType("normal")
-                    setShowCreateRequestModal(true)
-                    handleOpenCreateRequest()
-                  }}
-                  className="bg-violet-600 hover:bg-violet-700"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Создать заявку
-                </Button>
-              </div>
-
-              <TabsContent value="tasks">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Статус" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Все</SelectItem>
-                        <SelectItem value="in_progress">В обработке</SelectItem>
-                        <SelectItem value="execution">Исполнение</SelectItem>
-                        <SelectItem value="completed">Завершено</SelectItem>
-                        <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
-                        <SelectItem value="assigned">Назначен</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Тип заявки" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Все</SelectItem>
-                        <SelectItem value="normal">Обычная</SelectItem>
-                        <SelectItem value="urgent">Экстренная</SelectItem>
-                        <SelectItem value="planed">Плановая</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {assignedRequests
-                        ?.filter((task: any) => {
-                            const statusOk = filterStatus === "all" || task.status === filterStatus;
-                            const typeOk = filterType === "all" || task.request_type === filterType;
-                            return statusOk && typeOk;
-                        })
-                        ?.sort((a: any, b: any) => {
-                          const typeOrderA = getTaskTypeOrder(a.type)
-                          const typeOrderB = getTaskTypeOrder(b.type)
-
-                          return typeOrderA - typeOrderB
-                        }).map((request:any, index: number) => (
-                        <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                              onClick={() => setSelectedTaskDetails(request)}>
-                          {/* Заголовок с ID и статусами */}
-                          <CardHeader className="pb-3 px-5 pt-5">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                                  #{request.id}
-                                </span>
-                                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
-                                </span>
-                                </div>
-                              </div>
-                              <div className="flex gap-1">
-                                <Badge
-                                    variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
-                                >
-                                  {getStatusIcon(request.status)}
-                                  {translateStatus(request.status)}
-                                </Badge>
-                              </div>
-                            </div>
-                          </CardHeader>
-
-                          <CardContent className="px-5 pb-5 pt-0 space-y-3">
-                            {/* Описание */}
-                            <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
-
-                            {/* Основная информация в сетке */}
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{request.location_detail}</span>
-                              </div>
-
-                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{formatDate(request.created_date)}</span>
-                              </div>
-
-                              {request.executor && request.executor.user.full_name ? (
-                                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                    <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
-                                  </div>
-                              ) : (
-                                  <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                    <User className="w-4 h-4 flex-shrink-0" />
-                                    <span className="truncate font-medium">Не назначен</span>
-                                  </div>
-                              )}
-
-                              {request.rating ? (
-                                  <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                    {renderStars(request.rating)}
-                                  </div>
-                              ) : (
-                                  <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                    <span className="text-sm font-medium">Без оценки</span>
-                                  </div>
-                              )}
-                            </div>
-
-                            {/* Фотографии */}
-                            {request.photos && request.photos.length > 0 && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <ImageIcon className="w-4 h-4 text-purple-500" />
-                                    <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
-                                  </div>
-                                  <div className="flex gap-2 overflow-x-auto">
-                                    {request.photos.slice(0, 4).map((photo:any, index:number) => (
-                                        <div key={index} className="flex-shrink-0">
-                                          <img
-                                              src={photo.photo_url || "/placeholder.svg"}
-                                              alt={`Фото ${index + 1}`}
-                                              className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
-                                              onError={(e) => {
-                                                e.currentTarget.src = `/placeholder.svg?height=48&width=48`
-                                              }}
-                                          />
-                                        </div>
-                                    ))}
-                                    {request.photos.length > 4 && (
-                                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                                          <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
-                                        </div>
-                                    )}
-                                  </div>
-                                </div>
-                            )}
-
-                            {/* Нижняя панель */}
-                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                              <div className="flex gap-2">
-                                <Badge
-                                    variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
-                                >
-                                  {getRequestTypeIcon(request.request_type)}
-                                  {translateType(request.request_type)}
-                                </Badge>
-                                {request.complexity && request.complexity !== "" && (
-                                    <Badge
-                                        variant="outline"
-                                        className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
-                                    >
-                                      {translateComplexity(request.complexity)}
-                                    </Badge>
-                                )}
-                              </div>
-
-                              <div>
-                                {request.status === "assigned" && (
-                                    <Button
-                                        size="sm"
-                                        className="bg-blue-600 hover:bg-blue-700"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleStartTask(request.id)
-                                        }}
-                                    >
-                                      Начать
-                                    </Button>
-                                )}
-                                {request.status === "execution" && (
-                                    <Button
-                                        size="sm"
-                                        className="bg-green-600 hover:bg-green-700"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setSelectedTask(request)
-                                        }}
-                                    >
-                                      Завершить
-                                    </Button>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                    ))}
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="completed">
-                <div className="space-y-4">
+                <TabsContent value="tasks" className="pt-6 sm:pt-0">
+                  <div className="space-y-4">
                     <div className="flex items-center space-x-4 mb-4">
-                        <Select value={filterType} onValueChange={setFilterType}>
-                            <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Тип заявки" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Все</SelectItem>
-                                <SelectItem value="normal">Обычная</SelectItem>
-                                <SelectItem value="urgent">Экстренная</SelectItem>
-                                <SelectItem value="planed">Плановая</SelectItem>
-                            </SelectContent>
-                        </Select>
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger className="w-full sm:w-48">
+                          <SelectValue placeholder="Тип заявки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="normal">Обычная</SelectItem>
+                          <SelectItem value="urgent">Экстренная</SelectItem>
+                          <SelectItem value="planed">Плановая</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {completedRequests
-                        ?.filter((task: any) => {
-                            if (filterType === "all") return true;
-                            return task.request_type === filterType;
-                        })
-                        .map((request:any, index: number) => (
-                        <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                              onClick={() => setSelectedTaskDetails(request)}>
-                          {/* Заголовок с ID и статусами */}
-                          <CardHeader className="pb-3 px-5 pt-5">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                                  #{request.id}
-                                </span>
-                                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
-                                </span>
-                                </div>
-                              </div>
-                              <div className="flex gap-1">
-                                <Badge
-                                    variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
-                                >
-                                  {getStatusIcon(request.status)}
-                                  {translateStatus(request.status)}
-                                </Badge>
-                              </div>
-                            </div>
-                          </CardHeader>
 
-                          <CardContent className="px-5 pb-5 pt-0 space-y-3">
-                            {/* Описание */}
-                            <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {assignedRequests
+                          ?.filter((task: any) => {
+                            const typeOk = filterType === "all" || task.request_type === filterType;
+                            return typeOk;
+                          })
+                          ?.sort((a: any, b: any) => {
+                            const typeOrderA = getTaskTypeOrder(a.type)
+                            const typeOrderB = getTaskTypeOrder(b.type)
 
-                            {/* Основная информация в сетке */}
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{request.location_detail}</span>
-                              </div>
-
-                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{formatDate(request.created_date)}</span>
-                              </div>
-
-                              { request.executor && request.executor.user.full_name ? (
-                                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                    <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
-                                  </div>
-                              ) : (
-                                  <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                    <User className="w-4 h-4 flex-shrink-0" />
-                                    <span className="truncate font-medium">Не назначен</span>
-                                  </div>
-                              )}
-
-                              {request.rating ? (
-                                  <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                    {renderStars(request.rating)}
-                                  </div>
-                              ) : (
-                                  <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                    <span className="text-sm font-medium">Без оценки</span>
-                                  </div>
-                              )}
-                            </div>
-
-                            {/* Фотографии */}
-                            {request.photos && request.photos.length > 0 && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <ImageIcon className="w-4 h-4 text-purple-500" />
-                                    <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
-                                  </div>
-                                  <div className="flex gap-2 overflow-x-auto">
-                                    {request.photos.slice(0, 4).map((photo:any, index:number) => (
-                                        <div key={index} className="flex-shrink-0">
-                                          <img
-                                              src={photo.photo_url || "/placeholder.svg"}
-                                              alt={`Фото ${index + 1}`}
-                                              className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
-                                              onError={(e) => {
-                                                e.currentTarget.src = `/placeholder.svg?height=48&width=48`
-                                              }}
-                                          />
-                                        </div>
-                                    ))}
-                                    {request.photos.length > 4 && (
-                                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                                          <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
-                                        </div>
-                                    )}
-                                  </div>
-                                </div>
-                            )}
-
-                            {/* Нижняя панель */}
-                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                              <div className="flex gap-2">
-                                <Badge
-                                    variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
-                                >
-                                  {getRequestTypeIcon(request.request_type)}
-                                  {translateType(request.request_type)}
-                                </Badge>
-                                {request.complexity && request.complexity !== "" && (
-                                    <Badge
-                                        variant="outline"
-                                        className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
-                                    >
-                                      {translateComplexity(request.complexity)}
-                                    </Badge>
-                                )}
-                              </div>
-
-                              <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">ID: {request.id}</div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                    ))}
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="myTasks">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Статус" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Все</SelectItem>
-                        <SelectItem value="in_progress">В обработке</SelectItem>
-                        <SelectItem value="execution">Исполнение</SelectItem>
-                        <SelectItem value="completed">Завершено</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Тип заявки" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Все</SelectItem>
-                        <SelectItem value="normal">Обычная</SelectItem>
-                        <SelectItem value="urgent">Экстренная</SelectItem>
-                        <SelectItem value="planned">Плановая</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredRequests.map((request:any, index: number) => (
-                        <Card key={index} className="hover:shadow-xl hover:shadow-purple-400/20 transition-all duration-300 border-0 shadow-lg bg-white relative overflow-hidden cursor-pointer"
-                              onClick={() => setSelectedTaskDetails(request)}>
-                          {/* Заголовок с ID и статусами */}
-                          <CardHeader className="pb-3 px-5 pt-5">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-gray-900 text-base leading-tight line-clamp-2">{request.title}</h3>
-                                <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                                  #{request.id}
-                                </span>
-                                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  {request.category.name}
-                                </span>
-                                </div>
-                              </div>
-                              <div className="flex gap-1">
-                                <Badge
-                                    variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getStatusColor(request.status)}`}
-                                >
-                                  {getStatusIcon(request.status)}
-                                  {translateStatus(request.status)}
-                                </Badge>
-                              </div>
-                            </div>
-                          </CardHeader>
-
-                          <CardContent className="px-5 pb-5 pt-0 space-y-3">
-                            {/* Описание */}
-                            <p className="text-sm text-gray-700 line-clamp-2 leading-relaxed">{request.description}</p>
-
-                            {/* Основная информация в сетке */}
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{request.location_detail}</span>
-                              </div>
-
-                              <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                <Calendar className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                <span className="truncate font-medium">{formatDate(request.created_date)}</span>
-                              </div>
-
-                              {request.executor && request.executor.user.full_name ? (
-                                  <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-                                    <User className="w-4 h-4 flex-shrink-0 text-purple-500" />
-                                    <span className="truncate font-medium">{request.executor.user.full_name}</span>
-                                  </div>
-                              ) : (
-                                  <div className="flex items-center gap-2 text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                    <User className="w-4 h-4 flex-shrink-0" />
-                                    <span className="truncate font-medium">Не назначен</span>
-                                  </div>
-                              )}
-
-                              {request.rating ? (
-                                  <div className="flex items-center gap-1 justify-center bg-gray-50 p-2 rounded-lg">
-                                    {renderStars(request.rating)}
-                                  </div>
-                              ) : (
-                                  <div className="flex items-center justify-center text-gray-400 bg-gray-50 p-2 rounded-lg">
-                                    <span className="text-sm font-medium">Без оценки</span>
-                                  </div>
-                              )}
-                            </div>
-
-                            {/* Фотографии */}
-                            {request.photos && request.photos.length > 0 && (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <ImageIcon className="w-4 h-4 text-purple-500" />
-                                    <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
-                                  </div>
-                                  <div className="flex gap-2 overflow-x-auto">
-                                    {request.photos.slice(0, 4).map((photo:any, index: any) => (
-                                        <div key={index} className="flex-shrink-0">
-                                          <img
-                                              src={photo.photo_url || "/placeholder.svg"}
-                                              alt={`Фото ${index + 1}`}
-                                              className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
-                                              onError={(e) => {
-                                                e.currentTarget.src = `/placeholder.svg?height=48&width=48`
-                                              }}
-                                          />
-                                        </div>
-                                    ))}
-                                    {request.photos.length > 4 && (
-                                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                                          <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
-                                        </div>
-                                    )}
-                                  </div>
-                                </div>
-                            )}
-
-                            {/* Нижняя панель */}
-                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                              <div className="flex gap-2">
-                                <Badge
-                                    variant="outline"
-                                    className={`text-xs px-2 py-1 flex items-center gap-1 font-medium border-0 shadow-sm ${getRequestTypeColor(request.request_type)}`}
-                                >
-                                  {getRequestTypeIcon(request.request_type)}
-                                  {translateType(request.request_type)}
-                                </Badge>
-                                {request.complexity && request.complexity !== "" && (
-                                    <Badge
-                                        variant="outline"
-                                        className={`text-xs px-2 py-1 font-medium border-0 shadow-sm ${getComplexityColor(request.complexity)}`}
-                                    >
-                                      {translateComplexity(request.complexity)}
-                                    </Badge>
-                                )}
-                              </div>
-
-                              <div>
-                                {request.status === "assigned" && (
-                                    <Button
-                                        size="sm"
-                                        className="bg-blue-600 hover:bg-blue-700"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          handleStartTask(request.id)
-                                        }}
-                                    >
-                                      Начать
-                                    </Button>
-                                )}
-                                {request.status === "execution" && (
-                                    <Button
-                                        size="sm"
-                                        className="bg-green-600 hover:bg-green-700"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setSelectedTask(request)
-                                        }}
-                                    >
-                                      Завершить
-                                    </Button>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                    ))}
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="statistics">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Моя статистика</CardTitle>
-                      <CardDescription>Показатели за весь период</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <span>Всего выполнено задач</span>
-                          <span className="font-bold">{completedRequests.length}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Выполнено в срок</span>
-                          <span className="font-bold text-green-600">{completedInTime.length}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Просрочено</span>
-                          <span className="font-bold text-red-600">{overdue}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Средняя оценка</span>
-                          <span className="font-bold">{myRating}/5</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Среднее время выполнения</span>
-                          <span className="font-bold">{averageDuration} часа</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Рейтинг и достижения</CardTitle>
-                      <CardDescription>Ваш текущий статус</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-center mb-6">
-                        <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Star className="w-10 h-10 text-yellow-600" />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900">Золотой исполнитель</h3>
-                        <p className="text-sm text-gray-600">Рейтинг: {myRating}/5</p>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
-                          <span className="text-sm">Быстрое выполнение</span>
-                          <CheckCircle className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
-                          <span className="text-sm">Качественная работа</span>
-                          <CheckCircle className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
-                          <span className="text-sm">Надежный партнер</span>
-                          <CheckCircle className="w-5 h-5 text-purple-600" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Сегодняшний план</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">Экстренная задача</p>
-                      <p className="text-xs text-gray-600">До 14:00</p>
-                    </div>
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">Замена лампочек</p>
-                      <p className="text-xs text-gray-600">До 17:00</p>
-                    </div>
-                    <Clock className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">ТО кондиционеров</p>
-                      <p className="text-xs text-gray-600">Завтра</p>
-                    </div>
-                    <Calendar className="w-5 h-5 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Уведомления</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                    <p>Загрузка...</p>
-                ) : (
-                    <div className="space-y-3">
-                      {notifications?.slice(0, 5)
-                          .map((n: any) => (
-                              <div
-                                  key={n.id}
-                                  onClick={() => handleNotificationClick(n)}
-                                  className={`p-3 rounded-lg cursor-pointer transition hover:scale-[1.01] ${getBgColor(
-                                      n.title
-                                  )} ${n.is_read ? "opacity-70" : "opacity-100 border border-blue-300"}`}
-                              >
-                                <div className="flex justify-between">
-                                  <p className="text-sm font-medium">{n.title}</p>
-                                  {!n.is_read && <span className="text-blue-500 text-xs">Новое</span>}
-                                </div>
-                                <p className="text-xs text-gray-600">{formatTimeAgo(n.created_at)}</p>
-                              </div>
+                            return typeOrderA - typeOrderB
+                          }).map((request:any, index: number) => (
+                              <RequestCard
+                                  key={index}
+                                  request={request}
+                                  onCardClick={(request) => {
+                                    setSelectedRequest(request);
+                                    openModal('requestDetails');
+                                  }}
+                                  renderCardHeader={renderCardHeader}
+                                  clientRating={clientRatings[request.id]}
+                                  userRole="executor"
+                              />
                           ))}
                     </div>
-                )}
-              </CardContent>
-            </Card>
+                  </div>
+                </TabsContent>
 
-            {/* Модалка */}
-            {isModalOpen && selectedNotification && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                  <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
-                      <button
-                          className="text-gray-500 hover:text-black"
-                          onClick={() => setIsModalOpen(false)}
-                      >
-                        ×
-                      </button>
+                <TabsContent value="completed" className="pt-6 sm:pt-0">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Тип заявки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="normal">Обычная</SelectItem>
+                          <SelectItem value="urgent">Экстренная</SelectItem>
+                          <SelectItem value="planed">Плановая</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <p className="text-sm text-gray-800 whitespace-pre-line">
-                      {selectedNotification.content}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-4">
-                      Получено: {new Date(selectedNotification.created_at).toLocaleString()}
-                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {completedRequests
+                          ?.filter((task: any) => {
+                            if (filterType === "all") return true;
+                            return task.request_type === filterType;
+                          })
+                          .map((request:any, index: number) => (
+                              <RequestCard
+                                  key={index}
+                                  request={request}
+                                  onCardClick={(request) => {
+                                    setSelectedRequest(request);
+                                    openModal('requestDetails');
+                                  }}
+                                  renderCardHeader={renderCardHeader}
+                                  clientRating={clientRatings[request.id]}
+                                  userRole="executor"
+                              />
+                          ))}
+                    </div>
                   </div>
-                </div>
-            )}
+                </TabsContent>
 
-          </div>
-        </div>
-      </div>
+                <TabsContent value="myTasks" className="pt-6 sm:pt-0">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Статус" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                          <SelectItem value="assigned">Назначен</SelectItem>
+                          <SelectItem value="execution">Исполнение</SelectItem>
+                          <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="long_term">Долгосрочные</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Тип заявки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="normal">Обычная</SelectItem>
+                          <SelectItem value="urgent">Экстренная</SelectItem>
+                          <SelectItem value="planned">Плановая</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-      {/* Complete Task Modal */}
-      {selectedTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
-          setSelectedTask(null);
-          setIsSubmitting(false);
-          setCompleteFormErrors("")
-        }}>
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle>Завершение задачи #{selectedTask.id}</CardTitle>
-              <CardDescription>Подтвердите выполнение работы</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="font-medium mb-2">{selectedTask.title}</h3>
-                <p className="text-sm text-gray-600">{selectedTask.description}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Комментарий к выполненной работе</label>
-                <Textarea
-                    placeholder="Опишите выполненную работу..."
-                    className="min-h-[100px]"
-                    value={completedRequestComment}
-                    onChange={(e) => setCompletedRequestComment(e.target.value)}
-                    required={true}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Фотографии результата (до 3 шт.)</label>
-                <div className="flex flex-wrap gap-4 mt-2">
-                  {photoPreviews.map((photo, index) => (
-                      <div key={index} className="relative">
-                        <img
-                            src={photo || "/placeholder.svg"}
-                            alt={`Photo ${index + 1}`}
-                            className="w-20 h-20 object-cover rounded-lg"
-                        />
-                        <button
-                            onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                        >
-                          ×
-                        </button>
-                      </div>
-                  ))}
-                  {photoPreviews.length < 3 && (
-                      <button
-                          type="button"
-                          onClick={handleButtonClick}
-                          className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                      >
-                        <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            className="hidden"
-                        />
-                        <Camera className="w-6 h-6 text-gray-400" />
-                      </button>
-                  )}
-                </div>
-                {completeFormErrors && <p className="text-sm text-red-500 mt-4">{completeFormErrors}</p>}
-              </div>
-
-              <div className="flex space-x-4">
-                <Button
-                  onClick={() => {
-                    handleCompleteTask(selectedTask.id)
-                    setIsSubmitting(true)
-                  }}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                  disabled={isSubmitting}
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Завершить задачу
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedTask(null)
-                    setPhotos([])
-                    setPhotoPreviews([])
-                    setCompletedRequestComment("")
-                  }}
-                  className="flex-1"
-                >
-                  Отмена
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Create Request Modal */}
-      {showCreateRequestModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={()=> {
-            setShowCreateRequestModal(false)
-            setCompletedRequestComment("")
-            setComments([])
-          }}>
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <CardHeader>
-                <CardTitle>Создать заявку</CardTitle>
-                <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label>Тип заявки</Label>
-                  <Select value={newRequestType} onValueChange={setNewRequestType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите тип заявки" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="regular">Обычная</SelectItem>
-                      <SelectItem value="urgent">Экстренная</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Название заявки</Label>
-                  <Input placeholder="Введите название заявки" value={newRequestTitle} onChange={e => setNewRequestTitle(e.target.value)} />
-                </div>
-
-                <div>
-                  <Label>Локация</Label>
-                  <Input
-                      placeholder="Определение вашего местоположения..."
-                      value={requestLocation}
-                      readOnly
-                      className="bg-gray-100 cursor-not-allowed"
-                  />
-                </div>
-                <div>
-                  <Label>Расположение в офисе</Label>
-                  <Input placeholder="Введите расположение" value={newRequestLocation} onChange={e => setNewRequestLocation(e.target.value)} />
-                </div>
-
-                <div>
-                  <Label>Категория услуги</Label>
-                  <Select
-                      value={selectedCategoryId?.toString() || ""}
-                      onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите категорию" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {serviceCategories.map((category) => (
-                          <SelectItem key={category.id} value={category.id.toString()}>
-                            {category.name}
-                          </SelectItem>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredRequests.map((request:any, index: number) => (
+                          <RequestCard
+                              key={index}
+                              request={request}
+                              onCardClick={(request) => {
+                                setSelectedRequest(request);
+                                openModal('requestDetails');
+                              }}
+                              renderCardHeader={renderCardHeader}
+                              clientRating={clientRatings[request.id]}
+                              userRole="executor"
+                          />
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    </div>
+                  </div>
+                </TabsContent>
 
-                <div>
-                  <Label>Описание проблемы</Label>
-                  <Textarea
-                      placeholder="Опишите проблему подробно..."
-                      className="min-h-[100px]"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <Label>Фотографии (до 3 шт.)</Label>
-                  <div className="flex flex-wrap gap-4 mt-2">
-                    {photoPreviews.map((photo, index) => (
-                        <div key={index} className="relative">
-                          <img
-                              src={photo || "/placeholder.svg"}
-                              alt={`Photo ${index + 1}`}
-                              className="w-20 h-20 object-cover rounded-lg"
-                          />
-                          <button
-                              onClick={() => setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                          >
-                            ×
-                          </button>
+                <TabsContent value="statistics" className="pt-6 sm:pt-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Моя статистика</CardTitle>
+                        <CardDescription>Показатели за весь период</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span>Всего выполнено задач</span>
+                            <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Выполнено в срок</span>
+                            <span className="font-bold text-green-600">{stats && stats.onTime ? (stats.onTime): 0}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Просрочено</span>
+                            <span className="font-bold text-red-600">{stats && stats.overdue ? (stats.overdue): 0}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Средняя оценка</span>
+                            <span className="font-bold">{myRating}/5</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>Среднее время выполнения</span>
+                            <span className="font-bold">{stats && stats.averageExecutionHours ? (stats.averageExecutionHours): 0} часа</span>
+                          </div>
                         </div>
-                    ))}
-                    {photoPreviews.length < 3 && (
-                        <button
-                            type="button"
-                            onClick={handleButtonClick}
-                            className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
-                        >
-                          <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              ref={fileInputRef}
-                              onChange={handleFileChange}
-                              className="hidden"
-                          />
-                          <Camera className="w-6 h-6 text-gray-400" />
-                        </button>
-                    )}
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Рейтинг и достижения</CardTitle>
+                        <CardDescription>Ваш текущий статус</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <PerformerCard myRating={myRating ?? 0}/>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
+                            <span className="text-sm">Быстрое выполнение</span>
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                            <span className="text-sm">Качественная работа</span>
+                            <CheckCircle className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
+                            <span className="text-sm">Надежный партнер</span>
+                            <CheckCircle className="w-5 h-5 text-purple-600" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
-                </div>
-                {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
-                <div className="flex space-x-4">
-                  <Button onClick={handleCreateRequest} className="flex-1 bg-violet-600 hover:bg-violet-700" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Отправка...
-                        </>
-                    ) : (
-                        "Отправить заявку"
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowCreateRequestModal(false)} className="flex-1">
-                    Отмена
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <div className="space-y-6 mb-20">
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <NotificationsSidebar 
+                    onNotificationClick={handleNotificationClick}
+                    onRequestClick={(requestId) => {
+                      // Парсим ID заявки (может быть в формате "123" или "123/1")
+                      const parsedId = parseInt(requestId.split('/')[0]);
+                      const allRequests = [...myRequests, ...assignedRequests, ...completedRequests];
+                      const request = allRequests.find(r => r.id === parsedId);
+                      if (request) {
+                        setSelectedRequest(request);
+                        openModal('requestDetails');
+                        return true; // Заявка найдена
+                      }
+                      return false; // Заявка не найдена
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            </div>
           </div>
-      )}
+        </div>
 
-      {/* Task Details Modal */}
-      {selectedTaskDetails && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"  onClick={()=> {
-            setSelectedTaskDetails(null)
-            setComments([])
-          }}>
-            <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <CardHeader>
-                <CardTitle>Детали заявки #{selectedTaskDetails.id}</CardTitle>
-                <CardDescription>{selectedTaskDetails.title}</CardDescription>
-              </CardHeader>
+      </div>
+      </PullToRefresh>
 
-              <CardContent className="space-y-6">
-                {/* Основная информация */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Модалка */}
+        {isModalOpen && selectedNotification && (
+            <div
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  closeModalWithHistory();
+                }}
+            >
+              <div
+                  className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
+                  onClick={(e) => e.stopPropagation()} // Останавливаем всплытие только внутри модалки
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
+                  <button
+                      className="text-gray-500 hover:text-black text-2xl focus:outline-none"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        closeModalWithHistory();
+                      }}
+                      aria-label="Закрыть модальное окно"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="text-sm text-gray-800 whitespace-pre-line">
+                  {createClickableRequestIds(selectedNotification.content, (requestId) => {
+                    // Парсим ID заявки (может быть в формате "123" или "123/1")
+                    const parsedId = parseInt(requestId.split('/')[0]);
+                    const allRequests = [...myRequests, ...assignedRequests, ...completedRequests];
+                    const request = allRequests.find(r => r.id === parsedId);
+                    if (request) {
+                      setSelectedRequest(request);
+                      openModal('requestDetails');
+                      setIsModalOpen(false); // Закрываем модалку уведомления
+                    } else {
+                      // Заявка не найдена, показываем модалку предупреждения
+                      setNotFoundRequestId(requestId);
+                      setShowNotFoundModal(true);
+                    }
+                  })}
+                </p>
+                <p className="text-xs text-gray-500 mt-4">
+                  Получено: {new Date(selectedNotification.created_at).toLocaleString()}
+                </p>
+              </div>
+            </div>
+        )}
+
+        {/* Request Details Modal */}
+        {selectedRequest && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+              setSelectedRequest(null)
+              setShowComments(null)
+            }}>
+              <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+                <CardHeader>
+                  <CardTitle className="font-medium text-gray-900">Заявка #{selectedRequest.id}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 pb-16">
+                  <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Тип:</p>
-                    <Badge className={getTypeColor(selectedTaskDetails.request_type)}>
-                      {translateType(selectedTaskDetails.request_type)}
-                    </Badge>
+                      <Label>Тип заявки</Label>
+                      <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Статус:</p>
-                    <Badge variant="outline" className={getStatusColor(selectedTaskDetails.status)}>
-                      {translateStatus(selectedTaskDetails.status)}
-                    </Badge>
+                      <Label>Статус</Label>
+                      <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
+                  </div>
+                  </div>
+
+                  {/* Показываем запланированное время для плановых заявок */}
+                  {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
+                      <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <CalendarLucid className="w-4 h-4 text-blue-600" />
+                  <div>
+                          <Label className="text-sm font-medium text-blue-800">Запланировано на: </Label>
+                          <span className="text-sm text-blue-700">
+                          {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </span>
+                          </div>
+                      </div>
+                  )}
+
+                  {/* Показываем информацию о повторяющихся задачах */}
+                  {selectedRequest.request_type === 'recurring' && (
+                      <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="w-4 h-4 text-green-600">🔄</div>
+                        <div className="flex-1">
+                          <Label className="text-sm font-medium text-green-800">Повторяющаяся задача</Label>
+                          <div className="text-sm text-green-700 space-y-1">
+                            <div>Тип повторения: {getRecurrenceText(selectedRequest.recurrence_type || 'daily', selectedRequest.recurrence_interval || 1)}</div>
+                            {selectedRequest.next_due_date && (
+                              <div>Следующая дата: {formatDate(selectedRequest.next_due_date)}</div>
+                            )}
+                            {selectedRequest.last_completed_date && (
+                              <div>Последнее выполнение: {formatDate(selectedRequest.last_completed_date)}</div>
+                            )}
+                            <div>Статус: {selectedRequest.recurring_status === 'active' ? 'Активна' : selectedRequest.recurring_status === 'paused' ? 'Приостановлена' : 'Завершена'}</div>
+                          </div>
+                        </div>
+                      </div>
+                  )}
+
+                  {/* Заявка (теперь показываем только первый подзаявка как полноценный заявка) */}
+                  <div>
+                    <Label className={isDesktop ? '' : 'text-base font-medium'}>Заявка</Label>
+                    <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
+                      {selectedRequest.requests.slice(0, 1).map((subRequest: SubRequest) => {
+                        const isExpanded = expandedSubRequests.has(subRequest.id);
+                        const hasComments = showComments === subRequest.id;
+
+                        return (
+                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                              {/* Заголовок под заявки */}
+                              <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
+                                <div className="flex justify-between items-start mb-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>{subRequest.title}</h4>
+                    </div>
+                                    <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
+                                      <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
+                                        <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                        {subRequest.category?.name || 'Без категории'}
+                                      </span>
+                  </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    {renderStatusWithTooltip(subRequest.status)}
+                                    {selectedRequest.request_type !== 'recurring' && renderLongTermWithTooltip(subRequest.is_long_term || false)}
+
+                                    {/* Кнопка комментариев */}
+                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
+                                        onClick={() => {
+                                          if (hasComments) {
+                                            setShowComments(null);
+                                          } else {
+                                            setShowComments(subRequest.id);
+                                          }
+                                        }}
+                                    >
+                                      <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
+                    </Button>
+
+                                    <RoleBasedActionMenu
+                                        request={subRequest}
+                                        requestGroup={selectedRequest}
+                                        isDesktop={isDesktop}
+                                        userRole="executor"
+                                        isSubRequest={true}
+                                        onStartTask={handleStartTask}
+                                        onCompleteTask={handleCompleteTask}
+                                        onReject={handleRejectSubRequest}
+                                        onRedirectToOtherDepartment={handleOpenRedirectModal}
+                                        onToggleLongTerm={handleToggleLongTerm}
+                                        onRateClient={(requestGroup) => {
+                                          setRequestGroupToRate(requestGroup);
+                                          const currentRating = clientRatings[requestGroup.id]?.rating || 0;
+                                          setClientRatingValue(currentRating);
+                                          setClientRatingComment("");
+                                          setShowClientRatingModal(true);
+                                          openModal('clientRatingModal');
+                                        }}
+                                        onDelete={(subReq) => {
+                                          handleDeleteSubRequest(subReq);
+                                        }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Краткое описание */}
+                                <div className={`text-gray-600 mb-3 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
+                                  {isDesktop ? (
+                                      <p className="line-clamp-2">{subRequest.description}</p>
+                                  ) : (
+                                      <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
+                                  )}
+                                </div>
+
+                                {/* Кнопка раскрытия */}
+                                {subRequest.status !== 'in_progress' && subRequest.status !== 'rejected' && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={`w-full justify-center ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
+                                        onClick={() => {
+                                          const newExpanded = new Set(expandedSubRequests);
+                                          if (isExpanded) {
+                                            newExpanded.delete(subRequest.id);
+                                          } else {
+                                            newExpanded.add(subRequest.id);
+                                          }
+                                          setExpandedSubRequests(newExpanded);
+                                        }}
+                                    >
+                                      {isExpanded ? (
+                                          <>
+                                            <ChevronUp className="w-4 h-4 mr-2" />
+                                            Свернуть
+                                          </>
+                                      ) : (
+                                          <>
+                                            <ChevronDown className="w-4 h-4 mr-2" />
+                                            Подробнее
+                                          </>
+                                      )}
+                                    </Button>
+                                )}
+                  </div>
+
+                              {/* Раскрытая информация */}
+                              {isExpanded && (
+                                  <div className={`border-t bg-gradient-to-br from-gray-50 to-gray-100 ${isDesktop ? 'p-4' : 'p-5'}`}>
+                                    {/* Основная информация */}
+                                    <SubRequestInfo subRequest={subRequest} />
+
+                                    {/* Исполнители */}
+                                    <Executors subRequest={subRequest} userRatings={userRatings} />
+
+                                    {/* Отчет о выполнении для завершенных подзаявок */}
+                                    {subRequest.status === "completed" && (
+                                        <CompletedTaskReport
+                                            subRequest={subRequest}
+                                            isDesktop={isDesktop}
+                                            onPhotoClick={(photoUrl) => {
+                                              setSelectedPhoto({url: photoUrl});
+                                              openModal('photoPreview');
+                                            }}
+                                        />
+                                    )}
+                    </div>
+                  )}
+                  </div>
+                        );
+                      })}
+            </div>
+                  </div>
+
+                  <div>
+                    <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Локация в офисе</Label>
+                    <p className="text-sm">{selectedRequest.location_detail}</p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Клиент:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.client.full_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Локация:</p>
                     <div className="flex items-center gap-2">
                       <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            const locText = selectedTaskDetails.location;
+                            const locText = selectedRequest.location;
                             const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
                             const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
                             const accMatch = locText.match(/±(\d+) м/);
@@ -1764,6 +2254,7 @@ export default function ExecutorDashboard() {
                                 accuracy: parseInt(accMatch[1])
                               });
                               setShowMapModal(true);
+                              openModal('mapModal');
                             } else {
                               alert("Не удалось определить координаты из локации");
                             }
@@ -1774,227 +2265,361 @@ export default function ExecutorDashboard() {
                       </Button>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Создано:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.created_date}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Деталь локаций:</p>
-                    <p className="text-base text-gray-800">{selectedTaskDetails.location_detail}</p>
-                  </div>
-                  {selectedTaskDetails.category && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Категория:</p>
-                        <p className="text-base text-gray-800">{selectedTaskDetails.category.name}</p>
-                      </div>
-                  )}
-                  {selectedTaskDetails.complexity && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Сложность:</p>
-                        <p className="text-base text-gray-800">
-                          {selectedTaskDetails.complexity === 'simple' && 'Простая'}
-                          {selectedTaskDetails.complexity === 'medium' && 'Средняя'}
-                          {selectedTaskDetails.complexity === 'complex' && 'Сложная'}
-                        </p>
-                      </div>
-                  )}
-                  {selectedTaskDetails.sla && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">SLA:</p>
-                        <p className="text-base text-gray-800">
-                          {selectedTaskDetails.sla === '1h' && '1 час'}
-                          {selectedTaskDetails.sla === '4h' && '4 часа'}
-                          {selectedTaskDetails.sla === '8h' && '8 часов'}
-                          {selectedTaskDetails.sla === '1d' && '1 день'}
-                          {selectedTaskDetails.sla === '3d' && '3 дня'}
-                          {selectedTaskDetails.sla === '1w' && '1 неделя'}
-                        </p>
-                      </div>
-                  )}
-                  {selectedTaskDetails.plannedDate && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Плановая дата:</p>
-                        <p className="text-base text-gray-800">{selectedTaskDetails.plannedDate}</p>
-                      </div>
-                  )}
-                </div>
 
-                {/* Описание */}
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Описание:</p>
-                  <p className="text-base text-gray-800">{selectedTaskDetails.description}</p>
-                </div>
+                  <div className="flex items-center font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {new Date(selectedRequest.created_date).toLocaleString("ru-RU", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })}
+                  </div>
 
-                {/* Фото + Комментарии */}
-                {selectedTaskDetails.photos?.length > 0 && (
-                    <div className="space-y-4">
-                      {/* Фото */}
-                      <div>
-                        <Label className="block text-sm font-medium text-gray-700">Фотографии</Label>
-                        <div className="flex flex-wrap gap-3 mt-2">
-                          {selectedTaskDetails.photos.map((photo: any, index: number) => (
+                  {/* Фотографии группы заявок (только before) */}
+                  {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
+                      <div className="mt-4">
+                        <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Фотографии (до выполнения)</Label>
+                        <div className="flex space-x-2 mt-2 flex-wrap">
+                          {selectedRequest.photos
+                            .filter((photo: any) => photo.type === 'before')
+                            .map((photo: any, index: number) => (
                               <img
                                   key={index}
                                   src={photo.photo_url || "/placeholder.svg"}
-                                  alt={`Photo ${index + 1}`}
-                                  className="w-24 h-24 object-cover rounded-lg cursor-pointer border border-gray-300 shadow-sm"
-                                  onClick={() => setSelectedPhoto(photo.photo_url)}
+                                  alt={`Фото ${index + 1}`}
+                                  className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                  onClick={() => {
+                                    setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
+                                    openModal('photoPreview');
+                                  }}
+                                  onError={(e) => {
+                                    e.currentTarget.src = "/placeholder.svg";
+                                  }}
                               />
+                          ))}
+                    </div>
+                        </div>
+                    )}
+
+                  {/* Фотографии группы заявок (только before) */}
+                  {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'after').length > 0 && (
+                      <div className="mt-4">
+                        <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Фотографии (после выполнения)</Label>
+                        <div className="flex space-x-2 mt-2 flex-wrap">
+                          {selectedRequest.photos
+                              .filter((photo: any) => photo.type === 'after')
+                              .map((photo: any, index: number) => (
+                                <img
+                                    key={index}
+                                    src={photo.photo_url || "/placeholder.svg"}
+                                      alt={`Фото ${index + 1}`}
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      onClick={() => {
+                                        setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
+                                        openModal('photoPreview');
+                                      }}
+                                      onError={(e) => {
+                                        e.currentTarget.src = "/placeholder.svg";
+                                      }}
+                                />
+                            ))}
+                          </div>
+                        </div>
+                  )}
+
+
+                  {/* Отображение рейтинга клиента (если исполнитель уже оценил) */}
+                  {selectedRequest.status === "completed" && clientRatings[selectedRequest.id] && selectedRequest.client?.role === "client" && (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Star className="w-5 h-5 text-purple-600" />
+                        <h4 className="font-semibold text-purple-800">Ваша оценка клиента</h4>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <span key={star} className={`text-xl ${star <= clientRatings[selectedRequest.id].rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                              ★
+                            </span>
                           ))}
                         </div>
+                        <span className="text-sm text-purple-700">
+                          {clientRatings[selectedRequest.id].rating} из 5
+                        </span>
                       </div>
-
-                      {/* Модалка фото */}
-                      {selectedPhoto && (
-                          <div
-                              className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-                              onClick={() => setSelectedPhoto(null)}
-                          >
-                            <img
-                                src={selectedPhoto}
-                                alt="Увеличенное фото"
-                                className="max-w-full max-h-full rounded-lg"
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
+                      {clientRatings[selectedRequest.id].comment && (
+                        <div className="mt-2">
+                          <p className="text-sm text-purple-700 break-words">
+                            "{clientRatings[selectedRequest.id].comment}"
+                          </p>
+                        </div>
                       )}
-
-                      {/* Комментарии */}
-                      <Card className="mt-2">
-                        <CardContent className="p-4">
-                          <h4 className="font-semibold mb-2 text-gray-800">Комментарии</h4>
-                          {comments.map((c: any) => (
-                              <div key={c.id} className="bg-white border border-gray-200 rounded-md p-3 shadow-sm m-2">
-                                <div className="flex justify-between items-center">
-                                  <div className="text-sm text-gray-800 font-medium">
-                                    {c.user.full_name || "Неизвестный пользователь"}{" "}
-                                    {c.user.role && (<span className="text-xs text-gray-500">({roleTranslations[c.user.role] || c.user.role})</span>
-                                    )}
-                                  </div>
-
-
-                                  <div className="text-xs text-gray-400">{new Date(c.timestamp).toLocaleString()}</div>
-                                </div>
-                                <div className="mt-1 text-sm text-gray-700 whitespace-pre-line">{c.comment}</div>
-                                {c.user.id === currentUserId && (
-                                    <div className="mt-2 flex gap-2 text-xs text-blue-500">
-                                      <button
-                                          onClick={() => handleEdit(c.id, c.comment)}
-                                          className="px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 transition text-gray-700"
-                                      >
-                                        Изменить
-                                      </button>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <button
-                                              onClick={() => setCommentToDelete(c)}
-                                              className="px-2 py-1 rounded border border-gray-300 hover:bg-red-100 transition text-red-600"
-                                          >
-                                            Удалить
-                                          </button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              Это действие нельзя отменить. Вы уверены, что хотите удалить{" "}
-                                              <strong>{commentToDelete?.comment}</strong>?
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Отмена</AlertDialogCancel>
-                                            <AlertDialogAction
-                                                onClick={() => {
-                                                  if (commentToDelete) {
-                                                    handleDelete(commentToDelete.id);
-                                                    setCommentToDelete(null);
-                                                  }
-                                                }}
-                                            >
-                                              Удалить
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </div>
-                                )}
-
-                              </div>
-                          ))}
-                          <div className="mt-3 flex flex-col space-y-1">
-                            {editCommentId && (
-                                <div className="text-xs text-gray-500 mb-1">
-                                  Редактируется комментарий
-                                  <button
-                                      className="ml-2 text-red-500 hover:underline"
-                                      onClick={() => {
-                                        setEditCommentId(null);
-                                        setComment("");
-                                      }}
-                                  >
-                                    Отменить
-                                  </button>
-                                </div>
-                            )}
-                            <div className="flex items-center space-x-2">
-                              <input
-                                  type="text"
-                                  value={comment}
-                                  onChange={(e) => setComment(e.target.value)}
-                                  placeholder="Написать комментарий..."
-                                  className="flex-grow p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              />
-                              <Button size="sm" onClick={handleSend}>
-                                {editCommentId ? "Сохранить" : "Отправить"}
-                              </Button>
-                            </div>
-                          </div>
-
-                        </CardContent>
-                      </Card>
+                      <div className="mt-2 text-xs text-purple-600">
+                        Оценка от {new Date(clientRatings[selectedRequest.id].created_at).toLocaleDateString('ru-RU')}
+                      </div>
                     </div>
-                )}
-                <div className="flex space-x-4 m-4">
-                  {/* Закрыть */}
-                    <Button className="flex-1" variant="outline" onClick={() => setSelectedTaskDetails(null)}>Закрыть</Button>
-                </div>
+                  )}
 
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => {
+                      setSelectedRequest(null);
+                      closeModalWithHistory();
+                    }}>
+                      Закрыть
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+        )}
 
-              </CardContent>
-            </Card>
-          </div>
-      )}
+        {/* Модальное окно фото */}
+        {selectedPhoto && selectedPhoto?.url && (
+            <PhotoModal
+                selectedPhoto={selectedPhoto}
+                onClose={() => {
+                  setSelectedPhoto(null);
+                }}
+            />
+        )}
 
+        {/* Comments Modal */}
+        <CommentsModal
+            isOpen={!!showComments}
+            onClose={() => {
+              setShowComments(null);
+            }}
+            requestId={showComments}
+            currentUserId={currentUserId}
+            isDesktop={isDesktop}
+        />
 
-      {/* Map Modal */}
-      {showMapModal && (
-          <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-              onClick={() => setShowMapModal(false)}
-          >
-            <Card
-                className="w-full max-w-4xl h-[90vh] max-h-[90vh] flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-            >
+        {/* Complete Task Modal */}
+        <CompleteTaskModal
+            isOpen={showCompleteTaskModal}
+            onClose={() => {
+              setShowCompleteTaskModal(false);
+              setSelectedTaskForComplete(null);
+            }}
+            onComplete={handleCompleteTaskSubmit}
+            task={selectedTaskForComplete}
+            isSubmitting={isSubmitting}
+        />
+
+        {/* Request Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+            key="request-delete-modal"
+            isOpen={showDeleteRequestModal && !!selectedRequest}
+            onClose={() => {
+              setShowDeleteRequestModal(false);
+            }}
+            onConfirm={() => {
+              if (selectedRequest) {
+                handleDeleteRequest(selectedRequest);
+                setSelectedRequest(null);
+                setShowDeleteRequestModal(false);
+              }
+            }}
+            title="Удалить заявку?"
+            description={`Это действие необратимо. Вы точно хотите удалить заявку ${selectedRequest?.id}?`}
+        />
+
+        {/* Reject Sub Request Modal */}
+        <RejectSubRequestModal
+            isOpen={showRejectSubRequestModal}
+            onClose={() => {
+              setShowRejectSubRequestModal(false);
+              setSelectedSubRequestForReject(null);
+            }}
+            onReject={handleRejectSubRequestSubmit}
+            request={selectedSubRequestForReject}
+            isSubmitting={isRejecting}
+          error={rejectError}
+        />
+
+        {/* Create Request Modal */}
+        <CreateRequestModal
+            isOpen={showCreateRequestModal}
+            onClose={() => {
+              setShowCreateRequestModal(false);
+              // Удаляем createRequest из стека модальных окон
+              setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
+            }}
+            userRole="executor"
+            categories={categories}
+            onSubmit={handleCreateRequest}
+            isSubmitting={isSubmitting}
+            formErrors={formErrors}
+            clientLocation={requestLocation}
+            createMode={createMode}
+            onModeChange={setCreateMode}
+            offices={offices}
+        />
+
+        {/* Map Modal */}
+        <MapModal
+            isOpen={showMapModal}
+            onClose={() => {
+              setShowMapModal(false);
+              closeModalWithHistory();
+            }}
+            mapLocation={mapLocation}
+        />
+
+        {/* Client Rating Modal */}
+        <ClientRatingModal
+            isOpen={showClientRatingModal && !!requestGroupToRate}
+            onClose={() => {
+              setShowClientRatingModal(false);
+              closeModalWithHistory();
+              setClientRatingValue(0);
+              setClientRatingComment("");
+              setRequestGroupToRate(null);
+            }}
+            ratingValue={clientRatingValue}
+            onRatingChange={setClientRatingValue}
+            onSubmit={handleRateClient}
+            currentRating={requestGroupToRate ? clientRatings[requestGroupToRate.id]?.rating : undefined}
+            comment={clientRatingComment}
+            onCommentChange={setClientRatingComment}
+        />
+
+        {/* Redirect Modal */}
+        {showRedirectModal && selectedRequestForRedirect && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle>Локация заявки</CardTitle>
-                <CardDescription>Точное местоположение проблемы</CardDescription>
+                  <CardTitle>Перенаправить заявку #{selectedRequestForRedirect.id}</CardTitle>
+                  <CardDescription>
+                    Выберите категорию, к которой нужно перенаправить заявку
+                </CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 overflow-hidden">
-                <MapView
-                    lat={mapLocation.lat}
-                    lon={mapLocation.lon}
-                    accuracy={mapLocation.accuracy}
-                />
+              <CardContent className="space-y-4">
+                <div>
+                    <Label htmlFor="category">Категория</Label>
+                  <Select
+                        value={selectedCategoryId?.toString() || ""}
+                        onValueChange={(value) => setSelectedCategoryId(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                        <SelectValue placeholder="Выберите категорию" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {categories
+                            .filter(category => category.id !== selectedRequestForRedirect.category_id)
+                            .map((category) => (
+                                <SelectItem key={category.id} value={category.id.toString()}>
+                                  {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-blue-600" />
+                      <span className="text-sm text-blue-800">
+                      Подзаявка будет перенаправлена всем руководителям с категорией "{categories.find(c => c.id === selectedCategoryId)?.name || 'выбранная категория'}"
+                    </span>
+                    </div>
+                </div>
+                {redirectError && (
+                  <p className="text-sm text-red-500">{redirectError}</p>
+                )}
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseRedirectModal}
+                  >
+                    Отмена
+                  </Button>
+                  <Button 
+                    onClick={handleRedirectRequest} 
+                        disabled={!selectedCategoryId || isRedirecting}
+                  >
+                    {isRedirecting ? "Перенаправление..." : "Перенаправить"}
+                  </Button>
+                </div>
               </CardContent>
-              <div className="p-4 flex justify-end border-t">
-                <Button onClick={() => setShowMapModal(false)}>
-                  Закрыть
-                </Button>
-              </div>
             </Card>
           </div>
-      )}
-    </div>
+        )}
+
+        <RejectRequestModal
+            isOpen={rejectModal.isOpen}
+            onClose={rejectModal.hideReject}
+            title={rejectModal.title}
+            message={rejectModal.message}
+            duration={rejectModal.duration}
+        />
+
+        <RejectModal
+            isOpen={showRejectModal}
+            onClose={handleCloseRejectModal}
+            onReject={handleRejectRequest}
+            requestId={selectedRequestForReject?.id}
+            isLoading={isRejecting}
+            error={rejectError}
+        />
+
+        <SuccessModal
+            isOpen={successModal.isOpen}
+            onClose={successModal.hideSuccess}
+            title={successModal.title}
+            message={successModal.message}
+            duration={successModal.duration}
+        />
+
+        <BottomNav
+
+            activeTab="history"
+            hidden={showCreateRequestModal || !! selectedRequest || showMapModal || !!selectedPhoto || showProfile || isModalOpen || showRejectModal || showRedirectModal}
+        />
+
+        {isDesktop && <Link
+            href="/chat-bot"
+            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
+        >
+          <MessageCircle className="w-7 h-7" />
+
+        </Link>}
+
+        {/* Модальное окно информации об иконках */}
+        <IconInfoModal
+            isOpen={!!showIconInfo}
+            onClose={() => setShowIconInfo(null)}
+            iconInfo={showIconInfo}
+            isDesktop={isDesktop}
+        />
+
+        {/* Client Rating Modal */}
+        <ClientRatingModal
+            isOpen={showClientRatingModal}
+            onClose={() => {
+              setShowClientRatingModal(false);
+              setClientRatingValue(0);
+              setClientRatingComment("");
+              setRequestGroupToRate(null);
+              closeModalWithHistory();
+            }}
+            ratingValue={clientRatingValue}
+            onRatingChange={setClientRatingValue}
+            onSubmit={handleRateClient}
+            title="Оценка клиента"
+            description="Поставьте оценку клиенту за сотрудничество"
+            currentRating={requestGroupToRate ? clientRatings[requestGroupToRate.id]?.rating : undefined}
+            comment={clientRatingComment}
+            onCommentChange={setClientRatingComment}
+        />
+
+        {/* Модалка для случая, когда заявка не найдена */}
+        <RequestNotFoundModal
+          isOpen={showNotFoundModal}
+          onClose={() => setShowNotFoundModal(false)}
+          requestId={notFoundRequestId}
+        />
+      </>
   )
 }

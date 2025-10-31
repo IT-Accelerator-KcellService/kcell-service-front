@@ -1,0 +1,325 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import api from "@/lib/api";
+
+// === Интерфейсы (скопируй из твоего компонента) ===
+export interface ClientStats {
+    totalRequests: number;
+    activeRequests: number;
+    doneRequests: number;
+    overdueRequests: number;
+    averageRating: string;
+    totalRatings: number;
+}
+
+export interface AdminWorkerStats {
+    totalRequests: number;
+    statusCounts: {
+        new: number;
+        inWork: number;
+        completed: number;
+        overdue: number;
+    };
+    requestTypeSummary: {
+        urgent: number;
+        planned: number;
+        normal: number;
+    };
+}
+
+export interface DepHeadStats {
+    totalRequests: number;
+    statusCounts: {
+        awaitingAssignment: number;
+        new: number;
+        inWork: number;
+        completed: number;
+        overdue: number;
+    };
+    requestTypeSummary: {
+        urgent: number;
+        planned: number;
+        normal: number;
+    };
+}
+
+export interface ExecutorStats {
+    totalRequests: number;
+    overdue: number;
+    inWork: number;
+    completed: number;
+    onTime: number;
+    late: number;
+    averageExecutionHours: string;
+    averageRating: string;
+}
+
+export interface ManagerStats {
+    officeId: number;
+    data: {
+        [date: string]: {
+            totalRequests: number;
+            newRequests: number;
+            inWorkRequests: number;
+            completedRequests: number;
+            overdueUrgentRequests: number;
+            normalRequests: number;
+            urgentRequests: number;
+            plannedRequests: number;
+            overdueRequests: number;
+        };
+    };
+}
+
+// === Типы для Zustand хранилища ===
+export type StatsState = {
+    clientStats: ClientStats | {
+        totalRequests: 0;
+        activeRequests: 0;
+        doneRequests: 0;
+        overdueRequests: 0;
+        averageRating: "0";
+        totalRatings: 0;
+    };
+    adminWorkerStats: AdminWorkerStats | {
+        totalRequests: 0;
+        statusCounts: {
+            new: 0;
+            inWork: 0;
+            completed: 0;
+            overdue: 0;
+        };
+        requestTypeSummary: {
+            urgent: 0;
+            planned: 0;
+            normal: 0;
+        };
+    };
+    depHeadStats: DepHeadStats | {
+        totalRequests: 0;
+        statusCounts: {
+            awaitingAssignment: 0;
+            new: 0;
+            inWork: 0;
+            completed: 0;
+            overdue: 0;
+        };
+        requestTypeSummary: {
+            urgent: 0;
+            planned: 0;
+            normal: 0;
+        };
+    };
+    executorStats: ExecutorStats | {
+        totalRequests: 0;
+        overdue: 0;
+        inWork: 0;
+        completed: 0;
+        onTime: 0;
+        late: 0;
+        averageExecutionHours: '0';
+        averageRating: '0';
+    };
+    managerStats: ManagerStats[];
+    myRating: number | 0;
+
+    // Временные метки последнего обновления (для кэширования)
+    lastUpdated: number | null;
+
+    // Загрузка и ошибки
+    loading: boolean;
+    error: string | null;
+};
+
+type StatsActions = {
+    fetchStats: (role: string) => Promise<void>;
+    resetStats: () => void;
+    clearCache: () => void;
+};
+
+// === Zustand Store с persist ===
+export const useStatsStore = create<StatsState & StatsActions>()(
+    persist(
+        (set, get) => ({
+            // Начальное состояние
+            clientStats: {
+                totalRequests: 0,
+                activeRequests: 0,
+                doneRequests: 0,
+                overdueRequests: 0,
+                averageRating: "0",
+                totalRatings: 0,
+            },
+            adminWorkerStats: {
+                totalRequests: 0,
+                statusCounts: {
+                    new: 0,
+                    inWork: 0,
+                    completed: 0,
+                    overdue: 0,
+                },
+                requestTypeSummary: {
+                    urgent: 0,
+                    planned: 0,
+                    normal: 0,
+                }
+            },
+            depHeadStats: {
+                totalRequests: 0,
+                statusCounts: {
+                    awaitingAssignment: 0,
+                    new: 0,
+                    inWork: 0,
+                    completed: 0,
+                    overdue: 0,
+                },
+                requestTypeSummary: {
+                    urgent: 0,
+                    planned: 0,
+                    normal: 0,
+                }
+            },
+            executorStats: {
+                totalRequests: 0,
+                overdue: 0,
+                inWork: 0,
+                completed: 0,
+                onTime: 0,
+                late: 0,
+                averageExecutionHours: '0',
+                averageRating: '0',
+            },
+            managerStats: [],
+            myRating: 0,
+            lastUpdated: null,
+            loading: false,
+            error: null,
+
+            // === Основной метод загрузки ===
+            fetchStats: async (role: string) => {
+                if (get().loading) return; // Защита от дублирования запроса
+
+                set({ loading: true, error: null });
+
+                try {
+                    const response = await api.get(`/analytics/stats/${role}`);
+                    let data = response.data;
+
+                    // Для исполнителя — отдельно получаем рейтинг
+                    let myRating = null;
+                    if (role === "executor") {
+                        const ratingRes = await api.get("/executors/average-rating");
+                        myRating = ratingRes.data.average_rating;
+                    }
+
+                    // Обновляем состояние в зависимости от роли
+                    switch (role) {
+                        case "client":
+                            set({ clientStats: data });
+                            break;
+                        case "admin-worker":
+                            set({ adminWorkerStats: data });
+                            break;
+                        case "department-head":
+                            set({ depHeadStats: data });
+                            break;
+                        case "executor":
+                            set({ executorStats: data, myRating });
+                            break;
+                        case "manager":
+                            set({ managerStats: data });
+                            break;
+                        default:
+                            console.warn(`Unknown role: ${role}`);
+                    }
+
+                    // Обновляем время последнего обновления
+                    set({ lastUpdated: Date.now() });
+                } catch (err: any) {
+                    const errorMsg = err.response?.data?.message || err.message || "Ошибка загрузки статистики";
+                    set({ error: errorMsg });
+                    console.error("Zustand fetchStats error:", errorMsg);
+                } finally {
+                    set({ loading: false });
+                }
+            },
+
+            // Полный сброс (например, при logout)
+            resetStats: () => {
+                set({
+                    clientStats: {
+                        totalRequests: 0,
+                        activeRequests: 0,
+                        doneRequests: 0,
+                        overdueRequests: 0,
+                        averageRating: "0",
+                        totalRatings: 0,
+                    },
+                    adminWorkerStats: {
+                        totalRequests: 0,
+                        statusCounts: {
+                            new: 0,
+                            inWork: 0,
+                            completed: 0,
+                            overdue: 0,
+                        },
+                        requestTypeSummary: {
+                            urgent: 0,
+                            planned: 0,
+                            normal: 0,
+                        }
+                    },
+                    depHeadStats: {
+                        totalRequests: 0,
+                        statusCounts: {
+                            awaitingAssignment: 0,
+                            new: 0,
+                            inWork: 0,
+                            completed: 0,
+                            overdue: 0,
+                        },
+                        requestTypeSummary: {
+                            urgent: 0,
+                            planned: 0,
+                            normal: 0,
+                        }
+                    },
+                    executorStats: {
+                        totalRequests: 0,
+                        overdue: 0,
+                        inWork: 0,
+                        completed: 0,
+                        onTime: 0,
+                        late: 0,
+                        averageExecutionHours: '0',
+                        averageRating: '0',
+                    },
+                    managerStats: [],
+                    myRating: 0,
+                    lastUpdated: null,
+                    loading: false,
+                    error: null,
+                });
+            },
+
+            // Можно вызвать, если нужно принудительно обновить
+            clearCache: () => {
+                set({ lastUpdated: null });
+            },
+        }),
+        {
+            name: "kcell-stats-storage", // ключ в localStorage
+            version: 1,
+            partialize: (state) => ({
+                // Сохраняем только данные, а не loading/error
+                clientStats: state.clientStats,
+                adminWorkerStats: state.adminWorkerStats,
+                depHeadStats: state.depHeadStats,
+                executorStats: state.executorStats,
+                managerStats: state.managerStats,
+                myRating: state.myRating,
+                lastUpdated: state.lastUpdated,
+            }),
+        }
+    )
+);
