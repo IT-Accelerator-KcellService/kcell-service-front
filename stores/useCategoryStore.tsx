@@ -32,7 +32,7 @@ export const useCategoryStore = create<CategoryState>()(
 
       fetchCategories: async (token) => {
         try {
-          const res = await fetch("https://kcell-service.onrender.com/api/service-categories", {
+          const res = await fetch("https://workflow-back-zpk4.onrender.com/api/service-categories", {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
@@ -68,7 +68,7 @@ export const useCategoryStore = create<CategoryState>()(
       // Методы для работы с подкатегориями
       createSubcategory: async (token, subcategoryData) => {
         try {
-          const res = await fetch("https://kcell-service.onrender.com/api/service-categories/subcategories", {
+          const res = await fetch("https://workflow-back-zpk4.onrender.com/api/service-categories/subcategories", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -82,7 +82,7 @@ export const useCategoryStore = create<CategoryState>()(
           }
 
           // Обновляем категории после создания подкатегории
-          const categoriesRes = await fetch("https://kcell-service.onrender.com/api/service-categories", {
+          const categoriesRes = await fetch("https://workflow-back-zpk4.onrender.com/api/service-categories", {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
@@ -102,7 +102,7 @@ export const useCategoryStore = create<CategoryState>()(
 
       deleteSubcategory: async (token, subcategoryId) => {
         try {
-          const res = await fetch(`https://kcell-service.onrender.com/api/service-categories/subcategories/${subcategoryId}`, {
+          const res = await fetch(`https://workflow-back-zpk4.onrender.com/api/service-categories/subcategories/${subcategoryId}`, {
             method: "DELETE",
             headers: {
               "Content-Type": "application/json",
@@ -115,7 +115,7 @@ export const useCategoryStore = create<CategoryState>()(
           }
 
           // Обновляем категории после удаления подкатегории
-          const categoriesRes = await fetch("https://kcell-service.onrender.com/api/service-categories", {
+          const categoriesRes = await fetch("https://workflow-back-zpk4.onrender.com/api/service-categories", {
             method: "GET",
             headers: {
               "Content-Type": "application/json",

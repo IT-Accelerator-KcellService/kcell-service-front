@@ -945,7 +945,7 @@ export default function AdminWorkerDashboard() {
         return;
       }
 
-      const response = await fetch(`https://kcell-service.onrender.com/api/users/office/${user.office_id}`, {
+      const response = await fetch(`https://workflow-back-zpk4.onrender.com/api/users/office/${user.office_id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -982,7 +982,7 @@ export default function AdminWorkerDashboard() {
     setPasswordError(null);
 
     try {
-      const response = await fetch(`https://kcell-service.onrender.com/api/users/${selectedUserForPassword}/change-password`, {
+      const response = await fetch(`https://workflow-back-zpk4.onrender.com/api/users/${selectedUserForPassword}/change-password`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

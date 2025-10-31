@@ -65,7 +65,7 @@ import ClientRatingModal from "@/components/ClientRatingModal";
 import PhotoModal from "@/components/photo/PhotoModal";
 import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 
-const API_BASE_URL = 'https://kcell-service.onrender.com/api';
+const API_BASE_URL = 'https://workflow-back-zpk4.onrender.com/api';
 
 
 interface Rating {
