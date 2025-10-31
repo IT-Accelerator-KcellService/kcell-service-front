@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState, useRef, useMemo} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
@@ -61,6 +61,7 @@ import {CommentsModal} from "@/components/CommentsModal";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {RejectRequestModal} from "@/components/RejectRequestModal";
 import {AssignExecutorsModal} from "@/components/AssignExecutorsModal";
+import {ChangeExecutorsModal} from "@/components/ChangeExecutorsModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
@@ -87,6 +88,7 @@ interface Executor{
 interface Stats {
   totalRequests: number,
   statusCounts: {
+    awaitingAssignment: number,
     new: number,
     inWork: number,
     completed: number,
@@ -141,8 +143,16 @@ export default function DepartmentHeadDashboard() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterIncomingStatus, setFilterIncomingStatus] = useState("all")
   const [filterIncomingType, setFilterIncomingType] = useState("all")
-  const [isInitialized, setIsInitialized] = useState(false)
+  const prevFilterStatus = useRef("all")
+  const isInitialized = useRef(false)
   const [stats, setStats] = useState<Stats | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useRef<HTMLDivElement | null>(null);
+  const isLoadingRef = useRef(false); // Защита от дублирования запросов
+  const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Throttle для observer
   const [showRedirectModal, setShowRedirectModal] = useState(false);
   const [selectedRequestForRedirect, setSelectedRequestForRedirect] = useState<any>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -150,6 +160,8 @@ export default function DepartmentHeadDashboard() {
   const [redirectError, setRedirectError] = useState<string | null>(null);
   const [showAssignExecutorsModal, setShowAssignExecutorsModal] = useState(false);
   const [selectedSubRequestForAssignment, setSelectedSubRequestForAssignment] = useState<any>(null);
+  const [showChangeExecutorsModal, setShowChangeExecutorsModal] = useState(false);
+  const [selectedSubRequestForChange, setSelectedSubRequestForChange] = useState<any>(null);
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
   const [upcomingTasksRefreshTrigger, setUpcomingTasksRefreshTrigger] = useState(0);
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -514,60 +526,6 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-
-  const fetchRequests = useCallback(async () => {
-    try {
-      // Создаем параметры запроса
-      const params = new URLSearchParams();
-
-      // Добавляем фильтр статуса если он не "all"
-      if (filterIncomingStatus !== "all" && filterIncomingStatus !== "long_term") {
-        params.append('status', filterIncomingStatus);
-      }
-
-      const queryString = params.toString();
-      const url = queryString ? `/request-groups?${queryString}` : '/request-groups';
-      
-      const response: any = await api.get(url);
-
-      const otherRequests: Request[] = response.data.otherRequests;
-      const myRequests: Request[] = response.data.myRequests;
-
-      const sortedOtherRequests = otherRequests.sort((a, b) => {
-        // 1. приоритет "waiting_for_assignment"
-        if (a.status === "awaiting_assignment" && b.status !== "awaiting_assignment") return -1;
-        if (b.status === "awaiting_assignment" && a.status !== "awaiting_assignment") return 1;
-
-        // 2. приоритет "in_progress"
-        if (a.status === "in_progress" && b.status !== "in_progress") return -1;
-        if (b.status === "in_progress" && a.status !== "in_progress") return 1;
-
-        // 3. среди одинаковых статусов — приоритет экстренным
-        if (a.request_type === "urgent" && b.request_type !== "urgent") return -1;
-        if (b.request_type === "urgent" && a.request_type !== "urgent") return 1;
-
-        // 4. по дате (новые сверху)
-        const dateA = new Date(a.created_date).getTime();
-        const dateB = new Date(b.created_date).getTime();
-        return dateB - dateA;
-      });
-      setIncomingRequests(sortedOtherRequests);
-      setMyRequests(myRequests);
-
-      // Проверяем рейтинги для завершенных заявок
-      const allRequests = [...sortedOtherRequests, ...myRequests];
-      allRequests.forEach((requestGroup) => {
-        requestGroup.requests.forEach((subRequest) => {
-          if (subRequest.status === "completed") {
-            checkUserRating(subRequest.id);
-          }
-        });
-      });
-    } catch (error) {
-      console.error("Failed to fetch requests:", error);
-    }
-  }, [filterIncomingStatus]);
-
   const checkUserRating = useCallback(async (requestId: number) => {
     try {
       const response = await api.get(`/ratings/request/${requestId}`);
@@ -585,6 +543,84 @@ export default function DepartmentHeadDashboard() {
       console.error("Failed to check user rating:", error);
     }
   }, []);
+
+  const fetchRequests = useCallback(async (currentPage = 1, pageSize = 10) => {
+    // Защита от множественных одновременных запросов (включая страницу 1)
+    if (isLoadingRef.current) {
+      console.log('Fetch already in progress, skipping page', currentPage);
+      return;
+    }
+    isLoadingRef.current = true;
+    setLoading(true);
+
+    try {
+      // Создаем параметры запроса
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString()
+      });
+
+      // Добавляем фильтр статуса если он не "all"
+      if (filterIncomingStatus !== "all" && filterIncomingStatus !== "long_term") {
+        params.append('status', filterIncomingStatus);
+      }
+
+      const response: any = await api.get(`/request-groups?${params.toString()}`);
+
+      const otherRequests: Request[] = response.data.otherRequests || [];
+      const myRequests: Request[] = response.data.myRequests || [];
+      
+      console.log('=== FETCH REQUESTS DEPARTMENT-HEAD ===');
+      console.log('Current page:', currentPage);
+      console.log('Page size:', pageSize);
+      console.log('Other requests count:', otherRequests.length);
+      console.log('My requests count:', myRequests.length);
+      console.log('Total received:', otherRequests.length + myRequests.length);
+      console.log('Note: Sorting is done on backend');
+
+      // Проверяем рейтинги для завершенных заявок (до обновления состояния)
+      const allRequests = [...otherRequests, ...myRequests];
+      allRequests.forEach((requestGroup) => {
+        requestGroup.requests.forEach((subRequest) => {
+          if (subRequest.status === "completed") {
+            checkUserRating(subRequest.id);
+          }
+        });
+      });
+
+      // Обновляем состояние с учетом пагинации
+      // Бэкенд уже отсортировал данные, используем их напрямую
+      setIncomingRequests((prev) => {
+        const newItems = currentPage === 1
+          ? otherRequests
+          : [...prev, ...otherRequests.filter(item => !prev.some(p => p.id === item.id))];
+        console.log('Incoming requests - previous:', prev.length, 'new:', newItems.length);
+        return newItems;
+      });
+      
+      setMyRequests((prev) => {
+        const newItems = currentPage === 1
+          ? myRequests
+          : [...prev, ...myRequests.filter(item => !prev.some(p => p.id === item.id))];
+        console.log('My requests - previous:', prev.length, 'new:', newItems.length);
+        return newItems;
+      });
+
+      // Обновляем флаг hasMore
+      // Проверяем, есть ли еще данные - если хотя бы один массив вернул полный pageSize, значит есть еще
+      const otherRequestsLength = otherRequests.length;
+      const myRequestsLength = myRequests.length;
+      const hasMoreData = otherRequestsLength >= pageSize || myRequestsLength >= pageSize;
+      console.log('Has more data:', hasMoreData, '(other:', otherRequestsLength, 'my:', myRequestsLength, 'pageSize:', pageSize, ')');
+      setHasMore(hasMoreData);
+    } catch (error) {
+      console.error("Failed to fetch requests:", error);
+    } finally {
+      isLoadingRef.current = false;
+      setLoading(false);
+    }
+  }, [filterIncomingStatus, checkUserRating]);
+
   const fetchExecutors = useCallback(async () => {
     try {
       const response = await api.get('/executors')
@@ -603,26 +639,97 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
+  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+    lastElementRef.current = node;
+  }, []);
+
   useEffect(() => {
-    // Инициализация данных при первом рендере (только если нет фильтра из URL)
-    if (!isInitialized && filterIncomingStatus === "all") {
-      fetchRequests();
-      setIsInitialized(true);
+    if (loading) return;
+    
+    // Не создаем observer если нет данных или пагинация отключена
+    if (!hasMore && page === 1 && incomingRequests.length === 0) return;
+
+    if (observer.current) {
+      observer.current.disconnect();
     }
-    fetchExecutors();
-    fetchOffices();
-  }, [filterIncomingStatus])
+
+    observer.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore && !loading && !isLoadingRef.current) {
+        // Throttle: предотвращаем множественные вызовы при быстром скролле
+        if (throttleTimeoutRef.current) {
+          return;
+        }
+        
+        throttleTimeoutRef.current = setTimeout(() => {
+          throttleTimeoutRef.current = null;
+        }, 500); // 500ms throttle
+        
+        setPage((prevPage) => {
+          const nextPage = prevPage + 1;
+          console.log('Observer triggered: loading page', nextPage);
+          fetchRequests(nextPage);
+          return nextPage;
+        });
+      }
+    }, {
+      // Опции для лучшей производительности
+      rootMargin: '100px', // Начинаем загрузку за 100px до конца
+    });
+
+    if (lastElementRef.current) {
+      observer.current.observe(lastElementRef.current);
+    }
+
+    // Cleanup функция для observer
+    return () => {
+      if (observer.current) {
+        observer.current.disconnect();
+      }
+      if (throttleTimeoutRef.current) {
+        clearTimeout(throttleTimeoutRef.current);
+        throttleTimeoutRef.current = null;
+      }
+    };
+  }, [loading, hasMore, page, incomingRequests.length]);
+
+  useEffect(() => {
+    // Инициализация данных при первом рендере
+    if (!isInitialized.current) {
+      fetchExecutors();
+      fetchOffices();
+      // Загружаем первую страницу при инициализации
+      fetchRequests(1);
+      isInitialized.current = true;
+    }
+  }, []);
 
   // Перезагружаем данные при изменении фильтра статуса
   useEffect(() => {
-    if (isInitialized) {
-      fetchRequests();
-    } else {
-      // Если это первая загрузка и есть фильтр, загружаем с фильтром
-      fetchRequests();
-      setIsInitialized(true);
+    if (filterIncomingStatus !== prevFilterStatus.current && isInitialized.current) {
+      prevFilterStatus.current = filterIncomingStatus;
+      
+      // Отключаем observer перед сбросом
+      if (observer.current) {
+        observer.current.disconnect();
+      }
+      
+      // Сбрасываем все состояния пагинации
+      setPage(1);
+      setHasMore(true);
+      setIncomingRequests([]);
+      setMyRequests([]);
+      isLoadingRef.current = false; // Сбрасываем флаг загрузки
+      
+      // Очищаем throttle
+      if (throttleTimeoutRef.current) {
+        clearTimeout(throttleTimeoutRef.current);
+        throttleTimeoutRef.current = null;
+      }
+      
+      // Загружаем первую страницу
+      fetchRequests(1);
     }
-  }, [filterIncomingStatus])
+  }, [filterIncomingStatus, fetchRequests])
 
   const fetchClientInfo = async (userId: number) => {
     if (clientInfo[userId]) return
@@ -644,13 +751,16 @@ export default function DepartmentHeadDashboard() {
     }
   }, [selectedRequest])
 
-  // Фильтрация входящих заявок
-  const filteredIncomingRequests = incomingRequests.filter((request) => {
-    const statusMatch = filterIncomingStatus === "all"   ||
-        (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : request.status === filterIncomingStatus);
-    const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
-    return statusMatch && typeMatch;
-  });
+  // Фильтрация входящих заявок (мемоизировано для производительности)
+  const filteredIncomingRequests = useMemo(() => {
+    return incomingRequests.filter((request) => {
+      const statusMatch = filterIncomingStatus === "all"   ||
+          (filterIncomingStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') :
+           filterIncomingStatus === "overdue" ? true : request.status === filterIncomingStatus);
+      const typeMatch = filterIncomingType === "all" || request.request_type === filterIncomingType;
+      return statusMatch && typeMatch;
+    });
+  }, [incomingRequests, filterIncomingStatus, filterIncomingType]);
 
   const handleCreateDepartmentRequest = async (formData: FormData) => {
     setIsSubmitting(true);
@@ -1153,7 +1263,7 @@ export default function DepartmentHeadDashboard() {
 
   const renderCardHeader = (requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
-    const totalSubRequests = requestGroup.requests.length;
+    // Убрали счетчик подзаявок - теперь показываем только один заявка
 
     return (
         <CardHeader className={`pb-3 px-5 pt-5`}>
@@ -1165,9 +1275,6 @@ export default function DepartmentHeadDashboard() {
               </h3>
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
-                {totalSubRequests} под заявок
-              </span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
@@ -1317,8 +1424,31 @@ export default function DepartmentHeadDashboard() {
     // Просто показываем сообщение об успехе
     successModal.showSuccess({
       title: "Исполнители назначены",
-      message: "Исполнители успешно назначены на подзаявку"
+      message: "Исполнители успешно назначены на заявку"
     });
+  };
+
+  const handleChangeExecutors = (subRequest: any) => {
+    setSelectedSubRequestForChange(subRequest);
+    setShowChangeExecutorsModal(true);
+    openModal('changeExecutorsModal');
+  };
+
+  const handleCloseChangeExecutorsModal = () => {
+    setShowChangeExecutorsModal(false);
+    setSelectedSubRequestForChange(null);
+    closeModalWithHistory();
+  };
+
+  const handleChangeExecutorsSuccess = () => {
+    // Оптимистичное обновление уже выполнено в ChangeExecutorsModal
+    // Просто показываем сообщение об успехе
+    successModal.showSuccess({
+      title: "Исполнители изменены",
+      message: "Исполнители успешно изменены для подзаявки"
+    });
+    setSelectedRequest(null);
+    closeModalWithHistory();
   };
 
   return (
@@ -1416,26 +1546,28 @@ export default function DepartmentHeadDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="mb-6">
+                <div className="mb-3">
                   {/* на телефоне только табы */}
-                  <div className="flex flex-col sm:hidden gap-3 mb-4">
-                    <TabsList className="flex flex-wrap gap-2 w-full">
-                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Входящие</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Мои</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Повторяющиеся</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Статистика
-                      </TabsTrigger>
-                      <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="sm:hidden">Управление</span>
-                      </TabsTrigger>
-                    </TabsList>
+                  <div className="w-full mb-2 sm:hidden">
+                    <div className="overflow-x-auto">
+                      <TabsList className="flex w-max min-w-full">
+                        <TabsTrigger value="incoming" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Входящие</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="my-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Мои</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Повторяющиеся</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Статистика
+                        </TabsTrigger>
+                        <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden">Управление</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
                   </div>
 
                   {/* на больших экранах */}
@@ -1468,7 +1600,7 @@ export default function DepartmentHeadDashboard() {
                 </div>
 
 
-                <TabsContent value="my-requests" className="pt-6 sm:pt-0">
+                <TabsContent value="my-requests" className="pt-2 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {myRequests.map((request, index: number) => (
                       <RequestCard
@@ -1511,9 +1643,9 @@ export default function DepartmentHeadDashboard() {
                   />
                 </TabsContent>
 
-                <TabsContent value="incoming" className="pt-6 sm:pt-0">
+                <TabsContent value="incoming" className="pt-2 sm:pt-0">
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-4 mb-4">
+                    <div className="flex items-center space-x-4 mb-2">
                       <Select value={filterIncomingStatus} onValueChange={setFilterIncomingStatus}>
                         <SelectTrigger className="w-48">
                           <SelectValue placeholder="Статус" />
@@ -1525,6 +1657,7 @@ export default function DepartmentHeadDashboard() {
                           <SelectItem value="assigned">Назначен</SelectItem>
                           <SelectItem value="execution">Исполнение</SelectItem>
                           <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="overdue">Просрочено</SelectItem>
                           <SelectItem value="long_term">Долгосрочные</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1541,22 +1674,27 @@ export default function DepartmentHeadDashboard() {
                       </Select>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredIncomingRequests.map((request, index: number) => (
+                      {filteredIncomingRequests.map((request, index: number) => {
+                        const isLast = index === filteredIncomingRequests.length - 1;
+                        return (
                           <RequestCard
-                              key={index}
-                              request={request}
-                              onCardClick={(request) => {
-                                setSelectedRequest(request);
-                                openModal('requestDetails');
-                              }}
-                              renderCardHeader={renderCardHeader}
+                            key={`incoming-${request.id}`}
+                            request={request}
+                            onCardClick={(request) => {
+                              setSelectedRequest(request);
+                              openModal('requestDetails');
+                            }}
+                            renderCardHeader={renderCardHeader}
+                            isLast={isLast}
+                            lastElementRef={lastRequestRef}
                           />
-                    ))}
+                        );
+                      })}
                   </div>
                   </div>
                 </TabsContent>
 
-                <TabsContent value="statistics" className="pt-6 sm:pt-0">
+                <TabsContent value="statistics" className="pt-2 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card className="w-full">
                       <CardHeader>
@@ -1564,6 +1702,10 @@ export default function DepartmentHeadDashboard() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-4 text-sm sm:text-base">
+                          <div className="flex justify-between items-center flex-wrap gap-1">
+                            <span className="break-words">Ожидает назначения</span>
+                            <span className="font-bold">{stats && stats.statusCounts && stats.statusCounts.awaitingAssignment ? (stats.statusCounts.awaitingAssignment) : 0}</span>
+                          </div>
                           <div className="flex justify-between items-center flex-wrap gap-1">
                             <span className="break-words">Всего заявок</span>
                             <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests) : 0}</span>
@@ -1621,7 +1763,7 @@ export default function DepartmentHeadDashboard() {
                 </TabsContent>
 
 
-                <TabsContent value="management" className="pt-6 sm:pt-0">
+                <TabsContent value="management" className="pt-2 sm:pt-0">
                   <div className="space-y-6">
                     <Card>
                       <CardHeader>
@@ -1819,11 +1961,11 @@ export default function DepartmentHeadDashboard() {
                 <CardContent className="space-y-4 pb-16">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Тип заявки</Label>
+                      <Label>Тип заявки </Label>
                       <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
                     </div>
                     <div>
-                      <Label>Статус</Label>
+                      <Label>Статус </Label>
                       <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                     </div>
                   </div>
@@ -1845,11 +1987,11 @@ export default function DepartmentHeadDashboard() {
                       </div>
                   )}
 
-                  {/* Под заявки */}
+                  {/* Заявка (теперь показываем только первый подзаявка как полноценный заявка) */}
                       <div>
-                    <Label className={isDesktop ? '' : 'text-base font-medium'}>Под заявки</Label>
+                    <Label className={isDesktop ? '' : 'text-base font-medium'}>Заявка</Label>
                     <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
-                      {selectedRequest.requests.map((subRequest: SubRequest) => {
+                      {selectedRequest.requests.slice(0, 1).map((subRequest: SubRequest) => {
                         const isExpanded = expandedSubRequests.has(subRequest.id);
                         const hasComments = showComments === subRequest.id;
 
@@ -1860,7 +2002,7 @@ export default function DepartmentHeadDashboard() {
                                 <div className="flex justify-between items-start mb-3">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>№ {getSubRequestDisplayId(subRequest, selectedRequest.id)} {subRequest.title}</h4>
+                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>{subRequest.title}</h4>
                   </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
@@ -1906,6 +2048,7 @@ export default function DepartmentHeadDashboard() {
                                         }}
                                         onRedirectToOtherDepartment={handleOpenRedirectModal}
                                         onAssignExecutor={handleAssignExecutors}
+                                        onChangeExecutors={handleChangeExecutors}
                                         onToggleLongTerm={handleToggleLongTerm}
                                         onDelete={(subReq) => {
                                           handleDeleteSubRequest(subReq);
@@ -2184,9 +2327,9 @@ export default function DepartmentHeadDashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <Card className="w-full max-w-md">
               <CardHeader>
-                <CardTitle>Перенаправить подзаявку #{selectedRequestForRedirect.id}</CardTitle>
+                <CardTitle>Перенаправить заявку #{selectedRequestForRedirect.id}</CardTitle>
                 <CardDescription>
-                  Выберите категорию, к которой нужно перенаправить подзаявку
+                  Выберите категорию, к которой нужно перенаправить заявку
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -2277,7 +2420,7 @@ export default function DepartmentHeadDashboard() {
         <BottomNav
 
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal}
+            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal || showChangeExecutorsModal}
         />
         {isDesktop && <Link
             href="/chat-bot"
@@ -2303,6 +2446,16 @@ export default function DepartmentHeadDashboard() {
             executors={executors}
             userServiceCategoryId={user?.service_category_id}
             onSuccess={handleAssignExecutorsSuccess}
+        />
+
+        {/* Модальное окно изменения исполнителей */}
+        <ChangeExecutorsModal
+            isOpen={showChangeExecutorsModal}
+            onClose={handleCloseChangeExecutorsModal}
+            subRequest={selectedSubRequestForChange}
+            executors={executors}
+            userServiceCategoryId={user?.service_category_id}
+            onSuccess={handleChangeExecutorsSuccess}
         />
 
         {/* Модал импорта Excel */}

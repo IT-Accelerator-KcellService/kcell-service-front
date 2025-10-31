@@ -2968,7 +2968,7 @@ export default function ManagerDashboard() {
               <CardContent className="space-y-4 pb-16">
                 <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Тип заявки</Label>
+                  <Label>Тип заявки </Label>
                   {isEditingMode && selectedRequest.request_type !== "planned" ? (
                     <Select value={editableRequestType} onValueChange={setEditableRequestType}>
                       <SelectTrigger className="w-full">
@@ -2984,7 +2984,7 @@ export default function ManagerDashboard() {
                   )}
                 </div>
                 <div>
-                    <Label>Статус</Label>
+                    <Label>Статус </Label>
                     <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
                   </div>
                 </div>
