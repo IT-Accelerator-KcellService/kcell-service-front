@@ -52,6 +52,7 @@ import {IconInfoModal} from "@/components/IconInfoModal";
 import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
 import { createClickableRequestIds } from '@/lib/notificationUtils';
 import { RequestNotFoundModal } from '@/components/RequestNotFoundModal';
+import { getPreviewUrl } from '@/lib/imageOptimization';
 import {MapModal} from "@/components/MapModal";
 import {CreateRequestModal} from "@/components/CreateRequestModal";
 import {CommentsModal} from "@/components/CommentsModal";
@@ -147,7 +148,7 @@ export default function ClientDashboard() {
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
   const [offices, setOffices] = useState<any[]>([]);
 
-  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+  const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
     lastElementRef.current = node;
   }, []);
 
@@ -1232,7 +1233,7 @@ export default function ClientDashboard() {
                       const isLast = index === filteredRequests.length - 1;
                       return (
                           <RequestCard
-                              key={`incoming-${requestGroup.id}`}
+                              key={`incoming-${index}`}
                               request={requestGroup}
                               onCardClick={handleCardClick}
                               renderCardHeader={renderCardHeader}
@@ -1543,9 +1544,11 @@ export default function ClientDashboard() {
                               .map((photo: any, index: number) => (
                                       <img
                                           key={index}
-                                          src={photo.photo_url || "/placeholder.svg"}
+                                          src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
+                                      loading="lazy"
+                                      decoding="async"
                                       onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
@@ -1566,12 +1569,15 @@ export default function ClientDashboard() {
                               <div className="flex space-x-2 mt-2 flex-wrap">
                           {selectedRequest.photos
                               .filter((photo: any) => photo.type === 'after')
+                              .slice(0, 10) // Ограничиваем количество для производительности
                               .map((photo: any, index: number) => (
                                     <img
                                         key={index}
-                                        src={photo.photo_url || "/placeholder.svg"}
+                                        src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
+                                      loading="lazy"
+                                      decoding="async"
                                       onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');

@@ -60,6 +60,7 @@ import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { RequestCard } from "@/components/RequestCard";
 import { RatingModal } from "@/components/RatingModal";
 import { IconInfoModal } from "@/components/IconInfoModal";
+import { getPreviewUrl } from "@/lib/imageOptimization";
 import { MapModal } from "@/components/MapModal";
 import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
 import { createClickableRequestIds } from '@/lib/notificationUtils';
@@ -275,7 +276,7 @@ export default function AdminWorkerDashboard() {
     console.log('ADMIN: modalStack changed:', modalStack);
   }, [modalStack]);
 
-  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+  const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
     lastElementRef.current = node;
   }, []);
 
@@ -2546,7 +2547,7 @@ export default function AdminWorkerDashboard() {
                         const isLast = index === filteredIncomingRequests.length - 1;
                         return (
                           <RequestCard
-                            key={`incoming-${request.id}`}
+                            key={`incoming-${index}`}
                             request={request}
                             onCardClick={(request) => {
                               setSelectedRequest(request);
@@ -3826,7 +3827,7 @@ export default function AdminWorkerDashboard() {
                               .map((photo: any, index: number) => (
                                       <img
                                           key={index}
-                                          src={photo.photo_url || "/placeholder.svg"}
+                                          src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                       onClick={() => {
@@ -3852,7 +3853,7 @@ export default function AdminWorkerDashboard() {
                               .map((photo: any, index: number) => (
                                     <img
                                         key={index}
-                                        src={photo.photo_url || "/placeholder.svg"}
+                                        src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                       onClick={() => {

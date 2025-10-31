@@ -60,6 +60,7 @@ import {CompleteTaskModal} from "@/components/CompleteTaskModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import {RejectSubRequestModal} from "@/components/RejectSubRequestModal";
 import SubRequestInfo from "@/components/SubRequestInfo";
+import { getPreviewUrl } from "@/lib/imageOptimization";
 import Executors from "@/components/Executors";
 import ClientRatingModal from "@/components/ClientRatingModal";
 import PhotoModal from "@/components/photo/PhotoModal";
@@ -2315,7 +2316,7 @@ export default function ExecutorDashboard() {
                               .map((photo: any, index: number) => (
                                 <img
                                     key={index}
-                                    src={photo.photo_url || "/placeholder.svg"}
+                                    src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                       onClick={() => {

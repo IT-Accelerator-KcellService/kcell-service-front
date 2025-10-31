@@ -85,6 +85,7 @@ import Executors from "@/components/Executors";
 import PhotoModal from "@/components/photo/PhotoModal";
 import {RatingModal} from "@/components/RatingModal";
 import RegistrationRequestsManager from "@/components/RegistrationRequestsManager";
+import { getPreviewUrl } from "@/lib/imageOptimization";
 
 declare global {
   interface Window {
@@ -285,7 +286,7 @@ export default function ManagerDashboard() {
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
-  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+  const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
     lastElementRef.current = node;
   }, []);
   const [stats, setStats] = useState<Stats[]>([]);
@@ -2256,7 +2257,7 @@ export default function ManagerDashboard() {
                   const isLast = index === filteredRequests.length - 1;
                   return (
                       <RequestCard
-                          key={`incoming-${requestGroup.id}`}
+                          key={`incoming-${index}`}
                           request={requestGroup}
                           onCardClick={handleCardClick}
                           renderCardHeader={renderCardHeader}
@@ -3257,7 +3258,7 @@ export default function ManagerDashboard() {
                             .map((photo: any, index: number) => (
                                           <img
                                               key={index}
-                                              src={photo.photo_url || "/placeholder.svg"}
+                                              src={getPreviewUrl(photo.photo_url)}
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {
@@ -3283,7 +3284,7 @@ export default function ManagerDashboard() {
                             .map((photo: any, index: number) => (
                                           <img
                                               key={index}
-                                              src={photo.photo_url || "/placeholder.svg"}
+                                              src={getPreviewUrl(photo.photo_url)}
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {
