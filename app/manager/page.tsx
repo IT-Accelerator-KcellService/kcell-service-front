@@ -421,22 +421,24 @@ export default function ManagerDashboard() {
     }
 
     // Обработка параметров фильтров из URL
-    // Устанавливаем фильтры из URL только при первом рендере или явном изменении параметров
-    // НЕ сбрасываем фильтры, если параметров нет в URL - сохраняем выбранные пользователем значения
-    if (status) {
-      // Если в URL есть параметр status, обновляем фильтр
-      setFilterStatus(status);
-      filtersInitializedFromURL.current = true;
-    }
-    // Если параметра нет, НЕ меняем filterStatus - сохраняем текущее значение
+    // Устанавливаем фильтры из URL только после инициализации, чтобы избежать конфликта с INITIAL LOAD
+    if (isInitialized) {
+      if (status) {
+        // Если в URL есть параметр status, обновляем фильтр
+        setFilterStatus(status);
+        filtersInitializedFromURL.current = true;
+      }
+      // Если параметра нет, НЕ меняем filterStatus - сохраняем текущее значение
 
-    if (priority) {
-      // Если в URL есть параметр priority, обновляем фильтр
-      setFilterType(priority);
-      filtersInitializedFromURL.current = true;
+      if (priority) {
+        // Если в URL есть параметр priority, обновляем фильтр
+        setFilterType(priority);
+        filtersInitializedFromURL.current = true;
+      }
+      // Если параметра нет, НЕ меняем filterType - сохраняем текущее значение
     }
-    // Если параметра нет, НЕ меняем filterType - сохраняем текущее значение
-  }, [searchParams])
+    // Если еще не инициализирован, фильтры будут установлены в INITIAL LOAD
+  }, [searchParams, isInitialized])
 
   useEffect(() => {
     if (stats.length) {
@@ -955,16 +957,66 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     // Инициализация данных при первом рендере
-    if (!isInitialized) {
-      fetchRequests(1);
-      setIsInitialized(true);
+    if (!isInitialized && token) {
+      // Читаем параметры из URL перед загрузкой
+      const status = searchParams.get("status");
+      const priority = searchParams.get("priority");
+      
+      // Устанавливаем фильтры из URL
+      if (status) {
+        setFilterStatus(status);
+      }
+      if (priority) {
+        setFilterType(priority);
+      }
+      
+      // Загружаем данные с учетом фильтров из URL
+      // Используем параметры напрямую из searchParams, а не из состояния
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '10'
+      });
+      
+      if (status && status !== "all" && status !== "long_term") {
+        params.append('status', status);
+      }
+      if (priority && priority !== "all") {
+        params.append('priority', priority);
+      }
+      
+      // Загружаем данные с правильными фильтрами из URL
+      setLoading(true);
+      api.get(`/request-groups?${params.toString()}`)
+        .then((response) => {
+          const newRequests = response.data.data;
+          setRequests(newRequests);
+          setHasMore(1 < response.data.totalPages);
+          setPage(1);
+          
+          // Загружаем оценки для завершенных заявок
+          newRequests.forEach((requestGroup: any) => {
+            requestGroup.requests.forEach((subRequest: any) => {
+              if (subRequest.status === "completed") {
+                checkUserRating(subRequest.id);
+              }
+            });
+          });
+          
+          setIsInitialized(true);
+        })
+        .catch((error: any) => {
+          console.error("Ошибка при загрузке заявок:", error);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
     fetchNotifications();
     fetchOffices();
     if (token) {
       fetchCategories(token);
     }
-  }, [token, filterStatus]);
+  }, [token, searchParams, checkUserRating]);
 
   useEffect(() => {
     if (categories.length > 0) {
@@ -999,15 +1051,12 @@ export default function ManagerDashboard() {
     }
   }, [filterStatus]);
 
-  // Перезагружаем данные при изменении фильтров
+  // Перезагружаем данные при изменении фильтров (только если уже инициализирован)
   useEffect(() => {
     if (isInitialized) {
       fetchRequests(1); // Reset to first page when filter changes
-    } else {
-      // Если это первая загрузка и есть фильтр, загружаем с фильтром
-      fetchRequests(1);
-      setIsInitialized(true);
     }
+    // INITIAL LOAD теперь обрабатывается отдельно с учетом searchParams
   }, [filterStatus, filterType]);
 
   const fetchRequests = useCallback(async (pageToLoad = 1) => {

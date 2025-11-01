@@ -200,6 +200,7 @@ export default function AdminWorkerDashboard() {
   const [filterIncomingType, setFilterIncomingType] = useState("all")
   const prevFilterStatus = useRef("all")
   const isInitialized = useRef(false)
+  const initialStatusRef = useRef<string | null>(null)
   const [stats, setStats] = useState<Stats | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
@@ -609,12 +610,63 @@ export default function AdminWorkerDashboard() {
   // Инициализация данных при первом рендере
   useEffect(() => {
     if (isLoggedIn && !isInitialized.current) {
+      // Сначала проверяем параметры из URL
+      const status = searchParams.get("status");
+      const priority = searchParams.get("priority");
+      
+      // Сохраняем статус для использования в запросе
+      initialStatusRef.current = status;
+      
+      // Устанавливаем фильтры в состояние
+      if (status) {
+        setFilterIncomingStatus(status);
+        prevFilterStatus.current = status;
+      }
+      if (priority) {
+        setFilterIncomingType(priority);
+      }
+      
+      // Загружаем данные с учетом фильтров из URL
       console.log('=== INITIAL LOAD ===');
-      console.log('Loading initial data without filter');
-      fetchRequests(1);
-      isInitialized.current = true;
+      console.log('Loading initial data with filter:', status || 'all');
+      
+      // Создаем параметры запроса напрямую из searchParams
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '10'
+      });
+      
+      if (status && status !== "all" && status !== "long_term") {
+        params.append('status', status);
+      }
+      if (priority && priority !== "all") {
+        params.append('priority', priority);
+      }
+      
+      // Загружаем данные с правильными фильтрами из URL
+      setLoading(true);
+      api.get(`/request-groups?${params.toString()}`)
+        .then((response) => {
+          const sortedNewIncomingRequests = sortRequests(response.data.otherRequests);
+          const sortedNewMyRequests = sortRequests(response.data.myRequests);
+          setIncomingRequests(sortedNewIncomingRequests);
+          setMyRequests(sortedNewMyRequests);
+          setHasMore(response.data.otherRequests.length === 10);
+          setPage(1);
+          isInitialized.current = true;
+        })
+        .catch((error: any) => {
+          console.error("Ошибка при загрузке заявок:", error);
+          if (error.response?.status === 401) {
+            clearAuth();
+            router.push("/login");
+          }
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, searchParams]);
 
   useEffect(() => {
     if (categories.length > 0) {
@@ -702,22 +754,22 @@ export default function AdminWorkerDashboard() {
       setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
 
-    // Обработка параметра status из URL
-    if (status) {
-      console.log('=== URL STATUS ===');
-      console.log('Setting filterIncomingStatus to:', status);
-      // Маппинг статусов: in_progress -> in_progress, execution -> execution, completed -> completed
-      setFilterIncomingStatus(status);
-    }
+    // Обработка параметров status и priority из URL (только если уже инициализирован)
+    // При первой загрузке это обрабатывается в INITIAL LOAD
+    if (isInitialized.current) {
+      if (status && filterIncomingStatus !== status) {
+        console.log('=== URL STATUS ===');
+        console.log('Setting filterIncomingStatus to:', status);
+        setFilterIncomingStatus(status);
+      }
 
-    // Обработка параметра priority из URL
-    if (priority) {
-      console.log('=== URL PRIORITY ===');
-      console.log('Setting filterIncomingType to:', priority);
-      // Маппинг приоритетов: normal -> normal, urgent -> urgent, planned -> planned
-      setFilterIncomingType(priority);
+      if (priority && filterIncomingType !== priority) {
+        console.log('=== URL PRIORITY ===');
+        console.log('Setting filterIncomingType to:', priority);
+        setFilterIncomingType(priority);
+      }
     }
-  }, [searchParams])
+  }, [searchParams, filterIncomingStatus, filterIncomingType])
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -737,11 +789,15 @@ export default function AdminWorkerDashboard() {
     console.log('filterIncomingStatus:', filterIncomingStatus);
     console.log('prevFilterStatus:', prevFilterStatus.current);
     
+    // Пропускаем, если еще не инициализирован (INITIAL LOAD уже загрузит данные)
+    if (!isInitialized.current) {
+      return;
+    }
+    
     if (isLoggedIn && filterIncomingStatus !== prevFilterStatus.current) {
       console.log('Filter status changed, fetching requests');
       prevFilterStatus.current = filterIncomingStatus;
       fetchRequests(1); // Сбрасываем на первую страницу при изменении фильтра
-      isInitialized.current = true;
     }
   }, [filterIncomingStatus, isLoggedIn]);
 

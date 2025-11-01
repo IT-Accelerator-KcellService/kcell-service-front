@@ -656,7 +656,7 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+  const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
     lastElementRef.current = node;
   }, []);
 
