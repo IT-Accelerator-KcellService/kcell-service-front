@@ -349,6 +349,7 @@ export default function DepartmentHeadDashboard() {
   useEffect(() => {
     const create = searchParams.get("createRequest")
     const status = searchParams.get("status")
+    const priority = searchParams.get("priority")
 
     if (create === "true") {
       // Всегда добавляем createRequest в стек и историю
@@ -362,11 +363,19 @@ export default function DepartmentHeadDashboard() {
       setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
 
-    // Handle status parameter from URL
-    if (status) {
-      setFilterIncomingStatus(status);
+    // Обработка параметров фильтров из URL (только если уже инициализирован)
+    // При первой загрузке это обрабатывается в INITIAL LOAD
+    if (isInitialized.current) {
+      if (status && filterIncomingStatus !== status) {
+        setFilterIncomingStatus(status);
+      }
+      
+      if (priority && filterIncomingType !== priority) {
+        setFilterIncomingType(priority);
+      }
     }
-  }, [searchParams])
+    // Если еще не инициализирован, фильтры будут установлены в INITIAL LOAD
+  }, [searchParams, filterIncomingStatus, filterIncomingType])
 
   // Сохраняем requestId в state при первой загрузке
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
@@ -569,6 +578,11 @@ export default function DepartmentHeadDashboard() {
         params.append('status', filterIncomingStatus);
       }
 
+      // Добавляем фильтр приоритета если он не "all"
+      if (filterIncomingType !== "all") {
+        params.append('priority', filterIncomingType);
+      }
+
       const response: any = await api.get(`/request-groups?${params.toString()}`);
 
       const otherRequests: Request[] = response.data.otherRequests || [];
@@ -731,32 +745,79 @@ export default function DepartmentHeadDashboard() {
 
   useEffect(() => {
     // Инициализация данных при первом рендере
-    if (!isInitialized.current) {
+    if (isLoggedIn && !isInitialized.current) {
+      // Читаем параметры из URL перед загрузкой
+      const status = searchParams.get("status");
+      const priority = searchParams.get("priority");
+      
+      // Устанавливаем фильтры из URL
+      if (status) {
+        setFilterIncomingStatus(status);
+        prevFilterStatus.current = status;
+      }
+      if (priority) {
+        setFilterIncomingType(priority);
+      }
+      
+      // Загружаем данные с учетом фильтров из URL
+      // Используем параметры напрямую из searchParams, а не из состояния
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '10'
+      });
+      
+      if (status && status !== "all" && status !== "long_term") {
+        params.append('status', status);
+      }
+      if (priority && priority !== "all") {
+        params.append('priority', priority);
+      }
+      
+      // Загружаем данные с правильными фильтрами из URL
+      setLoading(true);
+      isLoadingRef.current = true;
+      api.get(`/request-groups?${params.toString()}`)
+        .then((response) => {
+          const otherRequests: Request[] = response.data.otherRequests || [];
+          const myRequests: Request[] = response.data.myRequests || [];
+          
+          // Проверяем рейтинги для завершенных заявок
+          const allRequests = [...otherRequests, ...myRequests];
+          allRequests.forEach((requestGroup) => {
+            requestGroup.requests.forEach((subRequest) => {
+              if (subRequest.status === "completed") {
+                checkUserRating(subRequest.id);
+              }
+            });
+          });
+          
+          // Бэкенд уже отсортировал данные, используем их напрямую
+          setIncomingRequests(otherRequests);
+          setMyRequests(myRequests);
+          setHasMore(otherRequests.length === 10);
+          setPage(1);
+          isInitialized.current = true;
+        })
+        .catch((error: any) => {
+          console.error("Ошибка при загрузке заявок:", error);
+          if (error.response?.status === 401) {
+            clearAuth();
+            router.push("/login");
+          }
+        })
+        .finally(() => {
+          setLoading(false);
+          isLoadingRef.current = false;
+        });
+      
       fetchExecutors();
       fetchOffices();
-      // Загружаем первую страницу при инициализации
-      // Используем задержку чтобы избежать конфликта с другими useEffect
-      const timeoutId = setTimeout(() => {
-        if (!isLoadingRef.current) {
-          fetchRequests(1);
-        }
-      }, 100);
-      isInitialized.current = true;
-
-      return () => {
-        clearTimeout(timeoutId);
-      };
     }
-  }, [fetchRequests]);
+  }, [isLoggedIn, searchParams, checkUserRating]);
 
-  // Перезагружаем данные при изменении фильтра статуса
+  // Перезагружаем данные при изменении фильтров (только если уже инициализирован)
   useEffect(() => {
-    if (filterIncomingStatus !== prevFilterStatus.current && isInitialized.current) {
-      const previousFilter = prevFilterStatus.current;
-      prevFilterStatus.current = filterIncomingStatus;
-
-      console.log('Filter changed from', previousFilter, 'to:', filterIncomingStatus);
-
+    if (isInitialized.current && filterIncomingStatus !== prevFilterStatus.current) {
       // Отключаем observer перед сбросом
       if (observer.current) {
         observer.current.disconnect();
@@ -767,8 +828,7 @@ export default function DepartmentHeadDashboard() {
       setHasMore(true);
       setIncomingRequests([]);
       setMyRequests([]);
-      setLoading(false); // Сбрасываем состояние загрузки
-      isLoadingRef.current = false; // Важно: сбрасываем флаг загрузки перед новым запросом
+      isLoadingRef.current = false; // Сбрасываем флаг загрузки
 
       // Очищаем throttle
       if (throttleTimeoutRef.current) {
@@ -776,23 +836,13 @@ export default function DepartmentHeadDashboard() {
         throttleTimeoutRef.current = null;
       }
 
-      // Небольшая задержка перед загрузкой, чтобы убедиться что все состояния сброшены
-      const timeoutId = setTimeout(() => {
-        // Проверяем что нет активной загрузки перед вызовом
-        if (!isLoadingRef.current) {
-          fetchRequests(1);
-        } else {
-          console.log('Skipping fetchRequests: already loading');
-        }
-      }, 50);
+      // Обновляем prevFilterStatus
+      prevFilterStatus.current = filterIncomingStatus;
 
-      return () => {
-        clearTimeout(timeoutId);
-        // Если компонент размонтируется, сбрасываем флаг
-        isLoadingRef.current = false;
-      };
+      // Загружаем данные без задержки
+      fetchRequests(1);
     }
-  }, [filterIncomingStatus, fetchRequests]) // Добавляем fetchRequests обратно для корректной работы
+  }, [filterIncomingStatus, fetchRequests])
 
   const fetchClientInfo = async (userId: number) => {
     if (clientInfo[userId]) return
