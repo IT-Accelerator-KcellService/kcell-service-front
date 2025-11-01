@@ -1,19 +1,62 @@
 "use client"
 
-import React, { useMemo, useCallback } from "react"
-import Image from "next/image"
+import React, { useMemo, useCallback, useState, useRef, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { MapPin, Calendar as CalendarLucid, ImageIcon, User } from "lucide-react"
 import { RequestGroup } from "@/stores/useRequestStore"
+import { getThumbnailUrl } from "@/lib/imageOptimization"
 
 interface RequestCardProps {
   request: RequestGroup
   onCardClick: (request: RequestGroup) => void
   renderCardHeader: (request: RequestGroup) => React.ReactNode
   isLast?: boolean
-  lastElementRef?: (node: HTMLDivElement) => void
+  lastElementRef?: ((node: HTMLDivElement | null) => void) | React.RefObject<HTMLDivElement> | null
   clientRating?: any
   userRole?: string
+}
+
+// Компонент для ленивой загрузки изображений с IntersectionObserver
+function LazyImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [isLoaded, setIsLoaded] = useState(false)
+  const [isInView, setIsInView] = useState(false)
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsInView(true)
+            observer.disconnect()
+          }
+        })
+      },
+      { rootMargin: '50px' } // Начинаем загрузку за 50px до появления в viewport
+    )
+
+    if (imgRef.current) {
+      observer.observe(imgRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <img
+      ref={imgRef}
+      src={isInView ? src : '/placeholder.svg'}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      decoding="async"
+      onLoad={() => setIsLoaded(true)}
+      style={{ 
+        backgroundColor: isLoaded ? 'transparent' : '#f3f4f6',
+        transition: 'opacity 0.2s'
+      }}
+    />
+  )
 }
 
 function RequestCardComponent({
@@ -37,10 +80,10 @@ function RequestCardComponent({
   const formattedDate = useMemo(() => formatDate(request.created_date), [request.created_date, formatDate])
   
   const cardClassName = useMemo(() => {
-    return `hover:shadow-xl transition-shadow duration-200 border-0 shadow-lg relative overflow-hidden cursor-pointer will-change-transform ${
+    return `hover:shadow-md transition-shadow duration-200 border-0 shadow-sm relative overflow-hidden cursor-pointer will-change-transform ${
       request.is_long_term && request.request_type !== 'recurring'
-        ? 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 hover:shadow-blue-400/30 border-l-4 border-blue-500' 
-        : 'bg-white hover:shadow-purple-400/20'
+        ? 'bg-blue-50 hover:shadow-blue-200/50 border-l-4 border-blue-500' 
+        : 'bg-white hover:shadow-gray-200/50'
     }`
   }, [request.is_long_term, request.request_type])
   
@@ -72,7 +115,7 @@ function RequestCardComponent({
           </div>
         </div>
 
-        {/* Фотографии */}
+        {/* Фотографии - оптимизированная загрузка */}
         {request.photos && request.photos.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -80,22 +123,17 @@ function RequestCardComponent({
               <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
             </div>
             <div className="flex gap-2 overflow-x-auto">
-              {request.photos.slice(0, 4).map((photo, index) => (
-                <div key={index} className="flex-shrink-0">
-                  <Image
-                    src={photo.photo_url || "/placeholder.svg"}
-                    alt={`Фото ${index + 1}`}
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm"
-                    loading="lazy"
-                    unoptimized={!photo.photo_url || photo.photo_url.startsWith('/')}
-                  />
-                </div>
+              {request.photos.slice(0, 2).map((photo, index) => (
+                <LazyImage
+                  key={index}
+                  src={getThumbnailUrl(photo.photo_url)}
+                  alt={`Фото ${index + 1}`}
+                  className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm flex-shrink-0"
+                />
               ))}
-              {request.photos.length > 4 && (
-                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
-                  <span className="text-xs font-bold text-white">+{request.photos.length - 4}</span>
+              {request.photos.length > 2 && (
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-purple-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                  <span className="text-xs font-bold text-white">+{request.photos.length - 2}</span>
                 </div>
               )}
             </div>

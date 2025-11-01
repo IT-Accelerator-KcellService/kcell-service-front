@@ -55,6 +55,7 @@ import {CreateRequestModal} from "@/components/CreateRequestModal";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {IconInfoModal} from "@/components/IconInfoModal";
 import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
+import { getPreviewUrl } from "@/lib/imageOptimization";
 import { createClickableRequestIds } from '@/lib/notificationUtils';
 import { RequestNotFoundModal } from '@/components/RequestNotFoundModal';
 import {CommentsModal} from "@/components/CommentsModal";
@@ -2242,7 +2243,7 @@ export default function DepartmentHeadDashboard() {
                               .map((photo: any, index: number) => (
                                   <img
                                       key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
+                                      src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                   onClick={() => {
@@ -2268,7 +2269,7 @@ export default function DepartmentHeadDashboard() {
                               .map((photo: any, index: number) => (
                                   <img
                                       key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
+                                      src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
                                       className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                             onClick={() => {

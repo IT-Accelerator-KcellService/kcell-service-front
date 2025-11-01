@@ -85,6 +85,7 @@ import Executors from "@/components/Executors";
 import PhotoModal from "@/components/photo/PhotoModal";
 import {RatingModal} from "@/components/RatingModal";
 import RegistrationRequestsManager from "@/components/RegistrationRequestsManager";
+import { getPreviewUrl } from "@/lib/imageOptimization";
 
 declare global {
   interface Window {
@@ -286,7 +287,7 @@ export default function ManagerDashboard() {
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
-  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+  const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
     lastElementRef.current = node;
   }, []);
   const [stats, setStats] = useState<Stats[]>([]);
@@ -1864,7 +1865,6 @@ export default function ManagerDashboard() {
 
   const renderCardHeader = useCallback((requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
-    const totalSubRequests = requestGroup.requests.length;
 
     return (
         <CardHeader className={`pb-3 px-5 pt-5`}>
@@ -1876,9 +1876,6 @@ export default function ManagerDashboard() {
                 </h3>
               </div>
               <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
-                {totalSubRequests} под заявок
-              </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
@@ -2263,7 +2260,7 @@ export default function ManagerDashboard() {
                   const isLast = index === filteredRequests.length - 1;
                   return (
                       <RequestCard
-                          key={`incoming-${requestGroup.id}`}
+                          key={`incoming-${index}`}
                           request={requestGroup}
                           onCardClick={handleCardClick}
                           renderCardHeader={renderCardHeader}
@@ -3264,7 +3261,7 @@ export default function ManagerDashboard() {
                             .map((photo: any, index: number) => (
                                           <img
                                               key={index}
-                                              src={photo.photo_url || "/placeholder.svg"}
+                                              src={getPreviewUrl(photo.photo_url)}
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {
@@ -3290,7 +3287,7 @@ export default function ManagerDashboard() {
                             .map((photo: any, index: number) => (
                                           <img
                                               key={index}
-                                              src={photo.photo_url || "/placeholder.svg"}
+                                              src={getPreviewUrl(photo.photo_url)}
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {
