@@ -42,22 +42,25 @@ const Executors: React.FC<ExecutorsProps> = ({ subRequest, userRatings }) => {
     }
 
     const getRatingData = () => {
-        // Сначала проверяем userRatings (для клиентов)
+        // Приоритет: проверяем subRequest.ratings (среднее значение всех оценок от backend)
+        if (subRequest && subRequest.ratings && subRequest.ratings.length > 0) {
+            const rating = subRequest.ratings[0]; // Backend возвращает объект с rating (среднее), comments и count
+            // Если rating уже содержит вычисленное среднее значение и все комментарии
+            if (rating.rating !== null && rating.rating !== undefined) {
+                return {
+                    rating: rating.rating,
+                    comment: undefined, // Среднее значение не имеет одного комментария
+                    comments: rating.comments || []
+                };
+            }
+        }
+        // Fallback: проверяем userRatings (для обратной совместимости)
         if (userRatings && userRatings[subRequest.id]) {
             const userRating = userRatings[subRequest.id];
             return {
                 rating: userRating.rating,
                 comment: userRating.comment,
                 comments: userRating.comments || (userRating.comment ? [userRating.comment] : [])
-            };
-        }
-        // Затем проверяем subRequest.ratings (для других ролей)
-        if (subRequest && subRequest.ratings && subRequest.ratings.length > 0) {
-            const rating = subRequest.ratings[0]; // Берем первый рейтинг
-            return {
-                rating: rating.rating,
-                comment: rating.comment,
-                comments: rating.comments || (rating.comment ? [rating.comment] : [])
             };
         }
         // Fallback: проверяем subRequest.rating (для обратной совместимости)
