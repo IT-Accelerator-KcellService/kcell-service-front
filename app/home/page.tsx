@@ -108,13 +108,18 @@ export default function HomePage() {
     // Загрузка статистики при инициализации
     useEffect(() => {
         if (role && token) {
-            fetchStats(role);
-            // Для админов также загружаем managerStats для графиков
+            // Для админов загружаем обе статистики параллельно
             if (role === 'admin-worker') {
-                fetchStats('manager');
+                Promise.all([
+                    fetchStats(role),
+                    fetchStats('manager')
+                ]);
+            } else {
+                fetchStats(role);
             }
         }
     }, [role, token, fetchStats]);
+
 
     const chartData: ChartData[] = useMemo(() => {
         if (role !== 'manager' && role !== 'admin-worker') return [];
@@ -159,16 +164,19 @@ export default function HomePage() {
 
             // Иначе используем обычную логику по периодам
             const now = new Date()
-            const start = new Date(
-                period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
-                period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
-                period === "week" ? now.getDate() - 7 : now.getDate(),
-            )
+            let periodStartDate: Date;
+            if (period === "week") {
+                periodStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            } else if (period === "month") {
+                periodStartDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+            } else { // year
+                periodStartDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+            }
+            const periodStartDateStr = periodStartDate.toISOString().split('T')[0]
             const map: Record<string, number> = {}
             subset.forEach((s) => {
                 Object.entries(s.data).forEach(([date, d]) => {
-                    const dd = new Date(date)
-                    if (dd >= start) map[date] = (map[date] || 0) + d.totalRequests
+                    if (date >= periodStartDateStr) map[date] = (map[date] || 0) + d.totalRequests
                 })
             })
             return Object.entries(map)
@@ -200,16 +208,19 @@ export default function HomePage() {
 
         // Иначе используем обычную логику по периодам
         const now = new Date()
-        const start = new Date(
-            period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
-            period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
-            period === "week" ? now.getDate() - 7 : now.getDate(),
-        )
+        let periodStartDate: Date;
+        if (period === "week") {
+            periodStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        } else if (period === "month") {
+            periodStartDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+        } else { // year
+            periodStartDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+        }
+        const periodStartDateStr = periodStartDate.toISOString().split('T')[0]
         const map: Record<string, number> = {}
         subset.forEach((s) => {
             Object.entries(s.data).forEach(([date, d]) => {
-                const dd = new Date(date)
-                if (dd >= start) map[date] = (map[date] || 0) + d.totalRequests
+                if (date >= periodStartDateStr) map[date] = (map[date] || 0) + d.totalRequests
             })
         })
         return Object.entries(map)
@@ -251,20 +262,56 @@ export default function HomePage() {
             if (!adminOfficeId) return;
             const subset = managerStats.filter((s) => s.officeId === adminOfficeId);
             
+            // Если выбран интервал дат, показываем данные за этот интервал
+            if (startDate && endDate) {
+                const startDateStr = startDate.toISOString().split('T')[0];
+                const endDateStr = endDate.toISOString().split('T')[0];
+                let total = 0
+                let normal = 0
+                let urgent = 0
+                let planned = 0
+                
+                subset.forEach((stat) => {
+                    Object.entries(stat.data).forEach(([date, data]) => {
+                        if (date >= startDateStr && date <= endDateStr) {
+                            total += data.totalRequests
+                            normal += data.normalRequests || 0
+                            urgent += data.urgentRequests || 0
+                            planned += data.plannedRequests || 0
+                        }
+                    })
+                })
+                
+                const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
+                return {
+                    total,
+                    normal,
+                    urgent,
+                    planned,
+                    normalPercent: pct(normal),
+                    urgentPercent: pct(urgent),
+                    plannedPercent: pct(planned),
+                }
+            }
+            
+            // Иначе используем обычную логику по периодам
             const now = new Date()
-            const start = new Date(
-                period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
-                period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
-                period === "week" ? now.getDate() - 7 : now.getDate(),
-            )
+            let periodStartDate: Date;
+            if (period === "week") {
+                periodStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            } else if (period === "month") {
+                periodStartDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+            } else { // year
+                periodStartDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+            }
+            const periodStartDateStr = periodStartDate.toISOString().split('T')[0]
             let total = 0
             let normal = 0
             let urgent = 0
             let planned = 0
             subset.forEach((stat) => {
                 Object.entries(stat.data).forEach(([date, data]) => {
-                    const d = new Date(date)
-                    if (d >= start) {
+                    if (date >= periodStartDateStr) {
                         total += data.totalRequests
                         normal += data.normalRequests || 0
                         urgent += data.urgentRequests || 0
@@ -286,6 +333,40 @@ export default function HomePage() {
         
         // Для менеджера используем существующую логику
         const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
+        
+        // Если выбран интервал дат, показываем данные за этот интервал
+        if (startDate && endDate) {
+            const startDateStr = startDate.toISOString().split('T')[0];
+            const endDateStr = endDate.toISOString().split('T')[0];
+            let total = 0
+            let normal = 0
+            let urgent = 0
+            let planned = 0
+            
+            subset.forEach((stat) => {
+                Object.entries(stat.data).forEach(([date, data]) => {
+                    if (date >= startDateStr && date <= endDateStr) {
+                        total += data.totalRequests
+                        normal += data.normalRequests || 0
+                        urgent += data.urgentRequests || 0
+                        planned += data.plannedRequests || 0
+                    }
+                })
+            })
+            
+            const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
+            return {
+                total,
+                normal,
+                urgent,
+                planned,
+                normalPercent: pct(normal),
+                urgentPercent: pct(urgent),
+                plannedPercent: pct(planned),
+            }
+        }
+        
+        // Иначе используем обычную логику по периодам
         const now = new Date()
         const start = new Date(
             period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
@@ -317,7 +398,7 @@ export default function HomePage() {
             urgentPercent: pct(urgent),
             plannedPercent: pct(planned),
         }
-    }, [role, user, office, period, managerStats, adminWorkerStats])
+    }, [role, user, office, period, startDate, endDate, managerStats, adminWorkerStats])
 
     const roleTranslations: Record<string, string> = {
         client: "Клиент",
@@ -423,11 +504,12 @@ export default function HomePage() {
                 const completed = adminWorkerStats.statusCounts.completed;
                 const overdue = adminWorkerStats.statusCounts.overdue;
                 const inWork = adminWorkerStats.statusCounts.inWork;
+                const newRequests = adminWorkerStats.statusCounts.new || 0;
                 const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
                 const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0;
                 const avgPerDay = Math.round(total / 30); // Примерно за месяц
                 
-                return { total, completed, overdue, inWork, completionRate, overdueRate, avgPerDay };
+                return { total, completed, overdue, inWork, newRequests, completionRate, overdueRate, avgPerDay };
             }
             
             if (!adminOfficeId) {
@@ -436,6 +518,7 @@ export default function HomePage() {
                     completed: 0,
                     overdue: 0,
                     inWork: 0,
+                    newRequests: 0,
                     completionRate: 0,
                     overdueRate: 0,
                     avgPerDay: 0,
@@ -443,26 +526,63 @@ export default function HomePage() {
             }
             const subset = managerStats.filter((s) => s.officeId === adminOfficeId);
             
+            // Если выбран интервал дат, показываем данные за этот интервал
+            if (startDate && endDate) {
+                const startDateStr = startDate.toISOString().split('T')[0];
+                const endDateStr = endDate.toISOString().split('T')[0];
+                let total = 0
+                let completed = 0
+                let overdue = 0
+                let inWork = 0
+                let newRequests = 0
+                const dayCounts = new Set<string>()
+                
+                subset.forEach((stat) => {
+                    Object.entries(stat.data).forEach(([date, data]) => {
+                        if (date >= startDateStr && date <= endDateStr) {
+                            total += data.totalRequests
+                            completed += data.completedRequests
+                            overdue += data.overdueRequests || 0;
+                            inWork += data.inWorkRequests || 0;
+                            newRequests += data.newRequests || 0;
+                            dayCounts.add(date)
+                        }
+                    })
+                })
+                
+                const days = dayCounts.size || 1
+                const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+                const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0
+                const avgPerDay = Math.round(total / days)
+                return { total, completed, overdue, inWork, newRequests, completionRate, overdueRate, avgPerDay }
+            }
+            
+            // Иначе используем обычную логику по периодам
             const now = new Date()
-            const start = new Date(
-                period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
-                period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
-                period === "week" ? now.getDate() - 7 : now.getDate(),
-            )
+            let periodStartDate: Date;
+            if (period === "week") {
+                periodStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            } else if (period === "month") {
+                periodStartDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+            } else { // year
+                periodStartDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+            }
+            const periodStartDateStr = periodStartDate.toISOString().split('T')[0]
             let total = 0
             let completed = 0
             let overdue = 0
             let inWork = 0
+            let newRequests = 0
             const dayCounts = new Set<string>()
             subset.forEach((stat) => {
                 Object.entries(stat.data).forEach(([date, data]) => {
-                    const d = new Date(date)
-                    if (d >= start) {
+                    if (date >= periodStartDateStr) {
                         total += data.totalRequests
                         completed += data.completedRequests
                         overdue += data.overdueRequests || 0;
                         // Теперь используем прямые данные из бэкенда
                         inWork += data.inWorkRequests || 0;
+                        newRequests += data.newRequests || 0;
                         dayCounts.add(date)
                     }
                 })
@@ -471,17 +591,54 @@ export default function HomePage() {
             const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
             const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0
             const avgPerDay = Math.round(total / days)
-            return { total, completed, overdue, inWork, completionRate, overdueRate, avgPerDay }
+            return { total, completed, overdue, inWork, newRequests, completionRate, overdueRate, avgPerDay }
         }
         
         // Для менеджера используем существующую логику
         const subset = office === "all" ? managerStats : managerStats.filter((s) => s.officeId === Number(office))
+        
+        // Если выбран интервал дат, показываем данные за этот интервал
+        if (startDate && endDate) {
+            const startDateStr = startDate.toISOString().split('T')[0];
+            const endDateStr = endDate.toISOString().split('T')[0];
+            let total = 0
+            let completed = 0
+            let overdue = 0
+            let inWork = 0
+            let newRequests = 0
+            const dayCounts = new Set<string>()
+            
+            subset.forEach((stat) => {
+                Object.entries(stat.data).forEach(([date, data]) => {
+                    if (date >= startDateStr && date <= endDateStr) {
+                        total += data.totalRequests
+                        completed += data.completedRequests
+                        overdue += data.overdueRequests || 0;
+                        inWork += data.inWorkRequests || 0;
+                        newRequests += data.newRequests || 0;
+                        dayCounts.add(date)
+                    }
+                })
+            })
+            
+            const days = dayCounts.size || 1
+            const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+            const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0
+            const avgPerDay = Math.round(total / days)
+            return { total, completed, overdue, inWork, newRequests, completionRate, overdueRate, avgPerDay }
+        }
+        
+        // Иначе используем обычную логику по периодам
         const now = new Date()
-        const start = new Date(
-            period === "week" ? now.getFullYear() : period === "month" ? now.getFullYear() : now.getFullYear() - 1,
-            period === "week" ? now.getMonth() : period === "month" ? now.getMonth() - 1 : now.getMonth(),
-            period === "week" ? now.getDate() - 7 : now.getDate(),
-        )
+        let periodStartDate: Date;
+        if (period === "week") {
+            periodStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        } else if (period === "month") {
+            periodStartDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+        } else { // year
+            periodStartDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+        }
+        const periodStartDateStr = periodStartDate.toISOString().split('T')[0]
         let total = 0
         let completed = 0
         let overdue = 0
@@ -490,8 +647,7 @@ export default function HomePage() {
         const dayCounts = new Set<string>()
         subset.forEach((stat) => {
             Object.entries(stat.data).forEach(([date, data]) => {
-                const d = new Date(date)
-                if (d >= start) {
+                if (date >= periodStartDateStr) {
                     total += data.totalRequests
                     completed += data.completedRequests
                     overdue += data.overdueRequests || 0;
@@ -507,7 +663,7 @@ export default function HomePage() {
         const overdueRate = total > 0 ? Math.round((overdue / total) * 100) : 0
         const avgPerDay = Math.round(total / days)
         return { total, completed, overdue, inWork, newRequests, completionRate, overdueRate, avgPerDay }
-    }, [role, user, managerStats, adminWorkerStats, office, period])
+    }, [role, user, managerStats, adminWorkerStats, office, period, startDate, endDate])
 
     const rating = getRatingInfo((clientStats && clientStats.doneRequests ? (
         clientStats.doneRequests
@@ -840,22 +996,22 @@ export default function HomePage() {
                                         />
                                         <Stat 
                                             label="Новые" 
-                                            value={adminWorkerStats?.statusCounts?.new ?? 0} 
+                                            value={summary.newRequests ?? adminWorkerStats?.statusCounts?.new ?? 0} 
                                             onClick={handleNewRequestsClick}
                                         />
                                         <Stat 
                                             label="В работе" 
-                                            value={adminWorkerStats?.statusCounts?.inWork ?? 0} 
+                                            value={summary.inWork ?? 0} 
                                             onClick={handleInWorkRequestsClick}
                                         />
                                         <Stat 
                                             label="Завершено" 
-                                            value={`${adminWorkerStats?.statusCounts?.completed ?? 0} (${summary.completionRate}%)`} 
+                                            value={`${summary.completed} (${summary.completionRate}%)`} 
                                             onClick={handleCompletedRequestsClick}
                                         />
                                         <Stat 
                                             label="Просрочено" 
-                                            value={`${adminWorkerStats?.statusCounts?.overdue ?? 0} (${summary.overdueRate}%)`} 
+                                            value={`${summary.overdue} (${summary.overdueRate}%)`} 
                                             onClick={handleOverdueRequestsClick}
                                         />
                                         <Stat label="В день (ср.)" value={summary.avgPerDay} />

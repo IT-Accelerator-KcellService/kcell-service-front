@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useCallback, useEffect, useRef, useState} from "react"
+import React, {useCallback, useEffect, useRef, useState, useMemo} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
@@ -55,7 +55,9 @@ import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
 import {RoleBasedActionMenu} from "@/components/action-menu/RoleBasedActionMenu";
-import {LogsViewer} from "@/components/logs-viewer";
+const LogsViewer = dynamic(() => import("@/components/logs-viewer").then(mod => ({ default: mod.LogsViewer })), {
+  loading: () => <div className="text-center py-8">Загрузка логов...</div>
+});
 import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 import {IconInfoModal} from "@/components/IconInfoModal";
 import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
@@ -70,7 +72,11 @@ import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import {RequestCard} from "@/components/RequestCard";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
-import ManagerAnalytics from "@/components/ManagerAnalytics";
+import dynamic from 'next/dynamic';
+
+const ManagerAnalytics = dynamic(() => import("@/components/ManagerAnalytics"), {
+  loading: () => <div className="text-center py-8">Загрузка аналитики...</div>
+});
 import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover"
 import {Calendar} from "@/components/ui/calendar";
 import {ru} from "date-fns/locale";
@@ -79,6 +85,7 @@ import Executors from "@/components/Executors";
 import PhotoModal from "@/components/photo/PhotoModal";
 import {RatingModal} from "@/components/RatingModal";
 import RegistrationRequestsManager from "@/components/RegistrationRequestsManager";
+import { getPreviewUrl } from "@/lib/imageOptimization";
 
 declare global {
   interface Window {
@@ -138,8 +145,13 @@ interface Category {
 }
 
 export default function ManagerDashboard() {
-  const {token, clearAuth, user} = useAuthStore()
-  const {categories, fetchCategories, clearCategories} = useCategoryStore()
+  // Optimized Zustand selectors
+  const token = useAuthStore(state => state.token)
+  const user = useAuthStore(state => state.user)
+  const clearAuth = useAuthStore(state => state.clearAuth)
+  const categories = useCategoryStore(state => state.categories)
+  const fetchCategories = useCategoryStore(state => state.fetchCategories)
+  const clearCategories = useCategoryStore(state => state.clearCategories)
   const searchParams = useSearchParams()
   const successModal = useSuccessModal()
   const approveModal = useAcceptRequestModal()
@@ -177,10 +189,13 @@ export default function ManagerDashboard() {
   const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 });
   const [showMapModal, setShowMapModal] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
-  const {requests, setRequests, clearRequests} = useRequestStore()
+  const requests = useRequestStore(state => state.requests)
+  const setRequests = useRequestStore(state => state.setRequests)
+  const clearRequests = useRequestStore(state => state.clearRequests)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [isInitialized, setIsInitialized] = useState(false)
+  const filtersInitializedFromURL = useRef(false) // Флаг, что фильтры были инициализированы из URL
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleteLoading, setIsDeleteLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
@@ -272,7 +287,7 @@ export default function ManagerDashboard() {
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
-  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+  const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
     lastElementRef.current = node;
   }, []);
   const [stats, setStats] = useState<Stats[]>([]);
@@ -289,36 +304,38 @@ export default function ManagerDashboard() {
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
 
-  const filteredRequests = requests.filter((request) => {
-    const now = new Date();
-    let periodStartDate: Date | null;
+  const filteredRequests = useMemo(() => {
+    return requests.filter((request) => {
+      const now = new Date();
+      let periodStartDate: Date | null;
 
-    switch (period) {
-      case 'week':
-        periodStartDate = subDays(now, 7);
-        break;
-      case 'month':
-        periodStartDate = subMonths(now, 1);
-        break;
-      case 'year':
-        periodStartDate = subYears(now, 1);
-        break;
-      default:
-        periodStartDate = null;
-    }
-    const statusMatch = filterStatus === "all" ||
-        (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
-         filterStatus === "overdue" ? true : request.status === filterStatus);
-    const requestType = request.request_type;
-    // Для типа заявки используем бэкенд фильтрацию, поэтому фронтенд фильтрация не нужна
-    const typeMatch = true; // Всегда true, так как бэкенд уже отфильтровал по типу
-    const officeMatch = office === "all" || office == String(request.office_id);
+      switch (period) {
+        case 'week':
+          periodStartDate = subDays(now, 7);
+          break;
+        case 'month':
+          periodStartDate = subMonths(now, 1);
+          break;
+        case 'year':
+          periodStartDate = subYears(now, 1);
+          break;
+        default:
+          periodStartDate = null;
+      }
+      const statusMatch = filterStatus === "all" ||
+          (filterStatus === "long_term" ? request.requests.some(req => req.is_long_term && request.request_type !== 'recurring') : 
+           filterStatus === "overdue" ? true : request.status === filterStatus);
+      const requestType = request.request_type;
+      // Для типа заявки используем бэкенд фильтрацию, поэтому фронтенд фильтрация не нужна
+      const typeMatch = true; // Всегда true, так как бэкенд уже отфильтровал по типу
+      const officeMatch = office === "all" || office == String(request.office_id);
 
-    const createdDate = new Date(request.created_date);
-    const periodMatch = !periodStartDate || isAfter(createdDate, periodStartDate);
+      const createdDate = new Date(request.created_date);
+      const periodMatch = !periodStartDate || isAfter(createdDate, periodStartDate);
 
-    return statusMatch && typeMatch && officeMatch && periodMatch;
-  })
+      return statusMatch && typeMatch && officeMatch && periodMatch;
+    })
+  }, [requests, period, filterStatus, office])
 
   useEffect(() => {
     if (loading) return;
@@ -347,19 +364,20 @@ export default function ManagerDashboard() {
     }
   }, []);
 
-  const openModal = (name: string) => {
+  const openModal = useCallback((name: string) => {
     setModalStack(prev => [...prev, name]);
     window.history.pushState({ modal: name }, '', window.location.pathname);
-  };
+  }, []);
 
-  const closeModalWithHistory = () => {
+  const closeModalWithHistory = useCallback(() => {
     setIsClosingProgrammatically(true);
-    const newStack = modalStack.slice(0, -1);
-    setModalStack(newStack);
-
-    // Откатываем историю браузера назад
-    window.history.back();
-  };
+    setModalStack(prev => {
+      const newStack = prev.slice(0, -1);
+      // Откатываем историю браузера назад
+      window.history.back();
+      return newStack;
+    });
+  }, []);
 
   const checkUserRating = useCallback(async (requestId: number) => {
     try {
@@ -402,18 +420,25 @@ export default function ManagerDashboard() {
       setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
 
-    // Обработка параметра status из URL
-    if (status) {
-      // Маппинг статусов: in_progress -> in_progress, execution -> execution, completed -> completed
-      setFilterStatus(status);
-    }
+    // Обработка параметров фильтров из URL
+    // Устанавливаем фильтры из URL только после инициализации, чтобы избежать конфликта с INITIAL LOAD
+    if (isInitialized) {
+      if (status) {
+        // Если в URL есть параметр status, обновляем фильтр
+        setFilterStatus(status);
+        filtersInitializedFromURL.current = true;
+      }
+      // Если параметра нет, НЕ меняем filterStatus - сохраняем текущее значение
 
-    // Обработка параметра priority из URL
-    if (priority) {
-      // Маппинг приоритетов: normal -> normal, urgent -> urgent, planned -> planned
-      setFilterType(priority);
+      if (priority) {
+        // Если в URL есть параметр priority, обновляем фильтр
+        setFilterType(priority);
+        filtersInitializedFromURL.current = true;
+      }
+      // Если параметра нет, НЕ меняем filterType - сохраняем текущее значение
     }
-  }, [searchParams])
+    // Если еще не инициализирован, фильтры будут установлены в INITIAL LOAD
+  }, [searchParams, isInitialized])
 
   useEffect(() => {
     if (stats.length) {
@@ -932,16 +957,66 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     // Инициализация данных при первом рендере
-    if (!isInitialized) {
-      fetchRequests(1);
-      setIsInitialized(true);
+    if (!isInitialized && token) {
+      // Читаем параметры из URL перед загрузкой
+      const status = searchParams.get("status");
+      const priority = searchParams.get("priority");
+      
+      // Устанавливаем фильтры из URL
+      if (status) {
+        setFilterStatus(status);
+      }
+      if (priority) {
+        setFilterType(priority);
+      }
+      
+      // Загружаем данные с учетом фильтров из URL
+      // Используем параметры напрямую из searchParams, а не из состояния
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '10'
+      });
+      
+      if (status && status !== "all" && status !== "long_term") {
+        params.append('status', status);
+      }
+      if (priority && priority !== "all") {
+        params.append('priority', priority);
+      }
+      
+      // Загружаем данные с правильными фильтрами из URL
+      setLoading(true);
+      api.get(`/request-groups?${params.toString()}`)
+        .then((response) => {
+          const newRequests = response.data.data;
+          setRequests(newRequests);
+          setHasMore(1 < response.data.totalPages);
+          setPage(1);
+          
+          // Загружаем оценки для завершенных заявок
+          newRequests.forEach((requestGroup: any) => {
+            requestGroup.requests.forEach((subRequest: any) => {
+              if (subRequest.status === "completed") {
+                checkUserRating(subRequest.id);
+              }
+            });
+          });
+          
+          setIsInitialized(true);
+        })
+        .catch((error: any) => {
+          console.error("Ошибка при загрузке заявок:", error);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
     fetchNotifications();
     fetchOffices();
     if (token) {
       fetchCategories(token);
     }
-  }, [token, filterStatus]);
+  }, [token, searchParams, checkUserRating]);
 
   useEffect(() => {
     if (categories.length > 0) {
@@ -976,15 +1051,12 @@ export default function ManagerDashboard() {
     }
   }, [filterStatus]);
 
-  // Перезагружаем данные при изменении фильтров
+  // Перезагружаем данные при изменении фильтров (только если уже инициализирован)
   useEffect(() => {
     if (isInitialized) {
       fetchRequests(1); // Reset to first page when filter changes
-    } else {
-      // Если это первая загрузка и есть фильтр, загружаем с фильтром
-      fetchRequests(1);
-      setIsInitialized(true);
     }
+    // INITIAL LOAD теперь обрабатывается отдельно с учетом searchParams
   }, [filterStatus, filterType]);
 
   const fetchRequests = useCallback(async (pageToLoad = 1) => {
@@ -1796,8 +1868,9 @@ export default function ManagerDashboard() {
       setNewOfficeName("")
       setNewOfficeCity("")
       setNewOfficeAddress("")
-      setFilterStatus("all")
-      setFilterType("all")
+      // Фильтры не сбрасываем при обновлении - сохраняем выбранные значения
+      // setFilterStatus("all")
+      // setFilterType("all")
       setNewUser({ id: 0, full_name: "", phone: "", office_id: 0, role: "", category_id: 0 });
       setSearchInput("")
       setEditedOffice({name: "", city: "", address: ""})
@@ -1834,9 +1907,13 @@ export default function ManagerDashboard() {
     setEndDate(undefined);
   };
 
-  const renderCardHeader = (requestGroup: RequestGroup) => {
+  const handleCardClick = useCallback((request: RequestGroup) => {
+    setSelectedRequest(request);
+    openModal('requestDetails');
+  }, [openModal]);
+
+  const renderCardHeader = useCallback((requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
-    const totalSubRequests = requestGroup.requests.length;
 
     return (
         <CardHeader className={`pb-3 px-5 pt-5`}>
@@ -1848,9 +1925,6 @@ export default function ManagerDashboard() {
                 </h3>
               </div>
               <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full text-purple-600 bg-purple-50">
-                {totalSubRequests} под заявок
-              </span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
@@ -1889,7 +1963,7 @@ export default function ManagerDashboard() {
           </div>
         </CardHeader>
     );
-  };
+  }, [isDesktop, openModal, checkUserRating]);
 
 
   const handleRateExecutor = async () => {
@@ -2230,17 +2304,14 @@ export default function ManagerDashboard() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
                 {filteredRequests.map((requestGroup, index) => {
                   const isLast = index === filteredRequests.length - 1;
                   return (
                       <RequestCard
-                          key={`incoming-${requestGroup.id}`}
+                          key={`incoming-${index}`}
                           request={requestGroup}
-                          onCardClick={(request) => {
-                            setSelectedRequest(request);
-                            openModal('requestDetails');
-                          }}
+                          onCardClick={handleCardClick}
                           renderCardHeader={renderCardHeader}
                           isLast={isLast}
                           lastElementRef={lastRequestRef}
@@ -3239,7 +3310,7 @@ export default function ManagerDashboard() {
                             .map((photo: any, index: number) => (
                                           <img
                                               key={index}
-                                              src={photo.photo_url || "/placeholder.svg"}
+                                              src={getPreviewUrl(photo.photo_url)}
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {
@@ -3265,7 +3336,7 @@ export default function ManagerDashboard() {
                             .map((photo: any, index: number) => (
                                           <img
                                               key={index}
-                                              src={photo.photo_url || "/placeholder.svg"}
+                                              src={getPreviewUrl(photo.photo_url)}
                                     alt={`Фото ${index + 1}`}
                                     className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
                                     onClick={() => {

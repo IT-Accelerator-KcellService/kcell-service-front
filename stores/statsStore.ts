@@ -197,8 +197,8 @@ export const useStatsStore = create<StatsState & StatsActions>()(
 
             // === Основной метод загрузки ===
             fetchStats: async (role: string) => {
-                if (get().loading) return; // Защита от дублирования запроса
-
+                // Разрешаем параллельные запросы для разных ролей
+                // Защита нужна только от дублирования запросов для одной и той же роли
                 set({ loading: true, error: null });
 
                 try {

@@ -55,6 +55,7 @@ import {CreateRequestModal} from "@/components/CreateRequestModal";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {IconInfoModal} from "@/components/IconInfoModal";
 import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
+import { getPreviewUrl } from "@/lib/imageOptimization";
 import { createClickableRequestIds } from '@/lib/notificationUtils';
 import { RequestNotFoundModal } from '@/components/RequestNotFoundModal';
 import {CommentsModal} from "@/components/CommentsModal";
@@ -348,6 +349,7 @@ export default function DepartmentHeadDashboard() {
   useEffect(() => {
     const create = searchParams.get("createRequest")
     const status = searchParams.get("status")
+    const priority = searchParams.get("priority")
 
     if (create === "true") {
       // Всегда добавляем createRequest в стек и историю
@@ -361,11 +363,19 @@ export default function DepartmentHeadDashboard() {
       setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
 
-    // Handle status parameter from URL
-    if (status) {
-      setFilterIncomingStatus(status);
+    // Обработка параметров фильтров из URL (только если уже инициализирован)
+    // При первой загрузке это обрабатывается в INITIAL LOAD
+    if (isInitialized.current) {
+      if (status && filterIncomingStatus !== status) {
+        setFilterIncomingStatus(status);
+      }
+      
+      if (priority && filterIncomingType !== priority) {
+        setFilterIncomingType(priority);
+      }
     }
-  }, [searchParams])
+    // Если еще не инициализирован, фильтры будут установлены в INITIAL LOAD
+  }, [searchParams, filterIncomingStatus, filterIncomingType])
 
   // Сохраняем requestId в state при первой загрузке
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
@@ -550,6 +560,9 @@ export default function DepartmentHeadDashboard() {
       console.log('Fetch already in progress, skipping page', currentPage);
       return;
     }
+
+    console.log('fetchRequests called:', { currentPage, filterIncomingStatus });
+
     isLoadingRef.current = true;
     setLoading(true);
 
@@ -565,11 +578,16 @@ export default function DepartmentHeadDashboard() {
         params.append('status', filterIncomingStatus);
       }
 
+      // Добавляем фильтр приоритета если он не "all"
+      if (filterIncomingType !== "all") {
+        params.append('priority', filterIncomingType);
+      }
+
       const response: any = await api.get(`/request-groups?${params.toString()}`);
 
       const otherRequests: Request[] = response.data.otherRequests || [];
       const myRequests: Request[] = response.data.myRequests || [];
-      
+
       console.log('=== FETCH REQUESTS DEPARTMENT-HEAD ===');
       console.log('Current page:', currentPage);
       console.log('Page size:', pageSize);
@@ -597,7 +615,7 @@ export default function DepartmentHeadDashboard() {
         console.log('Incoming requests - previous:', prev.length, 'new:', newItems.length);
         return newItems;
       });
-      
+
       setMyRequests((prev) => {
         const newItems = currentPage === 1
           ? myRequests
@@ -610,8 +628,21 @@ export default function DepartmentHeadDashboard() {
       // Проверяем, есть ли еще данные - если хотя бы один массив вернул полный pageSize, значит есть еще
       const otherRequestsLength = otherRequests.length;
       const myRequestsLength = myRequests.length;
-      const hasMoreData = otherRequestsLength >= pageSize || myRequestsLength >= pageSize;
-      console.log('Has more data:', hasMoreData, '(other:', otherRequestsLength, 'my:', myRequestsLength, 'pageSize:', pageSize, ')');
+
+      // Более точная логика: если текущая страница 1 и данные меньше pageSize, то точно нет следующих страниц
+      // Если данные равны pageSize, возможно есть еще
+      let hasMoreData = false;
+      if (currentPage === 1) {
+        // На первой странице: если данные меньше pageSize, значит больше нет
+        // Если данные равны pageSize, возможно есть еще
+        hasMoreData = otherRequestsLength >= pageSize || myRequestsLength >= pageSize;
+      } else {
+        // На последующих страницах: если данные меньше pageSize, значит это последняя страница
+        // Если данные равны pageSize, возможно есть еще
+        hasMoreData = otherRequestsLength >= pageSize || myRequestsLength >= pageSize;
+      }
+
+      console.log('Has more data:', hasMoreData, '(other:', otherRequestsLength, 'my:', myRequestsLength, 'pageSize:', pageSize, 'page:', currentPage, ')');
       setHasMore(hasMoreData);
     } catch (error) {
       console.error("Failed to fetch requests:", error);
@@ -639,34 +670,49 @@ export default function DepartmentHeadDashboard() {
     }
   }
 
-  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+  const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
     lastElementRef.current = node;
   }, []);
 
   useEffect(() => {
     if (loading) return;
-    
+
     // Не создаем observer если нет данных или пагинация отключена
     if (!hasMore && page === 1 && incomingRequests.length === 0) return;
+
+    // Не создаем observer если данные еще загружаются или запрос в процессе
+    if (isLoadingRef.current) return;
 
     if (observer.current) {
       observer.current.disconnect();
     }
 
     observer.current = new IntersectionObserver((entries) => {
+      // Проверяем все условия перед загрузкой следующей страницы
       if (entries[0].isIntersecting && hasMore && !loading && !isLoadingRef.current) {
         // Throttle: предотвращаем множественные вызовы при быстром скролле
         if (throttleTimeoutRef.current) {
           return;
         }
-        
+
+        // Проверяем еще раз перед установкой throttle (race condition protection)
+        if (isLoadingRef.current || loading || !hasMore) {
+          return;
+        }
+
         throttleTimeoutRef.current = setTimeout(() => {
           throttleTimeoutRef.current = null;
         }, 500); // 500ms throttle
-        
+
+        // Проверяем еще раз все условия (race condition protection)
+        if (isLoadingRef.current || loading || !hasMore) {
+          return;
+        }
+
         setPage((prevPage) => {
           const nextPage = prevPage + 1;
           console.log('Observer triggered: loading page', nextPage);
+          // fetchRequests сам установит isLoadingRef.current = true
           fetchRequests(nextPage);
           return nextPage;
         });
@@ -676,12 +722,17 @@ export default function DepartmentHeadDashboard() {
       rootMargin: '100px', // Начинаем загрузку за 100px до конца
     });
 
-    if (lastElementRef.current) {
-      observer.current.observe(lastElementRef.current);
-    }
+    // Добавляем небольшую задержку перед подключением observer
+    // чтобы избежать немедленного срабатывания после загрузки данных
+    const timeoutId = setTimeout(() => {
+      if (lastElementRef.current && !loading && !isLoadingRef.current) {
+        observer.current?.observe(lastElementRef.current);
+      }
+    }, 100);
 
     // Cleanup функция для observer
     return () => {
+      clearTimeout(timeoutId);
       if (observer.current) {
         observer.current.disconnect();
       }
@@ -690,43 +741,105 @@ export default function DepartmentHeadDashboard() {
         throttleTimeoutRef.current = null;
       }
     };
-  }, [loading, hasMore, page, incomingRequests.length]);
+  }, [loading, hasMore, page, fetchRequests]);
 
   useEffect(() => {
     // Инициализация данных при первом рендере
-    if (!isInitialized.current) {
+    if (isLoggedIn && !isInitialized.current) {
+      // Читаем параметры из URL перед загрузкой
+      const status = searchParams.get("status");
+      const priority = searchParams.get("priority");
+      
+      // Устанавливаем фильтры из URL
+      if (status) {
+        setFilterIncomingStatus(status);
+        prevFilterStatus.current = status;
+      }
+      if (priority) {
+        setFilterIncomingType(priority);
+      }
+      
+      // Загружаем данные с учетом фильтров из URL
+      // Используем параметры напрямую из searchParams, а не из состояния
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '10'
+      });
+      
+      if (status && status !== "all" && status !== "long_term") {
+        params.append('status', status);
+      }
+      if (priority && priority !== "all") {
+        params.append('priority', priority);
+      }
+      
+      // Загружаем данные с правильными фильтрами из URL
+      setLoading(true);
+      isLoadingRef.current = true;
+      api.get(`/request-groups?${params.toString()}`)
+        .then((response) => {
+          const otherRequests: Request[] = response.data.otherRequests || [];
+          const myRequests: Request[] = response.data.myRequests || [];
+          
+          // Проверяем рейтинги для завершенных заявок
+          const allRequests = [...otherRequests, ...myRequests];
+          allRequests.forEach((requestGroup) => {
+            requestGroup.requests.forEach((subRequest) => {
+              if (subRequest.status === "completed") {
+                checkUserRating(subRequest.id);
+              }
+            });
+          });
+          
+          // Бэкенд уже отсортировал данные, используем их напрямую
+          setIncomingRequests(otherRequests);
+          setMyRequests(myRequests);
+          setHasMore(otherRequests.length === 10);
+          setPage(1);
+          isInitialized.current = true;
+        })
+        .catch((error: any) => {
+          console.error("Ошибка при загрузке заявок:", error);
+          if (error.response?.status === 401) {
+            clearAuth();
+            router.push("/login");
+          }
+        })
+        .finally(() => {
+          setLoading(false);
+          isLoadingRef.current = false;
+        });
+      
       fetchExecutors();
       fetchOffices();
-      // Загружаем первую страницу при инициализации
-      fetchRequests(1);
-      isInitialized.current = true;
     }
-  }, []);
+  }, [isLoggedIn, searchParams, checkUserRating]);
 
-  // Перезагружаем данные при изменении фильтра статуса
+  // Перезагружаем данные при изменении фильтров (только если уже инициализирован)
   useEffect(() => {
-    if (filterIncomingStatus !== prevFilterStatus.current && isInitialized.current) {
-      prevFilterStatus.current = filterIncomingStatus;
-      
+    if (isInitialized.current && filterIncomingStatus !== prevFilterStatus.current) {
       // Отключаем observer перед сбросом
       if (observer.current) {
         observer.current.disconnect();
       }
-      
+
       // Сбрасываем все состояния пагинации
       setPage(1);
       setHasMore(true);
       setIncomingRequests([]);
       setMyRequests([]);
       isLoadingRef.current = false; // Сбрасываем флаг загрузки
-      
+
       // Очищаем throttle
       if (throttleTimeoutRef.current) {
         clearTimeout(throttleTimeoutRef.current);
         throttleTimeoutRef.current = null;
       }
-      
-      // Загружаем первую страницу
+
+      // Обновляем prevFilterStatus
+      prevFilterStatus.current = filterIncomingStatus;
+
+      // Загружаем данные без задержки
       fetchRequests(1);
     }
   }, [filterIncomingStatus, fetchRequests])
@@ -1996,7 +2109,7 @@ export default function DepartmentHeadDashboard() {
                         const hasComments = showComments === subRequest.id;
 
                         return (
-                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow duration-200 will-change-transform ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
                               {/* Заголовок под заявки */}
                               <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-3">
@@ -2180,9 +2293,9 @@ export default function DepartmentHeadDashboard() {
                               .map((photo: any, index: number) => (
                                   <img
                                       key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
+                                      src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                   onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
@@ -2206,9 +2319,9 @@ export default function DepartmentHeadDashboard() {
                               .map((photo: any, index: number) => (
                                   <img
                                       key={index}
-                                      src={photo.photo_url || "/placeholder.svg"}
+                                      src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                             onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');

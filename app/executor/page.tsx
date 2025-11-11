@@ -1,5 +1,5 @@
 "use client"
-import React, {useCallback, useEffect, useState} from "react"
+import React, {useCallback, useEffect, useState, useMemo} from "react"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Badge} from "@/components/ui/badge"
@@ -60,6 +60,7 @@ import {CompleteTaskModal} from "@/components/CompleteTaskModal";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import {RejectSubRequestModal} from "@/components/RejectSubRequestModal";
 import SubRequestInfo from "@/components/SubRequestInfo";
+import { getPreviewUrl } from "@/lib/imageOptimization";
 import Executors from "@/components/Executors";
 import ClientRatingModal from "@/components/ClientRatingModal";
 import PhotoModal from "@/components/photo/PhotoModal";
@@ -792,13 +793,15 @@ export default function ExecutorDashboard() {
     fetchStats()
   }, []);
 
-  const filteredRequests = myRequests.filter((request:any) => {
-    const statusMatch = filterStatus === "all"   ||
-        (filterStatus === "long_term" ? request.requests.some((req: { is_long_term: any }) => req.is_long_term && request.request_type !== 'recurring') : request.status === filterStatus);
-    const requestType = request.request_type
-    const typeMatch = filterType === "all" || requestType === filterType
-    return statusMatch && typeMatch
-  })
+  const filteredRequests = useMemo(() => {
+    return myRequests.filter((request:any) => {
+      const statusMatch = filterStatus === "all"   ||
+          (filterStatus === "long_term" ? request.requests.some((req: { is_long_term: any }) => req.is_long_term && request.request_type !== 'recurring') : request.status === filterStatus);
+      const requestType = request.request_type
+      const typeMatch = filterType === "all" || requestType === filterType
+      return statusMatch && typeMatch
+    })
+  }, [myRequests, filterStatus, filterType])
 
   const closeAllModalsExcept = async (modalName: string) => {
 
@@ -1568,7 +1571,7 @@ export default function ExecutorDashboard() {
     });
   };
 
-  const renderCardHeader = (requestGroup: RequestGroup) => {
+  const renderCardHeader = useCallback((requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     // Убрали счетчик подзаявок - теперь показываем только один заявка
     const isRecurring = requestGroup.request_type === 'recurring';
@@ -1634,7 +1637,7 @@ export default function ExecutorDashboard() {
         </div>
       </CardHeader>
     );
-  };
+  }, [isDesktop]);
 
   const handleRefresh = async () => {
     try {
@@ -1879,10 +1882,10 @@ export default function ExecutorDashboard() {
                       </Select>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
                       {filteredRequests.map((request:any, index: number) => (
                           <RequestCard
-                              key={index}
+                              key={request.id || index}
                               request={request}
                               onCardClick={(request) => {
                                 setSelectedRequest(request);
@@ -2103,7 +2106,7 @@ export default function ExecutorDashboard() {
                         const hasComments = showComments === subRequest.id;
 
                         return (
-                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow duration-200 will-change-transform ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
                               {/* Заголовок под заявки */}
                               <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-3">
@@ -2313,9 +2316,9 @@ export default function ExecutorDashboard() {
                               .map((photo: any, index: number) => (
                                 <img
                                     key={index}
-                                    src={photo.photo_url || "/placeholder.svg"}
+                                    src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                       onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');

@@ -1,6 +1,6 @@
 "use client"
 
-import React, {useState, useRef, useEffect, useCallback} from "react"
+import React, {useState, useRef, useEffect, useCallback, useMemo} from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -60,6 +60,7 @@ import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { RequestCard } from "@/components/RequestCard";
 import { RatingModal } from "@/components/RatingModal";
 import { IconInfoModal } from "@/components/IconInfoModal";
+import { getPreviewUrl } from "@/lib/imageOptimization";
 import { MapModal } from "@/components/MapModal";
 import {getSubRequestDisplayId} from "@/lib/subRequestUtils";
 import { createClickableRequestIds } from '@/lib/notificationUtils';
@@ -199,6 +200,7 @@ export default function AdminWorkerDashboard() {
   const [filterIncomingType, setFilterIncomingType] = useState("all")
   const prevFilterStatus = useRef("all")
   const isInitialized = useRef(false)
+  const initialStatusRef = useRef<string | null>(null)
   const [stats, setStats] = useState<Stats | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
@@ -275,7 +277,7 @@ export default function AdminWorkerDashboard() {
     console.log('ADMIN: modalStack changed:', modalStack);
   }, [modalStack]);
 
-  const lastRequestRef = useCallback((node: HTMLDivElement) => {
+  const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
     lastElementRef.current = node;
   }, []);
 
@@ -608,12 +610,63 @@ export default function AdminWorkerDashboard() {
   // Инициализация данных при первом рендере
   useEffect(() => {
     if (isLoggedIn && !isInitialized.current) {
+      // Сначала проверяем параметры из URL
+      const status = searchParams.get("status");
+      const priority = searchParams.get("priority");
+      
+      // Сохраняем статус для использования в запросе
+      initialStatusRef.current = status;
+      
+      // Устанавливаем фильтры в состояние
+      if (status) {
+        setFilterIncomingStatus(status);
+        prevFilterStatus.current = status;
+      }
+      if (priority) {
+        setFilterIncomingType(priority);
+      }
+      
+      // Загружаем данные с учетом фильтров из URL
       console.log('=== INITIAL LOAD ===');
-      console.log('Loading initial data without filter');
-      fetchRequests(1);
-      isInitialized.current = true;
+      console.log('Loading initial data with filter:', status || 'all');
+      
+      // Создаем параметры запроса напрямую из searchParams
+      const params = new URLSearchParams({
+        page: '1',
+        pageSize: '10'
+      });
+      
+      if (status && status !== "all" && status !== "long_term") {
+        params.append('status', status);
+      }
+      if (priority && priority !== "all") {
+        params.append('priority', priority);
+      }
+      
+      // Загружаем данные с правильными фильтрами из URL
+      setLoading(true);
+      api.get(`/request-groups?${params.toString()}`)
+        .then((response) => {
+          const sortedNewIncomingRequests = sortRequests(response.data.otherRequests);
+          const sortedNewMyRequests = sortRequests(response.data.myRequests);
+          setIncomingRequests(sortedNewIncomingRequests);
+          setMyRequests(sortedNewMyRequests);
+          setHasMore(response.data.otherRequests.length === 10);
+          setPage(1);
+          isInitialized.current = true;
+        })
+        .catch((error: any) => {
+          console.error("Ошибка при загрузке заявок:", error);
+          if (error.response?.status === 401) {
+            clearAuth();
+            router.push("/login");
+          }
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, searchParams]);
 
   useEffect(() => {
     if (categories.length > 0) {
@@ -628,7 +681,7 @@ export default function AdminWorkerDashboard() {
     }
   }, [user?.office_id, token]);
 
-  const filteredMyRequests = sortRequests(
+  const filteredMyRequests = useMemo(() => sortRequests(
       myRequests.filter((request) => {
         let statusMatch = false;
         
@@ -647,9 +700,9 @@ export default function AdminWorkerDashboard() {
         const typeMatch = filterMyType === "all" || requestType === filterMyType;
         return statusMatch && typeMatch;
       })
-  );
+  ), [myRequests, filterMyStatus, filterMyType]);
 
-  const filteredIncomingRequests = sortRequests(
+  const filteredIncomingRequests = useMemo(() => sortRequests(
       incomingRequests.filter((request) => {
         let statusMatch = false;
         
@@ -669,7 +722,7 @@ export default function AdminWorkerDashboard() {
         
         return statusMatch && typeMatch;
       })
-  );
+  ), [incomingRequests, filterIncomingStatus, filterIncomingType]);
 
   useEffect(() => {
     if (notifications.length > 0) {
@@ -701,22 +754,22 @@ export default function AdminWorkerDashboard() {
       setModalStack(prev => prev.filter(modal => modal !== 'createRequest'));
     }
 
-    // Обработка параметра status из URL
-    if (status) {
-      console.log('=== URL STATUS ===');
-      console.log('Setting filterIncomingStatus to:', status);
-      // Маппинг статусов: in_progress -> in_progress, execution -> execution, completed -> completed
-      setFilterIncomingStatus(status);
-    }
+    // Обработка параметров status и priority из URL (только если уже инициализирован)
+    // При первой загрузке это обрабатывается в INITIAL LOAD
+    if (isInitialized.current) {
+      if (status && filterIncomingStatus !== status) {
+        console.log('=== URL STATUS ===');
+        console.log('Setting filterIncomingStatus to:', status);
+        setFilterIncomingStatus(status);
+      }
 
-    // Обработка параметра priority из URL
-    if (priority) {
-      console.log('=== URL PRIORITY ===');
-      console.log('Setting filterIncomingType to:', priority);
-      // Маппинг приоритетов: normal -> normal, urgent -> urgent, planned -> planned
-      setFilterIncomingType(priority);
+      if (priority && filterIncomingType !== priority) {
+        console.log('=== URL PRIORITY ===');
+        console.log('Setting filterIncomingType to:', priority);
+        setFilterIncomingType(priority);
+      }
     }
-  }, [searchParams])
+  }, [searchParams, filterIncomingStatus, filterIncomingType])
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -736,11 +789,15 @@ export default function AdminWorkerDashboard() {
     console.log('filterIncomingStatus:', filterIncomingStatus);
     console.log('prevFilterStatus:', prevFilterStatus.current);
     
+    // Пропускаем, если еще не инициализирован (INITIAL LOAD уже загрузит данные)
+    if (!isInitialized.current) {
+      return;
+    }
+    
     if (isLoggedIn && filterIncomingStatus !== prevFilterStatus.current) {
       console.log('Filter status changed, fetching requests');
       prevFilterStatus.current = filterIncomingStatus;
       fetchRequests(1); // Сбрасываем на первую страницу при изменении фильтра
-      isInitialized.current = true;
     }
   }, [filterIncomingStatus, isLoggedIn]);
 
@@ -2181,7 +2238,7 @@ export default function AdminWorkerDashboard() {
     });
   };
 
-  const renderCardHeader = (requestGroup: RequestGroup) => {
+  const renderCardHeader = useCallback((requestGroup: RequestGroup) => {
     const isLongTerm = requestGroup.requests.some(req => req.is_long_term);
     // Убрали счетчик подзаявок - теперь показываем только один заявка
 
@@ -2239,7 +2296,7 @@ export default function AdminWorkerDashboard() {
         </div>
       </CardHeader>
     );
-  };
+  }, [isDesktop]);
 
   const handleRefresh = async () => {
     try {
@@ -2540,12 +2597,13 @@ export default function AdminWorkerDashboard() {
                       </Select>
 
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredIncomingRequests.map((request, index) => {
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
+                      {/* Ограничиваем количество рендеримых карточек для улучшения производительности */}
+                      {filteredIncomingRequests.slice(0, 50).map((request, index) => {
                         const isLast = index === filteredIncomingRequests.length - 1;
                         return (
                           <RequestCard
-                            key={`incoming-${request.id}`}
+                            key={`incoming-${index}`}
                             request={request}
                             onCardClick={(request) => {
                               setSelectedRequest(request);
@@ -3417,7 +3475,7 @@ export default function AdminWorkerDashboard() {
                         const hasComments = showComments === subRequest.id;
 
                         return (
-                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
+                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow duration-200 will-change-transform ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
                               {/* Заголовок под заявки */}
                               <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
                                 <div className="flex justify-between items-start mb-3 gap-4">
@@ -3825,9 +3883,9 @@ export default function AdminWorkerDashboard() {
                               .map((photo: any, index: number) => (
                                       <img
                                           key={index}
-                                          src={photo.photo_url || "/placeholder.svg"}
+                                          src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                       onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
@@ -3851,9 +3909,9 @@ export default function AdminWorkerDashboard() {
                               .map((photo: any, index: number) => (
                                     <img
                                         key={index}
-                                        src={photo.photo_url || "/placeholder.svg"}
+                                        src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
                                       onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
