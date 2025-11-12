@@ -25,7 +25,12 @@ import {
   User,
   XCircle,
   Zap,
-  Hourglass, ChevronUp, ChevronDown, Users, Calendar as CalendarLucid,
+  Hourglass,
+  ChevronUp,
+  ChevronDown,
+  Users,
+  Calendar as CalendarLucid,
+  Building2,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import api, { getOffices } from "@/lib/api";
@@ -63,6 +68,7 @@ import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import PhotoModal from "@/components/photo/PhotoModal";
+import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
 
 interface Rating {
   id: number;
@@ -1179,6 +1185,10 @@ export default function ClientDashboard() {
                   <TabsList>
                     <TabsTrigger value="requests">Мои заявки</TabsTrigger>
                     <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                    <TabsTrigger value="meeting-rooms" className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Переговорные
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -1187,6 +1197,10 @@ export default function ClientDashboard() {
                   <TabsList>
                     <TabsTrigger value="requests">Мои заявки</TabsTrigger>
                     <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                    <TabsTrigger value="meeting-rooms" className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Переговорные
+                    </TabsTrigger>
                   </TabsList>
                   <Button
                       onClick={() => router.push('/create-request')}
@@ -1280,6 +1294,10 @@ export default function ClientDashboard() {
                         </div>
                       </CardContent>
                     </Card>
+                  </TabsContent>
+
+                  <TabsContent value="meeting-rooms">
+                    <MeetingRoomsCatalog />
                   </TabsContent>
                 </Tabs>
               </div>

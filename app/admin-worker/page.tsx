@@ -31,6 +31,7 @@ import {
   ChevronDown,
   Hourglass,
   FileSpreadsheet,
+  Building2,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import api, { getOffices, getExecutorsByCategory, changeCategoryHead, createServiceCategory, deleteServiceCategory, assignExecutorToCategory, getAllExecutorsForAdmin } from "@/lib/api";
@@ -74,6 +75,7 @@ import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-
 import { ImportExcelModal } from "@/components/ImportExcelModal";
 import { deleteRecurringTask } from "@/lib/api";
 import PhotoModal from "@/components/photo/PhotoModal";
+import { MeetingRoomsAdmin } from "@/components/meeting-rooms/MeetingRoomsAdmin";
 
 interface User {
   id: number;
@@ -2440,9 +2442,13 @@ export default function AdminWorkerDashboard() {
                         <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                           <span className="sm:hidden">Повторяющиеся</span>
                         </TabsTrigger>
-                        {/*<TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">*/}
-                        {/*  Статистика*/}
-                        {/*</TabsTrigger>*/}
+                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden flex items-center gap-1">
+                            <Building2 className="h-3.5 w-3.5" />
+                            Переговорные
+                          </span>
+                          <span className="hidden sm:inline">Переговорные</span>
+                        </TabsTrigger>
                         <TabsTrigger value="change-head" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                           Управление
                         </TabsTrigger>
@@ -2457,30 +2463,33 @@ export default function AdminWorkerDashboard() {
                   </div>
 
                   {/* на больших экранах */}
-                  <div className="hidden sm:flex justify-between items-center">
-                    <TabsList className="flex flex-wrap sm:flex-nowrap gap-2">
-                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="hidden sm:inline">Входящие заявки</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="hidden sm:inline">Мои заявки</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="hidden sm:inline">Повторяющиеся</span>
-                      </TabsTrigger>
-                      {/*<TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">*/}
-                      {/*  Статистика*/}
-                      {/*</TabsTrigger>*/}
-                      <TabsTrigger value="change-head" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Управление
-                      </TabsTrigger>
-                      <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Логи
-                      </TabsTrigger>
-                      <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Регистрации
-                      </TabsTrigger>
-                    </TabsList>
+                  <div className="hidden sm:flex justify-between items-center gap-3">
+                    <div className="flex-1 overflow-x-auto">
+                      <TabsList className="flex min-w-max gap-2">
+                        <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Входящие заявки
+                        </TabsTrigger>
+                        <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Мои заявки
+                        </TabsTrigger>
+                        <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Повторяющиеся
+                        </TabsTrigger>
+                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Переговорные
+                        </TabsTrigger>
+                        <TabsTrigger value="change-head" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Управление
+                        </TabsTrigger>
+                        <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Логи
+                        </TabsTrigger>
+                        <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Регистрации
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
                     <Button
                         onClick={() => router.push('/create-request')}
                         className="bg-violet-600 hover:bg-violet-700"
@@ -2563,6 +2572,10 @@ export default function AdminWorkerDashboard() {
                     openModal={openModal}
                     closeModalWithHistory={closeModalWithHistory}
                   />
+                </TabsContent>
+
+                <TabsContent value="meeting-rooms">
+                  <MeetingRoomsAdmin />
                 </TabsContent>
 
                 <TabsContent value="incoming">

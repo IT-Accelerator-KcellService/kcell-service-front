@@ -33,6 +33,7 @@ import {
   Users,
   XCircle,
   Zap,
+  Building2,
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
@@ -73,6 +74,7 @@ import {RequestCard} from "@/components/RequestCard";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import dynamic from 'next/dynamic';
+import { MeetingRoomsAdmin } from "@/components/meeting-rooms/MeetingRoomsAdmin";
 
 const ManagerAnalytics = dynamic(() => import("@/components/ManagerAnalytics"), {
   loading: () => <div className="text-center py-8">Загрузка аналитики...</div>
@@ -2141,20 +2143,26 @@ export default function ManagerDashboard() {
         <Tabs value={tab} onValueChange={setTab}>
           <div className="w-full mb-3">
             <div className="overflow-x-auto">
-              <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-6 sm:w-full">
-                <TabsTrigger value="requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+              <TabsList className="flex flex-wrap gap-2">
+                <TabsTrigger value="requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
                   Заявки
                 </TabsTrigger>
-                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
                   Обзор
                 </TabsTrigger>
-                <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
                   Аналитика
                 </TabsTrigger>
-                <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex items-center gap-1">
+                  <span className="flex items-center gap-1">
+                    <Building2 className="h-3.5 w-3.5" />
+                    Переговорные
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
                   Управление
                 </TabsTrigger>
-                <TabsTrigger value="logs" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                <TabsTrigger value="logs" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
                   Логи
                 </TabsTrigger>
                 <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
@@ -2384,6 +2392,10 @@ export default function ManagerDashboard() {
 
           <TabsContent value="analytics" className="mb-20">
             <ManagerAnalytics />
+          </TabsContent>
+
+          <TabsContent value="meeting-rooms" className="mb-20">
+            <MeetingRoomsAdmin />
           </TabsContent>
 
           {/* Management Tab Content for Manager */}

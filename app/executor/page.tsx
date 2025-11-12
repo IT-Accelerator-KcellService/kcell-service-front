@@ -24,6 +24,7 @@ import {
   Users,
   XCircle,
   Zap,
+  Building2,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import axios from "axios";
@@ -64,6 +65,7 @@ import { getPreviewUrl } from "@/lib/imageOptimization";
 import Executors from "@/components/Executors";
 import ClientRatingModal from "@/components/ClientRatingModal";
 import PhotoModal from "@/components/photo/PhotoModal";
+import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
 import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 
 const API_BASE_URL = 'https://workflow-back-zpk4.onrender.com/api';
@@ -1752,22 +1754,28 @@ export default function ExecutorDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
                   {isDesktop && (
-                      <Button
-                          onClick={() => router.push('/create-request')}
-                          className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Создать заявку
-                      </Button>
+                    <Button
+                      onClick={() => router.push('/create-request')}
+                      className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto sm:flex-shrink-0"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Создать заявку
+                    </Button>
                   )}
-                  <TabsList className="flex flex-wrap gap-2">
-                    <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
-                    <TabsTrigger value="myTasks">Мои заявки</TabsTrigger>
-                    <TabsTrigger value="completed">Завершенные</TabsTrigger>
-                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                  </TabsList>
+                  <div className="flex-1 overflow-x-auto">
+                    <TabsList className="flex min-w-max gap-2">
+                      <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
+                      <TabsTrigger value="myTasks">Мои заявки</TabsTrigger>
+                      <TabsTrigger value="completed">Завершенные</TabsTrigger>
+                      <TabsTrigger value="meeting-rooms" className="flex items-center gap-2 whitespace-nowrap">
+                        <Building2 className="h-4 w-4" />
+                        Переговорные
+                      </TabsTrigger>
+                      <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                    </TabsList>
+                  </div>
                 </div>
 
                 <TabsContent value="tasks" className="pt-6 sm:pt-0">
@@ -1898,6 +1906,10 @@ export default function ExecutorDashboard() {
                       ))}
                     </div>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="meeting-rooms" className="pt-6 sm:pt-0">
+                  <MeetingRoomsCatalog />
                 </TabsContent>
 
                 <TabsContent value="statistics" className="pt-6 sm:pt-0">

@@ -27,6 +27,8 @@ import {
   XCircle,
   Zap,
   FileSpreadsheet,
+  Building2,
+  LayoutGrid,
 } from "lucide-react"
 
 
@@ -69,6 +71,7 @@ import Executors from "@/components/Executors";
 import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
 import { ImportExcelModal } from "@/components/ImportExcelModal";
 import PhotoModal from "@/components/photo/PhotoModal";
+import { MeetingRoomsAdmin } from "@/components/meeting-rooms/MeetingRoomsAdmin";
 
 interface User {
   id: number
@@ -1664,44 +1667,62 @@ export default function DepartmentHeadDashboard() {
                   <div className="w-full mb-2 sm:hidden">
                     <div className="overflow-x-auto">
                       <TabsList className="flex w-max min-w-full">
-                        <TabsTrigger value="incoming" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                        <TabsTrigger value="incoming" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
                           <span className="sm:hidden">Входящие</span>
                         </TabsTrigger>
-                        <TabsTrigger value="my-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                        <TabsTrigger value="my-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
                           <span className="sm:hidden">Мои</span>
                         </TabsTrigger>
-                        <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                        <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
                           <span className="sm:hidden">Повторяющиеся</span>
                         </TabsTrigger>
-                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
                           Статистика
                         </TabsTrigger>
-                        <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
-                          <span className="sm:hidden">Управление</span>
+                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
+                          <span className="sm:hidden flex items-center gap-1">
+                            <Building2 className="h-3.5 w-3.5" />
+                            Переговорные
+                          </span>
+                          <span className="hidden sm:inline">Переговорные</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
+                          <span className="sm:hidden flex items-center gap-1">
+                            <LayoutGrid className="h-3.5 w-3.5" />
+                            Управление
+                          </span>
+                          <span className="hidden sm:inline">Управление</span>
                         </TabsTrigger>
                       </TabsList>
                     </div>
                   </div>
 
                   {/* на больших экранах */}
-                  <div className="hidden sm:flex justify-between items-center">
-                    <TabsList className="flex flex-wrap sm:flex-nowrap gap-2">
-                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="hidden sm:inline">Входящие заявки</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="hidden sm:inline">Мои заявки</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="hidden sm:inline">Повторяющиеся</span>
-                      </TabsTrigger>
-                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
-                        Статистика
-                      </TabsTrigger>
-                      <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap">
-                        <span className="hidden sm:inline">Управление</span>
-                      </TabsTrigger>
-                    </TabsList>
+                  <div className="hidden sm:flex justify-between items-center gap-3">
+                    <div className="flex-1 overflow-x-auto">
+                      <TabsList className="flex min-w-max gap-2">
+                        <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Входящие заявки
+                        </TabsTrigger>
+                        <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Мои заявки
+                        </TabsTrigger>
+                        <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Повторяющиеся
+                        </TabsTrigger>
+                        <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Статистика
+                        </TabsTrigger>
+                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Переговорные
+                        </TabsTrigger>
+                        <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                          <LayoutGrid className="h-4 w-4" />
+                          Управление
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
                     <Button
                         onClick={() => router.push('/create-request')}
                         className="bg-violet-600 hover:bg-violet-700"
@@ -1873,6 +1894,10 @@ export default function DepartmentHeadDashboard() {
                       </CardContent>
                     </Card>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="meeting-rooms" className="pt-2 sm:pt-0">
+                  <MeetingRoomsAdmin />
                 </TabsContent>
 
 
