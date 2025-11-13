@@ -12,15 +12,7 @@ import {
 } from "@/components/meeting-rooms/MeetingRoomsFilters";
 import { MeetingRoomCard } from "@/components/meeting-rooms/MeetingRoomCard";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
-} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,6 +38,8 @@ import {
   Copy,
   RefreshCcw,
   X,
+  Filter,
+  ChevronUp,
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -120,6 +114,8 @@ export function MeetingRoomsAdmin() {
   const [isEditing, setIsEditing] = useState(false);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<MeetingRoom | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   const availableFloors = useMemo(
     () => Array.from(new Set(rooms.map((room) => room.floor))).sort((a, b) => a - b),
@@ -242,6 +238,15 @@ export function MeetingRoomsAdmin() {
     }
   };
 
+  const handleAddRoomClick = () => {
+    resetForm();
+    setOpen(true);
+  };
+
+  const handleCancel = () => {
+    handleOpenChange(false);
+  };
+
   const handleEdit = (room: MeetingRoom) => {
     setIsEditing(true);
     setFormState(toFormState(room));
@@ -290,6 +295,18 @@ export function MeetingRoomsAdmin() {
 
   const handleStatusChange = (id: string, status: MeetingRoomStatus) => {
     setRoomStatus(id, status);
+  };
+
+  const toggleRoomExpand = (roomId: string) => {
+    setExpandedRooms((prev) => {
+      const next = new Set(prev);
+      if (next.has(roomId)) {
+        next.delete(roomId);
+      } else {
+        next.add(roomId);
+      }
+      return next;
+    });
   };
 
   const validateForm = () => {
@@ -364,25 +381,38 @@ export function MeetingRoomsAdmin() {
           <Badge variant="outline" className="rounded-full px-4 py-1 text-sm">
             Активных: {rooms.filter((room) => room.isActive).length}
           </Badge>
-          <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Добавить комнату
-              </Button>
-            </DialogTrigger>
-            <DialogContent
-              className="max-h-[90vh] overflow-hidden sm:max-w-3xl"
-              onCloseAutoFocus={(event) => event.preventDefault()}
-            >
-              <DialogHeader>
-                <DialogTitle>
-                  {isEditing ? "Редактирование переговорной" : "Новая переговорная"}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-6 py-4 sm:grid-cols-[2fr_1fr]">
-                <ScrollArea className="h-[60vh] pr-4">
-                  <div className="space-y-4">
+          <Button className="gap-2" onClick={handleAddRoomClick}>
+            <Plus className="h-4 w-4" />
+            Добавить комнату
+          </Button>
+        </div>
+        
+        {/* Кнопка фильтра для мобильных */}
+        <div className="lg:hidden">
+          <Button 
+            variant="outline" 
+            className="w-full gap-2"
+            onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+          >
+            <Filter className="h-4 w-4" />
+            Фильтр
+            {isFiltersOpen && <ChevronUp className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* Форма создания/редактирования комнаты */}
+      {open && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {isEditing ? "Редактирование переговорной" : "Новая переговорная"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 sm:grid-cols-[2fr_1fr]">
+              <ScrollArea className="h-[60vh] pr-4">
+                <div className="space-y-4 px-2">
                     <div className="space-y-2">
                       <Label htmlFor="meeting-room-name">Название</Label>
                       <Input
@@ -480,7 +510,7 @@ export function MeetingRoomsAdmin() {
                     </div>
                   </div>
                 </ScrollArea>
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 px-2">
                   <div className="space-y-3">
                     <div className="space-y-2">
                       <Label htmlFor="meeting-room-photos">Фотографии (до 3 шт.)</Label>
@@ -560,7 +590,7 @@ export function MeetingRoomsAdmin() {
                   </div>
                 </div>
               </div>
-              <DialogFooter className="gap-2 sm:gap-0">
+              <div className="flex flex-wrap items-center gap-2 pt-4 border-t">
                 {isEditing ? (
                   <Button
                     type="button"
@@ -588,20 +618,31 @@ export function MeetingRoomsAdmin() {
                     Удалить
                   </Button>
                 ) : null}
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">
-                    Отмена
-                  </Button>
-                </DialogClose>
+                <Button type="button" variant="outline" onClick={handleCancel}>
+                  Отмена
+                </Button>
                 <Button type="button" onClick={handleSubmit} className="gap-2">
                   <Save className="h-4 w-4" />
                   Сохранить
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </div>
+            </CardContent>
+          </Card>
+      )}
+
+      {/* Фильтры для мобильных - показываются после нажатия */}
+      {isFiltersOpen && (
+        <div className="lg:hidden">
+          <MeetingRoomsFilters
+            filters={filters}
+            onChange={setFilters}
+            availableFloors={availableFloors.length ? availableFloors : floorsRange}
+            capacityOptions={capacities}
+            showStatusFilter
+            showInactiveToggle
+          />
         </div>
-      </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_360px]">
         <div className="space-y-4">
@@ -619,6 +660,8 @@ export function MeetingRoomsAdmin() {
                   key={room.id}
                   room={room}
                   highlightInactive
+                  isExpanded={expandedRooms.has(room.id)}
+                  onToggleExpand={() => toggleRoomExpand(room.id)}
                   footer={
                     <div className="flex flex-wrap items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => handleEdit(room)}>
@@ -663,15 +706,18 @@ export function MeetingRoomsAdmin() {
           )}
         </div>
 
-        <MeetingRoomsFilters
-          filters={filters}
-          onChange={setFilters}
-          availableFloors={availableFloors.length ? availableFloors : floorsRange}
-          capacityOptions={capacities}
-          showStatusFilter
-          showInactiveToggle
-          className="self-start"
-        />
+        {/* Фильтры для десктопа */}
+        <div className="hidden lg:block">
+          <MeetingRoomsFilters
+            filters={filters}
+            onChange={setFilters}
+            availableFloors={availableFloors.length ? availableFloors : floorsRange}
+            capacityOptions={capacities}
+            showStatusFilter
+            showInactiveToggle
+            className="self-start"
+          />
+        </div>
       </div>
 
       <Button

@@ -2466,29 +2466,29 @@ export default function AdminWorkerDashboard() {
                   <div className="hidden sm:flex justify-between items-center gap-3">
                     <div className="flex-1 overflow-x-auto">
                       <TabsList className="flex min-w-max gap-2">
-                        <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
+                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
                           Входящие заявки
-                        </TabsTrigger>
-                        <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                      </TabsTrigger>
+                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
                           Мои заявки
-                        </TabsTrigger>
-                        <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                      </TabsTrigger>
+                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
                           Повторяющиеся
-                        </TabsTrigger>
+                      </TabsTrigger>
                         <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
                           <Building2 className="h-4 w-4" />
                           Переговорные
                         </TabsTrigger>
-                        <TabsTrigger value="change-head" className="text-sm px-3 py-2 whitespace-nowrap">
-                          Управление
-                        </TabsTrigger>
-                        <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
-                          Логи
-                        </TabsTrigger>
-                        <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
-                          Регистрации
-                        </TabsTrigger>
-                      </TabsList>
+                      <TabsTrigger value="change-head" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Управление
+                      </TabsTrigger>
+                      <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Логи
+                      </TabsTrigger>
+                      <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Регистрации
+                      </TabsTrigger>
+                    </TabsList>
                     </div>
                     <Button
                         onClick={() => router.push('/create-request')}

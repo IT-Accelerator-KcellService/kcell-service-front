@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Building2,
@@ -12,6 +13,8 @@ import {
   Tv,
   Users,
   ImageIcon,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   MEETING_ROOM_EQUIPMENT,
@@ -33,6 +36,8 @@ interface MeetingRoomCardProps {
   className?: string;
   footer?: React.ReactNode;
   highlightInactive?: boolean;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 const statusVariant: Record<MeetingRoom["status"], string> = {
@@ -45,10 +50,13 @@ export function MeetingRoomCard({
   className,
   footer,
   highlightInactive = true,
+  isExpanded = false,
+  onToggleExpand,
 }: MeetingRoomCardProps) {
   const equipment = room.equipment ?? [];
   const coverPhoto = room.photos?.[0];
   const extraPhotos = room.photos?.length ? room.photos.length - 1 : 0;
+  const hasExpandableContent = (room.description || footer) && onToggleExpand;
 
   return (
     <Card
@@ -98,8 +106,25 @@ export function MeetingRoomCard({
       </div>
 
       <CardHeader className="space-y-2">
-        <CardTitle className="text-lg font-semibold">{room.name}</CardTitle>
-        {room.description && (
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-lg font-semibold flex-1">{room.name}</CardTitle>
+          {hasExpandableContent && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleExpand}
+              className="h-8 w-8 p-0"
+              aria-label={isExpanded ? "Свернуть" : "Развернуть"}
+            >
+              {isExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+        </div>
+        {isExpanded && room.description && (
           <p className="text-sm text-muted-foreground">{room.description}</p>
         )}
       </CardHeader>
@@ -146,7 +171,7 @@ export function MeetingRoomCard({
         </div>
       </CardContent>
 
-      {footer ? (
+      {isExpanded && footer ? (
         <div className="px-6 pb-6 pt-0">
           <Separator className="mb-4" />
           {footer}

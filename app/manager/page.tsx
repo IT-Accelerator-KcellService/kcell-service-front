@@ -2143,40 +2143,38 @@ export default function ManagerDashboard() {
         <Tabs value={tab} onValueChange={setTab}>
           <div className="w-full mb-3">
             <div className="overflow-x-auto">
-              <TabsList className="flex flex-wrap gap-2">
-                <TabsTrigger value="requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
+              <TabsList className="flex flex-wrap sm:flex-nowrap gap-2 h-auto items-stretch">
+                <TabsTrigger value="requests" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
                   Заявки
                 </TabsTrigger>
-                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
+                <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
                   Обзор
                 </TabsTrigger>
-                <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
+                <TabsTrigger value="analytics" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
                   Аналитика
                 </TabsTrigger>
-                <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex items-center gap-1">
-                  <span className="flex items-center gap-1">
-                    <Building2 className="h-3.5 w-3.5" />
-                    Переговорные
-                  </span>
+                <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
+                  Переговорные
                 </TabsTrigger>
-                <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
+                <TabsTrigger value="management" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
                   Управление
                 </TabsTrigger>
-                <TabsTrigger value="logs" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap">
+                <TabsTrigger value="logs" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
                   Логи
                 </TabsTrigger>
-                <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                <TabsTrigger value="registration-requests" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
                   Регистрации
                 </TabsTrigger>
               </TabsList>
             </div>
           </div>
 
-          <TabsContent value="registration-requests" className="mb-20">
+          <TabsContent value="registration-requests" className="pt-2 sm:pt-0 mb-20">
             <RegistrationRequestsManager />
           </TabsContent>
 
-          <TabsContent value="requests" className="mb-20">
+          <TabsContent value="requests" className="pt-2 sm:pt-0 mb-20">
             {/* График для десктопа */}
             {isDesktop && (
             <Card className="mb-4">
@@ -2330,7 +2328,7 @@ export default function ManagerDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="overview" className="space-y-4 sm:space-y-6 mb-20">
+          <TabsContent value="overview" className="pt-2 sm:pt-0 space-y-4 sm:space-y-6 mb-20">
 
             {/* Distribution */}
             <Card>
@@ -2390,16 +2388,16 @@ export default function ManagerDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="analytics" className="mb-20">
+          <TabsContent value="analytics" className="pt-2 sm:pt-0 mb-20">
             <ManagerAnalytics />
           </TabsContent>
 
-          <TabsContent value="meeting-rooms" className="mb-20">
+          <TabsContent value="meeting-rooms" className="pt-2 sm:pt-0 mb-20">
             <MeetingRoomsAdmin />
           </TabsContent>
 
           {/* Management Tab Content for Manager */}
-          <TabsContent value="management">
+          <TabsContent value="management" className="pt-2 sm:pt-0">
             <div className="space-y-6 mb-20">
               {/* Office Management Card (Moved here) */}
               <Card>
@@ -2938,7 +2936,7 @@ export default function ManagerDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="logs">
+          <TabsContent value="logs" className="pt-2 sm:pt-0">
             <div className="w-full pb-20">
             <LogsViewer userRole="manager" isDesktop={isDesktop} />
             </div>

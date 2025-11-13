@@ -143,7 +143,6 @@ export const useMeetingRoomsStore = create<MeetingRoomsState>((set) => ({
             name: `${target.name} (копия)`,
             status: "available",
             isActive: false,
-            photos: [...target.photos],
           },
         ],
       };

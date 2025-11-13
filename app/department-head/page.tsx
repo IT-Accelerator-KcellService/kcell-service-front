@@ -71,7 +71,7 @@ import Executors from "@/components/Executors";
 import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-tasks";
 import { ImportExcelModal } from "@/components/ImportExcelModal";
 import PhotoModal from "@/components/photo/PhotoModal";
-import { MeetingRoomsAdmin } from "@/components/meeting-rooms/MeetingRoomsAdmin";
+import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
 
 interface User {
   id: number
@@ -1701,18 +1701,18 @@ export default function DepartmentHeadDashboard() {
                   <div className="hidden sm:flex justify-between items-center gap-3">
                     <div className="flex-1 overflow-x-auto">
                       <TabsList className="flex min-w-max gap-2">
-                        <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
+                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
                           Входящие заявки
-                        </TabsTrigger>
-                        <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                      </TabsTrigger>
+                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
                           Мои заявки
-                        </TabsTrigger>
-                        <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                      </TabsTrigger>
+                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
                           Повторяющиеся
-                        </TabsTrigger>
-                        <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
-                          Статистика
-                        </TabsTrigger>
+                      </TabsTrigger>
+                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Статистика
+                      </TabsTrigger>
                         <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
                           <Building2 className="h-4 w-4" />
                           Переговорные
@@ -1720,8 +1720,8 @@ export default function DepartmentHeadDashboard() {
                         <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
                           <LayoutGrid className="h-4 w-4" />
                           Управление
-                        </TabsTrigger>
-                      </TabsList>
+                      </TabsTrigger>
+                    </TabsList>
                     </div>
                     <Button
                         onClick={() => router.push('/create-request')}
@@ -1897,7 +1897,7 @@ export default function DepartmentHeadDashboard() {
                 </TabsContent>
 
                 <TabsContent value="meeting-rooms" className="pt-2 sm:pt-0">
-                  <MeetingRoomsAdmin />
+                  <MeetingRoomsCatalog />
                 </TabsContent>
 
 

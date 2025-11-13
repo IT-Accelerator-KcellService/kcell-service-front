@@ -1754,31 +1754,67 @@ export default function ExecutorDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-2">
-                  {isDesktop && (
+                <div className="mb-3">
+                  {/* на телефоне только табы */}
+                  <div className="w-full mb-2 sm:hidden">
+                    <div className="overflow-x-auto">
+                      <TabsList className="flex w-max min-w-full">
+                        <TabsTrigger value="tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Мои задачи
+                        </TabsTrigger>
+                        <TabsTrigger value="myTasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Мои заявки
+                        </TabsTrigger>
+                        <TabsTrigger value="completed" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Завершенные
+                        </TabsTrigger>
+                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden flex items-center gap-1">
+                            <Building2 className="h-3.5 w-3.5" />
+                            Переговорные
+                          </span>
+                          <span className="hidden sm:inline">Переговорные</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          Статистика
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+                  </div>
+
+                  {/* на больших экранах */}
+                  <div className="hidden sm:flex justify-between items-center gap-3">
+                    <div className="flex-1 overflow-x-auto">
+                      <TabsList className="flex min-w-max gap-2">
+                        <TabsTrigger value="tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Мои задачи
+                        </TabsTrigger>
+                        <TabsTrigger value="myTasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Мои заявки
+                        </TabsTrigger>
+                        <TabsTrigger value="completed" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Завершенные
+                        </TabsTrigger>
+                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Переговорные
+                        </TabsTrigger>
+                        <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                          Статистика
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
                     <Button
-                      onClick={() => router.push('/create-request')}
-                      className="bg-violet-600 hover:bg-violet-700 w-full sm:w-auto sm:flex-shrink-0"
+                        onClick={() => router.push('/create-request')}
+                        className="bg-violet-600 hover:bg-violet-700"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Создать заявку
                     </Button>
-                  )}
-                  <div className="flex-1 overflow-x-auto">
-                    <TabsList className="flex min-w-max gap-2">
-                      <TabsTrigger value="tasks">Мои задачи</TabsTrigger>
-                      <TabsTrigger value="myTasks">Мои заявки</TabsTrigger>
-                      <TabsTrigger value="completed">Завершенные</TabsTrigger>
-                      <TabsTrigger value="meeting-rooms" className="flex items-center gap-2 whitespace-nowrap">
-                        <Building2 className="h-4 w-4" />
-                        Переговорные
-                      </TabsTrigger>
-                      <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                    </TabsList>
                   </div>
                 </div>
 
-                <TabsContent value="tasks" className="pt-6 sm:pt-0">
+                <TabsContent value="tasks" className="pt-2 sm:pt-0">
                   <div className="space-y-4">
                     <div className="flex items-center space-x-4 mb-4">
                       <Select value={filterType} onValueChange={setFilterType}>
@@ -1822,7 +1858,7 @@ export default function ExecutorDashboard() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="completed" className="pt-6 sm:pt-0">
+                <TabsContent value="completed" className="pt-2 sm:pt-0">
                   <div className="space-y-4">
                     <div className="flex items-center space-x-4 mb-4">
                       <Select value={filterType} onValueChange={setFilterType}>
@@ -1860,7 +1896,7 @@ export default function ExecutorDashboard() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="myTasks" className="pt-6 sm:pt-0">
+                <TabsContent value="myTasks" className="pt-2 sm:pt-0">
                   <div className="space-y-4">
                     <div className="flex items-center space-x-4 mb-4">
                       <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -1908,11 +1944,11 @@ export default function ExecutorDashboard() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="meeting-rooms" className="pt-6 sm:pt-0">
+                <TabsContent value="meeting-rooms" className="pt-2 sm:pt-0">
                   <MeetingRoomsCatalog />
                 </TabsContent>
 
-                <TabsContent value="statistics" className="pt-6 sm:pt-0">
+                <TabsContent value="statistics" className="pt-2 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card>
                       <CardHeader>

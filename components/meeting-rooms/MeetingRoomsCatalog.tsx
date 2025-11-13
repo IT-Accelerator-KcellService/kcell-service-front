@@ -10,7 +10,7 @@ import {
 } from "@/stores/meetingRoomsStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw } from "lucide-react";
+import { RefreshCcw, Filter, ChevronUp } from "lucide-react";
 
 const DEFAULT_FILTERS: MeetingRoomsFiltersState = {
   floor: "all",
@@ -59,6 +59,7 @@ export function MeetingRoomsCatalog() {
   const [filters, setFilters] = useState<MeetingRoomsFiltersState>(
     DEFAULT_FILTERS,
   );
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   const availableFloors = useMemo(() => {
     const floors = Array.from(
@@ -86,7 +87,7 @@ export function MeetingRoomsCatalog() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-start">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
@@ -110,7 +111,31 @@ export function MeetingRoomsCatalog() {
             Сбросить фильтры
           </Button>
         </div>
+        
+        {/* Кнопка фильтра для мобильных */}
+        <div className="lg:hidden">
+          <Button 
+            variant="outline" 
+            className="w-full gap-2"
+            onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+          >
+            <Filter className="h-4 w-4" />
+            Фильтр
+            {isFiltersOpen && <ChevronUp className="h-4 w-4" />}
+          </Button>
+        </div>
       </div>
+
+      {/* Фильтры для мобильных - показываются после нажатия */}
+      {isFiltersOpen && (
+        <div className="lg:hidden">
+          <MeetingRoomsFilters
+            filters={filters}
+            onChange={setFilters}
+            availableFloors={availableFloors}
+          />
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_360px]">
         <div className="space-y-4">
@@ -135,11 +160,14 @@ export function MeetingRoomsCatalog() {
           )}
         </div>
 
-        <MeetingRoomsFilters
-          filters={filters}
-          onChange={setFilters}
-          availableFloors={availableFloors}
-        />
+        {/* Фильтры для десктопа */}
+        <div className="hidden lg:block">
+          <MeetingRoomsFilters
+            filters={filters}
+            onChange={setFilters}
+            availableFloors={availableFloors}
+          />
+        </div>
       </div>
     </div>
   );
