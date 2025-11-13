@@ -134,7 +134,7 @@ export default function RegistrationRequestsManager() {
     };
 
     return (
-        <div className="space-y-6 p-4">
+        <div className="space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg md:text-xl">Управление запросами на регистрацию</CardTitle>
