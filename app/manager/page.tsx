@@ -921,18 +921,20 @@ export default function ManagerDashboard() {
       if (response.status === 204) {
       setUsers((prev) => prev.filter((user) => user.id !== userId));
         // Показываем уведомление об успехе
-        if (typeof window !== 'undefined') {
-          alert('Пользователь успешно удален');
-        }
+        successModal.showSuccess({
+          title: "Успешно",
+          message: "Пользователь успешно удален"
+        });
       }
     } catch (err: any) {
       console.error("Ошибка при удалении пользователя:", err);
       
       // Показываем ошибку пользователю
       const errorMessage = err.response?.data?.message || 'Произошла ошибка при удалении пользователя';
-      if (typeof window !== 'undefined') {
-        alert(`Ошибка: ${errorMessage}`);
-      }
+      rejectModal.showReject({
+        title: "Ошибка",
+        message: errorMessage
+      });
     } finally {
       setLoading(false);
     }
@@ -2566,9 +2568,9 @@ export default function ManagerDashboard() {
                   {/* Форма удаления категории */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Удалить категорию</Label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 min-w-0">
                       <Select onValueChange={(categoryId) => setCategoryToDelete(parseInt(categoryId) || null)} value={categoryToDelete?.toString() || ""}>
-                        <SelectTrigger className="flex-1">
+                        <SelectTrigger className="flex-1 min-w-0">
                           <SelectValue placeholder="Выберите категорию для удаления" />
                         </SelectTrigger>
                         <SelectContent>
@@ -2596,6 +2598,7 @@ export default function ManagerDashboard() {
                         onClick={handleDeleteCategory}
                         disabled={!categoryToDelete || isDeletingCategory || (categoryToDelete ? categoriesWithExecutors.has(categoryToDelete) : false)}
                         variant="destructive"
+                        className="flex-shrink-0"
                       >
                         {isDeletingCategory ? (
                           <div className="flex items-center gap-2">
@@ -2816,11 +2819,11 @@ export default function ManagerDashboard() {
                       {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
 
                       {/* Кнопки сохранить и отмена */}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 min-w-0 flex-wrap">
                         <Button
                             onClick={handleUpdateUser}
                             disabled={!isValidUser || loading}
-                            className="bg-green-600 hover:bg-green-700"
+                            className="bg-green-600 hover:bg-green-700 flex-shrink-0"
                         >
                           Сохранить изменения
                         </Button>
@@ -2838,6 +2841,7 @@ export default function ManagerDashboard() {
                               });
                               setFormErrors(null);
                             }}
+                            className="flex-shrink-0"
                         >
                           Отмена
                         </Button>
