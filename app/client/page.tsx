@@ -1183,24 +1183,24 @@ export default function ClientDashboard() {
                 {/* на телефоне только табы */}
                 <div className="flex flex-col sm:hidden gap-3 mb-4">
                   <TabsList>
-                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
-                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
                     <TabsTrigger value="meeting-rooms" className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
                       Переговорные
                     </TabsTrigger>
+                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
                   </TabsList>
                 </div>
 
                 {/* на больших экранах как было */}
                 <div className="hidden sm:flex justify-between items-center">
                   <TabsList>
-                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
-                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
                     <TabsTrigger value="meeting-rooms" className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
                       Переговорные
                     </TabsTrigger>
+                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
                   </TabsList>
                   <Button
                       onClick={() => router.push('/create-request')}

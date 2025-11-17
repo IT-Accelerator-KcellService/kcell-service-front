@@ -1759,6 +1759,13 @@ export default function ExecutorDashboard() {
                   <div className="w-full mb-2 sm:hidden">
                     <div className="overflow-x-auto">
                       <TabsList className="flex w-max min-w-full">
+                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden flex items-center gap-1">
+                            <Building2 className="h-3.5 w-3.5" />
+                            Переговорные
+                          </span>
+                          <span className="hidden sm:inline">Переговорные</span>
+                        </TabsTrigger>
                         <TabsTrigger value="tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                           Мои задачи
                         </TabsTrigger>
@@ -1767,13 +1774,6 @@ export default function ExecutorDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="completed" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                           Завершенные
-                        </TabsTrigger>
-                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
-                          <span className="sm:hidden flex items-center gap-1">
-                            <Building2 className="h-3.5 w-3.5" />
-                            Переговорные
-                          </span>
-                          <span className="hidden sm:inline">Переговорные</span>
                         </TabsTrigger>
                         <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                           Статистика
@@ -1786,6 +1786,10 @@ export default function ExecutorDashboard() {
                   <div className="hidden sm:flex justify-between items-center gap-3">
                     <div className="flex-1 overflow-x-auto">
                       <TabsList className="flex min-w-max gap-2">
+                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Переговорные
+                        </TabsTrigger>
                         <TabsTrigger value="tasks" className="text-sm px-3 py-2 whitespace-nowrap">
                           Мои задачи
                         </TabsTrigger>
@@ -1794,10 +1798,6 @@ export default function ExecutorDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="completed" className="text-sm px-3 py-2 whitespace-nowrap">
                           Завершенные
-                        </TabsTrigger>
-                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
-                          <Building2 className="h-4 w-4" />
-                          Переговорные
                         </TabsTrigger>
                         <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
                           Статистика

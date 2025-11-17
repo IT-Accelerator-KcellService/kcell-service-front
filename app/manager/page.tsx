@@ -2146,6 +2146,10 @@ export default function ManagerDashboard() {
           <div className="w-full mb-3">
             <div className="overflow-x-auto">
               <TabsList className="flex flex-wrap sm:flex-nowrap gap-2 h-auto items-stretch">
+                <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
+                  Переговорные
+                </TabsTrigger>
                 <TabsTrigger value="requests" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
                   Заявки
                 </TabsTrigger>
@@ -2154,10 +2158,6 @@ export default function ManagerDashboard() {
                 </TabsTrigger>
                 <TabsTrigger value="analytics" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
                   Аналитика
-                </TabsTrigger>
-                <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto flex items-center gap-1.5">
-                  <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
-                  Переговорные
                 </TabsTrigger>
                 <TabsTrigger value="management" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
                   Управление

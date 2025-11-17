@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MeetingRoomCard } from "@/components/meeting-rooms/MeetingRoomCard";
 import {
   MeetingRoomsFilters,
@@ -56,9 +56,14 @@ const filterRooms = (
 
 export function MeetingRoomsCatalog() {
   const rooms = useMeetingRoomsStore((state) => state.rooms);
+  const fetchRooms = useMeetingRoomsStore((state) => state.fetchRooms);
   const [filters, setFilters] = useState<MeetingRoomsFiltersState>(
     DEFAULT_FILTERS,
   );
+
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   const availableFloors = useMemo(() => {

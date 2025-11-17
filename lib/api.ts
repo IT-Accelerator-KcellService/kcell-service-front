@@ -295,3 +295,60 @@ export const importRecurringTasksFromExcel = (formData: FormData) =>
             'Content-Type': 'multipart/form-data',
         },
     });
+
+// ==================== Meeting Rooms ====================
+
+// Типы для переговорных комнат
+export interface MeetingRoom {
+    id: number;
+    name: string;
+    floor: number;
+    capacity: number;
+    equipment: string[];
+    photos: string[];
+    status: 'available' | 'booked';
+    isActive: boolean;
+    description?: string | null;
+    office_id?: number | null;
+    office?: {
+        id: number;
+        name: string;
+        city: string;
+    };
+    created_at?: string;
+    updated_at?: string;
+}
+
+// Получить все переговорные комнаты
+export const getMeetingRooms = (officeId?: number) => {
+    const params = officeId ? `?office_id=${officeId}` : '';
+    return api.get<MeetingRoom[]>(`/meeting-rooms${params}`);
+};
+
+// Получить переговорную комнату по ID
+export const getMeetingRoomById = (id: number) =>
+    api.get<MeetingRoom>(`/meeting-rooms/${id}`);
+
+// Создать переговорную комнату
+export const createMeetingRoom = (data: Omit<MeetingRoom, 'id' | 'created_at' | 'updated_at'>) =>
+    api.post<MeetingRoom>('/meeting-rooms', data);
+
+// Обновить переговорную комнату
+export const updateMeetingRoom = (id: number, data: Partial<Omit<MeetingRoom, 'id' | 'created_at' | 'updated_at'>>) =>
+    api.put<MeetingRoom>(`/meeting-rooms/${id}`, data);
+
+// Удалить переговорную комнату
+export const deleteMeetingRoom = (id: number) =>
+    api.delete(`/meeting-rooms/${id}`);
+
+// Переключить активность переговорной комнаты
+export const toggleMeetingRoomActive = (id: number) =>
+    api.patch<MeetingRoom>(`/meeting-rooms/${id}/toggle-active`);
+
+// Обновить статус переговорной комнаты
+export const updateMeetingRoomStatus = (id: number, status: 'available' | 'booked') =>
+    api.patch<MeetingRoom>(`/meeting-rooms/${id}/status`, { status });
+
+// Дублировать переговорную комнату
+export const duplicateMeetingRoom = (id: number) =>
+    api.post<MeetingRoom>(`/meeting-rooms/${id}/duplicate`);

@@ -1,4 +1,15 @@
 import { create } from "zustand";
+import {
+  getMeetingRooms,
+  createMeetingRoom,
+  updateMeetingRoom,
+  deleteMeetingRoom,
+  toggleMeetingRoomActive,
+  updateMeetingRoomStatus,
+  duplicateMeetingRoom,
+  type MeetingRoom as ApiMeetingRoom,
+} from "@/lib/api";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export type MeetingRoomStatus = "available" | "booked";
 
@@ -10,7 +21,7 @@ export type MeetingRoomEquipment =
   | "air-conditioner";
 
 export interface MeetingRoom {
-  id: string;
+  id: number;
   name: string;
   floor: number;
   capacity: number;
@@ -19,134 +30,170 @@ export interface MeetingRoom {
   status: MeetingRoomStatus;
   isActive: boolean;
   description?: string;
+  office_id?: number | null;
 }
-
-const initialRooms: MeetingRoom[] = [
-  {
-    id: "room-astana",
-    name: "Переговорная Астана",
-    floor: 3,
-    capacity: 8,
-    equipment: ["tv", "camera", "board"],
-    photos: [
-      "https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=800&q=80",
-    ],
-    status: "available",
-    isActive: true,
-    description: "Светлая комната, подходит для видеоконференций до 8 человек.",
-  },
-  {
-    id: "room-issyk-kul",
-    name: "Переговорная Иссык-Куль",
-    floor: 2,
-    capacity: 6,
-    equipment: ["tv", "board"],
-    photos: [
-      "https://images.unsplash.com/photo-1507209696998-3c532be9b2b1?auto=format&fit=crop&w=800&q=80",
-    ],
-    status: "booked",
-    isActive: true,
-    description: "Комната для команд до 6 человек, оснащена TV и флипчартом.",
-  },
-  {
-    id: "room-almaty",
-    name: "Переговорная Алматы",
-    floor: 4,
-    capacity: 10,
-    equipment: ["tv", "computer", "board", "air-conditioner"],
-    photos: [
-      "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80",
-    ],
-    status: "available",
-    isActive: true,
-    description: "Большая переговорная с кондиционером и компьютером для презентаций.",
-  },
-  {
-    id: "room-turkestan",
-    name: "Переговорная Туркестан",
-    floor: 1,
-    capacity: 4,
-    equipment: ["board"],
-    photos: [
-      "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=800&q=80",
-    ],
-    status: "available",
-    isActive: false,
-    description: "Компактная комната для быстрых встреч до 4 человек.",
-  },
-];
 
 interface MeetingRoomsState {
   rooms: MeetingRoom[];
-  addRoom: (room: Omit<MeetingRoom, "id">) => void;
-  updateRoom: (id: string, room: Partial<Omit<MeetingRoom, "id">>) => void;
-  removeRoom: (id: string) => void;
-  toggleRoomActive: (id: string) => void;
-  setRoomStatus: (id: string, status: MeetingRoomStatus) => void;
-  duplicateRoom: (id: string) => void;
+  loading: boolean;
+  error: string | null;
+  fetchRooms: (officeId?: number) => Promise<void>;
+  addRoom: (room: Omit<MeetingRoom, "id">) => Promise<void>;
+  updateRoom: (id: number, room: Partial<Omit<MeetingRoom, "id">>) => Promise<void>;
+  removeRoom: (id: number) => Promise<void>;
+  toggleRoomActive: (id: number) => Promise<void>;
+  setRoomStatus: (id: number, status: MeetingRoomStatus) => Promise<void>;
+  duplicateRoom: (id: number) => Promise<void>;
 }
 
-const generateId = () => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `room-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-};
+const convertApiRoomToStoreRoom = (apiRoom: ApiMeetingRoom): MeetingRoom => ({
+  id: apiRoom.id,
+  name: apiRoom.name,
+  floor: apiRoom.floor,
+  capacity: apiRoom.capacity,
+  equipment: (apiRoom.equipment || []) as MeetingRoomEquipment[],
+  photos: apiRoom.photos || [],
+  status: apiRoom.status as MeetingRoomStatus,
+  isActive: apiRoom.isActive,
+  description: apiRoom.description || undefined,
+  office_id: apiRoom.office_id || null,
+});
 
-export const useMeetingRoomsStore = create<MeetingRoomsState>((set) => ({
-  rooms: initialRooms,
-  addRoom: (room) =>
-    set((state) => ({
-      rooms: [
-        ...state.rooms,
-        {
-          ...room,
-          id: generateId(),
-        },
-      ],
-    })),
-  updateRoom: (id, room) =>
-    set((state) => ({
-      rooms: state.rooms.map((existing) =>
-        existing.id === id ? { ...existing, ...room } : existing
-      ),
-    })),
-  removeRoom: (id) =>
-    set((state) => ({
-      rooms: state.rooms.filter((room) => room.id !== id),
-    })),
-  toggleRoomActive: (id) =>
-    set((state) => ({
-      rooms: state.rooms.map((room) =>
-        room.id === id ? { ...room, isActive: !room.isActive } : room
-      ),
-    })),
-  setRoomStatus: (id, status) =>
-    set((state) => ({
-      rooms: state.rooms.map((room) =>
-        room.id === id ? { ...room, status } : room
-      ),
-    })),
-  duplicateRoom: (id) =>
-    set((state) => {
-      const target = state.rooms.find((room) => room.id === id);
-      if (!target) {
-        return state;
-      }
+export const useMeetingRoomsStore = create<MeetingRoomsState>((set, get) => ({
+  rooms: [],
+  loading: false,
+  error: null,
 
-      return {
-        rooms: [
-          ...state.rooms,
-          {
-            ...target,
-            id: generateId(),
-            name: `${target.name} (копия)`,
-            status: "available",
-            isActive: false,
-          },
-        ],
-      };
-    }),
+  fetchRooms: async (officeId?: number) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await getMeetingRooms(officeId);
+      const rooms = response.data.map(convertApiRoomToStoreRoom);
+      set({ rooms, loading: false });
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || "Ошибка при загрузке переговорных комнат",
+        loading: false,
+      });
+    }
+  },
+
+  addRoom: async (room) => {
+    set({ loading: true, error: null });
+    try {
+      const user = useAuthStore.getState().user;
+      const response = await createMeetingRoom({
+        ...room,
+        office_id: user?.office_id || null,
+      });
+      const newRoom = convertApiRoomToStoreRoom(response.data);
+      set((state) => ({
+        rooms: [...state.rooms, newRoom],
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || "Ошибка при создании переговорной комнаты",
+        loading: false,
+      });
+      throw error;
+    }
+  },
+
+  updateRoom: async (id, room) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await updateMeetingRoom(id, room);
+      const updatedRoom = convertApiRoomToStoreRoom(response.data);
+      set((state) => ({
+        rooms: state.rooms.map((existing) =>
+          existing.id === id ? updatedRoom : existing
+        ),
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || "Ошибка при обновлении переговорной комнаты",
+        loading: false,
+      });
+      throw error;
+    }
+  },
+
+  removeRoom: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      await deleteMeetingRoom(id);
+      set((state) => ({
+        rooms: state.rooms.filter((room) => room.id !== id),
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || "Ошибка при удалении переговорной комнаты",
+        loading: false,
+      });
+      throw error;
+    }
+  },
+
+  toggleRoomActive: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await toggleMeetingRoomActive(id);
+      const updatedRoom = convertApiRoomToStoreRoom(response.data);
+      set((state) => ({
+        rooms: state.rooms.map((room) =>
+          room.id === id ? updatedRoom : room
+        ),
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || "Ошибка при изменении статуса переговорной комнаты",
+        loading: false,
+      });
+      throw error;
+    }
+  },
+
+  setRoomStatus: async (id, status) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await updateMeetingRoomStatus(id, status);
+      const updatedRoom = convertApiRoomToStoreRoom(response.data);
+      set((state) => ({
+        rooms: state.rooms.map((room) =>
+          room.id === id ? updatedRoom : room
+        ),
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || "Ошибка при обновлении статуса переговорной комнаты",
+        loading: false,
+      });
+      throw error;
+    }
+  },
+
+  duplicateRoom: async (id) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await duplicateMeetingRoom(id);
+      const newRoom = convertApiRoomToStoreRoom(response.data);
+      set((state) => ({
+        rooms: [...state.rooms, newRoom],
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        error: error.response?.data?.message || "Ошибка при дублировании переговорной комнаты",
+        loading: false,
+      });
+      throw error;
+    }
+  },
 }));
 
 export const MEETING_ROOM_EQUIPMENT: Record<

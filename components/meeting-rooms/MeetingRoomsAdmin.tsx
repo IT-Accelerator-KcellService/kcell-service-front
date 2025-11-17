@@ -1,4 +1,4 @@
-import { useState, useMemo, ChangeEvent } from "react";
+import { useState, useMemo, useEffect, ChangeEvent } from "react";
 import {
   MeetingRoom,
   MeetingRoomEquipment,
@@ -59,7 +59,7 @@ const ADMIN_FILTERS_DEFAULT: MeetingRoomsFiltersState = {
 };
 
 interface RoomFormState {
-  id?: string;
+  id?: number;
   name: string;
   floor: number | "";
   capacity: number | "";
@@ -97,10 +97,13 @@ const floorsRange = Array.from({ length: 10 }, (_, index) => index + 1);
 const capacities = [2, 4, 6, 8, 10, 12];
 const MAX_PHOTOS = 3;
 const ACCEPTED_FILE_TYPES = ["image/jpeg", "image/png"];
+const MAX_PHOTO_SIZE_BYTES = 2 * 1024 * 1024; // 2MB per file
 
 export function MeetingRoomsAdmin() {
   const { toast } = useToast();
   const rooms = useMeetingRoomsStore((state) => state.rooms);
+  const loading = useMeetingRoomsStore((state) => state.loading);
+  const fetchRooms = useMeetingRoomsStore((state) => state.fetchRooms);
   const addRoom = useMeetingRoomsStore((state) => state.addRoom);
   const updateRoom = useMeetingRoomsStore((state) => state.updateRoom);
   const removeRoom = useMeetingRoomsStore((state) => state.removeRoom);
@@ -114,8 +117,13 @@ export function MeetingRoomsAdmin() {
   const [isEditing, setIsEditing] = useState(false);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<MeetingRoom | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
+  const [expandedRooms, setExpandedRooms] = useState<Set<number>>(new Set());
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; floor?: string; capacity?: string; photos?: string }>({});
+
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
 
   const availableFloors = useMemo(
     () => Array.from(new Set(rooms.map((room) => room.floor))).sort((a, b) => a - b),
@@ -171,28 +179,28 @@ export function MeetingRoomsAdmin() {
 
     const remainingSlots = MAX_PHOTOS - formState.photos.length;
     if (remainingSlots <= 0) {
-      toast({
-        title: `Нельзя добавить больше ${MAX_PHOTOS} фото`,
-        variant: "destructive",
-      });
+      const msg = `Нельзя добавить больше ${MAX_PHOTOS} фото`;
+      setErrors((e) => ({ ...e, photos: msg }));
+      toast({ title: msg, variant: "destructive" });
       return;
     }
 
     const fileArray = Array.from(files);
-    const unsupported = fileArray.filter(
-      (file) => !ACCEPTED_FILE_TYPES.includes(file.type),
-    );
+    const unsupported = fileArray.filter((file) => !ACCEPTED_FILE_TYPES.includes(file.type));
+    const oversize = fileArray.filter((file) => file.size > MAX_PHOTO_SIZE_BYTES);
 
     if (unsupported.length) {
-      toast({
-        title: "Неподдерживаемый формат",
-        description: "Загружайте файлы в форматах JPG или PNG.",
-        variant: "destructive",
-      });
+      const msg = "Неподдерживаемый формат. Загружайте JPG или PNG.";
+      setErrors((e) => ({ ...e, photos: msg }));
+      toast({ title: "Неподдерживаемый формат", description: msg, variant: "destructive" });
+    } else if (oversize.length) {
+      const msg = "Каждое фото должно быть не больше 2MB";
+      setErrors((e) => ({ ...e, photos: msg }));
+      toast({ title: "Слишком большой файл", description: msg, variant: "destructive" });
     }
 
     const allowedFiles = fileArray
-      .filter((file) => ACCEPTED_FILE_TYPES.includes(file.type))
+      .filter((file) => ACCEPTED_FILE_TYPES.includes(file.type) && file.size <= MAX_PHOTO_SIZE_BYTES)
       .slice(0, remainingSlots);
 
     if (!allowedFiles.length) {
@@ -207,6 +215,7 @@ export function MeetingRoomsAdmin() {
         ...prev,
         photos: [...prev.photos, ...dataUrls],
       }));
+      setErrors((e) => ({ ...e, photos: undefined }));
     } catch (error) {
       console.error(error);
       toast({
@@ -229,6 +238,7 @@ export function MeetingRoomsAdmin() {
       ...prev,
       photos: prev.photos.filter((_, photoIndex) => photoIndex !== index),
     }));
+    setErrors((e) => ({ ...e, photos: undefined }));
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -253,9 +263,13 @@ export function MeetingRoomsAdmin() {
     setOpen(true);
   };
 
-  const handleDuplicate = (id: string) => {
-    duplicateRoom(id);
-    toast({ title: "Комната скопирована", description: "Создана копия переговорной" });
+  const handleDuplicate = async (id: number) => {
+    try {
+      await duplicateRoom(id);
+      toast({ title: "Комната скопирована", description: "Создана копия переговорной" });
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось скопировать переговорную", variant: "destructive" });
+    }
   };
 
   const requestDeleteRoom = (room: MeetingRoom) => {
@@ -263,23 +277,31 @@ export function MeetingRoomsAdmin() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!pendingDeleteRoom) {
       return;
     }
 
-    removeRoom(pendingDeleteRoom.id);
-    toast({
-      title: "Переговорная удалена",
-      description: `Переговорная ${pendingDeleteRoom.name} удалена из справочника`,
-    });
+    try {
+      await removeRoom(pendingDeleteRoom.id);
+      toast({
+        title: "Переговорная удалена",
+        description: `Переговорная ${pendingDeleteRoom.name} удалена из справочника`,
+      });
 
-    if (formState.id === pendingDeleteRoom.id) {
-      handleOpenChange(false);
+      if (formState.id === pendingDeleteRoom.id) {
+        handleOpenChange(false);
+      }
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: "Не удалось удалить переговорную",
+        variant: "destructive",
+      });
+    } finally {
+      setPendingDeleteRoom(null);
+      setDeleteDialogOpen(false);
     }
-
-    setPendingDeleteRoom(null);
-    setDeleteDialogOpen(false);
   };
 
   const handleDeleteDialogOpenChange = (openState: boolean) => {
@@ -289,15 +311,23 @@ export function MeetingRoomsAdmin() {
     }
   };
 
-  const handleToggleActive = (id: string) => {
-    toggleRoomActive(id);
+  const handleToggleActive = async (id: number) => {
+    try {
+      await toggleRoomActive(id);
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось изменить статус переговорной", variant: "destructive" });
+    }
   };
 
-  const handleStatusChange = (id: string, status: MeetingRoomStatus) => {
-    setRoomStatus(id, status);
+  const handleStatusChange = async (id: number, status: MeetingRoomStatus) => {
+    try {
+      await setRoomStatus(id, status);
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось обновить статус переговорной", variant: "destructive" });
+    }
   };
 
-  const toggleRoomExpand = (roomId: string) => {
+  const toggleRoomExpand = (roomId: number) => {
     setExpandedRooms((prev) => {
       const next = new Set(prev);
       if (next.has(roomId)) {
@@ -309,32 +339,19 @@ export function MeetingRoomsAdmin() {
     });
   };
 
-  const validateForm = () => {
-    if (!formState.name.trim()) {
-      toast({ title: "Введите название комнаты", variant: "destructive" });
-      return false;
-    }
+  const isFormValid = useMemo(() => {
+    const next: typeof errors = {};
+    if (!formState.name.trim()) next.name = "Введите название комнаты";
+    if (!formState.floor || Number(formState.floor) < 1) next.floor = "Выберите этаж";
+    if (!formState.capacity || Number(formState.capacity) < 1) next.capacity = "Укажите вместимость";
+    if (!formState.photos.length) next.photos = "Добавьте минимум одно фото";
+    setErrors((prev) => ({ ...prev, ...next }));
+    return Object.keys(next).length === 0;
+  }, [formState.name, formState.floor, formState.capacity, formState.photos]);
 
-    if (!formState.floor || Number(formState.floor) < 1) {
-      toast({ title: "Выберите этаж", variant: "destructive" });
-      return false;
-    }
-
-    if (!formState.capacity || Number(formState.capacity) < 1) {
-      toast({ title: "Укажите вместимость", variant: "destructive" });
-      return false;
-    }
-
-    if (!formState.photos.length) {
-      toast({ title: "Добавьте минимум одно фото", variant: "destructive" });
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = () => {
-    if (!validateForm()) {
+  const handleSubmit = async () => {
+    if (!isFormValid) {
+      toast({ title: "Заполните обязательные поля", variant: "destructive" });
       return;
     }
 
@@ -349,15 +366,22 @@ export function MeetingRoomsAdmin() {
       description: formState.description.trim(),
     } satisfies Omit<MeetingRoom, "id">;
 
-    if (isEditing && formState.id) {
-      updateRoom(formState.id, payload);
-      toast({ title: "Переговорная обновлена" });
-    } else {
-      addRoom(payload);
-      toast({ title: "Переговорная добавлена" });
+    try {
+      if (isEditing && formState.id) {
+        await updateRoom(formState.id, payload);
+        toast({ title: "Переговорная обновлена" });
+      } else {
+        await addRoom(payload);
+        toast({ title: "Переговорная добавлена" });
+      }
+      handleOpenChange(false);
+    } catch (error) {
+      toast({
+        title: "Ошибка",
+        description: isEditing ? "Не удалось обновить переговорную" : "Не удалось добавить переговорную",
+        variant: "destructive",
+      });
     }
-
-    handleOpenChange(false);
   };
 
   const toggleEquipment = (value: MeetingRoomEquipment) => {
@@ -423,6 +447,9 @@ export function MeetingRoomsAdmin() {
                           setFormState((prev) => ({ ...prev, name: event.target.value }))
                         }
                       />
+                      {errors.name ? (
+                        <p className="text-xs text-red-500">{errors.name}</p>
+                      ) : null}
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -447,6 +474,9 @@ export function MeetingRoomsAdmin() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.floor ? (
+                          <p className="text-xs text-red-500">{errors.floor}</p>
+                        ) : null}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="meeting-room-capacity">Вместимость</Label>
@@ -462,6 +492,9 @@ export function MeetingRoomsAdmin() {
                             }))
                           }
                         />
+                        {errors.capacity ? (
+                          <p className="text-xs text-red-500">{errors.capacity}</p>
+                        ) : null}
                       </div>
                     </div>
 
@@ -511,7 +544,7 @@ export function MeetingRoomsAdmin() {
                   </div>
                 </ScrollArea>
                 <div className="flex flex-col gap-4 px-2">
-                  <div className="space-y-3">
+                    <div className="space-y-3">
                     <div className="space-y-2">
                       <Label htmlFor="meeting-room-photos">Фотографии (до 3 шт.)</Label>
                       <Input
@@ -521,9 +554,12 @@ export function MeetingRoomsAdmin() {
                         multiple
                         onChange={handlePhotoInputChange}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Поддерживаются форматы JPG и PNG. Максимум {MAX_PHOTOS} фото.
-                      </p>
+                        <p className="text-xs text-muted-foreground">
+                          Поддерживаются форматы JPG и PNG. Максимум {MAX_PHOTOS} фото, размер каждого ≤ 2MB.
+                        </p>
+                        {errors.photos ? (
+                          <p className="text-xs text-red-500">{errors.photos}</p>
+                        ) : null}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -621,7 +657,7 @@ export function MeetingRoomsAdmin() {
                 <Button type="button" variant="outline" onClick={handleCancel}>
                   Отмена
                 </Button>
-                <Button type="button" onClick={handleSubmit} className="gap-2">
+                <Button type="button" onClick={handleSubmit} className="gap-2" disabled={loading}>
                   <Save className="h-4 w-4" />
                   Сохранить
                 </Button>
