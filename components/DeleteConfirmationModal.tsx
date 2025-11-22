@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { cn } from "@/lib/utils"
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean
@@ -50,8 +51,14 @@ export function DeleteConfirmationModal({
               {cancelText}
             </AlertDialogCancel>
             <AlertDialogAction
-                className="w-full sm:w-auto sm:min-w-[100px] h-12 sm:h-10 bg-red-700 hover:bg-neutral-800 dark:bg-neutral-100 dark:hover:bg-neutral-200 text-white dark:text-neutral-900 rounded-lg font-medium transition-all duration-200 focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 text-base sm:text-sm order-1 sm:order-2 shadow-sm"
+                className={cn(
+                  "w-full sm:w-auto sm:min-w-[100px] h-12 sm:h-10 rounded-lg font-medium transition-all duration-200 focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2 text-base sm:text-sm order-1 sm:order-2 shadow-sm",
+                  confirmText.includes("Забронировать") || confirmText.includes("бронирова")
+                    ? "bg-purple-600 hover:bg-purple-700 text-white"
+                    : "bg-red-700 hover:bg-neutral-800 dark:bg-neutral-100 dark:hover:bg-neutral-200 text-white dark:text-neutral-900"
+                )}
                 onClick={onConfirm}
+                disabled={isLoading}
             >
               {isLoading ? (
                   <div className="flex items-center justify-center gap-2">

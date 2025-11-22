@@ -352,3 +352,90 @@ export const updateMeetingRoomStatus = (id: number, status: 'available' | 'booke
 // Дублировать переговорную комнату
 export const duplicateMeetingRoom = (id: number) =>
     api.post<MeetingRoom>(`/meeting-rooms/${id}/duplicate`);
+
+// ==================== Meeting Room Bookings ====================
+
+export interface MeetingRoomBooking {
+    id: number;
+    meeting_room_id: number;
+    user_id?: number;
+    client_id?: number;
+    start_time: string | Date;
+    end_time: string | Date;
+    status?: string;
+    company_name?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    meetingRoom?: {
+        id: number;
+        name: string;
+        floor: number;
+        capacity: number;
+        office_id?: number | null;
+        office?: {
+            id: number;
+            name: string;
+            city: string;
+            address: string;
+        };
+    };
+    meeting_room?: {
+        id: number;
+        name: string;
+        floor: number;
+        capacity: number;
+        office_id?: number | null;
+        office?: {
+            id: number;
+            name: string;
+            city: string;
+            address: string;
+        };
+    };
+    office?: {
+        id: number;
+        name: string;
+        city: string;
+        address: string;
+    };
+}
+
+// Создать бронирование переговорной комнаты
+export const createMeetingRoomBooking = (data: {
+    meeting_room_id: number;
+    booking_date: string;
+    start_time: string;
+    end_time: string;
+    company_name?: string | null;
+}) => api.post<MeetingRoomBooking>('/meeting-room-bookings', data);
+
+// Получить бронирования переговорной комнаты
+export const getMeetingRoomBookings = (meetingRoomId?: number) => {
+    const params = meetingRoomId ? `?meeting_room_id=${meetingRoomId}` : '';
+    return api.get<MeetingRoomBooking[]>(`/meeting-room-bookings${params}`);
+};
+
+// Получить мои бронирования
+export const getMyBookings = () => 
+    api.get<MeetingRoomBooking[]>('/meeting-room-bookings/my');
+
+// Отменить бронирование
+export const cancelMeetingRoomBooking = (id: number) =>
+    api.delete(`/meeting-room-bookings/${id}`);
+
+// Получить доступность комнаты на конкретную дату
+export const getRoomDailyAvailability = (roomId: number, date: string, slotMinutes?: number) => {
+    const params = new URLSearchParams({ date });
+    if (slotMinutes) params.append('slot_minutes', slotMinutes.toString());
+    return api.get<{
+        room: MeetingRoom;
+        bookings: MeetingRoomBooking[];
+        slots: Array<{
+            start_time: string;
+            end_time: string;
+            is_available: boolean;
+            booking_id: number | null;
+            booking_status: string | null;
+        }>;
+    }>(`/meeting-room-bookings/rooms/${roomId}/availability?${params.toString()}`);
+};

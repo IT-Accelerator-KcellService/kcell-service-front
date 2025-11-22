@@ -10,7 +10,13 @@ import {
 } from "@/stores/meetingRoomsStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { RefreshCcw, Filter, ChevronUp } from "lucide-react";
+import { RefreshCcw, Filter, ChevronUp, ArrowLeft } from "lucide-react";
+import { OfficeSelection } from "@/components/meeting-rooms/OfficeSelection";
+import { BookingModal } from "@/components/meeting-rooms/BookingModal";
+import { MyBookings } from "@/components/meeting-rooms/MyBookings";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSuccessModal } from "@/hooks/use-success-modal";
+import { SuccessModal } from "@/components/success-model";
 
 const DEFAULT_FILTERS: MeetingRoomsFiltersState = {
   floor: "all",
@@ -54,17 +60,33 @@ const filterRooms = (
   });
 };
 
+interface Office {
+  id: number;
+  name: string;
+  city: string;
+  address: string;
+  lat: number | null;
+  lon: number | null;
+}
+
 export function MeetingRoomsCatalog() {
   const rooms = useMeetingRoomsStore((state) => state.rooms);
   const fetchRooms = useMeetingRoomsStore((state) => state.fetchRooms);
   const [filters, setFilters] = useState<MeetingRoomsFiltersState>(
     DEFAULT_FILTERS,
   );
+  const [selectedOffice, setSelectedOffice] = useState<Office | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<MeetingRoom | null>(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"book" | "my-bookings">("book");
+  const successModal = useSuccessModal();
 
   useEffect(() => {
-    fetchRooms();
-  }, [fetchRooms]);
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+    if (selectedOffice) {
+      fetchRooms(selectedOffice.id);
+    }
+  }, [selectedOffice, fetchRooms]);
 
   const availableFloors = useMemo(() => {
     const floors = Array.from(
@@ -90,8 +112,59 @@ export function MeetingRoomsCatalog() {
 
   const resetFilters = () => setFilters(DEFAULT_FILTERS);
 
-  return (
-    <div className="flex flex-col gap-6">
+  const handleRoomClick = (room: MeetingRoom) => {
+    setSelectedRoom(room);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleBookingSuccess = () => {
+    if (selectedOffice) {
+      fetchRooms(selectedOffice.id);
+    }
+  };
+
+  const handleBookingModalSuccess = (message: { title: string; message: string }) => {
+    successModal.showSuccess({
+      title: message.title,
+      message: message.message,
+      duration: 3000,
+    });
+  };
+
+  // Компонент для бронирования комнат
+  const BookingContent = () => {
+    // Если офис не выбран, показываем выбор офисов
+    if (!selectedOffice) {
+      return (
+        <div>
+          <OfficeSelection
+            onSelectOffice={(office) => setSelectedOffice(office)}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setSelectedOffice(null);
+            setFilters(DEFAULT_FILTERS);
+          }}
+          className="gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Назад к выбору офисов
+        </Button>
+        <div>
+          <h2 className="text-xl font-semibold">{selectedOffice.name}</h2>
+          <p className="text-sm text-muted-foreground">
+            {selectedOffice.city}, {selectedOffice.address}
+          </p>
+        </div>
+      </div>
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Badge
@@ -159,7 +232,13 @@ export function MeetingRoomsCatalog() {
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {filteredRooms.map((room) => (
-                <MeetingRoomCard key={room.id} room={room} />
+                <div
+                  key={room.id}
+                  onClick={() => handleRoomClick(room)}
+                  className="cursor-pointer"
+                >
+                  <MeetingRoomCard room={room} />
+                </div>
               ))}
             </div>
           )}
@@ -174,6 +253,45 @@ export function MeetingRoomsCatalog() {
           />
         </div>
       </div>
+
+        <BookingModal
+          isOpen={isBookingModalOpen}
+          onClose={() => {
+            setIsBookingModalOpen(false);
+            setSelectedRoom(null);
+          }}
+          room={selectedRoom}
+          onBookingSuccess={handleBookingSuccess}
+          onSuccess={handleBookingModalSuccess}
+        />
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "book" | "my-bookings")}>
+        <TabsList>
+          <TabsTrigger value="book">Бронировать</TabsTrigger>
+          <TabsTrigger value="my-bookings">Мои бронирования</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="book" className="mt-6">
+          <BookingContent />
+        </TabsContent>
+        
+        <TabsContent value="my-bookings" className="mt-6">
+          <MyBookings />
+        </TabsContent>
+      </Tabs>
+
+      <SuccessModal
+        isOpen={successModal.isOpen}
+        onClose={successModal.hideSuccess}
+        title={successModal.title}
+        message={successModal.message}
+        duration={successModal.duration}
+      />
     </div>
   );
 }

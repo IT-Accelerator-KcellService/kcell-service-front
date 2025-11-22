@@ -31,6 +31,9 @@ import {
   Users,
   Calendar as CalendarLucid,
   Building2,
+  BarChart3,
+  Settings,
+  Wrench,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import api, { getOffices } from "@/lib/api";
@@ -1178,68 +1181,126 @@ export default function ClientDashboard() {
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
+            {/* Большие карточки на десктопе */}
+            {isDesktop && (
+              <div className="mb-8">
+                <div className="grid grid-cols-3 gap-6 mb-6">
+                  <Card 
+                    className="cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-2 hover:border-purple-300"
+                    onClick={() => setActiveTab("meeting-rooms")}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex flex-col items-center justify-center text-center h-full min-h-[200px]">
+                        <div className="mb-4 w-full h-32 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center relative overflow-hidden">
+                          {/* Упрощенная иллюстрация комнаты */}
+                          <div className="absolute inset-0">
+                            {/* Окно */}
+                            <div className="absolute top-2 left-4 right-4 h-8 bg-blue-200 rounded border-2 border-blue-300">
+                              <div className="grid grid-cols-2 h-full">
+                                <div className="border-r-2 border-blue-300"></div>
+                                <div></div>
+                              </div>
+                            </div>
+                            {/* Стол */}
+                            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-20 h-3 bg-amber-700 rounded"></div>
+                            {/* Стулья */}
+                            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-8">
+                              <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                              <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                              <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                              <div className="w-4 h-4 bg-blue-500 rounded-sm"></div>
+                            </div>
+                          </div>
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900">Бронирование комнат</h3>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card 
+                    className="cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-2 hover:border-purple-300"
+                    onClick={() => setActiveTab("requests")}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex flex-col items-center justify-center text-center h-full min-h-[200px]">
+                        <div className="mb-4 w-full h-32 bg-gradient-to-br from-purple-100 to-purple-50 rounded-lg flex items-center justify-center gap-4">
+                          <Settings className="w-12 h-12 text-purple-600" strokeWidth={1.5} />
+                          <Wrench className="w-12 h-12 text-purple-600" strokeWidth={1.5} />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900">Сервисные заявки</h3>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card 
+                    className="cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-2 hover:border-purple-300"
+                    onClick={() => setActiveTab("statistics")}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex flex-col items-center justify-center text-center h-full min-h-[200px]">
+                        <div className="mb-4 w-full h-32 bg-gradient-to-br from-purple-100 to-purple-50 rounded-lg flex items-center justify-center">
+                          <BarChart3 className="w-16 h-16 text-purple-600" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900">Статистика</h3>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
+
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="mb-6">
                 {/* на телефоне только табы */}
-                <div className="flex flex-col sm:hidden gap-3 mb-4">
-                  <TabsList>
-                    <TabsTrigger value="meeting-rooms" className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Переговорные
-                    </TabsTrigger>
-                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
-                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                  </TabsList>
-                </div>
-
-                {/* на больших экранах как было */}
-                <div className="hidden sm:flex justify-between items-center">
-                  <TabsList>
-                    <TabsTrigger value="meeting-rooms" className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Переговорные
-                    </TabsTrigger>
-                    <TabsTrigger value="requests">Мои заявки</TabsTrigger>
-                    <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                  </TabsList>
-                  <Button
-                      onClick={() => router.push('/create-request')}
-                      className="bg-violet-600 hover:bg-violet-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать заявку
-                  </Button>
-                </div>
+                {!isDesktop && (
+                  <div className="flex flex-col sm:hidden gap-3 mb-4">
+                    <TabsList>
+                      <TabsTrigger value="meeting-rooms" className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        Переговорные
+                      </TabsTrigger>
+                      <TabsTrigger value="requests">Мои заявки</TabsTrigger>
+                      <TabsTrigger value="statistics">Статистика</TabsTrigger>
+                    </TabsList>
+                  </div>
+                )}
               </div>
 
               <TabsContent value="requests">
                 <div className="space-y-4">
 
-                  <div className="flex items-center space-x-4 mb-4">
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Статус" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Все</SelectItem>
-                        <SelectItem value="in_progress">В обработке</SelectItem>
-                        <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
-                        <SelectItem value="execution">Исполнение</SelectItem>
-                        <SelectItem value="completed">Завершено</SelectItem>
-                        <SelectItem value="long_term">Долгосрочные</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue placeholder="Тип заявки" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Все</SelectItem>
-                        <SelectItem value="normal">Обычная</SelectItem>
-                        <SelectItem value="urgent">Экстренная</SelectItem>
-                        <SelectItem value="planned">Плановая</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Статус" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="in_progress">В обработке</SelectItem>
+                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                          <SelectItem value="execution">Исполнение</SelectItem>
+                          <SelectItem value="completed">Завершено</SelectItem>
+                          <SelectItem value="long_term">Долгосрочные</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Тип заявки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Все</SelectItem>
+                          <SelectItem value="normal">Обычная</SelectItem>
+                          <SelectItem value="urgent">Экстренная</SelectItem>
+                          <SelectItem value="planned">Плановая</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                        onClick={() => router.push('/create-request')}
+                        className="bg-violet-600 hover:bg-violet-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Создать заявку
+                    </Button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
                     {/* Ограничиваем количество рендеримых карточек для улучшения производительности */}
