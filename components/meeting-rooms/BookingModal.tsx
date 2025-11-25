@@ -60,6 +60,7 @@ export function BookingModal({
   const [bookedSlots, setBookedSlots] = useState<Set<string>>(new Set())
   const [loadingAvailability, setLoadingAvailability] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const successModal = useSuccessModal()
   const rejectModal = useRejectRequestModal()
 
@@ -168,6 +169,7 @@ export function BookingModal({
       setSelectedTimeSlot(null)
       setCompanyName("")
       setBookedSlots(new Set())
+      setCalendarOpen(false)
     }
   }, [isOpen])
 
@@ -264,14 +266,14 @@ export function BookingModal({
         setTimeout(() => {
           onSuccess({
             title: "Бронирование успешно создано",
-            message: `Комната "${room.name}" забронирована на ${bookingDate} с ${timeSlot.start} до ${timeSlot.end}${companyName ? `. Компания: ${companyName}` : ''}`,
+            message: `Комната "${room.name}" (вместимость: до ${room.capacity} человек) забронирована на ${bookingDate} с ${timeSlot.start} до ${timeSlot.end}${companyName ? `. Компания: ${companyName}` : ''}`,
           })
         }, 300)
       } else {
         // Fallback на локальный SuccessModal, если callback не передан
         successModal.showSuccess({
           title: "Бронирование успешно создано",
-          message: `Комната "${room.name}" забронирована на ${bookingDate} с ${timeSlot.start} до ${timeSlot.end}${companyName ? `. Компания: ${companyName}` : ''}`,
+          message: `Комната "${room.name}" (вместимость: до ${room.capacity} человек) забронирована на ${bookingDate} с ${timeSlot.start} до ${timeSlot.end}${companyName ? `. Компания: ${companyName}` : ''}`,
           duration: 3000,
         })
       }
@@ -321,7 +323,7 @@ export function BookingModal({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <div className="space-y-2">
               <Label>Дата</Label>
-              <Popover>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -342,7 +344,13 @@ export function BookingModal({
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={setSelectedDate}
+                    onSelect={(date) => {
+                      setSelectedDate(date)
+                      // Закрываем календарь после выбора даты
+                      if (date) {
+                        setCalendarOpen(false)
+                      }
+                    }}
                     disabled={(date) => {
                       const today = new Date()
                       today.setHours(0, 0, 0, 0)

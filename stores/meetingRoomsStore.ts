@@ -13,19 +13,11 @@ import { useAuthStore } from "@/stores/useAuthStore";
 
 export type MeetingRoomStatus = "available" | "booked";
 
-export type MeetingRoomEquipment =
-  | "tv"
-  | "computer"
-  | "board"
-  | "camera"
-  | "air-conditioner";
-
 export interface MeetingRoom {
   id: number;
   name: string;
   floor: number;
   capacity: number;
-  equipment: MeetingRoomEquipment[];
   photos: string[];
   status: MeetingRoomStatus;
   isActive: boolean;
@@ -51,7 +43,6 @@ const convertApiRoomToStoreRoom = (apiRoom: ApiMeetingRoom): MeetingRoom => ({
   name: apiRoom.name,
   floor: apiRoom.floor,
   capacity: apiRoom.capacity,
-  equipment: (apiRoom.equipment || []) as MeetingRoomEquipment[],
   photos: apiRoom.photos || [],
   status: apiRoom.status as MeetingRoomStatus,
   isActive: apiRoom.isActive,
@@ -195,17 +186,6 @@ export const useMeetingRoomsStore = create<MeetingRoomsState>((set, get) => ({
     }
   },
 }));
-
-export const MEETING_ROOM_EQUIPMENT: Record<
-  MeetingRoomEquipment,
-  { label: string; shortLabel: string }
-> = {
-  tv: { label: "TV", shortLabel: "TV" },
-  computer: { label: "Компьютер", shortLabel: "ПК" },
-  board: { label: "Доска", shortLabel: "Доска" },
-  camera: { label: "Камера", shortLabel: "Камера" },
-  "air-conditioner": { label: "Кондиционер", shortLabel: "AC" },
-};
 
 export const MEETING_ROOM_CAPACITIES = [2, 4, 6, 8, 10, 12] as const;
 export const MEETING_ROOM_FLOORS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;

@@ -28,6 +28,7 @@ interface RegistrationRequest {
 interface Office {
     id: number;
     name: string;
+    photo?: string | null;
 }
 
 export default function RegistrationRequestsManager() {

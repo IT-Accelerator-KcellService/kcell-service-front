@@ -50,6 +50,7 @@ type OfficeType = {
     address: string
     lat: number | null
     lon: number | null
+    photo?: string | null
 }
 
 interface ChartData {

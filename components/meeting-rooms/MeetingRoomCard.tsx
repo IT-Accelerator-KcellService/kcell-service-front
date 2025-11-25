@@ -6,30 +6,15 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Building2,
-  Camera,
-  Monitor,
-  Presentation,
-  Snowflake,
-  Tv,
   Users,
   ImageIcon,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
 import {
-  MEETING_ROOM_EQUIPMENT,
   MeetingRoom,
-  MeetingRoomEquipment,
 } from "@/stores/meetingRoomsStore";
 import React from "react";
-
-const EQUIPMENT_ICONS: Record<MeetingRoomEquipment, React.ElementType> = {
-  tv: Tv,
-  camera: Camera,
-  computer: Monitor,
-  board: Presentation,
-  "air-conditioner": Snowflake,
-};
 
 interface MeetingRoomCardProps {
   room: MeetingRoom;
@@ -53,7 +38,6 @@ export function MeetingRoomCard({
   isExpanded = false,
   onToggleExpand,
 }: MeetingRoomCardProps) {
-  const equipment = room.equipment ?? [];
   const coverPhoto = room.photos?.[0];
   const extraPhotos = room.photos?.length ? room.photos.length - 1 : 0;
   const hasExpandableContent = (room.description || footer) && onToggleExpand;
@@ -143,32 +127,6 @@ export function MeetingRoomCard({
 
         <Separator />
 
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">
-            Оборудование
-          </p>
-          {equipment.length ? (
-            <div className="flex flex-wrap gap-2">
-              {equipment.map((item) => {
-                const Icon = EQUIPMENT_ICONS[item];
-                return (
-                  <Badge
-                    key={`${room.id}-${item}`}
-                    variant="secondary"
-                    className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {MEETING_ROOM_EQUIPMENT[item].label}
-                  </Badge>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Оборудование не указано
-            </p>
-          )}
-        </div>
       </CardContent>
 
       {isExpanded && footer ? (

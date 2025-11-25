@@ -108,7 +108,7 @@ export default function ClientDashboard() {
   const successModal = useSuccessModal()
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState("requests")
+  const [activeTab, setActiveTab] = useState("meeting-rooms")
   const [showCreateRequest, setShowCreateRequest] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<RequestGroup | null>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
@@ -217,6 +217,27 @@ export default function ClientDashboard() {
       window.history.back();
       return newStack;
     });
+  }, []);
+
+  const closeNotificationModal = useCallback(() => {
+    setIsModalOpen(false);
+    setSelectedNotification(null);
+    // Для уведомления используем replaceState вместо back(), чтобы не выходить из сайта
+    // Это важно, если модальное окно открыто первым (нет предыдущей записи в истории)
+    setIsClosingProgrammatically(true);
+    setModalStack(prev => {
+      const newStack = prev.slice(0, -1);
+      // Используем replaceState для безопасного закрытия без навигации
+      if (window.history.state?.modal) {
+        window.history.replaceState(
+          newStack.length > 0 ? { modal: newStack[newStack.length - 1] } : { modal: null },
+          '',
+          window.location.pathname
+        );
+      }
+      return newStack;
+    });
+    setTimeout(() => setIsClosingProgrammatically(false), 0);
   }, []);
 
 
@@ -1105,7 +1126,7 @@ export default function ClientDashboard() {
       <div className="min-h-screen bg-gray-50">
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
         {/* Quick Stats */}
-        {isDesktop ? (
+        {isDesktop && activeTab === "requests" ? (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <Card>
                 <CardContent className="p-6">
@@ -1176,7 +1197,7 @@ export default function ClientDashboard() {
                 </CardContent>
               </Card>
             </div>
-        ): null}
+        ) : null}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1780,10 +1801,7 @@ export default function ClientDashboard() {
         {isModalOpen && selectedNotification && (
             <div
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  closeModalWithHistory();
-                }}
+                onClick={closeNotificationModal}
             >
               <div
                   className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
@@ -1793,10 +1811,7 @@ export default function ClientDashboard() {
                   <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
                   <button
                       className="text-gray-500 hover:text-black text-2xl focus:outline-none"
-                      onClick={() => {
-                        setIsModalOpen(false);
-                        closeModalWithHistory();
-                      }}
+                      onClick={closeNotificationModal}
                       aria-label="Закрыть модальное окно"
                   >
                     ×

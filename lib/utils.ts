@@ -20,7 +20,11 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
 }
 
 // Функция для поиска ближайшего офиса
-export function findNearestOffice(userLat: number, userLon: number, offices: Array<{id: number, name: string, city: string, address: string, lat: number | null, lon: number | null}>): {office: any, distance: number} | null {
+export function findNearestOffice(
+  userLat: number,
+  userLon: number,
+  offices: Array<{ id: number; name: string; city: string; address: string; lat?: number | null; lon?: number | null }>
+): { office: any; distance: number } | null {
   let nearestOffice = null;
   let minDistance = Infinity;
 

@@ -10,6 +10,7 @@ import {Input} from "@/components/ui/input"
 import {Textarea} from "@/components/ui/textarea"
 import {Label} from "@/components/ui/label"
 import {useRouter, useSearchParams} from "next/navigation"
+import Image from "next/image"
 
 
 import {
@@ -37,7 +38,7 @@ import {
 } from "lucide-react"
 import axios from "axios";
 import Header from "@/app/header/Header";
-import api, { createServiceCategory, deleteServiceCategory, getExecutorsByCategory } from "@/lib/api";
+import api, { createServiceCategory, deleteServiceCategory, getExecutorsByCategory, type Office as ApiOffice } from "@/lib/api";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip as TooltipForTabs} from "recharts";
 import {format, isAfter, subDays, subMonths, subYears} from "date-fns";
 import {useNotificationStore} from "@/stores/notificationStore";
@@ -106,12 +107,18 @@ const roleTranslations: Record<string, string> = {
   manager: "Руководитель"
 };
 
-type OfficeType = {
-  id: number
-  name: string
-  city: string
-  address: string
-}
+const OFFICE_PHOTO_ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const OFFICE_PHOTO_MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
+
+const fileToBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+type OfficeType = ApiOffice;
 
 type User = {
   id: number;
@@ -167,10 +174,11 @@ export default function ManagerDashboard() {
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
   const [notFoundRequestId, setNotFoundRequestId] = useState<string>('');
   const [tab, setTab] = useState("requests")
-  const [offices, setOffices] = useState<any[]>([])
+  const [offices, setOffices] = useState<OfficeType[]>([])
   const [newOfficeName, setNewOfficeName] = useState("")
   const [newOfficeCity, setNewOfficeCity] = useState("")
   const [newOfficeAddress, setNewOfficeAddress] = useState("")
+  const [newOfficePhoto, setNewOfficePhoto] = useState<string | null>(null)
   
   // Состояния для управления категориями
   const [newCategoryName, setNewCategoryName] = useState("")
@@ -279,12 +287,14 @@ export default function ManagerDashboard() {
   const [officeFilter, setOfficeFilter] = useState<number | null>(null);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
-  const [editingOfficeId, setEditingOfficeId] = useState(null);
+  const [editingOfficeId, setEditingOfficeId] = useState<number | null>(null);
   const [editedOffice, setEditedOffice] = useState<Partial<OfficeType>>({
     name: "",
     city: "",
     address: "",
+    photo: null,
   })
+  const newOfficePhotoInputRef = useRef<HTMLInputElement | null>(null)
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observer = useRef<IntersectionObserver | null>(null);
@@ -1227,14 +1237,39 @@ export default function ManagerDashboard() {
     closeModalWithHistory();
   };
 
-  const handleUpdateOffice = async (id:any) => {
+  const handleUpdateOffice = async (id: number) => {
     try {
-      await api.put(`/offices/${id}`, editedOffice) // Передаём данные для обновления
-      const updatedOffices = offices.map((office: any) =>
+      // Получаем существующий офис для сравнения
+      const existingOffice = offices.find(o => o.id === id);
+      
+      // Формируем данные для отправки
+      const updateData: any = {
+        name: editedOffice.name,
+        city: editedOffice.city,
+        address: editedOffice.address,
+      };
+      
+      // Включаем photo только если оно изменилось
+      // Если это base64 (новое фото) - отправляем
+      // Если это null (удаление фото) - отправляем
+      // Если это URL и оно не изменилось - не отправляем
+      if (editedOffice.photo !== undefined) {
+        const isNewPhoto = editedOffice.photo && editedOffice.photo.startsWith('data:image');
+        const isDeletion = editedOffice.photo === null;
+        const isChanged = existingOffice?.photo !== editedOffice.photo;
+        
+        if (isNewPhoto || isDeletion || isChanged) {
+          updateData.photo = editedOffice.photo;
+        }
+      }
+      
+      await api.put(`/offices/${id}`, updateData) // Передаём данные для обновления
+      const updatedOffices = offices.map((office) =>
           office.id === id ? { ...office, ...editedOffice } : office
       )
       setOffices(updatedOffices)
       setEditingOfficeId(null)
+      resetEditedOffice()
     } catch (error) {
       console.error("Ошибка при обновлении офиса:", error)
     }
@@ -1510,9 +1545,86 @@ export default function ManagerDashboard() {
     }
   };
 
+  const validateOfficePhoto = (file: File) => {
+    if (!OFFICE_PHOTO_ACCEPTED_TYPES.includes(file.type)) {
+      alert("Поддерживаются только фото в форматах JPG, PNG или WebP");
+      return false;
+    }
+    if (file.size > OFFICE_PHOTO_MAX_SIZE_BYTES) {
+      alert("Размер фото офиса не должен превышать 2 МБ");
+      return false;
+    }
+    return true;
+  };
+
+  const handleNewOfficePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!validateOfficePhoto(file)) {
+      event.target.value = "";
+      return;
+    }
+    try {
+      const dataUrl = await fileToBase64(file);
+      setNewOfficePhoto(dataUrl);
+    } catch (error) {
+      console.error("Ошибка при чтении фото офиса:", error);
+      alert("Не удалось загрузить фото офиса");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const clearNewOfficePhoto = () => {
+    setNewOfficePhoto(null);
+    if (newOfficePhotoInputRef.current) {
+      newOfficePhotoInputRef.current.value = "";
+    }
+  };
+
+  const handleEditOfficePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (!validateOfficePhoto(file)) {
+      event.target.value = "";
+      return;
+    }
+    try {
+      const dataUrl = await fileToBase64(file);
+      setEditedOffice((prev) => ({ ...prev, photo: dataUrl }));
+    } catch (error) {
+      console.error("Ошибка при чтении фото офиса:", error);
+      alert("Не удалось загрузить фото офиса");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const handleRemoveEditedOfficePhoto = () => {
+    setEditedOffice((prev) => ({ ...prev, photo: null }));
+  };
+
+  const resetEditedOffice = () => {
+    setEditedOffice({
+      name: "",
+      city: "",
+      address: "",
+      photo: null,
+    });
+  };
+
+  const handleCancelOfficeEdit = () => {
+    setEditingOfficeId(null);
+    resetEditedOffice();
+  };
+
   const fetchOffices = useCallback(async () => {
     try {
-      const response = await api.get('/offices')
+      const response = await api.get<OfficeType[]>('/offices')
       setOffices(response.data)
     } catch (error) {
       console.error("Failed to fetch categories:", error)
@@ -1531,10 +1643,11 @@ export default function ManagerDashboard() {
     }
 
     try {
-      const response = await api.post("/offices/", {
+      const response = await api.post<OfficeType>("/offices/", {
         city: city,
         address: address,
-        name: name
+        name: name,
+        photo: newOfficePhoto || null, // Явно отправляем null если фото нет
       });
 
       // Обновляем список офисов
@@ -1544,17 +1657,18 @@ export default function ManagerDashboard() {
       setNewOfficeName("");
       setNewOfficeAddress("");
       setNewOfficeCity("");
+      clearNewOfficePhoto();
     } catch (err) {
       console.error("Error creating office:", err);
       alert("Не удалось создать офис. Пожалуйста, попробуйте снова.");
     }
   };
 
-  const handleRemoveOffice = async (id: any) => {
+  const handleRemoveOffice = async (id: number) => {
     try {
       const response = await api.delete(`/offices/${id}`)
       console.log(response.data)
-      setOffices((prev) => prev.filter((office:any) => office.id !== id))
+      setOffices((prev) => prev.filter((office) => office.id !== id))
     } catch (err) {
       console.log(err)
     }
@@ -2437,6 +2551,37 @@ export default function ManagerDashboard() {
                       Добавить офис
                     </Button>
                   </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Фото офиса (опционально)</Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      ref={newOfficePhotoInputRef}
+                      onChange={handleNewOfficePhotoChange}
+                    />
+                    <p className="text-xs text-muted-foreground">Поддерживаются JPG, PNG или WebP до 2 МБ</p>
+                    {newOfficePhoto ? (
+                      <div className="flex items-center gap-4">
+                        <div className="relative h-24 w-40 overflow-hidden rounded-lg border bg-muted">
+                          <Image
+                            src={newOfficePhoto}
+                            alt="Превью нового офиса"
+                            fill
+                            className="object-cover"
+                            sizes="160px"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="text-red-500 hover:text-red-600"
+                          onClick={clearNewOfficePhoto}
+                        >
+                          Удалить фото
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
 
                   <div className="space-y-2">
                     <Label>Существующие офисы ({offices.length}):</Label>
@@ -2444,54 +2589,89 @@ export default function ManagerDashboard() {
                         <p className="text-sm text-gray-500 italic">Нет добавленных офисов.</p>
                     ) : (
                         <div className="grid grid-cols-1 gap-2">
-                          {offices.map((officeItem: any, index: number) => (
+                          {offices.map((officeItem, index) => (
                               <div
                                   key={index}
                                   className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded-lg border space-y-2 sm:space-y-0"
                               >
                                 {editingOfficeId === officeItem.id ? (
-                                    <div className="flex flex-col sm:flex-row gap-2 w-full">
-                                      <Input
-                                          value={editedOffice.name}
-                                          onChange={(e) =>
-                                              setEditedOffice({ ...editedOffice, name: e.target.value })
-                                          }
-                                          placeholder="Название офиса"
-                                          className="w-full sm:flex-1"
-                                      />
-                                      <Input
-                                          value={editedOffice.city}
-                                          onChange={(e) =>
-                                              setEditedOffice({ ...editedOffice, city: e.target.value })
-                                          }
-                                          placeholder="Город"
-                                          className="w-full sm:flex-1"
-                                      />
-                                      <Input
-                                          value={editedOffice.address}
-                                          onChange={(e) =>
-                                              setEditedOffice({ ...editedOffice, address: e.target.value })
-                                          }
-                                          placeholder="Адрес"
-                                          className="w-full sm:flex-1"
-                                      />
-                                      <Button
-                                          onClick={() => handleUpdateOffice(officeItem.id)}
-                                          className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
-                                      >
-                                        Сохранить
-                                      </Button>
-                                      <Button
-                                          variant="ghost"
-                                          onClick={() => setEditingOfficeId(null)}
-                                          className="w-full sm:w-auto"
-                                      >
-                                        Отмена
-                                      </Button>
+                                    <div className="w-full space-y-3">
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                        <Input
+                                            value={editedOffice.name}
+                                            onChange={(e) =>
+                                                setEditedOffice({ ...editedOffice, name: e.target.value })
+                                            }
+                                            placeholder="Название офиса"
+                                            className="w-full sm:flex-1"
+                                        />
+                                        <Input
+                                            value={editedOffice.city}
+                                            onChange={(e) =>
+                                                setEditedOffice({ ...editedOffice, city: e.target.value })
+                                            }
+                                            placeholder="Город"
+                                            className="w-full sm:flex-1"
+                                        />
+                                        <Input
+                                            value={editedOffice.address}
+                                            onChange={(e) =>
+                                                setEditedOffice({ ...editedOffice, address: e.target.value })
+                                            }
+                                            placeholder="Адрес"
+                                            className="w-full sm:flex-1"
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-sm font-medium text-muted-foreground">Фото офиса</Label>
+                                        <Input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={handleEditOfficePhotoChange}
+                                        />
+                                        <p className="text-xs text-muted-foreground">Поддерживаются JPG, PNG или WebP до 2 МБ</p>
+                                        {editedOffice.photo ? (
+                                          <div className="flex items-center gap-4">
+                                            <div className="relative h-24 w-40 overflow-hidden rounded-lg border bg-muted">
+                                              <Image
+                                                src={editedOffice.photo}
+                                                alt={`Фото ${editedOffice.name || officeItem.name}`}
+                                                fill
+                                                className="object-cover"
+                                                sizes="160px"
+                                              />
+                                            </div>
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              className="text-red-500 hover:text-red-600"
+                                              onClick={handleRemoveEditedOfficePhoto}
+                                            >
+                                              Удалить фото
+                                            </Button>
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                        <Button
+                                            onClick={() => handleUpdateOffice(officeItem.id)}
+                                            className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                                        >
+                                          Сохранить
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            onClick={handleCancelOfficeEdit}
+                                            className="w-full sm:w-auto"
+                                        >
+                                          Отмена
+                                        </Button>
+                                      </div>
                                     </div>
                                 ) : (
                                     <>
-                                      <div className="text-gray-700">
+                                      <div className="flex w-full flex-col gap-3 text-gray-700 sm:flex-row">
+                                        <div className="flex-1">
                                         <div className="text-lg font-semibold">{officeItem.name}</div>
                                         <div className="text-sm text-gray-600">
                                           Город: <span className="font-medium">{officeItem.city}</span>
@@ -2499,6 +2679,18 @@ export default function ManagerDashboard() {
                                         <div className="text-sm text-gray-600">
                                           Адрес: <span className="font-medium">{officeItem.address}</span>
                                         </div>
+                                        </div>
+                                        {officeItem.photo ? (
+                                          <div className="relative h-24 w-full sm:w-48 overflow-hidden rounded-lg border bg-muted">
+                                            <Image
+                                              src={officeItem.photo}
+                                              alt={`Фото ${officeItem.name}`}
+                                              fill
+                                              className="object-cover"
+                                              sizes="190px"
+                                            />
+                                          </div>
+                                        ) : null}
                                       </div>
                                       <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
                                         <Button
@@ -2510,6 +2702,7 @@ export default function ManagerDashboard() {
                                                 name: officeItem.name,
                                                 city: officeItem.city,
                                                 address: officeItem.address,
+                                                photo: officeItem.photo ?? null,
                                               });
                                             }}
                                             className="w-full sm:w-auto"

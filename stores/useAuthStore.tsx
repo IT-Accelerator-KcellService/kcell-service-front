@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 
 interface Office {
     name: string;
+    photo?: string | null;
 }
 
 interface User {

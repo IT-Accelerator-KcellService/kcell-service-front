@@ -19,6 +19,7 @@ interface RegistrationRequestModalProps {
 interface Office {
     id: number;
     name: string;
+    photo?: string | null;
 }
 
 interface Role {

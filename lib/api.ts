@@ -91,9 +91,18 @@ export const changeCategoryHead = (categoryId: number, newHeadUserId: number) =>
 
 
 // ==================== Offices ====================
+export interface Office {
+    id: number;
+    name: string;
+    city: string;
+    address: string;
+    lat?: number | null;
+    lon?: number | null;
+    photo?: string | null;
+}
 
 // Получить все офисы
-export const getOffices = () => api.get('/offices');
+export const getOffices = () => api.get<Office[]>('/offices');
 
 
 
@@ -304,7 +313,6 @@ export interface MeetingRoom {
     name: string;
     floor: number;
     capacity: number;
-    equipment: string[];
     photos: string[];
     status: 'available' | 'booked';
     isActive: boolean;

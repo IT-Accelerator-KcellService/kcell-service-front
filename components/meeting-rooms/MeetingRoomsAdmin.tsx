@@ -1,15 +1,9 @@
 import { useState, useMemo, useEffect, ChangeEvent } from "react";
 import {
   MeetingRoom,
-  MeetingRoomEquipment,
   MeetingRoomStatus,
-  MEETING_ROOM_EQUIPMENT,
   useMeetingRoomsStore,
 } from "@/stores/meetingRoomsStore";
-import {
-  MeetingRoomsFilters,
-  MeetingRoomsFiltersState,
-} from "@/components/meeting-rooms/MeetingRoomsFilters";
 import { MeetingRoomCard } from "@/components/meeting-rooms/MeetingRoomCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,10 +30,7 @@ import {
   Save,
   Trash2,
   Copy,
-  RefreshCcw,
   X,
-  Filter,
-  ChevronUp,
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -50,14 +41,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const ADMIN_FILTERS_DEFAULT: MeetingRoomsFiltersState = {
-  floor: "all",
-  capacity: null,
-  equipment: [],
-  status: "all",
-  showInactive: true,
-};
-
 interface RoomFormState {
   id?: number;
   name: string;
@@ -65,7 +48,6 @@ interface RoomFormState {
   capacity: number | "";
   status: MeetingRoomStatus;
   isActive: boolean;
-  equipment: MeetingRoomEquipment[];
   photos: string[];
   description: string;
 }
@@ -76,7 +58,6 @@ const EMPTY_FORM: RoomFormState = {
   capacity: "",
   status: "available",
   isActive: true,
-  equipment: [],
   photos: [],
   description: "",
 };
@@ -88,7 +69,6 @@ const toFormState = (room: MeetingRoom): RoomFormState => ({
   capacity: room.capacity,
   status: room.status,
   isActive: room.isActive,
-  equipment: [...(room.equipment ?? [])],
   photos: [...(room.photos ?? [])],
   description: room.description ?? "",
 });
@@ -111,53 +91,18 @@ export function MeetingRoomsAdmin() {
   const duplicateRoom = useMeetingRoomsStore((state) => state.duplicateRoom);
   const setRoomStatus = useMeetingRoomsStore((state) => state.setRoomStatus);
 
-  const [filters, setFilters] = useState<MeetingRoomsFiltersState>(ADMIN_FILTERS_DEFAULT);
   const [open, setOpen] = useState(false);
   const [formState, setFormState] = useState<RoomFormState>(EMPTY_FORM);
   const [isEditing, setIsEditing] = useState(false);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<MeetingRoom | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expandedRooms, setExpandedRooms] = useState<Set<number>>(new Set());
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; floor?: string; capacity?: string; photos?: string }>({});
 
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
 
-  const availableFloors = useMemo(
-    () => Array.from(new Set(rooms.map((room) => room.floor))).sort((a, b) => a - b),
-    [rooms],
-  );
-
-  const filteredRooms = useMemo(() => {
-    return rooms.filter((room) => {
-      if (!room.isActive && !filters.showInactive) {
-        return false;
-      }
-
-      if (filters.floor !== "all" && room.floor !== filters.floor) {
-        return false;
-      }
-
-      if (typeof filters.capacity === "number" && room.capacity < filters.capacity) {
-        return false;
-      }
-
-      if (filters.status !== "all" && room.status !== filters.status) {
-        return false;
-      }
-
-      if (
-        filters.equipment.length > 0 &&
-        !filters.equipment.every((equipment) => room.equipment?.includes(equipment))
-      ) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [rooms, filters]);
 
   const resetForm = () => {
     setFormState(EMPTY_FORM);
@@ -361,7 +306,6 @@ export function MeetingRoomsAdmin() {
       capacity: Number(formState.capacity),
       status: formState.status,
       isActive: formState.isActive,
-      equipment: formState.equipment,
       photos: formState.photos,
       description: formState.description.trim(),
     } satisfies Omit<MeetingRoom, "id">;
@@ -384,17 +328,6 @@ export function MeetingRoomsAdmin() {
     }
   };
 
-  const toggleEquipment = (value: MeetingRoomEquipment) => {
-    setFormState((prev) => ({
-      ...prev,
-      equipment: prev.equipment.includes(value)
-        ? prev.equipment.filter((item) => item !== value)
-        : [...prev.equipment, value],
-    }));
-  };
-
-  const resetFilters = () => setFilters(ADMIN_FILTERS_DEFAULT);
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -408,19 +341,6 @@ export function MeetingRoomsAdmin() {
           <Button className="gap-2" onClick={handleAddRoomClick}>
             <Plus className="h-4 w-4" />
             Добавить комнату
-          </Button>
-        </div>
-        
-        {/* Кнопка фильтра для мобильных */}
-        <div className="lg:hidden">
-          <Button 
-            variant="outline" 
-            className="w-full gap-2"
-            onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-          >
-            <Filter className="h-4 w-4" />
-            Фильтр
-            {isFiltersOpen && <ChevronUp className="h-4 w-4" />}
           </Button>
         </div>
       </div>
@@ -520,27 +440,6 @@ export function MeetingRoomsAdmin() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Оборудование</Label>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {Object.entries(MEETING_ROOM_EQUIPMENT).map(([value, meta]) => {
-                          const checked = formState.equipment.includes(
-                            value as MeetingRoomEquipment,
-                          );
-                          return (
-                            <Button
-                              key={value}
-                              type="button"
-                              variant={checked ? "default" : "outline"}
-                              className="justify-start gap-2"
-                              onClick={() => toggleEquipment(value as MeetingRoomEquipment)}
-                            >
-                              {meta.label}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                    </div>
                   </div>
                 </ScrollArea>
                 <div className="flex flex-col gap-4 px-2">
@@ -640,7 +539,6 @@ export function MeetingRoomsAdmin() {
                             name: formState.name,
                             floor: Number(formState.floor) || 0,
                             capacity: Number(formState.capacity) || 0,
-                            equipment: formState.equipment,
                             photos: formState.photos,
                             status: formState.status,
                             isActive: formState.isActive,
@@ -666,105 +564,66 @@ export function MeetingRoomsAdmin() {
           </Card>
       )}
 
-      {/* Фильтры для мобильных - показываются после нажатия */}
-      {isFiltersOpen && (
-        <div className="lg:hidden">
-          <MeetingRoomsFilters
-            filters={filters}
-            onChange={setFilters}
-            availableFloors={availableFloors.length ? availableFloors : floorsRange}
-            capacityOptions={capacities}
-            showStatusFilter
-            showInactiveToggle
-          />
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_360px]">
-        <div className="space-y-4">
-          {filteredRooms.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-10 text-center">
-              <h3 className="text-lg font-semibold">Комнаты не найдены</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Измените фильтры или добавьте новую переговорную комнату.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {filteredRooms.map((room) => (
-                <MeetingRoomCard
-                  key={room.id}
-                  room={room}
-                  highlightInactive
-                  isExpanded={expandedRooms.has(room.id)}
-                  onToggleExpand={() => toggleRoomExpand(room.id)}
-                  footer={
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleEdit(room)}>
-                        Редактировать
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          handleStatusChange(
-                            room.id,
-                            room.status === "available" ? "booked" : "available",
-                          )
-                        }
-                      >
-                        {room.status === "available" ? "Отметить как забронированную" : "Освободить"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleToggleActive(room.id)}
-                      >
-                        {room.isActive ? "Отправить на ремонт" : "Сделать активной"}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDuplicate(room.id)}>
-                        <Copy className="mr-1 h-4 w-4" />
-                        Дублировать
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => requestDeleteRoom(room)}
-                      >
-                        <Trash2 className="mr-1 h-4 w-4" />
-                        Удалить
-                      </Button>
-                    </div>
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Фильтры для десктопа */}
-        <div className="hidden lg:block">
-          <MeetingRoomsFilters
-            filters={filters}
-            onChange={setFilters}
-            availableFloors={availableFloors.length ? availableFloors : floorsRange}
-            capacityOptions={capacities}
-            showStatusFilter
-            showInactiveToggle
-            className="self-start"
-          />
-        </div>
+      <div className="space-y-4">
+        {rooms.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-10 text-center">
+            <h3 className="text-lg font-semibold">Комнаты не найдены</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Добавьте новую переговорную комнату.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {rooms.map((room) => (
+              <MeetingRoomCard
+                key={room.id}
+                room={room}
+                highlightInactive
+                isExpanded={expandedRooms.has(room.id)}
+                onToggleExpand={() => toggleRoomExpand(room.id)}
+                footer={
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(room)}>
+                      Редактировать
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        handleStatusChange(
+                          room.id,
+                          room.status === "available" ? "booked" : "available",
+                        )
+                      }
+                    >
+                      {room.status === "available" ? "Отметить как забронированную" : "Освободить"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleToggleActive(room.id)}
+                    >
+                      {room.isActive ? "Отправить на ремонт" : "Сделать активной"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDuplicate(room.id)}>
+                      <Copy className="mr-1 h-4 w-4" />
+                      Дублировать
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => requestDeleteRoom(room)}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      Удалить
+                    </Button>
+                  </div>
+                }
+              />
+            ))}
+          </div>
+        )}
       </div>
-
-      <Button
-        type="button"
-        variant="ghost"
-        className="self-start gap-2"
-        onClick={resetFilters}
-      >
-        <RefreshCcw className="h-4 w-4" />
-        Сбросить фильтры
-      </Button>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={handleDeleteDialogOpenChange}>
         <AlertDialogContent>
