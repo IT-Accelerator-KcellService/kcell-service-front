@@ -6,6 +6,7 @@ import { CreateRequestModal } from "@/components/CreateRequestModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCategoryStore } from "@/stores/useCategoryStore";
 import { useRequestStore } from "@/stores/useRequestStore";
+import { useOfficeLocationsStore } from "@/stores/useOfficeLocationsStore";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
@@ -44,6 +45,7 @@ export default function CreateRequestPage() {
   
   const { user, clearAuth, token } = useAuthStore();
   const { categories, fetchCategories } = useCategoryStore();
+  const fetchOfficeLocations = useOfficeLocationsStore(state => state.fetchLocations);
   
   const [isOpen, setIsOpen] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,6 +65,7 @@ export default function CreateRequestPage() {
       setIsLoading(true);
       try {
         await fetchCategories(token || '');
+        await fetchOfficeLocations();
         
         // Загружаем исполнителей для department-head
         if (user.role === 'department-head') {

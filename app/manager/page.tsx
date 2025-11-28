@@ -70,6 +70,7 @@ import {MapModal} from "@/components/MapModal";
 import {LeaderIndicator} from "@/components/ui/leader-indicator";
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import {RequestCard} from "@/components/RequestCard";
+import { OfficeLocationsManager } from "@/components/OfficeLocationsManager";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import dynamic from 'next/dynamic';
@@ -2528,6 +2529,8 @@ export default function ManagerDashboard() {
                 </CardContent>
 
               </Card>
+
+              <OfficeLocationsManager offices={offices} />
 
               {/* Управление категориями услуг */}
               <Card>

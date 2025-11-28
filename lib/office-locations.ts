@@ -1,11 +1,19 @@
 export interface OfficeLocation {
+  id?: number;
+  office_id?: number;
   address: string;
   block: string;
-  location: string;
-  room: string;
+  location?: string | null;
+  room?: string | null;
+  office?: {
+    id: number;
+    name: string;
+    address: string;
+    city?: string | null;
+  };
 }
 
-export const officeLocationsData: OfficeLocation[] = [
+const legacyOfficeLocationsData: OfficeLocation[] = [
   // Алимжанова, 51
   { address: "Алимжанова, 51", block: "А", location: "1 этаж", room: "Холл" },
   { address: "Алимжанова, 51", block: "А", location: "1 этаж", room: "Канцеллярия № А - 01 -18" },
@@ -221,6 +229,24 @@ export const officeLocationsData: OfficeLocation[] = [
   { address: "Тимирязева, 2г", block: "Лифт 2", location: "", room: "" },
   { address: "Тимирязева, 2г", block: "Лифт 3", location: "", room: "" },
 ];
+
+let officeLocationsData: OfficeLocation[] = [...legacyOfficeLocationsData];
+
+export const setOfficeLocationsData = (entries?: OfficeLocation[]) => {
+  if (Array.isArray(entries)) {
+    officeLocationsData = entries.map((entry) => ({
+      ...entry,
+      address: entry.address || entry.office?.name || entry.office?.address || entry.block,
+      block: entry.block,
+      location: entry.location ?? "",
+      room: entry.room ?? "",
+    }));
+  } else {
+    officeLocationsData = [...legacyOfficeLocationsData];
+  }
+};
+
+export const getOfficeLocationsData = () => officeLocationsData;
 
 // Утилиты для работы с данными офисов
 export const getBlocksForOffice = (officeAddress: string): string[] => {
