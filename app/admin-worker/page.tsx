@@ -58,6 +58,7 @@ import { RoleBasedActionMenu } from "@/components/action-menu/RoleBasedActionMen
 import { LogsViewer } from "@/components/logs-viewer";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 import { RequestCard } from "@/components/RequestCard";
+import { OfficeLocationsManager } from "@/components/OfficeLocationsManager";
 import { RatingModal } from "@/components/RatingModal";
 import { IconInfoModal } from "@/components/IconInfoModal";
 import { getPreviewUrl } from "@/lib/imageOptimization";
@@ -2702,6 +2703,7 @@ export default function AdminWorkerDashboard() {
                               <SelectItem value="subcategories">Управление подкатегориями</SelectItem>
                               <SelectItem value="passwords">Управление паролями</SelectItem>
                               <SelectItem value="executors">Управление исполнителями</SelectItem>
+                              <SelectItem value="locations">Управление локациями офисов</SelectItem>
                               <SelectItem value="change-head">Смена руководителя категории</SelectItem>
                             </SelectContent>
                           </Select>
@@ -2817,6 +2819,10 @@ export default function AdminWorkerDashboard() {
                           )}
                         </CardContent>
                       </Card>
+                      )}
+
+                      {selectedManagementSection === "locations" && (
+                          <OfficeLocationsManager offices={offices} />
                       )}
 
                       {/* Управление подкатегориями */}
