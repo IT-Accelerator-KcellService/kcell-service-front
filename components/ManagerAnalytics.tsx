@@ -9,6 +9,7 @@ import { BarChart3, Clock, Star, TrendingUp, TrendingDown, AlertTriangle } from 
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import api from "@/lib/api";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { MeetingRoomStatistics } from "@/components/meeting-rooms/MeetingRoomStatistics";
 
 interface SLAStats {
   byDate: Array<{
@@ -515,6 +516,10 @@ export default function ManagerAnalytics() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      <div className="mt-8">
+        <MeetingRoomStatistics />
+      </div>
     </div>
   );
 }

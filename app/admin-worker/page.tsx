@@ -76,6 +76,7 @@ import { ImportExcelModal } from "@/components/ImportExcelModal";
 import { deleteRecurringTask } from "@/lib/api";
 import PhotoModal from "@/components/photo/PhotoModal";
 import { MeetingRoomsAdmin } from "@/components/meeting-rooms/MeetingRoomsAdmin";
+import { MeetingRoomStatistics } from "@/components/meeting-rooms/MeetingRoomStatistics";
 
 interface User {
   id: number;
@@ -2633,66 +2634,69 @@ export default function AdminWorkerDashboard() {
                 </TabsContent>
 
                 <TabsContent value="statistics">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Статистика по заявкам</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span>Всего заявок</span>
-                            <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Завершено</span>
-                            <span className="font-bold text-green-600">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Статистика по заявкам</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span>Всего заявок</span>
+                              <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Завершено</span>
+                              <span className="font-bold text-green-600">
                             {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed): 0}
                           </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>В работе</span>
-                            <span className="font-bold text-blue-600">
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>В работе</span>
+                              <span className="font-bold text-blue-600">
                             {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork): 0}
                           </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Просрочено</span>
-                            <span className="font-bold text-red-600">
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Просрочено</span>
+                              <span className="font-bold text-red-600">
                             {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue): 0}
                           </span>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>По типам заявок</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span>Обычные</span>
-                            <span className="font-bold">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>По типам заявок</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span>Обычные</span>
+                              <span className="font-bold">
                             {stats && stats.requestTypeSummary && stats.requestTypeSummary.normal ? (stats.requestTypeSummary.normal): 0}
                           </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Экстренные</span>
-                            <span className="font-bold">
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Экстренные</span>
+                              <span className="font-bold">
                             {stats && stats.requestTypeSummary && stats.requestTypeSummary.urgent ? (stats.requestTypeSummary.urgent): 0}
                           </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Плановые</span>
-                            <span className="font-bold">
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Плановые</span>
+                              <span className="font-bold">
                             {stats && stats.requestTypeSummary && stats.requestTypeSummary.planned ? (stats.requestTypeSummary.planned): 0}
                           </span>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    <MeetingRoomStatistics />
                   </div>
                 </TabsContent>
 

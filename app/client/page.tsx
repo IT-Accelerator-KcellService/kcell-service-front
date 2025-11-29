@@ -72,6 +72,7 @@ import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
 import PhotoModal from "@/components/photo/PhotoModal";
 import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
+import { MeetingRoomStatistics } from "@/components/meeting-rooms/MeetingRoomStatistics";
 
 interface Rating {
   id: number;
@@ -1344,38 +1345,41 @@ export default function ClientDashboard() {
                   </TabsContent>
 
                   <TabsContent value="statistics">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Статистика по заявкам</CardTitle>
-                        <CardDescription>Ваша активность</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span>Всего подано заявок</span>
-                            <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
+                    <div className="space-y-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Статистика по заявкам</CardTitle>
+                          <CardDescription>Ваша активность</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span>Всего подано заявок</span>
+                              <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Завершено успешно</span>
+                              <span className="font-bold text-green-600">
+                                {stats && stats.doneRequests ? (stats.doneRequests) : 0}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Средняя оценка от исполнителей</span>
+                              <span className="font-bold">
+                                {stats && stats.averageRating ? (stats.averageRating) : 0}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span>Количество полученных оценок</span>
+                              <span className="font-bold text-purple-600">
+                                {stats && stats.totalRatings ? (stats.totalRatings) : 0}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex justify-between items-center">
-                            <span>Завершено успешно</span>
-                            <span className="font-bold text-green-600">
-                              {stats && stats.doneRequests ? (stats.doneRequests) : 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Средняя оценка от исполнителей</span>
-                            <span className="font-bold">
-                              {stats && stats.averageRating ? (stats.averageRating) : 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Количество полученных оценок</span>
-                            <span className="font-bold text-purple-600">
-                              {stats && stats.totalRatings ? (stats.totalRatings) : 0}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                      <MeetingRoomStatistics />
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="meeting-rooms">

@@ -447,3 +447,71 @@ export const getRoomDailyAvailability = (roomId: number, date: string, slotMinut
         }>;
     }>(`/meeting-room-bookings/rooms/${roomId}/availability?${params.toString()}`);
 };
+
+// ==================== Meeting Room Statistics ====================
+
+// Получить статистику переговорных комнат
+export interface MeetingRoomStats {
+    mostLoadedRooms: Array<{
+        room_id: number;
+        room_name: string;
+        office_name: string;
+        occupancy_percentage: number;
+    }>;
+    mostFreeRooms: Array<{
+        room_id: number;
+        room_name: string;
+        office_name: string;
+        occupancy_percentage: number;
+    }>;
+    peakHours: Array<{
+        hour: number;
+        booking_count: number;
+    }>;
+    averageBookingDuration: number; // в минутах
+    totalBookingsThisMonth: number;
+    cancellationsAndNoShows: number;
+}
+
+export const getMeetingRoomStats = () => 
+    api.get<MeetingRoomStats>('/meeting-room-bookings/statistics');
+
+// Получить дневной календарь загрузки комнат
+export interface DailyCalendarData {
+    date: string;
+    rooms: Array<{
+        room_id: number;
+        room_name: string;
+        office_name: string;
+        slots: Array<{
+            hour?: number;
+            isBooked?: boolean;
+            start_time?: string;
+            end_time?: string;
+            is_available?: boolean;
+            booking_id?: number | null;
+            booking_status?: string | null;
+        }>;
+    }>;
+}
+
+export const getMeetingRoomDailyCalendar = (date: string) =>
+    api.get<DailyCalendarData>(`/meeting-room-bookings/calendar/daily?date=${date}`);
+
+// Получить недельный календарь загрузки комнат
+export interface WeeklyCalendarData {
+    start_date: string;
+    end_date: string;
+    rooms: Array<{
+        room_id: number;
+        room_name: string;
+        office_name: string;
+        days: Array<{
+            date: string;
+            occupancy_percentage: number;
+        }>;
+    }>;
+}
+
+export const getMeetingRoomWeeklyCalendar = (startDate: string, endDate: string) =>
+    api.get<WeeklyCalendarData>(`/meeting-room-bookings/calendar/weekly?start_date=${startDate}&end_date=${endDate}`);
