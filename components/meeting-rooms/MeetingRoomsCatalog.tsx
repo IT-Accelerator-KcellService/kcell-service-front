@@ -13,6 +13,8 @@ import { MyBookings } from "@/components/meeting-rooms/MyBookings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSuccessModal } from "@/hooks/use-success-modal";
 import { SuccessModal } from "@/components/success-model";
+import { DeskHeightCalculator } from "@/components/meeting-rooms/DeskHeightCalculator";
+import { Ruler } from "lucide-react";
 
 import { Office } from "@/lib/api";
 
@@ -23,6 +25,7 @@ export function MeetingRoomsCatalog() {
   const [selectedRoom, setSelectedRoom] = useState<MeetingRoom | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"book" | "my-bookings">("book");
+  const [showDeskCalculator, setShowDeskCalculator] = useState(false);
   const successModal = useSuccessModal();
 
   useEffect(() => {
@@ -155,10 +158,27 @@ export function MeetingRoomsCatalog() {
   return (
     <div className="flex flex-col gap-6">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "book" | "my-bookings")}>
-        <TabsList>
-          <TabsTrigger value="book">Бронировать</TabsTrigger>
-          <TabsTrigger value="my-bookings">Мои бронирования</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="book">Бронировать</TabsTrigger>
+            <TabsTrigger value="my-bookings">Мои бронирования</TabsTrigger>
+          </TabsList>
+          
+          <Button
+            type="button"
+            variant="outline"
+            className="flex items-center gap-2 hover:bg-purple-50 hover:border-purple-200 transition-all"
+            onClick={() => setShowDeskCalculator(!showDeskCalculator)}
+          >
+            <Ruler className="h-4 w-4 text-purple-600" />
+            <span className="font-medium">Калькулятор высоты стола</span>
+          </Button>
+        </div>
+        
+        <DeskHeightCalculator
+          isOpen={showDeskCalculator}
+          onToggle={() => setShowDeskCalculator(!showDeskCalculator)}
+        />
         
         <TabsContent value="book" className="mt-6">
           <BookingContent />

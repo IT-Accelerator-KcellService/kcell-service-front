@@ -20,6 +20,8 @@ import { RejectRequestModal } from "@/components/RejectRequestModal"
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal"
 import { getRoomDailyAvailability } from "@/lib/api"
 import { useEffect } from "react"
+import { DeskHeightCalculator } from "./DeskHeightCalculator"
+import { Ruler } from "lucide-react"
 
 interface BookingModalProps {
   isOpen: boolean
@@ -61,6 +63,7 @@ export function BookingModal({
   const [loadingAvailability, setLoadingAvailability] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [showDeskCalculator, setShowDeskCalculator] = useState(false)
   const successModal = useSuccessModal()
   const rejectModal = useRejectRequestModal()
 
@@ -320,6 +323,34 @@ export function BookingModal({
             </div>
           )}
 
+          {showDeskCalculator && (
+            <DeskHeightCalculator
+              isOpen={showDeskCalculator}
+              onToggle={() => setShowDeskCalculator(!showDeskCalculator)}
+            />
+          )}
+          
+          {!showDeskCalculator && (
+            <div className="space-y-2 border border-purple-200 rounded-lg p-4 bg-gradient-to-r from-purple-50 to-purple-100/50">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start text-left font-normal hover:bg-white hover:border-purple-300 hover:shadow-md transition-all"
+                onClick={() => setShowDeskCalculator(true)}
+              >
+                <Ruler className="mr-3 h-5 w-5 text-purple-600" />
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-gray-900 text-base">
+                    Калькулятор высоты стола
+                  </div>
+                  <div className="text-sm text-gray-600 font-normal mt-0.5">
+                    Настройте высоту стола для сидячего и стоячего положения
+                  </div>
+                </div>
+              </Button>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             <div className="space-y-2">
               <Label>Дата</Label>
@@ -478,6 +509,7 @@ export function BookingModal({
         cancelText="Отмена"
         isLoading={isSubmitting}
       />
+
     </div>
   )
 }
