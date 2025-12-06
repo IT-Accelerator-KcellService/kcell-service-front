@@ -2023,7 +2023,7 @@ export default function ExecutorDashboard() {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">Статистика активности</p>
-                        <p className="text-xs text-gray-500">Просмотр вашей активности</p>
+                        <p className="text-xs text-gray-500">Трекер и статистика</p>
                       </div>
                     </div>
                   </Link>

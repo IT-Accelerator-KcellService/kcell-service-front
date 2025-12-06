@@ -75,8 +75,10 @@ export function ActivityTracker() {
   const saveIntervalRef = useRef<number | null>(null)
   const officesRef = useRef<any[]>([])
   const officeInfoRef = useRef<{ working_hours_start?: string, working_hours_end?: string, auto_track_enabled?: boolean } | null>(null)
+  const [officeInfo, setOfficeInfo] = useState<{ working_hours_start?: string, working_hours_end?: string, auto_track_enabled?: boolean } | null>(null)
   const { user } = useAuthStore()
   const autoStartCheckRef = useRef<number | null>(null)
+  const manualStartRef = useRef<boolean>(false) // Флаг ручного запуска
 
   // Проверка, находится ли пользователь в офисе
   const checkIfInOffice = async (location: LocationData | null): Promise<boolean> => {
@@ -390,7 +392,10 @@ export function ActivityTracker() {
   }
 
   // Запрос разрешения и начало отслеживания
-  const startTracking = async () => {
+  const startTracking = async (isManual = false) => {
+    if (isManual) {
+      manualStartRef.current = true // Помечаем как ручной запуск
+    }
     setError(null)
     
     // Проверяем поддержку API
@@ -474,7 +479,10 @@ export function ActivityTracker() {
   }
 
   // Остановка отслеживания
-  const stopTracking = async () => {
+  const stopTracking = async (isManual = false) => {
+    if (isManual) {
+      manualStartRef.current = false // Сбрасываем флаг при ручной остановке
+    }
     setIsTracking(false)
     
     // Сохраняем статистику перед остановкой
@@ -580,27 +588,87 @@ export function ActivityTracker() {
     
     try {
       const response = await api.get(`/offices/${user.office_id}`)
-      officeInfoRef.current = {
+      const info = {
         working_hours_start: response.data.working_hours_start,
         working_hours_end: response.data.working_hours_end,
         auto_track_enabled: response.data.auto_track_enabled
       }
+      officeInfoRef.current = info
+      setOfficeInfo(info) // Обновляем состояние для отображения
       
       console.log('📅 Рабочие часы офиса:', {
-        начало: officeInfoRef.current.working_hours_start,
-        конец: officeInfoRef.current.working_hours_end,
-        автотрек: officeInfoRef.current.auto_track_enabled ? '✅ Включен' : '❌ Выключен'
+        начало: info.working_hours_start,
+        конец: info.working_hours_end,
+        автотрек: info.auto_track_enabled ? '✅ Включен' : '❌ Выключен'
       })
     } catch (error) {
       console.error('Ошибка загрузки информации об офисе:', error)
     }
   }
 
+  // Форматирование времени из формата "HH:mm:ss" в "HH:mm"
+  const formatTimeDisplay = (timeStr?: string): string => {
+    if (!timeStr) return '--:--'
+    return timeStr.substring(0, 5) // Берем только часы и минуты
+  }
+
+  // Вычисление времени до конца рабочих часов
+  const getTimeUntilEnd = (): string | null => {
+    if (!officeInfo?.working_hours_end) return null
+    
+    const now = new Date()
+    const [hours, minutes] = officeInfo.working_hours_end.split(':').map(Number)
+    const endTime = new Date()
+    endTime.setHours(hours, minutes, 0, 0)
+    
+    // Если время уже прошло сегодня, берем завтра
+    if (endTime <= now) {
+      endTime.setDate(endTime.getDate() + 1)
+    }
+    
+    const diff = endTime.getTime() - now.getTime()
+    const hoursLeft = Math.floor(diff / (1000 * 60 * 60))
+    const minutesLeft = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    
+    if (hoursLeft > 0) {
+      return `${hoursLeft}ч ${minutesLeft}м`
+    } else if (minutesLeft > 0) {
+      return `${minutesLeft}м`
+    } else {
+      return 'Заканчиваются'
+    }
+  }
+
+  // Обновление времени до конца рабочих часов каждую минуту
+  const [timeUntilEnd, setTimeUntilEnd] = useState<string | null>(null)
+  
+  useEffect(() => {
+    if (!officeInfo?.working_hours_end) {
+      setTimeUntilEnd(null)
+      return
+    }
+    
+    const updateTime = () => {
+      const time = getTimeUntilEnd()
+      setTimeUntilEnd(time)
+    }
+    
+    updateTime()
+    const interval = setInterval(updateTime, 60000) // Обновляем каждую минуту
+    
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [officeInfo?.working_hours_end])
+
   // Автоматический запуск трекера в рабочие часы И если в офисе
   useEffect(() => {
     if (!user || user.role !== 'executor') return
 
+    let isMounted = true
+
     const checkAndAutoStart = async () => {
+      if (!isMounted) return
+      
       await loadOfficeInfo()
       
       // Проверяем рабочие часы
@@ -613,6 +681,8 @@ export function ActivityTracker() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
+            if (!isMounted) return
+            
             const location: LocationData = {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
@@ -623,12 +693,13 @@ export function ActivityTracker() {
             
             const inOffice = await checkIfInOffice(location)
             
-            if (inOffice && !isTracking) {
+            // Автозапуск только если не был ручной запуск и трекер не запущен
+            if (inOffice && !isTracking && !manualStartRef.current && isMounted) {
               console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
-              startTracking()
-            } else if (!inOffice && isTracking) {
+              startTracking(false) // Автоматический запуск
+            } else if (!inOffice && isTracking && !manualStartRef.current && isMounted) {
               console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
-              stopTracking()
+              stopTracking(false) // Автоматическая остановка
             } else if (!inOffice) {
               console.log('📍 Не в офисе, автозапуск не выполняется')
             }
@@ -646,16 +717,22 @@ export function ActivityTracker() {
       }
     }
 
-    // Проверяем сразу при загрузке
-    checkAndAutoStart()
+    // Небольшая задержка перед первой проверкой, чтобы компонент успел загрузиться
+    const initialTimeout = setTimeout(() => {
+      if (isMounted) {
+        checkAndAutoStart()
+      }
+    }, 1000)
 
     // Проверяем каждую минуту
     autoStartCheckRef.current = window.setInterval(async () => {
+      if (!isMounted) return
+      
       // Проверяем рабочие часы
       if (!isWithinWorkingHours()) {
-        if (isTracking) {
+        if (isTracking && !manualStartRef.current && isMounted) {
           console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
-          stopTracking()
+          stopTracking(false) // Автоматическая остановка
         }
         return
       }
@@ -664,6 +741,8 @@ export function ActivityTracker() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
+            if (!isMounted) return
+            
             const location: LocationData = {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
@@ -674,20 +753,21 @@ export function ActivityTracker() {
             
             const inOffice = await checkIfInOffice(location)
             
-            if (inOffice && !isTracking) {
+            // Автозапуск только если не был ручной запуск
+            if (inOffice && !isTracking && !manualStartRef.current && isMounted) {
               console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
-              startTracking()
-            } else if (!inOffice && isTracking) {
+              startTracking(false) // Автоматический запуск
+            } else if (!inOffice && isTracking && !manualStartRef.current && isMounted) {
               console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
-              stopTracking()
+              stopTracking(false) // Автоматическая остановка
             }
           },
           (error) => {
             console.warn('⚠️ Не удалось получить геолокацию:', error.message)
-            // Если геолокация недоступна и трекер работает, останавливаем
-            if (isTracking) {
+            // Если геолокация недоступна и трекер работает (и не ручной запуск), останавливаем
+            if (isTracking && !manualStartRef.current && isMounted) {
               console.log('📍 Геолокация недоступна, останавливаю трекер...')
-              stopTracking()
+              stopTracking(false) // Автоматическая остановка
             }
           },
           {
@@ -700,11 +780,16 @@ export function ActivityTracker() {
     }, 60000) // Каждую минуту
 
     return () => {
+      isMounted = false
       if (autoStartCheckRef.current) {
         clearInterval(autoStartCheckRef.current)
       }
+      if (initialTimeout) {
+        clearTimeout(initialTimeout)
+      }
     }
-  }, [user, isTracking])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.role]) // Убираем isTracking из зависимостей, чтобы избежать циклов
 
   useEffect(() => {
     if (isTracking) {
@@ -742,6 +827,29 @@ export function ActivityTracker() {
           <CardDescription>
             Отслеживание позы (сидя/стоя) и активности в течение дня
           </CardDescription>
+          {officeInfo && officeInfo.auto_track_enabled && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium text-blue-900">Рабочие часы:</span>
+                  <span className="text-blue-700">
+                    {formatTimeDisplay(officeInfo.working_hours_start)} - {formatTimeDisplay(officeInfo.working_hours_end)}
+                  </span>
+                </div>
+                {isWithinWorkingHours() && timeUntilEnd && (
+                  <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                    До конца: {timeUntilEnd}
+                  </Badge>
+                )}
+                {!isWithinWorkingHours() && (
+                  <Badge variant="secondary">
+                    Не рабочие часы
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -752,12 +860,12 @@ export function ActivityTracker() {
 
           <div className="flex gap-2">
             {!isTracking ? (
-              <Button onClick={startTracking} className="flex-1">
+              <Button onClick={() => startTracking(true)} className="flex-1">
                 <Play className="mr-2 h-4 w-4" />
                 Начать отслеживание
               </Button>
             ) : (
-              <Button onClick={stopTracking} variant="destructive" className="flex-1">
+              <Button onClick={() => stopTracking(true)} variant="destructive" className="flex-1">
                 <Pause className="mr-2 h-4 w-4" />
                 Остановить
               </Button>

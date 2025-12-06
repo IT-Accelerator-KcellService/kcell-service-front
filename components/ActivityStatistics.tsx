@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, TrendingUp, Activity, Users, MapPin, Calendar } from "lucide-react"
 import { useAuthStore } from "@/stores/useAuthStore"
 import api from "@/lib/api"
+import { ActivityTracker } from "@/components/ActivityTracker"
 
 interface DailyStatistics {
   date: string
@@ -231,6 +232,59 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
             )}
           </CardContent>
         </Card>
+      </div>
+    )
+  }
+
+  // Для executor показываем трекер + статистику
+  if (user?.role === 'executor') {
+    return (
+      <div className="space-y-6">
+        {/* Трекер активности */}
+        <ActivityTracker />
+        
+        {/* Статистика */}
+        {userStats ? (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Моя статистика активности
+                </CardTitle>
+                <CardDescription>
+                  Просмотр вашей активности за выбранный период
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="px-3 py-2 border rounded-lg text-sm"
+                  />
+                  <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')}>
+                    <TabsList>
+                      <TabsTrigger value="day">День</TabsTrigger>
+                      <TabsTrigger value="week">Неделя</TabsTrigger>
+                      <TabsTrigger value="month">Месяц</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+                <UserStatsCard stats={userStats} />
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center text-gray-500">
+                Нет данных о статистике
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     )
   }
