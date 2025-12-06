@@ -55,41 +55,110 @@ export function ActivityTracker() {
   const lastPostureRef = useRef<'sitting' | 'standing' | 'unknown'>('unknown')
   const dataHistoryRef = useRef<ActivityData[]>([])
   const intervalRef = useRef<number | null>(null)
+  const orientationRef = useRef<{ beta: number, gamma: number } | null>(null)
+  const postureVotesRef = useRef<Array<'sitting' | 'standing'>>([])
 
-  // Определение позы на основе данных акселерометра и гироскопа
-  const detectPosture = (acceleration: { x: number, y: number, z: number }, rotation: { beta: number, gamma: number }): 'sitting' | 'standing' | 'unknown' => {
-    // Вычисляем общее ускорение (без гравитации)
+  // Определение позы на основе данных акселерометра и гироскопа (улучшенный алгоритм)
+  const detectPosture = (
+    acceleration: { x: number, y: number, z: number }, 
+    rotation: { beta: number, gamma: number },
+    orientation?: { beta: number, gamma: number }
+  ): 'sitting' | 'standing' | 'unknown' => {
+    // Используем ориентацию, если доступна (более точная)
+    const beta = orientation?.beta ?? rotation.beta ?? 0
+    const gamma = orientation?.gamma ?? rotation.gamma ?? 0
+    
+    // Нормализуем углы (beta: -180 до 180, gamma: -90 до 90)
+    const normalizedBeta = Math.abs(beta)
+    const normalizedGamma = Math.abs(gamma)
+    
+    // Вычисляем общее ускорение
     const totalAcceleration = Math.sqrt(
       Math.pow(acceleration.x, 2) + 
       Math.pow(acceleration.y, 2) + 
       Math.pow(acceleration.z, 2)
     )
-
-    // Угол наклона устройства (beta - наклон вперед/назад)
-    const tiltAngle = Math.abs(rotation.beta || 0)
     
-    // Гравитация обычно около 9.8 м/с²
-    // Когда устройство неподвижно, общее ускорение близко к гравитации
-    const gravityThreshold = 9.5
+    // Анализ вертикального ускорения (Z-ось)
+    // Когда устройство лежит горизонтально (сидя), Z близко к гравитации (~9.8)
+    // Когда устройство вертикально (стоя), Z близко к 0
+    const verticalAcceleration = Math.abs(acceleration.z)
     
-    // Если устройство наклонено (лежит на столе) - вероятно сидит
-    // Если устройство вертикально - вероятно стоит
-    if (tiltAngle > 60 && tiltAngle < 120) {
-      // Устройство лежит горизонтально или наклонено
-      return 'sitting'
-    } else if (tiltAngle < 30 || tiltAngle > 150) {
+    // Система голосования для более стабильного определения
+    let vote: 'sitting' | 'standing' | null = null
+    
+    // Метод 1: Анализ угла наклона (beta)
+    // beta ~ 90° = устройство лежит горизонтально (сидя)
+    // beta ~ 0° или 180° = устройство вертикально (стоя)
+    if (normalizedBeta >= 70 && normalizedBeta <= 110) {
+      // Устройство лежит горизонтально или почти горизонтально
+      vote = 'sitting'
+    } else if (normalizedBeta <= 20 || normalizedBeta >= 160) {
       // Устройство вертикально
-      return 'standing'
+      vote = 'standing'
     }
     
-    // Альтернативный метод: анализ вертикального ускорения
-    // Когда сидим, устройство обычно неподвижно (z близко к гравитации)
-    // Когда стоим, могут быть небольшие движения
-    
-    if (Math.abs(acceleration.z) > 8 && Math.abs(acceleration.z) < 11) {
-      return 'sitting'
+    // Метод 2: Анализ вертикального ускорения
+    // Когда сидим: устройство неподвижно, Z ≈ 9.8 м/с² (гравитация)
+    // Когда стоим: устройство может двигаться, Z варьируется
+    if (verticalAcceleration >= 8.5 && verticalAcceleration <= 11.5) {
+      // Устройство неподвижно, вероятно лежит (сидя)
+      if (!vote) vote = 'sitting'
+    } else if (verticalAcceleration < 7 || verticalAcceleration > 12) {
+      // Устройство движется или в необычном положении
+      if (!vote) vote = 'standing'
     }
     
+    // Метод 3: Анализ угла gamma (боковой наклон)
+    // Когда сидим: gamma обычно близок к 0 (устройство ровно лежит)
+    // Когда стоим: gamma может варьироваться
+    if (normalizedGamma < 15 && normalizedBeta >= 70 && normalizedBeta <= 110) {
+      // Устройство ровно лежит горизонтально
+      if (!vote) vote = 'sitting'
+    }
+    
+    // Метод 4: Анализ стабильности (используем историю)
+    if (dataHistoryRef.current.length >= 3) {
+      const recent = dataHistoryRef.current.slice(-3)
+      const avgZ = recent.reduce((sum, d) => sum + Math.abs(d.acceleration.z), 0) / recent.length
+      
+      // Если среднее Z близко к гравитации и стабильно - сидим
+      if (avgZ >= 9.0 && avgZ <= 10.5) {
+        const variance = recent.reduce((sum, d) => {
+          const diff = Math.abs(d.acceleration.z) - avgZ
+          return sum + diff * diff
+        }, 0) / recent.length
+        
+        // Низкая вариация = стабильное положение = сидим
+        if (variance < 0.5) {
+          vote = 'sitting'
+        }
+      }
+    }
+    
+    // Система голосования: сохраняем последние 5 определений
+    if (vote) {
+      postureVotesRef.current.push(vote)
+      if (postureVotesRef.current.length > 5) {
+        postureVotesRef.current.shift()
+      }
+      
+      // Принимаем решение на основе большинства голосов
+      const sittingCount = postureVotesRef.current.filter(v => v === 'sitting').length
+      const standingCount = postureVotesRef.current.filter(v => v === 'standing').length
+      
+      if (sittingCount >= 3) {
+        return 'sitting'
+      } else if (standingCount >= 3) {
+        return 'standing'
+      }
+    }
+    
+    // Если не удалось определить, возвращаем последнюю известную позу
+    const lastKnownPosture = lastPostureRef.current
+    if (lastKnownPosture === 'sitting' || lastKnownPosture === 'standing') {
+      return lastKnownPosture
+    }
     return 'unknown'
   }
 
@@ -104,20 +173,23 @@ export function ActivityTracker() {
         // Завершаем предыдущий интервал
         if (postureStartTimeRef.current) {
           const duration = (now - postureStartTimeRef.current) / 1000
+          const previousPosture = lastPostureRef.current
           
-          if (lastPostureRef.current === 'sitting') {
+          if (previousPosture === 'sitting') {
             newStats.totalSittingTime += duration
-          } else if (lastPostureRef.current === 'standing') {
+          } else if (previousPosture === 'standing') {
             newStats.totalStandingTime += duration
           }
           
-          // Сохраняем интервал
-          newStats.intervals.push({
-            start: postureStartTimeRef.current,
-            end: now,
-            duration,
-            type: lastPostureRef.current
-          })
+          // Сохраняем интервал (проверяем, что поза не unknown)
+          if (previousPosture === 'sitting' || previousPosture === 'standing') {
+            newStats.intervals.push({
+              start: postureStartTimeRef.current,
+              end: now,
+              duration,
+              type: previousPosture
+            })
+          }
         }
         
         // Если перешли из сидя в стоя - это вставание
@@ -138,6 +210,16 @@ export function ActivityTracker() {
       
       return newStats
     })
+  }
+
+  // Обработчик ориентации устройства (более точные углы)
+  const handleDeviceOrientation = (event: DeviceOrientationEvent) => {
+    if (!isTracking) return
+    
+    orientationRef.current = {
+      beta: event.beta || 0,   // Наклон вперед/назад (-180 до 180)
+      gamma: event.gamma || 0  // Боковой наклон (-90 до 90)
+    }
   }
 
   // Обработчик движения устройства
@@ -162,8 +244,12 @@ export function ActivityTracker() {
       posture: 'unknown'
     }
 
-    // Определяем позу
-    const detectedPosture = detectPosture(data.acceleration, data.rotation)
+    // Определяем позу с использованием ориентации (если доступна)
+    const detectedPosture = detectPosture(
+      data.acceleration, 
+      data.rotation,
+      orientationRef.current || undefined
+    )
     data.posture = detectedPosture
     
     // Сохраняем в историю (последние 10 записей для анализа)
@@ -195,14 +281,28 @@ export function ActivityTracker() {
     // Запрашиваем разрешение (iOS 13+)
     if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
       try {
-        const permission = await (DeviceMotionEvent as any).requestPermission()
-        if (permission !== 'granted') {
-          setError('Разрешение на доступ к датчикам отклонено')
+        const motionPermission = await (DeviceMotionEvent as any).requestPermission()
+        if (motionPermission !== 'granted') {
+          setError('Разрешение на доступ к датчикам движения отклонено')
           return
         }
       } catch (err) {
-        setError('Ошибка при запросе разрешения')
+        setError('Ошибка при запросе разрешения на датчики движения')
         return
+      }
+    }
+
+    // Запрашиваем разрешение для ориентации (iOS 13+)
+    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      try {
+        const orientationPermission = await (DeviceOrientationEvent as any).requestPermission()
+        if (orientationPermission !== 'granted') {
+          setError('Разрешение на доступ к ориентации отклонено')
+          return
+        }
+      } catch (err) {
+        // Не критично, продолжаем без ориентации
+        console.warn('Не удалось получить разрешение на ориентацию')
       }
     }
 
@@ -210,6 +310,8 @@ export function ActivityTracker() {
     startTimeRef.current = Date.now()
     postureStartTimeRef.current = null
     lastPostureRef.current = 'unknown'
+    postureVotesRef.current = []
+    dataHistoryRef.current = []
     
     // Обновляем статистику каждую секунду
     intervalRef.current = window.setInterval(() => {
@@ -243,22 +345,26 @@ export function ActivityTracker() {
     if (postureStartTimeRef.current && lastPostureRef.current !== 'unknown') {
       const now = Date.now()
       const duration = (now - postureStartTimeRef.current) / 1000
+      const finalPosture = lastPostureRef.current
       
       setStatistics(prev => {
         const newStats = { ...prev }
         
-        if (lastPostureRef.current === 'sitting') {
+        if (finalPosture === 'sitting') {
           newStats.totalSittingTime += duration
-        } else if (lastPostureRef.current === 'standing') {
+        } else if (finalPosture === 'standing') {
           newStats.totalStandingTime += duration
         }
         
-        newStats.intervals.push({
-          start: postureStartTimeRef.current!,
-          end: now,
-          duration,
-          type: lastPostureRef.current
-        })
+        // Сохраняем интервал только если поза известна
+        if (finalPosture === 'sitting' || finalPosture === 'standing') {
+          newStats.intervals.push({
+            start: postureStartTimeRef.current!,
+            end: now,
+            duration,
+            type: finalPosture
+          })
+        }
         
         return newStats
       })
@@ -300,12 +406,15 @@ export function ActivityTracker() {
   useEffect(() => {
     if (isTracking) {
       window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
+      window.addEventListener('deviceorientation', handleDeviceOrientation as EventListener)
     } else {
       window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
+      window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
     }
 
     return () => {
       window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
+      window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
       }
