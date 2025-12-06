@@ -1,22 +1,28 @@
 "use client"
 
-import React from "react"
+import React, { useState, useEffect } from "react"
 import { ActivityTracker } from "@/components/ActivityTracker"
 import { useAuthStore } from "@/stores/useAuthStore"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 
 export default function ActivityTrackerPage() {
   const { user } = useAuthStore()
   const router = useRouter()
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
+    setHydrated(true) // сработает только на клиенте
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated) return // ждём восстановления данных из localStorage
+
     if (!user) {
       router.push('/login')
     }
-  }, [user, router])
+  }, [hydrated, user, router])
 
-  if (!user) {
+  if (!hydrated || !user) {
     return null
   }
 
