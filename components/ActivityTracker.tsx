@@ -6,6 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, Pause, Square, TrendingUp, Clock, Activity } from "lucide-react"
+import { useAuthStore } from "@/stores/useAuthStore"
+import api, { getOffices } from "@/lib/api"
+import { findNearestOffice } from "@/lib/utils"
+
+interface LocationData {
+  latitude: number
+  longitude: number
+  altitude: number | null
+  accuracy: number
+  timestamp: number
+}
 
 interface ActivityData {
   timestamp: number
@@ -19,6 +30,7 @@ interface ActivityData {
     beta: number
     gamma: number
   }
+  location?: LocationData
   posture: 'sitting' | 'standing' | 'unknown'
 }
 
@@ -57,12 +69,92 @@ export function ActivityTracker() {
   const intervalRef = useRef<number | null>(null)
   const orientationRef = useRef<{ beta: number, gamma: number } | null>(null)
   const postureVotesRef = useRef<Array<'sitting' | 'standing'>>([])
+  const locationHistoryRef = useRef<LocationData[]>([])
+  const watchIdRef = useRef<number | null>(null)
+  const lastLocationRef = useRef<LocationData | null>(null)
+  const saveIntervalRef = useRef<number | null>(null)
+  const officesRef = useRef<any[]>([])
+  const officeInfoRef = useRef<{ working_hours_start?: string, working_hours_end?: string, auto_track_enabled?: boolean } | null>(null)
+  const { user } = useAuthStore()
+  const autoStartCheckRef = useRef<number | null>(null)
 
-  // Определение позы на основе данных акселерометра и гироскопа (улучшенный алгоритм)
+  // Проверка, находится ли пользователь в офисе
+  const checkIfInOffice = async (location: LocationData | null): Promise<boolean> => {
+    if (!location) {
+      console.log('📍 Проверка офиса: геолокация недоступна → Не в офисе')
+      return false
+    }
+    
+    try {
+      // Загружаем офисы, если еще не загружены
+      if (officesRef.current.length === 0) {
+        const response = await getOffices()
+        officesRef.current = response.data
+        console.log('📍 Загружено офисов:', officesRef.current.length)
+      }
+      
+      // Ищем ближайший офис
+      const nearest = findNearestOffice(
+        location.latitude,
+        location.longitude,
+        officesRef.current
+      )
+      
+      if (!nearest) {
+        console.log('📍 Проверка офиса: ближайший офис не найден → Не в офисе')
+        return false
+      }
+      
+      const distanceInMeters = nearest.distance * 1000 // конвертируем км в метры
+      const isInOffice = nearest.distance < 0.1 // 0.1 км = 100 метров
+      
+      console.log('📍 Проверка офиса:', {
+        ваша_позиция: `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`,
+        ближайший_офис: nearest.office.name,
+        расстояние: `${distanceInMeters.toFixed(2)} м`,
+        в_офисе: isInOffice ? '✅ ДА' : '❌ НЕТ'
+      })
+      
+      return isInOffice
+    } catch (error) {
+      console.error('❌ Ошибка проверки офиса:', error)
+      return false
+    }
+  }
+  
+  // Сохранение статистики на сервер
+  const saveStatisticsToServer = async () => {
+    if (!user || !isTracking) return
+    
+    try {
+      const isInOffice = await checkIfInOffice(lastLocationRef.current)
+      
+      // Сохраняем текущую статистику
+      await api.post('/activity-stats/save', {
+        userId: user.id,
+        date: new Date().toISOString().split('T')[0],
+        totalSittingTime: statistics.totalSittingTime,
+        totalStandingTime: statistics.totalStandingTime,
+        standUpCount: statistics.standUpCount,
+        isInOffice,
+        location: lastLocationRef.current ? {
+          latitude: lastLocationRef.current.latitude,
+          longitude: lastLocationRef.current.longitude,
+          accuracy: lastLocationRef.current.accuracy
+        } : null
+      })
+    } catch (error) {
+      console.error('Ошибка сохранения статистики:', error)
+      // Не критично, продолжаем работу
+    }
+  }
+
+  // Определение позы на основе данных акселерометра, гироскопа и геолокации (улучшенный алгоритм)
   const detectPosture = (
     acceleration: { x: number, y: number, z: number }, 
     rotation: { beta: number, gamma: number },
-    orientation?: { beta: number, gamma: number }
+    orientation?: { beta: number, gamma: number },
+    location?: LocationData
   ): 'sitting' | 'standing' | 'unknown' => {
     // Используем ориентацию, если доступна (более точная)
     const beta = orientation?.beta ?? rotation.beta ?? 0
@@ -222,6 +314,33 @@ export function ActivityTracker() {
     }
   }
 
+  // Обработчик геолокации
+  const handleGeolocation = (position: GeolocationPosition) => {
+    if (!isTracking) return
+    
+    const locationData: LocationData = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      altitude: position.coords.altitude ?? null,
+      accuracy: position.coords.accuracy,
+      timestamp: position.timestamp
+    }
+    
+    // Сохраняем в историю (последние 5 записей)
+    locationHistoryRef.current.push(locationData)
+    if (locationHistoryRef.current.length > 5) {
+      locationHistoryRef.current.shift()
+    }
+    
+    lastLocationRef.current = locationData
+  }
+
+  // Обработчик ошибок геолокации
+  const handleGeolocationError = (error: GeolocationPositionError) => {
+    console.warn('Ошибка геолокации:', error.message)
+    // Не критично, продолжаем без геолокации
+  }
+
   // Обработчик движения устройства
   const handleDeviceMotion = (event: DeviceMotionEvent) => {
     if (!isTracking) return
@@ -241,14 +360,16 @@ export function ActivityTracker() {
         beta: rotation.beta || 0,
         gamma: rotation.gamma || 0
       },
+      location: lastLocationRef.current || undefined,
       posture: 'unknown'
     }
 
-    // Определяем позу с использованием ориентации (если доступна)
+    // Определяем позу с использованием ориентации и геолокации (если доступны)
     const detectedPosture = detectPosture(
       data.acceleration, 
       data.rotation,
-      orientationRef.current || undefined
+      orientationRef.current || undefined,
+      data.location
     )
     data.posture = detectedPosture
     
@@ -312,6 +433,21 @@ export function ActivityTracker() {
     lastPostureRef.current = 'unknown'
     postureVotesRef.current = []
     dataHistoryRef.current = []
+    locationHistoryRef.current = []
+    lastLocationRef.current = null
+    
+    // Запускаем отслеживание геолокации
+    if (navigator.geolocation) {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        handleGeolocation,
+        handleGeolocationError,
+        {
+          enableHighAccuracy: true,
+          maximumAge: 1000, // Кэш не более 1 секунды
+          timeout: 5000
+        }
+      )
+    }
     
     // Обновляем статистику каждую секунду
     intervalRef.current = window.setInterval(() => {
@@ -330,15 +466,28 @@ export function ActivityTracker() {
         return prev
       })
     }, 1000)
+    
+    // Сохраняем статистику на сервер каждые 5 минут
+    saveIntervalRef.current = window.setInterval(() => {
+      saveStatisticsToServer()
+    }, 5 * 60 * 1000) // 5 минут
   }
 
   // Остановка отслеживания
-  const stopTracking = () => {
+  const stopTracking = async () => {
     setIsTracking(false)
+    
+    // Сохраняем статистику перед остановкой
+    await saveStatisticsToServer()
     
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
+    }
+    
+    if (saveIntervalRef.current) {
+      clearInterval(saveIntervalRef.current)
+      saveIntervalRef.current = null
     }
     
     // Завершаем последний интервал
@@ -370,8 +519,15 @@ export function ActivityTracker() {
       })
     }
     
+    // Останавливаем отслеживание геолокации
+    if (watchIdRef.current !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(watchIdRef.current)
+      watchIdRef.current = null
+    }
+    
     // Удаляем обработчики
     window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
+    window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
   }
 
   // Сброс статистики
@@ -403,6 +559,153 @@ export function ActivityTracker() {
     }
   }
 
+  // Проверка, находится ли текущее время в рабочих часах
+  const isWithinWorkingHours = (): boolean => {
+    if (!officeInfoRef.current || !officeInfoRef.current.auto_track_enabled) {
+      return false
+    }
+
+    const now = new Date()
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`
+    
+    const startTime = officeInfoRef.current.working_hours_start || '08:00:00'
+    const endTime = officeInfoRef.current.working_hours_end || '18:00:00'
+    
+    return currentTime >= startTime && currentTime <= endTime
+  }
+
+  // Загрузка информации об офисе с рабочими часами
+  const loadOfficeInfo = async () => {
+    if (!user?.office_id) return
+    
+    try {
+      const response = await api.get(`/offices/${user.office_id}`)
+      officeInfoRef.current = {
+        working_hours_start: response.data.working_hours_start,
+        working_hours_end: response.data.working_hours_end,
+        auto_track_enabled: response.data.auto_track_enabled
+      }
+      
+      console.log('📅 Рабочие часы офиса:', {
+        начало: officeInfoRef.current.working_hours_start,
+        конец: officeInfoRef.current.working_hours_end,
+        автотрек: officeInfoRef.current.auto_track_enabled ? '✅ Включен' : '❌ Выключен'
+      })
+    } catch (error) {
+      console.error('Ошибка загрузки информации об офисе:', error)
+    }
+  }
+
+  // Автоматический запуск трекера в рабочие часы И если в офисе
+  useEffect(() => {
+    if (!user || user.role !== 'executor') return
+
+    const checkAndAutoStart = async () => {
+      await loadOfficeInfo()
+      
+      // Проверяем рабочие часы
+      if (!isWithinWorkingHours()) {
+        console.log('⏰ Не рабочие часы, автозапуск не выполняется')
+        return
+      }
+
+      // Получаем геолокацию для проверки нахождения в офисе
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const location: LocationData = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              altitude: position.coords.altitude ?? null,
+              accuracy: position.coords.accuracy,
+              timestamp: position.timestamp
+            }
+            
+            const inOffice = await checkIfInOffice(location)
+            
+            if (inOffice && !isTracking) {
+              console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
+              startTracking()
+            } else if (!inOffice && isTracking) {
+              console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
+              stopTracking()
+            } else if (!inOffice) {
+              console.log('📍 Не в офисе, автозапуск не выполняется')
+            }
+          },
+          (error) => {
+            console.warn('⚠️ Не удалось получить геолокацию для автозапуска:', error.message)
+            // Если геолокация недоступна, не запускаем автоматически
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
+          }
+        )
+      }
+    }
+
+    // Проверяем сразу при загрузке
+    checkAndAutoStart()
+
+    // Проверяем каждую минуту
+    autoStartCheckRef.current = window.setInterval(async () => {
+      // Проверяем рабочие часы
+      if (!isWithinWorkingHours()) {
+        if (isTracking) {
+          console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
+          stopTracking()
+        }
+        return
+      }
+
+      // Если рабочие часы, проверяем геолокацию
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const location: LocationData = {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              altitude: position.coords.altitude ?? null,
+              accuracy: position.coords.accuracy,
+              timestamp: position.timestamp
+            }
+            
+            const inOffice = await checkIfInOffice(location)
+            
+            if (inOffice && !isTracking) {
+              console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
+              startTracking()
+            } else if (!inOffice && isTracking) {
+              console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
+              stopTracking()
+            }
+          },
+          (error) => {
+            console.warn('⚠️ Не удалось получить геолокацию:', error.message)
+            // Если геолокация недоступна и трекер работает, останавливаем
+            if (isTracking) {
+              console.log('📍 Геолокация недоступна, останавливаю трекер...')
+              stopTracking()
+            }
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 60000 // Кэш до 1 минуты
+          }
+        )
+      }
+    }, 60000) // Каждую минуту
+
+    return () => {
+      if (autoStartCheckRef.current) {
+        clearInterval(autoStartCheckRef.current)
+      }
+    }
+  }, [user, isTracking])
+
   useEffect(() => {
     if (isTracking) {
       window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
@@ -415,11 +718,18 @@ export function ActivityTracker() {
     return () => {
       window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
       window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
+      
+      // Останавливаем отслеживание геолокации
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
       }
     }
-  }, [isTracking])
+  }, [isTracking, handleDeviceMotion, handleDeviceOrientation, handleGeolocation, handleGeolocationError])
 
   return (
     <div className="space-y-6 p-4">
@@ -470,6 +780,16 @@ export function ActivityTracker() {
               <div className="text-xs text-gray-500 space-y-1">
                 <div>Ускорение: X={currentData.acceleration.x.toFixed(2)}, Y={currentData.acceleration.y.toFixed(2)}, Z={currentData.acceleration.z.toFixed(2)}</div>
                 <div>Наклон: β={currentData.rotation.beta?.toFixed(1) || '0'}°, γ={currentData.rotation.gamma?.toFixed(1) || '0'}°</div>
+                {currentData.location && (
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    <div className="font-medium text-gray-700 mb-1">Геолокация:</div>
+                    <div>Координаты: {currentData.location.latitude.toFixed(6)}, {currentData.location.longitude.toFixed(6)}</div>
+                    {currentData.location.altitude !== null && (
+                      <div>Высота: {currentData.location.altitude.toFixed(1)} м</div>
+                    )}
+                    <div>Точность: ±{currentData.location.accuracy.toFixed(1)} м</div>
+                  </div>
+                )}
               </div>
             </div>
           )}

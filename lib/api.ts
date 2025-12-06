@@ -104,6 +104,16 @@ export interface Office {
 // Получить все офисы
 export const getOffices = () => api.get<Office[]>('/offices');
 
+// Обновить рабочие часы офиса
+export const updateOfficeWorkingHours = (
+    officeId: number,
+    data: {
+        working_hours_start: string; // формат "HH:mm:ss"
+        working_hours_end: string; // формат "HH:mm:ss"
+        auto_track_enabled: boolean;
+    }
+) => api.patch(`/offices/${officeId}/working-hours`, data);
+
 
 
 
