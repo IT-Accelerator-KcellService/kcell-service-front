@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -42,10 +42,13 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
   // Загрузка статистики текущего пользователя
-  const fetchUserStats = async (targetUserId?: number, date?: string) => {
+  const fetchUserStats = useCallback(async (targetUserId?: number, date?: string) => {
     try {
       const targetId = targetUserId || user?.id
-      if (!targetId) return
+      if (!targetId) {
+        setLoading(false)
+        return
+      }
 
       const params = new URLSearchParams()
       if (date) params.append('date', date)
@@ -55,35 +58,39 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
       setUserStats(response.data)
     } catch (error) {
       console.error('Ошибка загрузки статистики:', error)
+      setUserStats(null)
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id, period])
 
   // Загрузка статистики всех сотрудников (для админа)
-  const fetchAllUsersStats = async (date?: string) => {
+  const fetchAllUsersStats = useCallback(async (date?: string) => {
     try {
       const params = new URLSearchParams()
       if (date) params.append('date', date)
       params.append('inOffice', 'true') // Только сотрудники в офисе
 
       const response = await api.get(`/activity-stats/all?${params.toString()}`)
-      setAllUsersStats(response.data)
+      setAllUsersStats(response.data || [])
     } catch (error) {
       console.error('Ошибка загрузки статистики всех сотрудников:', error)
+      setAllUsersStats([])
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
+    if (!user) return // Не загружаем, если пользователь не загружен
+    
     setLoading(true)
     if (isAdmin) {
       fetchAllUsersStats(selectedDate)
     } else {
       fetchUserStats(userId, selectedDate)
     }
-  }, [period, selectedDate, userId, isAdmin])
+  }, [period, selectedDate, userId, isAdmin, user, fetchUserStats, fetchAllUsersStats])
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)

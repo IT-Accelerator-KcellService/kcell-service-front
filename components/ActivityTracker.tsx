@@ -61,6 +61,7 @@ export function ActivityTracker() {
   
   const [currentData, setCurrentData] = useState<ActivityData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
   
   const startTimeRef = useRef<number | null>(null)
   const postureStartTimeRef = useRef<number | null>(null)
@@ -666,16 +667,30 @@ export function ActivityTracker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [officeInfo?.working_hours_end])
 
+  // Отслеживание монтирования компонента
+  useEffect(() => {
+    setIsMounted(true)
+    return () => {
+      setIsMounted(false)
+    }
+  }, [])
+
   // Автоматический запуск трекера в рабочие часы И если в офисе
   useEffect(() => {
+    if (!isMounted) return // Ждем монтирования компонента
     if (!user || user.role !== 'executor') return
 
-    let isMounted = true
+    let componentMounted = true
 
     const checkAndAutoStart = async () => {
-      if (!isMounted) return
+      if (!componentMounted) return
       
-      await loadOfficeInfo()
+      try {
+        await loadOfficeInfo()
+      } catch (error) {
+        console.error('Ошибка загрузки информации об офисе:', error)
+        return
+      }
       
       // Проверяем рабочие часы
       if (!isWithinWorkingHours()) {
@@ -702,11 +717,13 @@ export function ActivityTracker() {
             // Проверяем, не был ли это ручной запуск (дополнительная проверка)
             const wasManualStart = manualStartRef.current
             
+            if (!componentMounted) return
+            
             // Автозапуск только если не был ручной запуск и трекер не запущен
-            if (inOffice && !isTracking && !wasManualStart && isMounted) {
+            if (inOffice && !isTracking && !wasManualStart && componentMounted) {
               console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
               startTracking(false) // Автоматический запуск
-            } else if (!inOffice && isTracking && !wasManualStart && isMounted) {
+            } else if (!inOffice && isTracking && !wasManualStart && componentMounted) {
               console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
               stopTracking(false) // Автоматическая остановка
             } else if (!inOffice && wasManualStart) {
@@ -731,21 +748,21 @@ export function ActivityTracker() {
     // Небольшая задержка перед первой проверкой, чтобы компонент успел загрузиться
     // И чтобы не конфликтовать с ручным запуском
     const initialTimeout = setTimeout(() => {
-      if (isMounted && !manualStartRef.current) {
+      if (componentMounted && !manualStartRef.current) {
         checkAndAutoStart()
-      } else if (isMounted && manualStartRef.current) {
+      } else if (componentMounted && manualStartRef.current) {
         console.log('⏸️ Пропускаю автозапуск - трекер запущен вручную')
       }
     }, 2000) // Увеличиваем задержку до 2 секунд
 
     // Проверяем каждую минуту
     autoStartCheckRef.current = window.setInterval(async () => {
-      if (!isMounted) return
+      if (!componentMounted) return
       
       // Проверяем рабочие часы
       if (!isWithinWorkingHours()) {
         const wasManualStart = manualStartRef.current
-        if (isTracking && !wasManualStart && isMounted) {
+        if (isTracking && !wasManualStart && componentMounted) {
           console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
           stopTracking(false) // Автоматическая остановка
         } else if (isTracking && wasManualStart) {
@@ -773,11 +790,13 @@ export function ActivityTracker() {
             // Проверяем, не был ли это ручной запуск (дополнительная проверка)
             const wasManualStart = manualStartRef.current
             
+            if (!componentMounted) return
+            
             // Автозапуск только если не был ручной запуск
-            if (inOffice && !isTracking && !wasManualStart && isMounted) {
+            if (inOffice && !isTracking && !wasManualStart && componentMounted) {
               console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
               startTracking(false) // Автоматический запуск
-            } else if (!inOffice && isTracking && !wasManualStart && isMounted) {
+            } else if (!inOffice && isTracking && !wasManualStart && componentMounted) {
               console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
               stopTracking(false) // Автоматическая остановка
             } else if (!inOffice && wasManualStart) {
@@ -788,7 +807,7 @@ export function ActivityTracker() {
             console.warn('⚠️ Не удалось получить геолокацию:', error.message)
             // Если геолокация недоступна и трекер работает (и не ручной запуск), останавливаем
             const wasManualStart = manualStartRef.current
-            if (isTracking && !wasManualStart && isMounted) {
+            if (isTracking && !wasManualStart && componentMounted) {
               console.log('📍 Геолокация недоступна, останавливаю трекер...')
               stopTracking(false) // Автоматическая остановка
             } else if (isTracking && wasManualStart) {
@@ -805,16 +824,17 @@ export function ActivityTracker() {
     }, 60000) // Каждую минуту
 
     return () => {
-      isMounted = false
+      componentMounted = false
       if (autoStartCheckRef.current) {
         clearInterval(autoStartCheckRef.current)
+        autoStartCheckRef.current = null
       }
       if (initialTimeout) {
         clearTimeout(initialTimeout)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, user?.role]) // Убираем isTracking из зависимостей, чтобы избежать циклов
+  }, [isMounted, user?.id, user?.role]) // Добавляем isMounted в зависимости
 
   useEffect(() => {
     if (isTracking) {
