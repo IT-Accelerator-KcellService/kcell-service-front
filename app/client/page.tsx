@@ -36,7 +36,6 @@ import {SuccessModal} from "@/components/success-model";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {BottomNav} from "@/components/BottomNav";
 import Link from "next/link";
-import {ProfileModal} from "@/components/ProfileModal";
 
 import {useRequestStore} from "@/stores/useRequestStore";
 import {RequestGroup, SubRequest} from '@/stores/useRequestStore'
@@ -117,7 +116,6 @@ export default function ClientDashboard() {
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({});
   const [clientRatings, setClientRatings] = useState<Record<number, any>>({});
 
-  const [showProfile, setShowProfile] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
@@ -1074,24 +1072,11 @@ export default function ClientDashboard() {
       <>
         {/* Header */}
         <Header
-            setShowProfile={setShowProfile}
             handleLogout={handleLogout}
             notificationCount={notifications.length}
             role="Клиент"
             onRefresh={handleRefresh}
-            onRequestClick={(requestId) => {
-              // Парсим ID заявки (может быть в формате "123" или "123/1")
-              const parsedId = parseInt(requestId.split('/')[0]);
-              const request = requests.find(r => r.id === parsedId);
-              if (request) {
-                setSelectedRequest(request);
-                openModal('requestDetails');
-                return true; // Заявка найдена
-              }
-              return false; // Заявка не найдена
-            }}
         />
-        <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
       <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
@@ -1313,7 +1298,7 @@ export default function ClientDashboard() {
   <BottomNav
 
       activeTab ="history"
-      hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showDeleteRequestModal}
+      hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showDeleteRequestModal}
   />
         {/* Request Details Modal */}
         {selectedRequest && (

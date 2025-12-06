@@ -1,5 +1,6 @@
 "use client"
-import React, { useState } from "react"
+
+import React, { useState, useEffect } from "react"
 import {
     Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card"
@@ -8,15 +9,17 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Lock, Bell, Save, User, Loader2 } from "lucide-react"
+import { Lock, Save, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
 import {BottomNav} from "@/components/BottomNav"
-import {useRouter} from "next/navigation";
-import {useNotificationStore} from "@/stores/notificationStore";
-import {useRequestStore} from "@/stores/useRequestStore";
-import {useStatsStore} from "@/stores/statsStore";
-import {useAuthStore} from "@/stores/useAuthStore";
+import {useRouter} from "next/navigation"
+import {useNotificationStore} from "@/stores/notificationStore"
+import {useRequestStore} from "@/stores/useRequestStore"
+import {useStatsStore} from "@/stores/statsStore"
+import {useAuthStore} from "@/stores/useAuthStore"
+import { useMediaQuery } from "@/hooks/use-media-query"
+import { ProfileModal } from "@/components/ProfileModal"
 
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
@@ -28,7 +31,9 @@ const roleTranslations: Record<string, string> = {
 
 export default function ProfilePage() {
     const {clearAuth, user, updateUser, role} = useAuthStore()
-    const router = useRouter();
+    const router = useRouter()
+    const isDesktop = useMediaQuery("(min-width: 768px)")
+    const [isOpen, setIsOpen] = useState(true)
     const [oldPassword, setOldPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
@@ -47,51 +52,49 @@ export default function ProfilePage() {
 
     // Обработка изменения телефона с форматированием
     function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const value = e.target.value;
-        const formatted = formatPhone(value);
-        updateUser({ ...user, phone: formatted });
+        const value = e.target.value
+        const formatted = formatPhone(value)
+        updateUser((prev) => prev ? { ...prev, phone: formatted } : null)
     }
 
     // Форматирование номера телефона
     const formatPhone = (value: string) => {
         // убираем всё, кроме цифр
-        let numbers = value.replace(/\D/g, '');
+        let numbers = value.replace(/\D/g, '')
 
         // если номер начинается с "8", заменяем на "7"
         if (numbers.startsWith('8')) {
-            numbers = '7' + numbers.slice(1);
+            numbers = '7' + numbers.slice(1)
         }
 
         // если нет "7" в начале — добавляем
         if (!numbers.startsWith('7')) {
-            numbers = '7' + numbers;
+            numbers = '7' + numbers
         }
 
         // оставляем максимум 11 цифр
-        numbers = numbers.slice(0, 11);
+        numbers = numbers.slice(0, 11)
 
         // форматируем
-        if (numbers.length <= 1) return '+7 ';
-        if (numbers.length <= 4) return `+7 ${numbers.slice(1)}`;
-        if (numbers.length <= 7) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4)}`;
-        if (numbers.length <= 9) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7)}`;
-        return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7, 9)} ${numbers.slice(9, 11)}`;
-    };
-
+        if (numbers.length <= 1) return '+7 '
+        if (numbers.length <= 4) return `+7 ${numbers.slice(1)}`
+        if (numbers.length <= 7) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4)}`
+        if (numbers.length <= 9) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7)}`
+        return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7, 9)} ${numbers.slice(9, 11)}`
+    }
 
     const handleLogout = () => {
         setIsLoggingOut(true)
         clearAuth()
         clearRequests()
-        useStatsStore.getState().resetStats();
+        useStatsStore.getState().resetStats()
         clearNotifications()
-        router.push("/login");
-    };
+        router.push("/login")
+    }
 
     const handleSaveProfile = async () => {
         setProfileError("")
         setProfileSuccess("")
-
         if (!user || !user.full_name || !user.phone) {
             setProfileError("ФИО и Номер обязательны.")
             return
@@ -115,17 +118,14 @@ export default function ProfilePage() {
     const handleChangePassword = async () => {
         setError("")
         setSuccess("")
-
         if (!oldPassword || !newPassword || !confirmPassword) {
             setError("Заполните все поля.")
             return
         }
-
         if (newPassword !== confirmPassword) {
             setError("Пароли не совпадают.")
             return
         }
-
         if (newPassword.length < 6) {
             setError("Пароль должен быть минимум 6 символов.")
             return
@@ -155,7 +155,6 @@ export default function ProfilePage() {
         setIsSavingNotifications(true)
         setNotificationError("")
         setNotificationSuccess("")
-
         try {
             await api.put("/users/notifications-settings", {
                 emailNotifications: user.email_notifications,
@@ -171,6 +170,32 @@ export default function ProfilePage() {
         }
     }
 
+    useEffect(() => {
+        if (!user) {
+            router.push('/login')
+            return
+        }
+    }, [user, router])
+
+    const handleClose = () => {
+        setIsOpen(false)
+        router.back()
+    }
+
+    if (!user) {
+        return null
+    }
+
+    // На десктопе показываем как модальное окно
+    if (isDesktop) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <ProfileModal isOpen={isOpen} onClose={handleClose} isFullScreen={false} />
+            </div>
+        )
+    }
+
+    // На мобильных показываем как обычную страницу
     return (
         <div className="pb-16">
             <div className="container px-4 py-6">
@@ -205,12 +230,11 @@ export default function ProfilePage() {
                                 <div className="space-y-1">
                                     <Label className="text-sm">ФИО</Label>
                                     <Input
-                                        value={user?.full_name}
-                                        onChange={(e) => updateUser({ ...user, full_name: e.target.value })}
+                                        value={user?.full_name || ""}
+                                        onChange={(e) => updateUser((prev) => prev ? { ...prev, full_name: e.target.value } : null)}
                                         className="text-sm"
                                     />
                                 </div>
-
                                 <div className="space-y-1">
                                     <Label className="text-sm">Номер телефона</Label>
                                     <Input
@@ -221,28 +245,24 @@ export default function ProfilePage() {
                                         placeholder="+7 (999) 123-45-67"
                                     />
                                 </div>
-
                                 <div className="space-y-1">
                                     <Label className="text-sm">Роль</Label>
                                     <Badge className="text-sm">
-                                        {role && (roleTranslations[role]) || (role)}
+                                        {role && roleTranslations[role] || role || "—"}
                                     </Badge>
                                 </div>
-
                                 <div className="space-y-1">
                                     <Label className="text-sm">Офис</Label>
                                     <Input
-                                        value={user?.office.name}
+                                        value={user?.office?.name || ""}
                                         readOnly
                                         className="bg-muted cursor-not-allowed text-sm"
                                     />
                                 </div>
-
                                 <div className="space-y-1">
                                     <Label className="text-sm">ID</Label>
                                     <p className="text-muted-foreground font-mono text-sm">#{user?.id}</p>
                                 </div>
-
                                 <Button
                                     onClick={handleSaveProfile}
                                     disabled={isSavingProfile}
@@ -251,9 +271,9 @@ export default function ProfilePage() {
                                     <Save className="mr-2 h-4 w-4" />
                                     {isSavingProfile ? "Сохранение..." : "Сохранить"}
                                 </Button>
-
                                 {profileError && <p className="text-sm text-red-500">{profileError}</p>}
                                 {profileSuccess && <p className="text-sm text-green-600">{profileSuccess}</p>}
+
                                 {/* Кнопка Выйти */}
                                 <Button
                                     variant="outline"
@@ -309,7 +329,6 @@ export default function ProfilePage() {
                                         className="text-sm"
                                     />
                                 </div>
-
                                 <Button
                                     onClick={handleChangePassword}
                                     disabled={isChanging}
@@ -318,7 +337,6 @@ export default function ProfilePage() {
                                     <Lock className="mr-2 h-4 w-4" />
                                     {isChanging ? "Смена..." : "Сменить пароль"}
                                 </Button>
-
                                 {error && <p className="text-sm text-red-500">{error}</p>}
                                 {success && <p className="text-sm text-green-600">{success}</p>}
                             </CardContent>
@@ -335,25 +353,24 @@ export default function ProfilePage() {
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Email уведомления</Label>
                                     <Switch
-                                        checked={user?.email_notifications}
-                                        onCheckedChange={(checked) => updateUser({...user, email_notifications: checked})}
+                                        checked={user?.email_notifications ?? false}
+                                        onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, email_notifications: checked } : null)}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Безопасность</Label>
                                     <Switch
-                                        checked={user?.security_notifications}
-                                        onCheckedChange={(checked) => updateUser({...user, security_notifications: checked})}
+                                        checked={user?.security_notifications ?? false}
+                                        onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, security_notifications: checked } : null)}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between py-1">
                                     <Label className="text-sm">Маркетинг</Label>
                                     <Switch
-                                        checked={user?.marketing_notifications}
-                                        onCheckedChange={(checked) => updateUser({...user, marketing_notifications: checked})}
+                                        checked={user?.marketing_notifications ?? false}
+                                        onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, marketing_notifications: checked } : null)}
                                     />
                                 </div>
-
                                 <Button
                                     onClick={handleSaveNotifications}
                                     disabled={isSavingNotifications}
@@ -371,7 +388,6 @@ export default function ProfilePage() {
                                         </>
                                     )}
                                 </Button>
-
                                 {notificationError && <p className="text-sm text-red-500 mt-2">{notificationError}</p>}
                                 {notificationSuccess && <p className="text-sm text-green-600 mt-2">{notificationSuccess}</p>}
                             </CardContent>

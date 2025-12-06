@@ -35,7 +35,6 @@ import {SuccessModal} from "@/components/success-model";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import PerformerCard from "@/components/rating";
-import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {Request, RequestGroup, SubRequest, useRequestStore} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
@@ -108,7 +107,6 @@ export default function ExecutorDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
-  const [showProfile, setShowProfile] = useState(false)
   const [showComments, setShowComments] = useState<number | null>(null);
   
   const [isLoggedIn, setIsLoggedIn] = useState(true)
@@ -1669,25 +1667,11 @@ export default function ExecutorDashboard() {
   return (
       <>
         <Header
-            setShowProfile={setShowProfile}
             handleLogout={handleLogout}
             notificationCount={notifications.length}
             role="Исполнитель"
             onRefresh={handleRefresh}
-            onRequestClick={(requestId) => {
-              // Парсим ID заявки (может быть в формате "123" или "123/1")
-              const parsedId = parseInt(requestId.split('/')[0]);
-              const allRequests = [...myRequests, ...assignedRequests, ...completedRequests];
-              const request = allRequests.find(r => r.id === parsedId);
-              if (request) {
-                setSelectedRequest(request);
-                openModal('requestDetails');
-                return true; // Заявка найдена
-              }
-              return false; // Заявка не найдена
-            }}
         />
-        <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 
       <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">
@@ -2578,7 +2562,7 @@ export default function ExecutorDashboard() {
         <BottomNav
 
             activeTab="history"
-            hidden={showCreateRequestModal || !! selectedRequest || showMapModal || !!selectedPhoto || showProfile || isModalOpen || showRejectModal || showRedirectModal}
+            hidden={showCreateRequestModal || !! selectedRequest || showMapModal || !!selectedPhoto || isModalOpen || showRejectModal || showRedirectModal}
         />
 
         {isDesktop && <Link

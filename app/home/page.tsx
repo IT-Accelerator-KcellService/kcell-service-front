@@ -876,7 +876,6 @@ export default function HomePage() {
             <Header
                 role={roleTranslations[role !== null ? role : '']}
                 handleLogout={() => {}}
-                setShowProfile={() => {}}
             />
             <PullToRefresh onRefresh={handleRefresh}>
                 <main className="min-h-screen bg-white pb-[calc(120px_+_env(safe-area-inset-bottom))]">

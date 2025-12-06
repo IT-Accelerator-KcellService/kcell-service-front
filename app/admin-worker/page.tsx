@@ -44,7 +44,6 @@ import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
 import {useRejectRequestModal} from "@/hooks/use-reject-modal";
 import {RejectRequestModal} from "@/components/RejectRequestModal";
 import {AcceptRequestModal} from "@/components/AcceptRequestModal";
-import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 
 import {sortRequests, useRequestStore} from "@/stores/useRequestStore";
@@ -124,7 +123,6 @@ export default function AdminWorkerDashboard() {
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false);
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
   const [notFoundRequestId, setNotFoundRequestId] = useState<string>('');
-  const [showProfile, setShowProfile] = useState(false);
 
   // Debug: отслеживаем изменения selectedRequest
   useEffect(() => {
@@ -2335,25 +2333,11 @@ export default function AdminWorkerDashboard() {
   return (
       <>
         <Header
-            setShowProfile={setShowProfile}
             handleLogout={handleLogout}
             notificationCount={3}
             role="Администратор"
             onRefresh={handleRefresh}
-            onRequestClick={(requestId) => {
-              // Парсим ID заявки (может быть в формате "123" или "123/1")
-              const parsedId = parseInt(requestId.split('/')[0]);
-              const allRequests = [...myRequests, ...incomingRequests];
-              const request = allRequests.find(r => r.id === parsedId);
-              if (request) {
-                setSelectedRequest(request);
-                openModal('requestDetails');
-                return true; // Заявка найдена
-              }
-              return false; // Заявка не найдена
-            }}
         />
-        <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
         <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
@@ -4230,7 +4214,7 @@ export default function AdminWorkerDashboard() {
         <BottomNav
 
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto}
+            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto}
         />
         {isDesktop && <Link
             href="/chat-bot"
