@@ -393,8 +393,10 @@ export function ActivityTracker() {
 
   // Запрос разрешения и начало отслеживания
   const startTracking = async (isManual = false) => {
+    // Сразу помечаем как ручной запуск ДО любых проверок
     if (isManual) {
-      manualStartRef.current = true // Помечаем как ручной запуск
+      manualStartRef.current = true
+      console.log('🔵 Ручной запуск трекера, автозапуск не будет останавливать')
     }
     setError(null)
     
@@ -440,6 +442,10 @@ export function ActivityTracker() {
     dataHistoryRef.current = []
     locationHistoryRef.current = []
     lastLocationRef.current = null
+    
+    if (isManual) {
+      console.log('✅ Трекер запущен вручную, автозапуск не будет вмешиваться')
+    }
     
     // Запускаем отслеживание геолокации
     if (navigator.geolocation) {
@@ -693,13 +699,18 @@ export function ActivityTracker() {
             
             const inOffice = await checkIfInOffice(location)
             
+            // Проверяем, не был ли это ручной запуск (дополнительная проверка)
+            const wasManualStart = manualStartRef.current
+            
             // Автозапуск только если не был ручной запуск и трекер не запущен
-            if (inOffice && !isTracking && !manualStartRef.current && isMounted) {
+            if (inOffice && !isTracking && !wasManualStart && isMounted) {
               console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
               startTracking(false) // Автоматический запуск
-            } else if (!inOffice && isTracking && !manualStartRef.current && isMounted) {
+            } else if (!inOffice && isTracking && !wasManualStart && isMounted) {
               console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
               stopTracking(false) // Автоматическая остановка
+            } else if (!inOffice && wasManualStart) {
+              console.log('📍 Не в офисе, но трекер запущен вручную - не останавливаю')
             } else if (!inOffice) {
               console.log('📍 Не в офисе, автозапуск не выполняется')
             }
@@ -718,11 +729,14 @@ export function ActivityTracker() {
     }
 
     // Небольшая задержка перед первой проверкой, чтобы компонент успел загрузиться
+    // И чтобы не конфликтовать с ручным запуском
     const initialTimeout = setTimeout(() => {
-      if (isMounted) {
+      if (isMounted && !manualStartRef.current) {
         checkAndAutoStart()
+      } else if (isMounted && manualStartRef.current) {
+        console.log('⏸️ Пропускаю автозапуск - трекер запущен вручную')
       }
-    }, 1000)
+    }, 2000) // Увеличиваем задержку до 2 секунд
 
     // Проверяем каждую минуту
     autoStartCheckRef.current = window.setInterval(async () => {
@@ -730,9 +744,12 @@ export function ActivityTracker() {
       
       // Проверяем рабочие часы
       if (!isWithinWorkingHours()) {
-        if (isTracking && !manualStartRef.current && isMounted) {
+        const wasManualStart = manualStartRef.current
+        if (isTracking && !wasManualStart && isMounted) {
           console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
           stopTracking(false) // Автоматическая остановка
+        } else if (isTracking && wasManualStart) {
+          console.log('⏰ Рабочие часы закончились, но трекер запущен вручную - не останавливаю')
         }
         return
       }
@@ -753,21 +770,29 @@ export function ActivityTracker() {
             
             const inOffice = await checkIfInOffice(location)
             
+            // Проверяем, не был ли это ручной запуск (дополнительная проверка)
+            const wasManualStart = manualStartRef.current
+            
             // Автозапуск только если не был ручной запуск
-            if (inOffice && !isTracking && !manualStartRef.current && isMounted) {
+            if (inOffice && !isTracking && !wasManualStart && isMounted) {
               console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
               startTracking(false) // Автоматический запуск
-            } else if (!inOffice && isTracking && !manualStartRef.current && isMounted) {
+            } else if (!inOffice && isTracking && !wasManualStart && isMounted) {
               console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
               stopTracking(false) // Автоматическая остановка
+            } else if (!inOffice && wasManualStart) {
+              console.log('📍 Не в офисе, но трекер запущен вручную - не останавливаю')
             }
           },
           (error) => {
             console.warn('⚠️ Не удалось получить геолокацию:', error.message)
             // Если геолокация недоступна и трекер работает (и не ручной запуск), останавливаем
-            if (isTracking && !manualStartRef.current && isMounted) {
+            const wasManualStart = manualStartRef.current
+            if (isTracking && !wasManualStart && isMounted) {
               console.log('📍 Геолокация недоступна, останавливаю трекер...')
               stopTracking(false) // Автоматическая остановка
+            } else if (isTracking && wasManualStart) {
+              console.log('📍 Геолокация недоступна, но трекер запущен вручную - не останавливаю')
             }
           },
           {
