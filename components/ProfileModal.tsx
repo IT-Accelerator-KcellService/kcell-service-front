@@ -32,9 +32,10 @@ const roleTranslations: Record<string, string> = {
 interface ProfileModalProps {
     isOpen: boolean
     onClose: () => void
+    isFullScreen?: boolean
 }
 
-export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
+export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileModalProps) {
     const {clearAuth, user, updateUser} = useAuthStore()
     const [oldPassword, setOldPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
@@ -169,6 +170,262 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     if (!isOpen) return null
 
+    // Полноэкранный режим для мобильных
+    if (isFullScreen) {
+        return (
+            <div className="min-h-screen bg-white">
+                {/* Заголовок с кнопкой назад */}
+                <div className="sticky top-0 z-10 flex items-center border-b border-gray-200 px-4 py-3 bg-white">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mr-2"
+                        onClick={handleClose}
+                        aria-label="Назад"
+                    >
+                        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </Button>
+                    <div className="flex items-center gap-3 flex-1">
+                        <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">W</span>
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-gray-900">Профиль</h2>
+                            <p className="text-xs text-gray-500">Управление данными и настройками</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Контент с прокруткой */}
+                <div className="overflow-y-auto pb-4" style={{ height: 'calc(100vh - 64px)' }}>
+                    <div className="p-4">
+                    <Tabs defaultValue="profile" className="px-6">
+                        {/* Вкладки с stopPropagation */}
+                        <TabsList className="grid w-full grid-cols-3 mb-6">
+                            <TabsTrigger
+                                value="profile"
+                                className="text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                Профиль
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="password"
+                                className="text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                Пароль
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="notifications"
+                                className="text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                Уведомления
+                            </TabsTrigger>
+                        </TabsList>
+
+                        {/* Вкладка: Профиль */}
+                        <TabsContent value="profile" className="space-y-4">
+                            <Card className="border-0 shadow-sm">
+                                <CardHeader className="p-0 mb-4">
+                                    <CardTitle className="text-base">Данные профиля</CardTitle>
+                                    <CardDescription>Редактируйте свои данные</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4 p-0">
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">ФИО</Label>
+                                        <Input
+                                            value={user?.full_name || ""}
+                                            onChange={(e) =>
+                                                updateUser((prev) => prev ? { ...prev, full_name: e.target.value } : null)
+                                            }
+                                            className="text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">Номер телефона</Label>
+                                        <Input
+                                            type="tel"
+                                            value={user?.phone || ""}
+                                            onChange={handlePhoneChange}
+                                            className="text-sm"
+                                            placeholder="+7 (999) 123-45-67"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">Роль</Label>
+                                        <Badge className="text-sm">
+                                            {user ? roleTranslations[user.role] || user.role : "—"}
+                                        </Badge>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">Офис</Label>
+                                        <Input
+                                            value={user?.office.name || ""}
+                                            readOnly
+                                            className="bg-muted cursor-not-allowed text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">ID</Label>
+                                        <p className="text-muted-foreground font-mono text-sm">#{user?.id}</p>
+                                    </div>
+                                    <Button
+                                        onClick={handleSaveProfile}
+                                        disabled={isSavingProfile}
+                                        className="mt-4 w-full sm:w-auto"
+                                    >
+                                        <Save className="mr-2 h-4 w-4" />
+                                        {isSavingProfile ? "Сохранение..." : "Сохранить"}
+                                    </Button>
+                                    {profileError && <p className="text-sm text-red-500 mt-2">{profileError}</p>}
+                                    {profileSuccess && <p className="text-sm text-green-600 mt-2">{profileSuccess}</p>}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        {/* Вкладка: Пароль */}
+                        <TabsContent value="password" className="space-y-4">
+                            <Card className="border-0 shadow-sm">
+                                <CardHeader className="p-0 mb-4">
+                                    <CardTitle className="text-base">Смена пароля</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4 p-0">
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">Старый пароль</Label>
+                                        <Input
+                                            type="password"
+                                            value={oldPassword}
+                                            onChange={(e) => setOldPassword(e.target.value)}
+                                            className="text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">Новый пароль</Label>
+                                        <Input
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            className="text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-sm">Подтверждение</Label>
+                                        <Input
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            className="text-sm"
+                                        />
+                                    </div>
+                                    <Button
+                                        onClick={handleChangePassword}
+                                        disabled={isChanging}
+                                        className="mt-4 w-full sm:w-auto"
+                                    >
+                                        <Lock className="mr-2 h-4 w-4" />
+                                        {isChanging ? "Смена..." : "Сменить пароль"}
+                                    </Button>
+                                    {profileError && <p className="text-sm text-red-500 mt-2">{profileError}</p>}
+                                    {profileSuccess && <p className="text-sm text-green-600 mt-2">{profileSuccess}</p>}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        {/* Вкладка: Уведомления */}
+                        <TabsContent value="notifications" className="space-y-4">
+                            <Card className="border-0 shadow-sm">
+                                <CardHeader className="p-0 mb-4">
+                                    <CardTitle className="text-base">Уведомления</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4 p-0">
+                                    <div className="flex items-center justify-between py-1">
+                                        <Label className="text-sm">Email уведомления</Label>
+                                        <Switch
+                                            checked={user?.email_notifications ?? false}
+                                            onCheckedChange={(checked) =>
+                                                updateUser((prev) => prev ? { ...prev, email_notifications: checked } : null)
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between py-1">
+                                        <Label className="text-sm">Безопасность</Label>
+                                        <Switch
+                                            checked={user?.security_notifications ?? false}
+                                            onCheckedChange={(checked) =>
+                                                updateUser((prev) => prev ? { ...prev, security_notifications: checked } : null)
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between py-1">
+                                        <Label className="text-sm">Маркетинг</Label>
+                                        <Switch
+                                            checked={user?.marketing_notifications ?? false}
+                                            onCheckedChange={(checked) =>
+                                                updateUser((prev) => prev ? { ...prev, marketing_notifications: checked } : null)
+                                            }
+                                        />
+                                    </div>
+                                    <Button
+                                        onClick={handleSaveNotifications}
+                                        disabled={isSavingNotifications}
+                                        className="mt-4 w-full sm:w-auto"
+                                    >
+                                        {isSavingNotifications ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Сохранение...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="mr-2 h-4 w-4" />
+                                                Сохранить
+                                            </>
+                                        )}
+                                    </Button>
+                                    {notificationError && <p className="text-sm text-red-500 mt-2">{notificationError}</p>}
+                                    {notificationSuccess && <p className="text-sm text-green-600 mt-2">{notificationSuccess}</p>}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    </Tabs>
+                    </div>
+
+                    {/* Кнопка "Выйти" */}
+                    <div className="border-t px-4 py-4 bg-gray-50 mt-4">
+                        <Button
+                            variant="outline"
+                            className="w-full text-red-600 border-red-500 hover:bg-red-50"
+                            onClick={() => {
+                                clearAuth()
+                                handleClose()
+                                useNotificationStore.getState().clearNotifications()
+                                useRequestStore.getState().clearRequests()
+                                useStatsStore.getState().resetStats()
+                                window.location.href = "/login"
+                            }}
+                        >
+                            {isLoggingOut ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Выходим...
+                                </>
+                            ) : (
+                                <>
+                                    Выйти из аккаунта
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Модальный режим для десктопа
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
             {/* Фон затемнения */}

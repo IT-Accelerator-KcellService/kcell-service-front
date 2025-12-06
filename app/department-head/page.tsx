@@ -40,7 +40,6 @@ import {SuccessModal} from "@/components/success-model";
 import {useSuccessModal} from "@/hooks/use-success-modal";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
-import {ProfileModal} from "@/components/ProfileModal";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {Request, RequestGroup, SubRequest, useRequestStore} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
@@ -118,7 +117,6 @@ export default function DepartmentHeadDashboard() {
   const [showNotFoundModal, setShowNotFoundModal] = useState(false)
   const [notFoundRequestId, setNotFoundRequestId] = useState<string>('')
 
-  const [showProfile, setShowProfile] = useState(false)
   const [showIconInfo, setShowIconInfo] = useState<{type: 'status' | 'longTerm', value: string} | null>(null);
   const [showComments, setShowComments] = useState<number | null>(null);
   const [showRatingModal, setShowRatingModal] = useState(false)
@@ -1570,25 +1568,11 @@ export default function DepartmentHeadDashboard() {
   return (
       <>
         <Header
-            setShowProfile={setShowProfile}
             handleLogout={handleLogout}
             notificationCount={3}
             role="Руководитель направления"
             onRefresh={handleRefresh}
-            onRequestClick={(requestId) => {
-              // Парсим ID заявки (может быть в формате "123" или "123/1")
-              const parsedId = parseInt(requestId.split('/')[0]);
-              const allRequests = [...myRequests, ...incomingRequests];
-              const request = allRequests.find(r => r.id === parsedId);
-              if (request) {
-                setSelectedRequest(request);
-                openModal('requestDetails');
-                return true; // Заявка найдена
-              }
-              return false; // Заявка не найдена
-            }}
         />
-        <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
         <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
@@ -2558,7 +2542,7 @@ export default function DepartmentHeadDashboard() {
         <BottomNav
 
             activeTab="history"
-            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || showProfile || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal || showChangeExecutorsModal}
+            hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal || showChangeExecutorsModal}
         />
         {isDesktop && <Link
             href="/chat-bot"

@@ -48,7 +48,6 @@ import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {AcceptRequestModal} from "@/components/AcceptRequestModal";
 import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
-import {ProfileModal} from "@/components/ProfileModal"
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
 import {Request, RequestGroup, SubRequest, useRequestStore} from "@/stores/useRequestStore";
 import PullToRefresh from "@/components/pull-to-refresh";
@@ -189,7 +188,6 @@ export default function ManagerDashboard() {
   const [categoriesWithExecutors, setCategoriesWithExecutors] = useState<Set<number>>(new Set())
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(true)
-  const [showProfile, setShowProfile] = useState(false)
   const { notifications, setNotifications, setNotificationLoading, clearNotifications } = useNotificationStore()
   const [loading, setLoading] = useState(true)
   const [selectedNotification, setSelectedNotification] = useState<any>(null)
@@ -694,6 +692,7 @@ export default function ManagerDashboard() {
             setShowCreateRequestModal(false);
             break;
           case 'taskDetails':
+          case 'requestDetails':
             setSelectedRequest(null);
             break;
           case 'mapModal':
@@ -2129,24 +2128,11 @@ export default function ManagerDashboard() {
   return (
     <>
       <Header
-          setShowProfile={setShowProfile}
           handleLogout={handleLogout}
           notificationCount={notifications.length}
-            role="Руководитель"
-            onRefresh={handleRefresh}
-            onRequestClick={(requestId) => {
-              // Парсим ID заявки (может быть в формате "123" или "123/1")
-              const parsedId = parseInt(requestId.split('/')[0]);
-              const request = requests.find(r => r.id === parsedId);
-              if (request) {
-                setSelectedRequest(request);
-                openModal('requestDetails');
-                return true; // Заявка найдена
-              }
-              return false; // Заявка не найдена
-            }}
+          role="Руководитель"
+          onRefresh={handleRefresh}
         />
-      <ProfileModal isOpen={showProfile} onClose={() => setShowProfile(false)} />
 
     <PullToRefresh onRefresh={handleRefresh}>
     <div className="min-h-screen bg-gray-50">
@@ -3796,7 +3782,7 @@ export default function ManagerDashboard() {
       <BottomNav
 
           activeTab="history"
-          hidden={showCreateRequestModal || showMapModal || showDeleteRequestModal || showProfile || isModalOpen || !!selectedPhoto || !!selectedRequest}
+          hidden={showCreateRequestModal || showMapModal || showDeleteRequestModal || isModalOpen || !!selectedPhoto || !!selectedRequest}
       />
 
       {isDesktop && <Link
