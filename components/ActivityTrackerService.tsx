@@ -1,0 +1,758 @@
+"use client"
+
+import { useEffect, useRef } from "react"
+import { useActivityTrackerStore } from "@/stores/useActivityTrackerStore"
+import { useAuthStore } from "@/stores/useAuthStore"
+import api, { getOffices } from "@/lib/api"
+import { findNearestOffice } from "@/lib/utils"
+
+interface LocationData {
+  latitude: number
+  longitude: number
+  altitude: number | null
+  accuracy: number
+  timestamp: number
+}
+
+interface ActivityData {
+  timestamp: number
+  acceleration: {
+    x: number
+    y: number
+    z: number
+  }
+  rotation: {
+    alpha: number
+    beta: number
+    gamma: number
+  }
+  location?: LocationData
+  posture: 'sitting' | 'standing' | 'unknown'
+}
+
+/**
+ * Фоновый сервис для ActivityTracker
+ * Работает независимо от монтирования основного компонента
+ * Продолжает отслеживание даже при переходе на другие страницы
+ */
+export function ActivityTrackerService() {
+  const { user } = useAuthStore()
+  const {
+    isTracking,
+    statistics,
+    startTime,
+    postureStartTime,
+    lastPosture,
+    manualStart,
+    setIsTracking,
+    setStatistics,
+    setStartTime,
+    setPostureStartTime,
+    setLastPosture,
+    updateStatistics
+  } = useActivityTrackerStore()
+
+  // Refs для хранения данных, которые не нужно сохранять в store
+  const dataHistoryRef = useRef<ActivityData[]>([])
+  const intervalRef = useRef<number | null>(null)
+  const orientationRef = useRef<{ beta: number, gamma: number } | null>(null)
+  const postureVotesRef = useRef<Array<'sitting' | 'standing'>>([])
+  const locationHistoryRef = useRef<LocationData[]>([])
+  const watchIdRef = useRef<number | null>(null)
+  const lastLocationRef = useRef<LocationData | null>(null)
+  const saveIntervalRef = useRef<number | null>(null)
+  const officesRef = useRef<any[]>([])
+  const officeInfoRef = useRef<{ working_hours_start?: string, working_hours_end?: string, auto_track_enabled?: boolean } | null>(null)
+  const autoStartCheckRef = useRef<number | null>(null)
+  const isStartingRef = useRef<boolean>(false)
+  const isStoppingRef = useRef<boolean>(false)
+  const isTrackingRef = useRef<boolean>(false)
+  const androidSensorCallbackRef = useRef<((data: any) => void) | null>(null)
+  const isAndroidWebView = useRef<boolean>(false)
+
+  // Синхронизация ref с store
+  useEffect(() => {
+    isTrackingRef.current = isTracking
+  }, [isTracking])
+
+  // Проверка Android WebView
+  useEffect(() => {
+    if (typeof (window as any).AndroidSensors !== 'undefined') {
+      isAndroidWebView.current = true
+      console.log('✅ [Service] Android WebView detected')
+    }
+  }, [])
+
+  // Проверка, находится ли пользователь в офисе
+  const checkIfInOffice = async (location: LocationData | null): Promise<boolean> => {
+    if (!location) return false
+    
+    try {
+      if (officesRef.current.length === 0) {
+        const response = await getOffices()
+        officesRef.current = response.data
+      }
+      
+      const nearest = findNearestOffice(
+        location.latitude,
+        location.longitude,
+        officesRef.current
+      )
+      
+      if (!nearest) return false
+      
+      return nearest.distance < 0.1 // 100 метров
+    } catch (error) {
+      console.error('❌ [Service] Ошибка проверки офиса:', error)
+      return false
+    }
+  }
+
+  // Проверка рабочих часов
+  const isWithinWorkingHours = (): boolean => {
+    if (!officeInfoRef.current || !officeInfoRef.current.auto_track_enabled) {
+      return false
+    }
+
+    const now = new Date()
+    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`
+    
+    const startTime = officeInfoRef.current.working_hours_start || '08:00:00'
+    const endTime = officeInfoRef.current.working_hours_end || '18:00:00'
+    
+    return currentTime >= startTime && currentTime <= endTime
+  }
+
+  // Загрузка информации об офисе
+  const loadOfficeInfo = async () => {
+    if (!user?.office_id) return
+    
+    try {
+      const response = await api.get(`/offices/${user.office_id}`)
+      const info = {
+        working_hours_start: response.data.working_hours_start,
+        working_hours_end: response.data.working_hours_end,
+        auto_track_enabled: response.data.auto_track_enabled
+      }
+      officeInfoRef.current = info
+    } catch (error) {
+      console.error('❌ [Service] Ошибка загрузки информации об офисе:', error)
+    }
+  }
+
+  // Сохранение статистики на сервер
+  const saveStatisticsToServer = async () => {
+    if (!user || !isTracking) return
+    
+    try {
+      const isInOffice = await checkIfInOffice(lastLocationRef.current)
+      
+      await api.post('/activity-stats/save', {
+        userId: user.id,
+        date: new Date().toISOString().split('T')[0],
+        totalSittingTime: statistics.totalSittingTime,
+        totalStandingTime: statistics.totalStandingTime,
+        standUpCount: statistics.standUpCount,
+        isInOffice,
+        location: lastLocationRef.current ? {
+          latitude: lastLocationRef.current.latitude,
+          longitude: lastLocationRef.current.longitude,
+          accuracy: lastLocationRef.current.accuracy
+        } : null
+      })
+    } catch (error) {
+      console.error('❌ [Service] Ошибка сохранения статистики:', error)
+    }
+  }
+
+  // Определение позы
+  const detectPosture = (
+    acceleration: { x: number, y: number, z: number }, 
+    rotation: { beta: number, gamma: number },
+    orientation?: { beta: number, gamma: number }
+  ): 'sitting' | 'standing' | 'unknown' => {
+    // Используем orientation если доступно, иначе rotation
+    const beta = orientation?.beta ?? rotation.beta ?? 0
+    const gamma = orientation?.gamma ?? rotation.gamma ?? 0
+    
+    const normalizedBeta = Math.abs(beta)
+    const normalizedGamma = Math.abs(gamma)
+    
+    let vote: 'sitting' | 'standing' | null = null
+    
+    // Определяем позу на основе угла наклона устройства
+    // beta ~90° = устройство вертикально (сидим)
+    // beta ~0° или ~180° = устройство горизонтально (стоим)
+    if (normalizedBeta >= 60 && normalizedBeta <= 120) {
+      vote = 'sitting'
+    } else if (normalizedBeta <= 30 || normalizedBeta >= 150) {
+      vote = 'standing'
+    }
+    
+    // Если не удалось определить по углу, используем ускорение
+    if (!vote) {
+      const absZ = Math.abs(acceleration.z || 0)
+      // Если Z близко к гравитации (9.8) - вероятно сидим
+      if (absZ >= 8.5 && absZ <= 10.5) {
+        vote = 'sitting'
+      } else if (absZ < 5 || absZ > 12) {
+        vote = 'standing'
+      }
+    }
+    
+    if (vote) {
+      postureVotesRef.current.push(vote)
+      if (postureVotesRef.current.length > 5) {
+        postureVotesRef.current.shift()
+      }
+      
+      const sittingCount = postureVotesRef.current.filter(v => v === 'sitting').length
+      const standingCount = postureVotesRef.current.filter(v => v === 'standing').length
+      
+      // Требуем минимум 2 голоса из 5 для определения позы
+      if (sittingCount >= 2) {
+        return 'sitting'
+      } else if (standingCount >= 2) {
+        return 'standing'
+      }
+    }
+    
+    // Если не удалось определить, возвращаем последнюю известную позу
+    const storeState = useActivityTrackerStore.getState()
+    const currentLastPosture = storeState.lastPosture
+    return currentLastPosture !== 'unknown' ? currentLastPosture : 'unknown'
+  }
+
+  // Обработчик движения устройства
+  const handleDeviceMotion = (event: DeviceMotionEvent) => {
+    if (!isTrackingRef.current) return
+
+    // Получаем актуальные значения из store
+    const storeState = useActivityTrackerStore.getState()
+    const currentLastPosture = storeState.lastPosture
+    const currentPostureStartTime = storeState.postureStartTime
+
+    const acceleration = event.accelerationIncludingGravity || { x: 0, y: 0, z: 0 }
+    const rotation = event.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
+    
+    const detectedPosture = detectPosture(
+      acceleration, 
+      rotation,
+      orientationRef.current || undefined
+    )
+    
+    // Логируем для отладки (только первые несколько раз)
+    if (Math.random() < 0.01) { // Логируем ~1% событий
+      console.log('📊 [Service] Device motion:', {
+        detectedPosture,
+        currentLastPosture,
+        acceleration: { x: acceleration.x?.toFixed(2), y: acceleration.y?.toFixed(2), z: acceleration.z?.toFixed(2) },
+        orientation: orientationRef.current
+      })
+    }
+    
+    // Обновляем статистику
+    const now = Date.now()
+    
+    if (detectedPosture !== currentLastPosture && currentLastPosture !== 'unknown') {
+      // Поза изменилась
+      if (currentPostureStartTime) {
+        const duration = (now - currentPostureStartTime) / 1000
+        
+        updateStatistics(prev => {
+          const newStats = { ...prev }
+          
+          if (currentLastPosture === 'sitting') {
+            newStats.totalSittingTime += duration
+          } else if (currentLastPosture === 'standing') {
+            newStats.totalStandingTime += duration
+          }
+          
+          if (currentLastPosture === 'sitting' || currentLastPosture === 'standing') {
+            newStats.intervals.push({
+              start: currentPostureStartTime,
+              end: now,
+              duration,
+              type: currentLastPosture
+            })
+          }
+          
+          if (currentLastPosture === 'sitting' && detectedPosture === 'standing') {
+            newStats.standUpCount += 1
+            newStats.lastStandUpTime = now
+          }
+          
+          return newStats
+        })
+      }
+      
+      setPostureStartTime(now)
+    } else if (!currentPostureStartTime) {
+      setPostureStartTime(now)
+    }
+    
+    setLastPosture(detectedPosture)
+    updateStatistics(prev => ({ ...prev, currentPosture: detectedPosture }))
+  }
+
+  // Обработчик ориентации
+  const handleDeviceOrientation = (event: DeviceOrientationEvent) => {
+    if (!isTrackingRef.current) return
+    
+    orientationRef.current = {
+      beta: event.beta || 0,
+      gamma: event.gamma || 0
+    }
+  }
+
+  // Обработчик геолокации
+  const handleGeolocation = (position: GeolocationPosition) => {
+    if (!isTrackingRef.current) return
+    
+    const locationData: LocationData = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      altitude: position.coords.altitude ?? null,
+      accuracy: position.coords.accuracy,
+      timestamp: position.timestamp
+    }
+    
+    locationHistoryRef.current.push(locationData)
+    if (locationHistoryRef.current.length > 5) {
+      locationHistoryRef.current.shift()
+    }
+    
+    lastLocationRef.current = locationData
+  }
+
+  // Запуск трекера
+  const startTracking = async () => {
+    if (isStartingRef.current || isTrackingRef.current) return
+    
+    isStartingRef.current = true
+    
+    try {
+      // Очищаем старые интервалы
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current)
+        saveIntervalRef.current = null
+      }
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+
+      // Проверяем Android WebView
+      if (isAndroidWebView.current && typeof (window as any).AndroidSensors !== 'undefined') {
+        const sensorCallback = (data: any) => {
+          if (!isTrackingRef.current) return
+          
+          try {
+            const sensorData = typeof data === 'string' ? JSON.parse(data) : data
+            const acceleration = sensorData.acceleration || { x: 0, y: 0, z: 0 }
+            const rotationRate = sensorData.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
+            const orientation = sensorData.orientation || { beta: 0, gamma: 0 }
+            
+            orientationRef.current = {
+              beta: orientation.beta || 0,
+              gamma: orientation.gamma || 0
+            }
+            
+            const event = {
+              accelerationIncludingGravity: acceleration,
+              rotationRate: rotationRate
+            } as DeviceMotionEvent
+            
+            handleDeviceMotion(event)
+          } catch (err) {
+            console.error('❌ [Service] Error processing Android sensor data:', err)
+          }
+        }
+        
+        androidSensorCallbackRef.current = sensorCallback
+        ;(window as any).handleAndroidSensorData = sensorCallback
+        
+        try {
+          (window as any).AndroidSensors.startListening('handleAndroidSensorData')
+          console.log('✅ [Service] Android sensors started')
+        } catch (err) {
+          console.error('❌ [Service] Failed to start Android sensors:', err)
+          isStartingRef.current = false
+          return
+        }
+      } else {
+        // Стандартные Web API
+        if (typeof DeviceMotionEvent === 'undefined') {
+          console.error('❌ [Service] DeviceMotionEvent not supported')
+          isStartingRef.current = false
+          return
+        }
+
+        // Запрашиваем разрешения для iOS
+        if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+          try {
+            const motionPermission = await (DeviceMotionEvent as any).requestPermission()
+            if (motionPermission !== 'granted') {
+              console.error('❌ [Service] Motion permission denied')
+              isStartingRef.current = false
+              return
+            }
+          } catch (err) {
+            console.error('❌ [Service] Error requesting motion permission:', err)
+            isStartingRef.current = false
+            return
+          }
+        }
+
+        if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+          try {
+            await (DeviceOrientationEvent as any).requestPermission()
+          } catch (err) {
+            console.warn('⚠️ [Service] Orientation permission error:', err)
+          }
+        }
+      }
+
+      setIsTracking(true)
+      setStartTime(Date.now())
+      setPostureStartTime(null)
+      setLastPosture('unknown')
+      postureVotesRef.current = []
+      dataHistoryRef.current = []
+      locationHistoryRef.current = []
+      lastLocationRef.current = null
+      
+      // Запускаем отслеживание геолокации
+      if (navigator.geolocation) {
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          handleGeolocation,
+          () => {},
+          {
+            enableHighAccuracy: true,
+            maximumAge: 1000,
+            timeout: 5000
+          }
+        )
+      }
+      
+      // Обновляем статистику каждую секунду
+      intervalRef.current = window.setInterval(() => {
+        if (!isTrackingRef.current) return
+        
+        // Получаем актуальные значения из store
+        const storeState = useActivityTrackerStore.getState()
+        const currentPostureStartTime = storeState.postureStartTime
+        const currentLastPosture = storeState.lastPosture
+        
+        if (currentPostureStartTime && currentLastPosture !== 'unknown') {
+          updateStatistics(prev => {
+            if (currentLastPosture === 'sitting') {
+              return { ...prev, totalSittingTime: prev.totalSittingTime + 1 }
+            } else if (currentLastPosture === 'standing') {
+              return { ...prev, totalStandingTime: prev.totalStandingTime + 1 }
+            }
+            return prev
+          })
+        }
+      }, 1000)
+      
+      // Сохраняем статистику каждые 5 минут
+      saveIntervalRef.current = window.setInterval(() => {
+        saveStatisticsToServer()
+      }, 5 * 60 * 1000)
+      
+      console.log('✅ [Service] Tracking started')
+    } finally {
+      isStartingRef.current = false
+    }
+  }
+
+  // Остановка трекера
+  const stopTracking = async () => {
+    if (isStoppingRef.current || !isTrackingRef.current) return
+    
+    isStoppingRef.current = true
+    
+    try {
+      // Останавливаем Android датчики
+      if (isAndroidWebView.current && typeof (window as any).AndroidSensors !== 'undefined') {
+        try {
+          (window as any).AndroidSensors.stopListening()
+          console.log('✅ [Service] Android sensors stopped')
+        } catch (err) {
+          console.error('❌ [Service] Error stopping Android sensors:', err)
+        }
+        androidSensorCallbackRef.current = null
+        delete (window as any).handleAndroidSensorData
+      }
+      
+      setIsTracking(false)
+      
+      // Сохраняем статистику перед остановкой
+      await saveStatisticsToServer()
+      
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current)
+        saveIntervalRef.current = null
+      }
+      
+      // Завершаем последний интервал
+      if (postureStartTime && lastPosture !== 'unknown') {
+        const now = Date.now()
+        const duration = (now - postureStartTime) / 1000
+        
+        updateStatistics(prev => {
+          const newStats = { ...prev }
+          
+          if (lastPosture === 'sitting') {
+            newStats.totalSittingTime += duration
+          } else if (lastPosture === 'standing') {
+            newStats.totalStandingTime += duration
+          }
+          
+          if (lastPosture === 'sitting' || lastPosture === 'standing') {
+            newStats.intervals.push({
+              start: postureStartTime,
+              end: now,
+              duration,
+              type: lastPosture
+            })
+          }
+          
+          return newStats
+        })
+      }
+      
+      // Останавливаем отслеживание геолокации
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      
+      // Удаляем обработчики
+      window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
+      window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
+      
+      console.log('✅ [Service] Tracking stopped')
+    } finally {
+      isStoppingRef.current = false
+    }
+  }
+
+  // Реакция на изменения isTracking из store (запросы на запуск/остановку)
+  useEffect(() => {
+    if (isTracking && !intervalRef.current && !isStartingRef.current) {
+      // Запускаем трекер, если он был запрошен
+      console.log('🔄 [Service] Tracking requested, starting...')
+      startTracking()
+    } else if (!isTracking && intervalRef.current && !isStoppingRef.current) {
+      // Останавливаем трекер, если он был запрошен
+      console.log('🔄 [Service] Tracking stop requested, stopping...')
+      stopTracking()
+    }
+  }, [isTracking])
+
+  // Восстановление трекера при монтировании (если был запущен)
+  useEffect(() => {
+    if (isTracking && !intervalRef.current) {
+      console.log('🔄 [Service] Restoring tracking state...')
+      // Восстанавливаем обработчики событий
+      if (!isAndroidWebView.current) {
+        window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
+        window.addEventListener('deviceorientation', handleDeviceOrientation as EventListener)
+      }
+      
+      // Восстанавливаем интервалы
+      intervalRef.current = window.setInterval(() => {
+        if (!isTrackingRef.current) return
+        
+        // Получаем актуальные значения из store
+        const storeState = useActivityTrackerStore.getState()
+        const currentPostureStartTime = storeState.postureStartTime
+        const currentLastPosture = storeState.lastPosture
+        
+        if (currentPostureStartTime && currentLastPosture !== 'unknown') {
+          updateStatistics(prev => {
+            if (currentLastPosture === 'sitting') {
+              return { ...prev, totalSittingTime: prev.totalSittingTime + 1 }
+            } else if (currentLastPosture === 'standing') {
+              return { ...prev, totalStandingTime: prev.totalStandingTime + 1 }
+            }
+            return prev
+          })
+        }
+      }, 1000)
+      
+      saveIntervalRef.current = window.setInterval(() => {
+        saveStatisticsToServer()
+      }, 5 * 60 * 1000)
+      
+      // Восстанавливаем геолокацию
+      if (navigator.geolocation) {
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          handleGeolocation,
+          () => {},
+          {
+            enableHighAccuracy: true,
+            maximumAge: 1000,
+            timeout: 5000
+          }
+        )
+      }
+      
+      // Восстанавливаем Android датчики
+      if (isAndroidWebView.current && typeof (window as any).AndroidSensors !== 'undefined') {
+        const sensorCallback = (data: any) => {
+          if (!isTrackingRef.current) return
+          
+          try {
+            const sensorData = typeof data === 'string' ? JSON.parse(data) : data
+            const acceleration = sensorData.acceleration || { x: 0, y: 0, z: 0 }
+            const rotationRate = sensorData.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
+            const orientation = sensorData.orientation || { beta: 0, gamma: 0 }
+            
+            orientationRef.current = {
+              beta: orientation.beta || 0,
+              gamma: orientation.gamma || 0
+            }
+            
+            const event = {
+              accelerationIncludingGravity: acceleration,
+              rotationRate: rotationRate
+            } as DeviceMotionEvent
+            
+            handleDeviceMotion(event)
+          } catch (err) {
+            console.error('❌ [Service] Error processing Android sensor data:', err)
+          }
+        }
+        
+        androidSensorCallbackRef.current = sensorCallback
+        ;(window as any).handleAndroidSensorData = sensorCallback
+        
+        try {
+          (window as any).AndroidSensors.startListening('handleAndroidSensorData')
+        } catch (err) {
+          console.error('❌ [Service] Failed to restore Android sensors:', err)
+        }
+      }
+    }
+    
+    return () => {
+      // Не очищаем при размонтировании - сервис должен работать в фоне
+    }
+  }, [isTracking, postureStartTime, lastPosture])
+
+  // Автозапуск в рабочие часы
+  useEffect(() => {
+    if (!user || user.role !== 'executor') return
+
+    let componentMounted = true
+    let isChecking = false
+
+    const checkAndAutoStart = async () => {
+      if (!componentMounted || isChecking || isTrackingRef.current) return
+      isChecking = true
+      
+      try {
+        await loadOfficeInfo()
+      } catch (error) {
+        console.error('❌ [Service] Ошибка загрузки информации об офисе:', error)
+        isChecking = false
+        return
+      }
+      
+      if (!isWithinWorkingHours()) {
+        isChecking = false
+        return
+      }
+
+      // Если рабочие часы - запускаем трекер
+      if (!isTrackingRef.current && !manualStart) {
+        console.log('✅ [Service] Автозапуск: Рабочие часы, запускаю трекер...')
+        await startTracking()
+      }
+      
+      isChecking = false
+    }
+
+    const initialTimeout = setTimeout(() => {
+      if (componentMounted && !manualStart && !isTrackingRef.current) {
+        checkAndAutoStart()
+      }
+    }, 3000)
+
+    autoStartCheckRef.current = window.setInterval(async () => {
+      if (!componentMounted || isChecking) return
+      
+      if (!isWithinWorkingHours()) {
+        if (isTrackingRef.current && !manualStart) {
+          console.log('⏰ [Service] Рабочие часы закончились, останавливаю трекер...')
+          await stopTracking()
+        }
+        return
+      }
+
+      if (!isTrackingRef.current && !manualStart) {
+        console.log('✅ [Service] Автозапуск (периодическая проверка): Рабочие часы, запускаю трекер...')
+        await startTracking()
+      }
+    }, 30000)
+
+    return () => {
+      componentMounted = false
+      isChecking = false
+      if (autoStartCheckRef.current) {
+        clearInterval(autoStartCheckRef.current)
+        autoStartCheckRef.current = null
+      }
+      if (initialTimeout) {
+        clearTimeout(initialTimeout)
+      }
+    }
+  }, [user?.id, user?.role, isTracking, manualStart])
+
+  // Обработчики событий для стандартных Web API
+  useEffect(() => {
+    if (isTracking && !isAndroidWebView.current) {
+      window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
+      window.addEventListener('deviceorientation', handleDeviceOrientation as EventListener)
+    } else {
+      window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
+      window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
+    }
+
+    return () => {
+      window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
+      window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
+      
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current)
+        saveIntervalRef.current = null
+      }
+    }
+  }, [isTracking])
+
+  // Этот компонент не рендерит ничего видимого
+  return null
+}
+

@@ -4,8 +4,10 @@ import React, { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Clock, TrendingUp, Activity, Users, MapPin, Calendar } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Clock, TrendingUp, Activity, Users, MapPin, Calendar, ArrowLeft } from "lucide-react"
 import { useAuthStore } from "@/stores/useAuthStore"
+import { useRouter } from "next/navigation"
 import api from "@/lib/api"
 import { ActivityTracker } from "@/components/ActivityTracker"
 
@@ -35,10 +37,13 @@ interface ActivityStatisticsProps {
 
 export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisticsProps) {
   const { user } = useAuthStore()
+  const router = useRouter()
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('day')
   const [loading, setLoading] = useState(true)
   const [userStats, setUserStats] = useState<UserActivityStats | null>(null)
   const [allUsersStats, setAllUsersStats] = useState<UserActivityStats[]>([])
+  const [executorsInOffice, setExecutorsInOffice] = useState<UserActivityStats[]>([])
+  const [executorsOutOfOffice, setExecutorsOutOfOffice] = useState<UserActivityStats[]>([])
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
 
   // Загрузка статистики текущего пользователя
@@ -67,15 +72,28 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
   // Загрузка статистики всех сотрудников (для админа)
   const fetchAllUsersStats = useCallback(async (date?: string) => {
     try {
+      setLoading(true)
+      
+      // Загружаем всех исполнителей
       const params = new URLSearchParams()
       if (date) params.append('date', date)
-      params.append('inOffice', 'true') // Только сотрудники в офисе
+      params.append('role', 'executor')
 
       const response = await api.get(`/activity-stats/all?${params.toString()}`)
-      setAllUsersStats(response.data || [])
+      const allExecutors = response.data || []
+      
+      // Разделяем на группы: в офисе и вне офиса
+      const inOffice = allExecutors.filter((stat: UserActivityStats) => stat.isInOffice)
+      const outOfOffice = allExecutors.filter((stat: UserActivityStats) => !stat.isInOffice)
+      
+      setExecutorsInOffice(inOffice)
+      setExecutorsOutOfOffice(outOfOffice)
+      setAllUsersStats(allExecutors)
     } catch (error) {
       console.error('Ошибка загрузки статистики всех сотрудников:', error)
       setAllUsersStats([])
+      setExecutorsInOffice([])
+      setExecutorsOutOfOffice([])
     } finally {
       setLoading(false)
     }
@@ -199,44 +217,85 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
   if (isAdmin) {
     return (
       <div className="space-y-6">
+        {/* Кнопка "Назад" */}
+        <Button
+          onClick={() => router.back()}
+          variant="ghost"
+          className="mb-2 sm:mb-0 text-sm sm:text-base"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Назад
+        </Button>
+
+        {/* Переключатель периода и дата - вынесены из карточки */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between bg-white p-4 rounded-lg border">
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-3 py-2 border rounded-lg text-sm w-full sm:w-auto"
+          />
+          <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')} className="w-full sm:w-auto">
+            <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+              <TabsTrigger value="day" className="text-xs sm:text-sm">День</TabsTrigger>
+              <TabsTrigger value="week" className="text-xs sm:text-sm">Неделя</TabsTrigger>
+              <TabsTrigger value="month" className="text-xs sm:text-sm">Месяц</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         <Card>
           <CardHeader className="p-4 sm:p-6">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Users className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-              <span className="text-sm sm:text-base">Статистика сотрудников в офисе</span>
+              <span className="text-sm sm:text-base">Статистика активности исполнителей</span>
             </CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              Активность всех сотрудников, находящихся в офисе
+              Активность исполнителей в офисе и вне офиса
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm w-full sm:w-auto"
-              />
-              <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')} className="w-full sm:w-auto">
-                <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
-                  <TabsTrigger value="day" className="text-xs sm:text-sm">День</TabsTrigger>
-                  <TabsTrigger value="week" className="text-xs sm:text-sm">Неделя</TabsTrigger>
-                  <TabsTrigger value="month" className="text-xs sm:text-sm">Месяц</TabsTrigger>
-                </TabsList>
-              </Tabs>
+            {/* Исполнители в офисе */}
+            <div className="space-y-4">
+              <div className="border-b pb-2">
+                <h3 className="text-base sm:text-lg font-semibold text-green-700 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
+                  Исполнители в офисе ({executorsInOffice.length})
+                </h3>
+              </div>
+              {executorsInOffice.length === 0 ? (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  Нет исполнителей в офисе
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {executorsInOffice.map((stats) => (
+                    <UserStatsCard key={stats.userId} stats={stats} />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {allUsersStats.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                Нет сотрудников в офисе
+            {/* Исполнители вне офиса */}
+            <div className="space-y-4 mt-6">
+              <div className="border-b pb-2">
+                <h3 className="text-base sm:text-lg font-semibold text-orange-700 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
+                  Исполнители вне офиса ({executorsOutOfOffice.length})
+                </h3>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {allUsersStats.map((stats) => (
-                  <UserStatsCard key={stats.userId} stats={stats} />
-                ))}
-              </div>
-            )}
+              {executorsOutOfOffice.length === 0 ? (
+                <div className="text-center py-4 text-gray-500 text-sm">
+                  Нет исполнителей вне офиса
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {executorsOutOfOffice.map((stats) => (
+                    <UserStatsCard key={stats.userId} stats={stats} />
+                  ))}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

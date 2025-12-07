@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, Pause, Square, TrendingUp, Clock, Activity, ArrowLeft } from "lucide-react"
 import { useAuthStore } from "@/stores/useAuthStore"
+import { useActivityTrackerStore } from "@/stores/useActivityTrackerStore"
 import { useRouter } from "next/navigation"
 import api, { getOffices } from "@/lib/api"
 import { findNearestOffice } from "@/lib/utils"
@@ -50,23 +51,39 @@ interface Statistics {
 }
 
 export function ActivityTracker() {
-  const [isTracking, setIsTracking] = useState(false)
-  const [statistics, setStatistics] = useState<Statistics>({
-    totalSittingTime: 0,
-    totalStandingTime: 0,
-    standUpCount: 0,
-    currentPosture: 'unknown',
-    lastStandUpTime: null,
-    intervals: []
-  })
+  // Используем глобальный store вместо локального состояния
+  const {
+    isTracking,
+    statistics,
+    startTime: startTimeFromStore,
+    postureStartTime: postureStartTimeFromStore,
+    lastPosture: lastPostureFromStore,
+    manualStart: manualStartFromStore,
+    setIsTracking,
+    setStatistics,
+    setStartTime,
+    setPostureStartTime,
+    setLastPosture,
+    setManualStart,
+    resetStatistics,
+    updateStatistics
+  } = useActivityTrackerStore()
   
   const [currentData, setCurrentData] = useState<ActivityData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
   
+  // Локальные refs для временных данных (не сохраняются в store)
   const startTimeRef = useRef<number | null>(null)
   const postureStartTimeRef = useRef<number | null>(null)
   const lastPostureRef = useRef<'sitting' | 'standing' | 'unknown'>('unknown')
+  
+  // Синхронизация refs с store
+  useEffect(() => {
+    startTimeRef.current = startTimeFromStore
+    postureStartTimeRef.current = postureStartTimeFromStore
+    lastPostureRef.current = lastPostureFromStore
+  }, [startTimeFromStore, postureStartTimeFromStore, lastPostureFromStore])
   const dataHistoryRef = useRef<ActivityData[]>([])
   const intervalRef = useRef<number | null>(null)
   const orientationRef = useRef<{ beta: number, gamma: number } | null>(null)
@@ -81,11 +98,15 @@ export function ActivityTracker() {
   const { user } = useAuthStore()
   const router = useRouter()
   const autoStartCheckRef = useRef<number | null>(null)
-  const manualStartRef = useRef<boolean>(false) // Флаг ручного запуска
   const isStartingRef = useRef<boolean>(false) // Защита от множественных запусков
   const isStoppingRef = useRef<boolean>(false) // Защита от множественных остановок
   const isTrackingRef = useRef<boolean>(false) // Ref для отслеживания состояния
   const androidSensorCallbackRef = useRef<((data: any) => void) | null>(null) // Callback для Android датчиков
+  
+  // Синхронизация isTrackingRef с store
+  useEffect(() => {
+    isTrackingRef.current = isTracking
+  }, [isTracking])
   
   // Проверка, используем ли мы Android WebView
   const isAndroidWebView = useRef<boolean>(false)
@@ -282,18 +303,19 @@ export function ActivityTracker() {
     return 'unknown'
   }
 
-  // Обновление статистики
-  const updateStatistics = (newPosture: 'sitting' | 'standing' | 'unknown') => {
-    setStatistics(prev => {
-      const now = Date.now()
-      const newStats = { ...prev }
-      
-      // Если поза изменилась
-      if (newPosture !== lastPostureRef.current && lastPostureRef.current !== 'unknown') {
-        // Завершаем предыдущий интервал
-        if (postureStartTimeRef.current) {
-          const duration = (now - postureStartTimeRef.current) / 1000
-          const previousPosture = lastPostureRef.current
+  // Обновление статистики (используем store)
+  const updateStatisticsLocal = (newPosture: 'sitting' | 'standing' | 'unknown') => {
+    const now = Date.now()
+    
+    // Если поза изменилась
+    if (newPosture !== lastPostureRef.current && lastPostureRef.current !== 'unknown') {
+      // Завершаем предыдущий интервал
+      if (postureStartTimeRef.current) {
+        const duration = (now - postureStartTimeRef.current) / 1000
+        const previousPosture = lastPostureRef.current
+        
+        updateStatistics(prev => {
+          const newStats = { ...prev }
           
           if (previousPosture === 'sitting') {
             newStats.totalSittingTime += duration
@@ -301,35 +323,39 @@ export function ActivityTracker() {
             newStats.totalStandingTime += duration
           }
           
-          // Сохраняем интервал (проверяем, что поза не unknown)
+          // Сохраняем интервал
           if (previousPosture === 'sitting' || previousPosture === 'standing') {
             newStats.intervals.push({
-              start: postureStartTimeRef.current,
+              start: postureStartTimeRef.current!,
               end: now,
               duration,
               type: previousPosture
             })
           }
-        }
-        
-        // Если перешли из сидя в стоя - это вставание
-        if (lastPostureRef.current === 'sitting' && newPosture === 'standing') {
-          newStats.standUpCount += 1
-          newStats.lastStandUpTime = now
-        }
-        
-        // Начинаем новый интервал
-        postureStartTimeRef.current = now
-      } else if (!postureStartTimeRef.current) {
-        // Первое определение позы
-        postureStartTimeRef.current = now
+          
+          // Если перешли из сидя в стоя - это вставание
+          if (previousPosture === 'sitting' && newPosture === 'standing') {
+            newStats.standUpCount += 1
+            newStats.lastStandUpTime = now
+          }
+          
+          return newStats
+        })
       }
       
-      newStats.currentPosture = newPosture
-      lastPostureRef.current = newPosture
-      
-      return newStats
-    })
+      // Начинаем новый интервал
+      setPostureStartTime(now)
+      postureStartTimeRef.current = now
+    } else if (!postureStartTimeRef.current) {
+      // Первое определение позы
+      setPostureStartTime(now)
+      postureStartTimeRef.current = now
+    }
+    
+    setLastPosture(newPosture)
+    lastPostureRef.current = newPosture
+    
+    updateStatistics(prev => ({ ...prev, currentPosture: newPosture }))
   }
 
   // Обработчик ориентации устройства (более точные углы)
@@ -361,11 +387,11 @@ export function ActivityTracker() {
     lastLocationRef.current = locationData
     
     // Если трекер не запущен, проверяем автозапуск при изменении геолокации (только в рабочие часы)
-    if (!isTracking && user?.role === 'executor' && !manualStartRef.current && isWithinWorkingHours()) {
+    if (!isTracking && user?.role === 'executor' && !manualStartFromStore && isWithinWorkingHours()) {
       console.log('📍 Геолокация изменилась: рабочие часы, проверяю автозапуск...')
       // Небольшая задержка, чтобы не конфликтовать с основной проверкой
       setTimeout(async () => {
-        if (!isTracking && !manualStartRef.current && isWithinWorkingHours()) {
+        if (!isTracking && !manualStartFromStore && isWithinWorkingHours()) {
           console.log('✅ Автозапуск по изменению геолокации: рабочие часы (независимо от местоположения)')
           await startTracking(false)
         }
@@ -418,7 +444,7 @@ export function ActivityTracker() {
     }
     
     setCurrentData(data)
-    updateStatistics(detectedPosture)
+    updateStatisticsLocal(detectedPosture)
   }, [isTracking])
 
   // Обработчик ошибок
@@ -430,7 +456,7 @@ export function ActivityTracker() {
   // Запрос разрешения и начало отслеживания
   const startTracking = useCallback(async (isManual = false) => {
     // Защита от множественных запусков
-    if (isStartingRef.current || isTrackingRef.current) {
+    if (isStartingRef.current || isTracking) {
       console.log('⚠️ Трекер уже запускается или уже запущен')
       return
     }
@@ -438,183 +464,58 @@ export function ActivityTracker() {
     isStartingRef.current = true
     
     try {
-      // Очищаем старые интервалы и watchers перед запуском
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-      if (saveIntervalRef.current) {
-        clearInterval(saveIntervalRef.current)
-        saveIntervalRef.current = null
-      }
-      if (watchIdRef.current !== null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchIdRef.current)
-        watchIdRef.current = null
-      }
-      
-      // Сразу помечаем как ручной запуск ДО любых проверок
-      if (isManual) {
-        manualStartRef.current = true
-        console.log('🔵 Ручной запуск трекера, автозапуск не будет останавливать')
-      }
       setError(null)
-    
-      // Проверяем, используем ли Android WebView
-      if (isAndroidWebView.current && typeof (window as any).AndroidSensors !== 'undefined') {
-        // Используем Android датчики через интерфейс
-        console.log('📱 Using Android sensors interface')
-        
-        // Создаем callback для получения данных с датчиков
-        const sensorCallback = (data: any) => {
-          if (!isTrackingRef.current) return
-          
-          try {
-            const sensorData = typeof data === 'string' ? JSON.parse(data) : data
-            
-            // Преобразуем данные Android в формат DeviceMotionEvent
-            const acceleration = sensorData.acceleration || { x: 0, y: 0, z: 0 }
-            const rotationRate = sensorData.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
-            const orientation = sensorData.orientation || { beta: 0, gamma: 0 }
-            
-            // Сохраняем ориентацию
-            orientationRef.current = {
-              beta: orientation.beta || 0,
-              gamma: orientation.gamma || 0
-            }
-            
-            // Создаем событие DeviceMotionEvent-подобного формата
-            const event = {
-              accelerationIncludingGravity: {
-                x: acceleration.x || 0,
-                y: acceleration.y || 0,
-                z: acceleration.z || 0
-              },
-              rotationRate: {
-                alpha: rotationRate.alpha || 0,
-                beta: rotationRate.beta || 0,
-                gamma: rotationRate.gamma || 0
-              }
-            } as DeviceMotionEvent
-            
-            // Вызываем обработчик движения
-            handleDeviceMotion(event)
-          } catch (err) {
-            console.error('❌ Error processing Android sensor data:', err)
-          }
-        }
-        
-        // Сохраняем callback глобально для доступа из Android
-        androidSensorCallbackRef.current = sensorCallback
-        ;(window as any).handleAndroidSensorData = sensorCallback
-        
-        // Запускаем отслеживание датчиков Android
-        try {
-          (window as any).AndroidSensors.startListening('handleAndroidSensorData')
-          console.log('✅ Android sensors started')
-        } catch (err) {
-          console.error('❌ Failed to start Android sensors:', err)
-          setError('Не удалось запустить датчики устройства')
-          isStartingRef.current = false
-          return
-        }
-      } else {
-        // Используем стандартные Web API
-        // Проверяем поддержку API
-        if (typeof DeviceMotionEvent === 'undefined') {
-          setError('Ваш браузер не поддерживает DeviceMotionEvent API')
-          isStartingRef.current = false
-          return
-        }
+      
+      // Проверяем поддержку API (только для стандартных браузеров, не Android WebView)
+      if (!isAndroidWebView.current && typeof DeviceMotionEvent === 'undefined') {
+        setError('Ваш браузер не поддерживает DeviceMotionEvent API')
+        isStartingRef.current = false
+        return
+      }
 
-        // Запрашиваем разрешение (iOS 13+)
-        if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
-          try {
-            const motionPermission = await (DeviceMotionEvent as any).requestPermission()
-            if (motionPermission !== 'granted') {
-              setError('Разрешение на доступ к датчикам движения отклонено')
-              isStartingRef.current = false
-              return
-            }
-          } catch (err) {
-            setError('Ошибка при запросе разрешения на датчики движения')
+      // Запрашиваем разрешение (iOS 13+)
+      if (!isAndroidWebView.current && typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+        try {
+          const motionPermission = await (DeviceMotionEvent as any).requestPermission()
+          if (motionPermission !== 'granted') {
+            setError('Разрешение на доступ к датчикам движения отклонено')
             isStartingRef.current = false
             return
           }
-        }
-
-        // Запрашиваем разрешение для ориентации (iOS 13+)
-        if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-          try {
-            const orientationPermission = await (DeviceOrientationEvent as any).requestPermission()
-            if (orientationPermission !== 'granted') {
-              setError('Разрешение на доступ к ориентации отклонено')
-              // Не критично, продолжаем без ориентации
-            }
-          } catch (err) {
-            // Не критично, продолжаем без ориентации
-            console.warn('Не удалось получить разрешение на ориентацию')
-          }
+        } catch (err) {
+          setError('Ошибка при запросе разрешения на датчики движения')
+          isStartingRef.current = false
+          return
         }
       }
 
-    setIsTracking(true)
-    isTrackingRef.current = true
-    startTimeRef.current = Date.now()
-    postureStartTimeRef.current = null
-    lastPostureRef.current = 'unknown'
-    postureVotesRef.current = []
-    dataHistoryRef.current = []
-    locationHistoryRef.current = []
-    lastLocationRef.current = null
-    
-    if (isManual) {
-      console.log('✅ Трекер запущен вручную, автозапуск не будет вмешиваться')
-    }
-    
-    // Запускаем отслеживание геолокации
-    if (navigator.geolocation) {
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        handleGeolocation,
-        handleGeolocationError,
-        {
-          enableHighAccuracy: true,
-          maximumAge: 1000, // Кэш не более 1 секунды
-          timeout: 5000
-        }
-      )
-    }
-    
-    // Обновляем статистику каждую секунду
-    intervalRef.current = window.setInterval(() => {
-      setStatistics(prev => {
-        const now = Date.now()
-        if (postureStartTimeRef.current && lastPostureRef.current !== 'unknown') {
-          const duration = (now - postureStartTimeRef.current) / 1000
-          
-          // Обновляем текущее время в реальном времени
-          if (lastPostureRef.current === 'sitting') {
-            return { ...prev, totalSittingTime: prev.totalSittingTime + 1 }
-          } else if (lastPostureRef.current === 'standing') {
-            return { ...prev, totalStandingTime: prev.totalStandingTime + 1 }
+      // Запрашиваем разрешение для ориентации (iOS 13+)
+      if (!isAndroidWebView.current && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        try {
+          const orientationPermission = await (DeviceOrientationEvent as any).requestPermission()
+          if (orientationPermission !== 'granted') {
+            setError('Разрешение на доступ к ориентации отклонено')
+            // Не критично, продолжаем без ориентации
           }
+        } catch (err) {
+          console.warn('Не удалось получить разрешение на ориентацию')
         }
-        return prev
-      })
-    }, 1000)
-    
-    // Сохраняем статистику на сервер каждые 5 минут
-    saveIntervalRef.current = window.setInterval(() => {
-      saveStatisticsToServer()
-    }, 5 * 60 * 1000) // 5 минут
+      }
+
+      // Запрашиваем запуск трекера через store (сервис обработает это)
+      const { requestStartTracking } = useActivityTrackerStore.getState()
+      requestStartTracking(isManual)
+      
+      console.log('✅ Запрос на запуск трекера отправлен в сервис')
     } finally {
       isStartingRef.current = false
     }
-  }, [isTracking, handleGeolocation, handleGeolocationError])
+  }, [isTracking])
 
   // Остановка отслеживания
   const stopTracking = useCallback(async (isManual = false) => {
     // Защита от множественных остановок
-    if (isStoppingRef.current || !isTrackingRef.current) {
+    if (isStoppingRef.current || !isTracking) {
       console.log('⚠️ Трекер уже останавливается или уже остановлен')
       return
     }
@@ -622,79 +523,15 @@ export function ActivityTracker() {
     isStoppingRef.current = true
     
     try {
-      // Останавливаем Android датчики, если используются
-      if (isAndroidWebView.current && typeof (window as any).AndroidSensors !== 'undefined') {
-        try {
-          (window as any).AndroidSensors.stopListening()
-          console.log('✅ Android sensors stopped')
-        } catch (err) {
-          console.error('❌ Error stopping Android sensors:', err)
-        }
-        androidSensorCallbackRef.current = null
-        delete (window as any).handleAndroidSensorData
-      }
+      // Запрашиваем остановку трекера через store (сервис обработает это)
+      const { requestStopTracking } = useActivityTrackerStore.getState()
+      requestStopTracking(isManual)
       
-      if (isManual) {
-        manualStartRef.current = false // Сбрасываем флаг при ручной остановке
-      }
-      setIsTracking(false)
-      isTrackingRef.current = false
-    
-    // Сохраняем статистику перед остановкой
-    await saveStatisticsToServer()
-    
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-    
-    if (saveIntervalRef.current) {
-      clearInterval(saveIntervalRef.current)
-      saveIntervalRef.current = null
-    }
-    
-    // Завершаем последний интервал
-    if (postureStartTimeRef.current && lastPostureRef.current !== 'unknown') {
-      const now = Date.now()
-      const duration = (now - postureStartTimeRef.current) / 1000
-      const finalPosture = lastPostureRef.current
-      
-      setStatistics(prev => {
-        const newStats = { ...prev }
-        
-        if (finalPosture === 'sitting') {
-          newStats.totalSittingTime += duration
-        } else if (finalPosture === 'standing') {
-          newStats.totalStandingTime += duration
-        }
-        
-        // Сохраняем интервал только если поза известна
-        if (finalPosture === 'sitting' || finalPosture === 'standing') {
-          newStats.intervals.push({
-            start: postureStartTimeRef.current!,
-            end: now,
-            duration,
-            type: finalPosture
-          })
-        }
-        
-        return newStats
-      })
-    }
-    
-    // Останавливаем отслеживание геолокации
-    if (watchIdRef.current !== null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(watchIdRef.current)
-      watchIdRef.current = null
-    }
-    
-    // Удаляем обработчики
-    window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
-    window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
+      console.log('✅ Запрос на остановку трекера отправлен в сервис')
     } finally {
       isStoppingRef.current = false
     }
-  }, [isTracking, handleDeviceMotion, handleDeviceOrientation])
+  }, [isTracking])
   
   // Синхронизируем ref с состоянием
   useEffect(() => {
@@ -702,15 +539,8 @@ export function ActivityTracker() {
   }, [isTracking])
 
   // Сброс статистики
-  const resetStatistics = () => {
-    setStatistics({
-      totalSittingTime: 0,
-      totalStandingTime: 0,
-      standUpCount: 0,
-      currentPosture: 'unknown',
-      lastStandUpTime: null,
-      intervals: []
-    })
+  const resetStatisticsLocal = () => {
+    resetStatistics()
     setCurrentData(null)
     dataHistoryRef.current = []
   }
@@ -893,7 +723,7 @@ export function ActivityTracker() {
       if (!isWithinWorkingHours()) {
         console.log('⏰ Не рабочие часы, автозапуск не выполняется')
         // Останавливаем трекер, если он был запущен автоматически
-        const wasManualStart = manualStartRef.current
+        const wasManualStart = manualStartFromStore
         const currentTracking = isTracking
         if (currentTracking && !wasManualStart && componentMounted) {
           console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
@@ -904,7 +734,7 @@ export function ActivityTracker() {
       }
 
       // Если рабочие часы - запускаем трекер независимо от местоположения
-      const wasManualStart = manualStartRef.current
+      const wasManualStart = manualStartFromStore
       const currentTracking = isTracking
       
       if (!currentTracking && !wasManualStart && componentMounted) {
@@ -927,9 +757,9 @@ export function ActivityTracker() {
     // Небольшая задержка перед первой проверкой, чтобы компонент успел загрузиться
     // И чтобы не конфликтовать с ручным запуском
     const initialTimeout = setTimeout(() => {
-      if (componentMounted && !manualStartRef.current && !isTracking) {
+      if (componentMounted && !manualStartFromStore && !isTracking) {
         checkAndAutoStart()
-      } else if (componentMounted && manualStartRef.current) {
+      } else if (componentMounted && manualStartFromStore) {
         console.log('⏸️ Пропускаю автозапуск - трекер запущен вручную')
       }
     }, 3000) // Увеличиваем задержку до 3 секунд
@@ -940,7 +770,7 @@ export function ActivityTracker() {
       
       // Проверяем рабочие часы
       if (!isWithinWorkingHours()) {
-        const wasManualStart = manualStartRef.current
+        const wasManualStart = manualStartFromStore
         const currentTracking = isTracking
         if (currentTracking && !wasManualStart && componentMounted) {
           console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
@@ -952,7 +782,7 @@ export function ActivityTracker() {
       }
 
       // Если рабочие часы - запускаем трекер независимо от местоположения
-      const wasManualStart = manualStartRef.current
+      const wasManualStart = manualStartFromStore
       const currentTracking = isTracking
       
       if (!currentTracking && !wasManualStart && componentMounted) {
@@ -977,30 +807,8 @@ export function ActivityTracker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMounted, user?.id, user?.role, startTracking, stopTracking]) // Добавляем startTracking и stopTracking в зависимости
 
-  useEffect(() => {
-    if (isTracking) {
-      window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
-      window.addEventListener('deviceorientation', handleDeviceOrientation as EventListener)
-    } else {
-      window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
-      window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
-    }
-
-    return () => {
-      window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
-      window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
-      
-      // Останавливаем отслеживание геолокации
-      if (watchIdRef.current !== null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchIdRef.current)
-        watchIdRef.current = null
-      }
-      
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [isTracking, handleDeviceMotion, handleDeviceOrientation])
+  // Обработчики событий теперь в ActivityTrackerService
+  // Этот компонент только отображает UI и управляет через store
 
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4">
@@ -1079,7 +887,7 @@ export function ActivityTracker() {
                 Остановить
               </Button>
             )}
-            <Button onClick={resetStatistics} variant="outline" className="text-sm sm:text-base">
+            <Button onClick={resetStatisticsLocal} variant="outline" className="text-sm sm:text-base">
               <Square className="mr-2 h-4 w-4" />
               Сброс
             </Button>
