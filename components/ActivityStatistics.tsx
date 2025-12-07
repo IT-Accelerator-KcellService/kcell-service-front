@@ -136,18 +136,18 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
 
     return (
       <Card className="mb-4">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                {stats.fullName}
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+            <div className="flex-1">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                <span className="text-sm sm:text-base break-words">{stats.fullName}</span>
               </CardTitle>
-              <CardDescription className="mt-1">
+              <CardDescription className="mt-1 text-xs sm:text-sm break-words">
                 {stats.role} • {stats.officeName}
               </CardDescription>
             </div>
-            <Badge variant={stats.isInOffice ? 'default' : 'secondary'}>
+            <Badge variant={stats.isInOffice ? 'default' : 'secondary'} className="text-xs w-fit sm:w-auto">
               {stats.isInOffice ? (
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3 w-3" />
@@ -159,34 +159,34 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
             </Badge>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="p-3 sm:p-4 bg-blue-50 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <Clock className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">Время сидя</span>
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-blue-900">Время сидя</span>
               </div>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600">
                 {formatTime(displayStats.totalSittingTime)}
               </div>
             </div>
 
-            <div className="p-4 bg-green-50 rounded-lg">
+            <div className="p-3 sm:p-4 bg-green-50 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-900">Время стоя</span>
+                <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-green-900">Время стоя</span>
               </div>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-xl sm:text-2xl font-bold text-green-600">
                 {formatTime(displayStats.totalStandingTime)}
               </div>
             </div>
 
-            <div className="p-4 bg-violet-50 rounded-lg col-span-2">
+            <div className="p-3 sm:p-4 bg-violet-50 rounded-lg sm:col-span-2">
               <div className="flex items-center gap-2 mb-2">
-                <Activity className="h-4 w-4 text-violet-600" />
-                <span className="text-sm font-medium text-violet-900">Количество вставаний</span>
+                <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-violet-600 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-violet-900">Количество вставаний</span>
               </div>
-              <div className="text-2xl font-bold text-violet-600">
+              <div className="text-xl sm:text-2xl font-bold text-violet-600">
                 {displayStats.standUpCount}
               </div>
             </div>
@@ -200,28 +200,28 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
     return (
       <div className="space-y-6">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Статистика сотрудников в офисе
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="text-sm sm:text-base">Статистика сотрудников в офисе</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               Активность всех сотрудников, находящихся в офисе
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2 items-center">
+          <CardContent className="space-y-4 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-2 border rounded-lg text-sm"
+                className="px-3 py-2 border rounded-lg text-sm w-full sm:w-auto"
               />
-              <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')}>
-                <TabsList>
-                  <TabsTrigger value="day">День</TabsTrigger>
-                  <TabsTrigger value="week">Неделя</TabsTrigger>
-                  <TabsTrigger value="month">Месяц</TabsTrigger>
+              <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')} className="w-full sm:w-auto">
+                <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+                  <TabsTrigger value="day" className="text-xs sm:text-sm">День</TabsTrigger>
+                  <TabsTrigger value="week" className="text-xs sm:text-sm">Неделя</TabsTrigger>
+                  <TabsTrigger value="month" className="text-xs sm:text-sm">Месяц</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -254,28 +254,28 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
         {userStats ? (
           <div className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Моя статистика активности
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Activity className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                  <span className="text-sm sm:text-base">Моя статистика активности</span>
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Просмотр вашей активности за выбранный период
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2 items-center">
+              <CardContent className="space-y-4 p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                   <input
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="px-3 py-2 border rounded-lg text-sm"
+                    className="px-3 py-2 border rounded-lg text-sm w-full sm:w-auto"
                   />
-                  <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')}>
-                    <TabsList>
-                      <TabsTrigger value="day">День</TabsTrigger>
-                      <TabsTrigger value="week">Неделя</TabsTrigger>
-                      <TabsTrigger value="month">Месяц</TabsTrigger>
+                  <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')} className="w-full sm:w-auto">
+                    <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+                      <TabsTrigger value="day" className="text-xs sm:text-sm">День</TabsTrigger>
+                      <TabsTrigger value="week" className="text-xs sm:text-sm">Неделя</TabsTrigger>
+                      <TabsTrigger value="month" className="text-xs sm:text-sm">Месяц</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
@@ -311,28 +311,28 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Моя статистика активности
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Activity className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+            <span className="text-sm sm:text-base">Моя статистика активности</span>
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             Статистика за {period === 'day' ? 'день' : period === 'week' ? 'неделю' : 'месяц'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border rounded-lg text-sm"
+              className="px-3 py-2 border rounded-lg text-sm w-full sm:w-auto"
             />
-            <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')}>
-              <TabsList>
-                <TabsTrigger value="day">День</TabsTrigger>
-                <TabsTrigger value="week">Неделя</TabsTrigger>
-                <TabsTrigger value="month">Месяц</TabsTrigger>
+            <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')} className="w-full sm:w-auto">
+              <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+                <TabsTrigger value="day" className="text-xs sm:text-sm">День</TabsTrigger>
+                <TabsTrigger value="week" className="text-xs sm:text-sm">Неделя</TabsTrigger>
+                <TabsTrigger value="month" className="text-xs sm:text-sm">Месяц</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -341,20 +341,20 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
 
           {period === 'week' && userStats.weekStats.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">По дням недели</CardTitle>
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">По дням недели</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-4 sm:p-6">
                 <div className="space-y-2">
                   {userStats.weekStats.map((day, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm font-medium">
+                        <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium break-words">
                           {new Date(day.date).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
                         </span>
                       </div>
-                      <div className="flex gap-4 text-sm">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-xs sm:text-sm">
                         <span className="text-blue-600">Сидя: {formatTime(day.totalSittingTime)}</span>
                         <span className="text-green-600">Стоя: {formatTime(day.totalStandingTime)}</span>
                         <span className="text-violet-600">Вставаний: {day.standUpCount}</span>

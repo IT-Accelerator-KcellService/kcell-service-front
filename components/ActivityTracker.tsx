@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Play, Pause, Square, TrendingUp, Clock, Activity } from "lucide-react"
+import { Play, Pause, Square, TrendingUp, Clock, Activity, ArrowLeft } from "lucide-react"
 import { useAuthStore } from "@/stores/useAuthStore"
+import { useRouter } from "next/navigation"
 import api, { getOffices } from "@/lib/api"
 import { findNearestOffice } from "@/lib/utils"
 
@@ -78,6 +79,7 @@ export function ActivityTracker() {
   const officeInfoRef = useRef<{ working_hours_start?: string, working_hours_end?: string, auto_track_enabled?: boolean } | null>(null)
   const [officeInfo, setOfficeInfo] = useState<{ working_hours_start?: string, working_hours_end?: string, auto_track_enabled?: boolean } | null>(null)
   const { user } = useAuthStore()
+  const router = useRouter()
   const autoStartCheckRef = useRef<number | null>(null)
   const manualStartRef = useRef<boolean>(false) // Флаг ручного запуска
   const isStartingRef = useRef<boolean>(false) // Защита от множественных запусков
@@ -1002,6 +1004,16 @@ export function ActivityTracker() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4">
+      {/* Кнопка "Назад" */}
+      <Button
+        onClick={() => router.back()}
+        variant="ghost"
+        className="mb-2 sm:mb-0 text-sm sm:text-base"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Назад
+      </Button>
+      
       <Card>
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
