@@ -227,21 +227,25 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
           Назад
         </Button>
 
-        {/* Переключатель периода и дата - вынесены из карточки */}
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between bg-white p-4 rounded-lg border">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 border rounded-lg text-sm w-full sm:w-auto"
-          />
-          <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')} className="w-full sm:w-auto">
-            <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex">
+        {/* Селектор периода - вынесен из карточки */}
+        <div className="bg-white p-4 rounded-lg border">
+          <Tabs value={period} onValueChange={(v) => setPeriod(v as 'day' | 'week' | 'month')} className="w-full">
+            <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="day" className="text-xs sm:text-sm">День</TabsTrigger>
               <TabsTrigger value="week" className="text-xs sm:text-sm">Неделя</TabsTrigger>
               <TabsTrigger value="month" className="text-xs sm:text-sm">Месяц</TabsTrigger>
             </TabsList>
           </Tabs>
+        </div>
+
+        {/* Выбор даты - вынесен из карточки */}
+        <div className="bg-white p-4 rounded-lg border">
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-3 py-2 border rounded-lg text-sm w-full"
+          />
         </div>
 
         <Card>

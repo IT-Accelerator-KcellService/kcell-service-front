@@ -2244,31 +2244,64 @@ export default function ManagerDashboard() {
         {/* Mobile-optimized Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
           <div className="w-full mb-3">
-            <div className="overflow-x-auto">
-              <TabsList className="flex flex-wrap sm:flex-nowrap gap-2 h-auto items-stretch">
-                <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto flex items-center gap-1.5">
-                  <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
-                  Переговорные
-                </TabsTrigger>
-                <TabsTrigger value="requests" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
-                  Заявки
-                </TabsTrigger>
-                <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
-                  Обзор
-                </TabsTrigger>
-                <TabsTrigger value="analytics" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
-                  Аналитика
-                </TabsTrigger>
-                <TabsTrigger value="management" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
-                  Управление
-                </TabsTrigger>
-                <TabsTrigger value="logs" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
-                  Логи
-                </TabsTrigger>
-                <TabsTrigger value="registration-requests" className="text-xs sm:text-sm px-3 py-2 whitespace-nowrap h-auto">
-                  Регистрации
-                </TabsTrigger>
-              </TabsList>
+            {/* на телефоне только табы с горизонтальным скроллом */}
+            <div className="w-full mb-2 sm:hidden">
+              <div className="overflow-x-auto">
+                <TabsList className="flex w-max min-w-full gap-2">
+                  <TabsTrigger value="meeting-rooms" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0 flex items-center gap-1">
+                    <Building2 className="h-3.5 w-3.5" />
+                    Переговорные
+                  </TabsTrigger>
+                  <TabsTrigger value="requests" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0">
+                    Заявки
+                  </TabsTrigger>
+                  <TabsTrigger value="overview" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0">
+                    Обзор
+                  </TabsTrigger>
+                  <TabsTrigger value="analytics" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0">
+                    Аналитика
+                  </TabsTrigger>
+                  <TabsTrigger value="management" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0">
+                    Управление
+                  </TabsTrigger>
+                  <TabsTrigger value="logs" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0">
+                    Логи
+                  </TabsTrigger>
+                  <TabsTrigger value="registration-requests" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0">
+                    Регистрации
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+
+            {/* на больших экранах */}
+            <div className="hidden sm:block">
+              <div className="overflow-x-auto">
+                <TabsList className="flex flex-wrap sm:flex-nowrap gap-2 h-auto items-stretch">
+                  <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap h-auto flex items-center gap-1.5">
+                    <Building2 className="h-4 w-4 flex-shrink-0" />
+                    Переговорные
+                  </TabsTrigger>
+                  <TabsTrigger value="requests" className="text-sm px-3 py-2 whitespace-nowrap h-auto">
+                    Заявки
+                  </TabsTrigger>
+                  <TabsTrigger value="overview" className="text-sm px-3 py-2 whitespace-nowrap h-auto">
+                    Обзор
+                  </TabsTrigger>
+                  <TabsTrigger value="analytics" className="text-sm px-3 py-2 whitespace-nowrap h-auto">
+                    Аналитика
+                  </TabsTrigger>
+                  <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap h-auto">
+                    Управление
+                  </TabsTrigger>
+                  <TabsTrigger value="logs" className="text-sm px-3 py-2 whitespace-nowrap h-auto">
+                    Логи
+                  </TabsTrigger>
+                  <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap h-auto">
+                    Регистрации
+                  </TabsTrigger>
+                </TabsList>
+              </div>
             </div>
           </div>
 
