@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -80,6 +80,9 @@ export function ActivityTracker() {
   const { user } = useAuthStore()
   const autoStartCheckRef = useRef<number | null>(null)
   const manualStartRef = useRef<boolean>(false) // Флаг ручного запуска
+  const isStartingRef = useRef<boolean>(false) // Защита от множественных запусков
+  const isStoppingRef = useRef<boolean>(false) // Защита от множественных остановок
+  const isTrackingRef = useRef<boolean>(false) // Ref для отслеживания состояния
 
   // Проверка, находится ли пользователь в офисе
   const checkIfInOffice = async (location: LocationData | null): Promise<boolean> => {
@@ -308,17 +311,17 @@ export function ActivityTracker() {
   }
 
   // Обработчик ориентации устройства (более точные углы)
-  const handleDeviceOrientation = (event: DeviceOrientationEvent) => {
+  const handleDeviceOrientation = useCallback((event: DeviceOrientationEvent) => {
     if (!isTracking) return
     
     orientationRef.current = {
       beta: event.beta || 0,   // Наклон вперед/назад (-180 до 180)
       gamma: event.gamma || 0  // Боковой наклон (-90 до 90)
     }
-  }
+  }, [isTracking])
 
   // Обработчик геолокации
-  const handleGeolocation = (position: GeolocationPosition) => {
+  const handleGeolocation = useCallback((position: GeolocationPosition) => {
     if (!isTracking) return
     
     const locationData: LocationData = {
@@ -336,16 +339,16 @@ export function ActivityTracker() {
     }
     
     lastLocationRef.current = locationData
-  }
+  }, [isTracking])
 
   // Обработчик ошибок геолокации
-  const handleGeolocationError = (error: GeolocationPositionError) => {
+  const handleGeolocationError = useCallback((error: GeolocationPositionError) => {
     console.warn('Ошибка геолокации:', error.message)
     // Не критично, продолжаем без геолокации
-  }
+  }, [])
 
   // Обработчик движения устройства
-  const handleDeviceMotion = (event: DeviceMotionEvent) => {
+  const handleDeviceMotion = useCallback((event: DeviceMotionEvent) => {
     if (!isTracking) return
 
     const acceleration = event.accelerationIncludingGravity || { x: 0, y: 0, z: 0 }
@@ -384,7 +387,7 @@ export function ActivityTracker() {
     
     setCurrentData(data)
     updateStatistics(detectedPosture)
-  }
+  }, [isTracking])
 
   // Обработчик ошибок
   const handleError = (error: Error) => {
@@ -393,49 +396,76 @@ export function ActivityTracker() {
   }
 
   // Запрос разрешения и начало отслеживания
-  const startTracking = async (isManual = false) => {
-    // Сразу помечаем как ручной запуск ДО любых проверок
-    if (isManual) {
-      manualStartRef.current = true
-      console.log('🔵 Ручной запуск трекера, автозапуск не будет останавливать')
-    }
-    setError(null)
-    
-    // Проверяем поддержку API
-    if (typeof DeviceMotionEvent === 'undefined') {
-      setError('Ваш браузер не поддерживает DeviceMotionEvent API')
+  const startTracking = useCallback(async (isManual = false) => {
+    // Защита от множественных запусков
+    if (isStartingRef.current || isTrackingRef.current) {
+      console.log('⚠️ Трекер уже запускается или уже запущен')
       return
     }
-
-    // Запрашиваем разрешение (iOS 13+)
-    if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
-      try {
-        const motionPermission = await (DeviceMotionEvent as any).requestPermission()
-        if (motionPermission !== 'granted') {
-          setError('Разрешение на доступ к датчикам движения отклонено')
-          return
-        }
-      } catch (err) {
-        setError('Ошибка при запросе разрешения на датчики движения')
+    
+    isStartingRef.current = true
+    
+    try {
+      // Очищаем старые интервалы и watchers перед запуском
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current)
+        saveIntervalRef.current = null
+      }
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      
+      // Сразу помечаем как ручной запуск ДО любых проверок
+      if (isManual) {
+        manualStartRef.current = true
+        console.log('🔵 Ручной запуск трекера, автозапуск не будет останавливать')
+      }
+      setError(null)
+    
+      // Проверяем поддержку API
+      if (typeof DeviceMotionEvent === 'undefined') {
+        setError('Ваш браузер не поддерживает DeviceMotionEvent API')
+        isStartingRef.current = false
         return
       }
-    }
 
-    // Запрашиваем разрешение для ориентации (iOS 13+)
-    if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-      try {
-        const orientationPermission = await (DeviceOrientationEvent as any).requestPermission()
-        if (orientationPermission !== 'granted') {
-          setError('Разрешение на доступ к ориентации отклонено')
+      // Запрашиваем разрешение (iOS 13+)
+      if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+        try {
+          const motionPermission = await (DeviceMotionEvent as any).requestPermission()
+          if (motionPermission !== 'granted') {
+            setError('Разрешение на доступ к датчикам движения отклонено')
+            isStartingRef.current = false
+            return
+          }
+        } catch (err) {
+          setError('Ошибка при запросе разрешения на датчики движения')
+          isStartingRef.current = false
           return
         }
-      } catch (err) {
-        // Не критично, продолжаем без ориентации
-        console.warn('Не удалось получить разрешение на ориентацию')
       }
-    }
+
+      // Запрашиваем разрешение для ориентации (iOS 13+)
+      if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        try {
+          const orientationPermission = await (DeviceOrientationEvent as any).requestPermission()
+          if (orientationPermission !== 'granted') {
+            setError('Разрешение на доступ к ориентации отклонено')
+            // Не критично, продолжаем без ориентации, но сбрасываем флаг только если это критично
+          }
+        } catch (err) {
+          // Не критично, продолжаем без ориентации
+          console.warn('Не удалось получить разрешение на ориентацию')
+        }
+      }
 
     setIsTracking(true)
+    isTrackingRef.current = true
     startTimeRef.current = Date.now()
     postureStartTimeRef.current = null
     lastPostureRef.current = 'unknown'
@@ -483,14 +513,27 @@ export function ActivityTracker() {
     saveIntervalRef.current = window.setInterval(() => {
       saveStatisticsToServer()
     }, 5 * 60 * 1000) // 5 минут
-  }
+    } finally {
+      isStartingRef.current = false
+    }
+  }, [isTracking, handleGeolocation, handleGeolocationError])
 
   // Остановка отслеживания
-  const stopTracking = async (isManual = false) => {
-    if (isManual) {
-      manualStartRef.current = false // Сбрасываем флаг при ручной остановке
+  const stopTracking = useCallback(async (isManual = false) => {
+    // Защита от множественных остановок
+    if (isStoppingRef.current || !isTrackingRef.current) {
+      console.log('⚠️ Трекер уже останавливается или уже остановлен')
+      return
     }
-    setIsTracking(false)
+    
+    isStoppingRef.current = true
+    
+    try {
+      if (isManual) {
+        manualStartRef.current = false // Сбрасываем флаг при ручной остановке
+      }
+      setIsTracking(false)
+      isTrackingRef.current = false
     
     // Сохраняем статистику перед остановкой
     await saveStatisticsToServer()
@@ -543,7 +586,15 @@ export function ActivityTracker() {
     // Удаляем обработчики
     window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
     window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
-  }
+    } finally {
+      isStoppingRef.current = false
+    }
+  }, [isTracking, handleDeviceMotion, handleDeviceOrientation])
+  
+  // Синхронизируем ref с состоянием
+  useEffect(() => {
+    isTrackingRef.current = isTracking
+  }, [isTracking])
 
   // Сброс статистики
   const resetStatistics = () => {
@@ -681,20 +732,24 @@ export function ActivityTracker() {
     if (!user || user.role !== 'executor') return
 
     let componentMounted = true
+    let isChecking = false // Защита от одновременных проверок
 
     const checkAndAutoStart = async () => {
-      if (!componentMounted) return
+      if (!componentMounted || isChecking) return
+      isChecking = true
       
       try {
         await loadOfficeInfo()
       } catch (error) {
         console.error('Ошибка загрузки информации об офисе:', error)
+        isChecking = false
         return
       }
       
       // Проверяем рабочие часы
       if (!isWithinWorkingHours()) {
         console.log('⏰ Не рабочие часы, автозапуск не выполняется')
+        isChecking = false
         return
       }
 
@@ -702,7 +757,10 @@ export function ActivityTracker() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
-            if (!isMounted) return
+            if (!isMounted || !componentMounted) {
+              isChecking = false
+              return
+            }
             
             const location: LocationData = {
               latitude: position.coords.latitude,
@@ -716,24 +774,31 @@ export function ActivityTracker() {
             
             // Проверяем, не был ли это ручной запуск (дополнительная проверка)
             const wasManualStart = manualStartRef.current
+            const currentTracking = isTracking // Используем текущее значение из замыкания
             
-            if (!componentMounted) return
+            if (!componentMounted) {
+              isChecking = false
+              return
+            }
             
             // Автозапуск только если не был ручной запуск и трекер не запущен
-            if (inOffice && !isTracking && !wasManualStart && componentMounted) {
+            if (inOffice && !currentTracking && !wasManualStart && componentMounted) {
               console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
-              startTracking(false) // Автоматический запуск
-            } else if (!inOffice && isTracking && !wasManualStart && componentMounted) {
+              await startTracking(false) // Автоматический запуск
+            } else if (!inOffice && currentTracking && !wasManualStart && componentMounted) {
               console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
-              stopTracking(false) // Автоматическая остановка
+              await stopTracking(false) // Автоматическая остановка
             } else if (!inOffice && wasManualStart) {
               console.log('📍 Не в офисе, но трекер запущен вручную - не останавливаю')
             } else if (!inOffice) {
               console.log('📍 Не в офисе, автозапуск не выполняется')
             }
+            
+            isChecking = false
           },
           (error) => {
             console.warn('⚠️ Не удалось получить геолокацию для автозапуска:', error.message)
+            isChecking = false
             // Если геолокация недоступна, не запускаем автоматически
           },
           {
@@ -742,30 +807,33 @@ export function ActivityTracker() {
             maximumAge: 0
           }
         )
+      } else {
+        isChecking = false
       }
     }
 
     // Небольшая задержка перед первой проверкой, чтобы компонент успел загрузиться
     // И чтобы не конфликтовать с ручным запуском
     const initialTimeout = setTimeout(() => {
-      if (componentMounted && !manualStartRef.current) {
+      if (componentMounted && !manualStartRef.current && !isTracking) {
         checkAndAutoStart()
       } else if (componentMounted && manualStartRef.current) {
         console.log('⏸️ Пропускаю автозапуск - трекер запущен вручную')
       }
-    }, 2000) // Увеличиваем задержку до 2 секунд
+    }, 3000) // Увеличиваем задержку до 3 секунд
 
     // Проверяем каждую минуту
     autoStartCheckRef.current = window.setInterval(async () => {
-      if (!componentMounted) return
+      if (!componentMounted || isChecking) return
       
       // Проверяем рабочие часы
       if (!isWithinWorkingHours()) {
         const wasManualStart = manualStartRef.current
-        if (isTracking && !wasManualStart && componentMounted) {
+        const currentTracking = isTracking
+        if (currentTracking && !wasManualStart && componentMounted) {
           console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
-          stopTracking(false) // Автоматическая остановка
-        } else if (isTracking && wasManualStart) {
+          await stopTracking(false) // Автоматическая остановка
+        } else if (currentTracking && wasManualStart) {
           console.log('⏰ Рабочие часы закончились, но трекер запущен вручную - не останавливаю')
         }
         return
@@ -775,7 +843,7 @@ export function ActivityTracker() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (position) => {
-            if (!isMounted) return
+            if (!isMounted || !componentMounted) return
             
             const location: LocationData = {
               latitude: position.coords.latitude,
@@ -789,16 +857,17 @@ export function ActivityTracker() {
             
             // Проверяем, не был ли это ручной запуск (дополнительная проверка)
             const wasManualStart = manualStartRef.current
+            const currentTracking = isTracking
             
             if (!componentMounted) return
             
             // Автозапуск только если не был ручной запуск
-            if (inOffice && !isTracking && !wasManualStart && componentMounted) {
+            if (inOffice && !currentTracking && !wasManualStart && componentMounted) {
               console.log('✅ Рабочие часы + в офисе, автоматически запускаю трекер...')
-              startTracking(false) // Автоматический запуск
-            } else if (!inOffice && isTracking && !wasManualStart && componentMounted) {
+              await startTracking(false) // Автоматический запуск
+            } else if (!inOffice && currentTracking && !wasManualStart && componentMounted) {
               console.log('📍 Вышел из офиса, автоматически останавливаю трекер...')
-              stopTracking(false) // Автоматическая остановка
+              await stopTracking(false) // Автоматическая остановка
             } else if (!inOffice && wasManualStart) {
               console.log('📍 Не в офисе, но трекер запущен вручную - не останавливаю')
             }
@@ -807,10 +876,11 @@ export function ActivityTracker() {
             console.warn('⚠️ Не удалось получить геолокацию:', error.message)
             // Если геолокация недоступна и трекер работает (и не ручной запуск), останавливаем
             const wasManualStart = manualStartRef.current
-            if (isTracking && !wasManualStart && componentMounted) {
+            const currentTracking = isTracking
+            if (currentTracking && !wasManualStart && componentMounted) {
               console.log('📍 Геолокация недоступна, останавливаю трекер...')
               stopTracking(false) // Автоматическая остановка
-            } else if (isTracking && wasManualStart) {
+            } else if (currentTracking && wasManualStart) {
               console.log('📍 Геолокация недоступна, но трекер запущен вручную - не останавливаю')
             }
           },
@@ -825,6 +895,7 @@ export function ActivityTracker() {
 
     return () => {
       componentMounted = false
+      isChecking = false
       if (autoStartCheckRef.current) {
         clearInterval(autoStartCheckRef.current)
         autoStartCheckRef.current = null
@@ -834,7 +905,7 @@ export function ActivityTracker() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMounted, user?.id, user?.role]) // Добавляем isMounted в зависимости
+  }, [isMounted, user?.id, user?.role, startTracking, stopTracking]) // Добавляем startTracking и stopTracking в зависимости
 
   useEffect(() => {
     if (isTracking) {
@@ -859,7 +930,7 @@ export function ActivityTracker() {
         clearInterval(intervalRef.current)
       }
     }
-  }, [isTracking, handleDeviceMotion, handleDeviceOrientation, handleGeolocation, handleGeolocationError])
+  }, [isTracking, handleDeviceMotion, handleDeviceOrientation])
 
   return (
     <div className="space-y-6 p-4">
