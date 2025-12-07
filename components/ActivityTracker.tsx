@@ -409,21 +409,26 @@ export function ActivityTracker() {
   const handleDeviceMotion = useCallback((event: DeviceMotionEvent) => {
     if (!isTracking) return
 
-    const acceleration = event.accelerationIncludingGravity || { x: 0, y: 0, z: 0 }
-    const rotation = event.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
+    // Нормализуем acceleration, обрабатывая null значения
+    const accel = event.accelerationIncludingGravity
+    const acceleration = {
+      x: accel?.x ?? 0,
+      y: accel?.y ?? 0,
+      z: accel?.z ?? 0
+    }
+    
+    // Нормализуем rotation, обрабатывая null значения
+    const rot = event.rotationRate
+    const rotation = {
+      alpha: rot?.alpha ?? 0,
+      beta: rot?.beta ?? 0,
+      gamma: rot?.gamma ?? 0
+    }
     
     const data: ActivityData = {
       timestamp: Date.now(),
-      acceleration: {
-        x: acceleration.x || 0,
-        y: acceleration.y || 0,
-        z: acceleration.z || 0
-      },
-      rotation: {
-        alpha: rotation.alpha || 0,
-        beta: rotation.beta || 0,
-        gamma: rotation.gamma || 0
-      },
+      acceleration,
+      rotation,
       location: lastLocationRef.current || undefined,
       posture: 'unknown'
     }

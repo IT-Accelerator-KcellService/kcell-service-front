@@ -232,8 +232,21 @@ export function ActivityTrackerService() {
     const currentLastPosture = storeState.lastPosture
     const currentPostureStartTime = storeState.postureStartTime
 
-    const acceleration = event.accelerationIncludingGravity || { x: 0, y: 0, z: 0 }
-    const rotation = event.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
+    // Нормализуем acceleration, обрабатывая null значения
+    const accel = event.accelerationIncludingGravity
+    const acceleration = {
+      x: accel?.x ?? 0,
+      y: accel?.y ?? 0,
+      z: accel?.z ?? 0
+    }
+    
+    // Нормализуем rotation, обрабатывая null значения
+    const rot = event.rotationRate
+    const rotation = {
+      alpha: rot?.alpha ?? 0,
+      beta: rot?.beta ?? 0,
+      gamma: rot?.gamma ?? 0
+    }
     
     const detectedPosture = detectPosture(
       acceleration, 
@@ -246,7 +259,7 @@ export function ActivityTrackerService() {
       console.log('📊 [Service] Device motion:', {
         detectedPosture,
         currentLastPosture,
-        acceleration: { x: acceleration.x?.toFixed(2), y: acceleration.y?.toFixed(2), z: acceleration.z?.toFixed(2) },
+        acceleration: { x: acceleration.x.toFixed(2), y: acceleration.y.toFixed(2), z: acceleration.z.toFixed(2) },
         orientation: orientationRef.current
       })
     }
