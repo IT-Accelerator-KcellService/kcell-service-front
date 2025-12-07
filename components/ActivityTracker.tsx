@@ -933,33 +933,33 @@ export function ActivityTracker() {
   }, [isTracking, handleDeviceMotion, handleDeviceOrientation])
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Трекер активности сотрудника
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="text-sm sm:text-base">Трекер активности сотрудника</span>
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             Отслеживание позы (сидя/стоя) и активности в течение дня
           </CardDescription>
           {officeInfo && officeInfo.auto_track_enabled && (
-            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-blue-600" />
+            <div className="mt-3 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
                   <span className="font-medium text-blue-900">Рабочие часы:</span>
                   <span className="text-blue-700">
                     {formatTimeDisplay(officeInfo.working_hours_start)} - {formatTimeDisplay(officeInfo.working_hours_end)}
                   </span>
                 </div>
                 {isWithinWorkingHours() && timeUntilEnd && (
-                  <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                  <Badge variant="default" className="bg-green-500 hover:bg-green-600 text-xs w-fit">
                     До конца: {timeUntilEnd}
                   </Badge>
                 )}
                 {!isWithinWorkingHours() && (
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="text-xs w-fit">
                     Не рабочие часы
                   </Badge>
                 )}
@@ -967,51 +967,52 @@ export function ActivityTracker() {
             </div>
           )}
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-4 sm:p-6">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs sm:text-sm">
               {error}
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {!isTracking ? (
-              <Button onClick={() => startTracking(true)} className="flex-1">
+              <Button onClick={() => startTracking(true)} className="flex-1 text-sm sm:text-base">
                 <Play className="mr-2 h-4 w-4" />
-                Начать отслеживание
+                <span className="hidden sm:inline">Начать отслеживание</span>
+                <span className="sm:hidden">Начать</span>
               </Button>
             ) : (
-              <Button onClick={() => stopTracking(true)} variant="destructive" className="flex-1">
+              <Button onClick={() => stopTracking(true)} variant="destructive" className="flex-1 text-sm sm:text-base">
                 <Pause className="mr-2 h-4 w-4" />
                 Остановить
               </Button>
             )}
-            <Button onClick={resetStatistics} variant="outline">
+            <Button onClick={resetStatistics} variant="outline" className="text-sm sm:text-base">
               <Square className="mr-2 h-4 w-4" />
               Сброс
             </Button>
           </div>
 
           {currentData && (
-            <div className="p-4 bg-gray-50 rounded-lg space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Текущая поза:</span>
-                <Badge variant={statistics.currentPosture === 'sitting' ? 'default' : 'secondary'}>
+            <div className="p-3 sm:p-4 bg-gray-50 rounded-lg space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs sm:text-sm font-medium">Текущая поза:</span>
+                <Badge variant={statistics.currentPosture === 'sitting' ? 'default' : 'secondary'} className="text-xs">
                   {statistics.currentPosture === 'sitting' ? 'Сижу' : 
                    statistics.currentPosture === 'standing' ? 'Стою' : 'Неизвестно'}
                 </Badge>
               </div>
-              <div className="text-xs text-gray-500 space-y-1">
-                <div>Ускорение: X={currentData.acceleration.x.toFixed(2)}, Y={currentData.acceleration.y.toFixed(2)}, Z={currentData.acceleration.z.toFixed(2)}</div>
+              <div className="text-xs text-gray-500 space-y-1 break-words">
+                <div className="break-all">Ускорение: X={currentData.acceleration.x.toFixed(2)}, Y={currentData.acceleration.y.toFixed(2)}, Z={currentData.acceleration.z.toFixed(2)}</div>
                 <div>Наклон: β={currentData.rotation.beta?.toFixed(1) || '0'}°, γ={currentData.rotation.gamma?.toFixed(1) || '0'}°</div>
                 {currentData.location && (
                   <div className="mt-2 pt-2 border-t border-gray-200">
-                    <div className="font-medium text-gray-700 mb-1">Геолокация:</div>
-                    <div>Координаты: {currentData.location.latitude.toFixed(6)}, {currentData.location.longitude.toFixed(6)}</div>
+                    <div className="font-medium text-gray-700 mb-1 text-xs sm:text-sm">Геолокация:</div>
+                    <div className="break-all text-xs">Координаты: {currentData.location.latitude.toFixed(6)}, {currentData.location.longitude.toFixed(6)}</div>
                     {currentData.location.altitude !== null && (
-                      <div>Высота: {currentData.location.altitude.toFixed(1)} м</div>
+                      <div className="text-xs">Высота: {currentData.location.altitude.toFixed(1)} м</div>
                     )}
-                    <div>Точность: ±{currentData.location.accuracy.toFixed(1)} м</div>
+                    <div className="text-xs">Точность: ±{currentData.location.accuracy.toFixed(1)} м</div>
                   </div>
                 )}
               </div>
@@ -1021,45 +1022,45 @@ export function ActivityTracker() {
       </Card>
 
       <Tabs defaultValue="stats" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="stats">Статистика</TabsTrigger>
-          <TabsTrigger value="intervals">Интервалы</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 h-auto">
+          <TabsTrigger value="stats" className="text-xs sm:text-sm py-2 px-2 sm:px-4">Статистика</TabsTrigger>
+          <TabsTrigger value="intervals" className="text-xs sm:text-sm py-2 px-2 sm:px-4">Интервалы</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="stats" className="space-y-4">
+        <TabsContent value="stats" className="space-y-4 mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Общая статистика</CardTitle>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Общая статистика</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
+            <CardContent className="space-y-4 p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="p-3 sm:p-4 bg-blue-50 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Clock className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">Время сидя</span>
+                    <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium text-blue-900">Время сидя</span>
                   </div>
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-xl sm:text-2xl font-bold text-blue-600">
                     {formatTime(statistics.totalSittingTime)}
                   </div>
                 </div>
 
-                <div className="p-4 bg-green-50 rounded-lg">
+                <div className="p-3 sm:p-4 bg-green-50 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-900">Время стоя</span>
+                    <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-medium text-green-900">Время стоя</span>
                   </div>
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-xl sm:text-2xl font-bold text-green-600">
                     {formatTime(statistics.totalStandingTime)}
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-violet-50 rounded-lg">
+              <div className="p-3 sm:p-4 bg-violet-50 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <Activity className="h-4 w-4 text-violet-600" />
-                  <span className="text-sm font-medium text-violet-900">Количество вставаний</span>
+                  <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-violet-600 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium text-violet-900">Количество вставаний</span>
                 </div>
-                <div className="text-2xl font-bold text-violet-600">
+                <div className="text-xl sm:text-2xl font-bold text-violet-600">
                   {statistics.standUpCount}
                 </div>
                 {statistics.lastStandUpTime && (
@@ -1069,9 +1070,9 @@ export function ActivityTracker() {
                 )}
               </div>
 
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <div className="text-sm font-medium mb-2">Общее время отслеживания</div>
-                <div className="text-xl font-bold">
+              <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <div className="text-xs sm:text-sm font-medium mb-2">Общее время отслеживания</div>
+                <div className="text-lg sm:text-xl font-bold">
                   {formatTime(statistics.totalSittingTime + statistics.totalStandingTime)}
                 </div>
               </div>
@@ -1079,39 +1080,39 @@ export function ActivityTracker() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="intervals" className="space-y-4">
+        <TabsContent value="intervals" className="space-y-4 mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Интервалы активности</CardTitle>
-              <CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Интервалы активности</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 История смен поз (последние {statistics.intervals.length} интервалов)
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               {statistics.intervals.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-6 sm:py-8 text-gray-500 text-sm">
                   Нет данных об интервалах
                 </div>
               ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                <div className="space-y-2 max-h-96 overflow-y-auto -mr-2 pr-2">
                   {statistics.intervals.slice().reverse().map((interval, index) => (
                     <div
                       key={index}
-                      className={`p-3 rounded-lg border ${
+                      className={`p-2 sm:p-3 rounded-lg border ${
                         interval.type === 'sitting' 
                           ? 'bg-blue-50 border-blue-200' 
                           : 'bg-green-50 border-green-200'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <Badge variant={interval.type === 'sitting' ? 'default' : 'secondary'}>
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <Badge variant={interval.type === 'sitting' ? 'default' : 'secondary'} className="text-xs">
                           {interval.type === 'sitting' ? 'Сидел' : 'Стоял'}
                         </Badge>
-                        <span className="text-sm font-medium">
+                        <span className="text-xs sm:text-sm font-medium">
                           {formatTime(interval.duration)}
                         </span>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500 mt-1 break-words">
                         {new Date(interval.start).toLocaleTimeString()} - {new Date(interval.end).toLocaleTimeString()}
                       </div>
                     </div>
