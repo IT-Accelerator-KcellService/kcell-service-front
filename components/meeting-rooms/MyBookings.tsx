@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, Building2, X } from "lucide-react"
+import { Calendar, Clock, Building2, X, ExternalLink } from "lucide-react"
 import { format } from "date-fns"
 import { ru } from "date-fns/locale"
 import { getMyBookings, cancelMeetingRoomBooking, MeetingRoomBooking } from "@/lib/api"
@@ -13,6 +13,7 @@ import { SuccessModal } from "@/components/success-model"
 import { useRejectRequestModal } from "@/hooks/use-reject-modal"
 import { RejectRequestModal } from "@/components/RejectRequestModal"
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal"
+import { useRouter } from "next/navigation"
 
 export function MyBookings() {
   const [bookings, setBookings] = useState<MeetingRoomBooking[]>([])
@@ -22,6 +23,7 @@ export function MyBookings() {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const successModal = useSuccessModal()
   const rejectModal = useRejectRequestModal()
+  const router = useRouter()
 
   useEffect(() => {
     fetchBookings()
@@ -112,6 +114,10 @@ export function MyBookings() {
 
   const isCancelled = (booking: MeetingRoomBooking) => {
     return booking.status === 'cancelled' || booking.status === 'auto_cancelled'
+  }
+
+  const handleOpenBookingPage = (bookingId: number) => {
+    router.push(`/booking/${bookingId}`)
   }
 
   if (loading) {
@@ -217,6 +223,15 @@ export function MyBookings() {
                       </div>
                     )}
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleOpenBookingPage(booking.id)}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Открыть страницу бронирования
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"

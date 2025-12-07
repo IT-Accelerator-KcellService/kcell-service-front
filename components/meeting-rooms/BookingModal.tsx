@@ -20,8 +20,7 @@ import { RejectRequestModal } from "@/components/RejectRequestModal"
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal"
 import { getRoomDailyAvailability } from "@/lib/api"
 import { useEffect } from "react"
-import { DeskHeightCalculator } from "./DeskHeightCalculator"
-import { Ruler } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface BookingModalProps {
   isOpen: boolean
@@ -63,9 +62,9 @@ export function BookingModal({
   const [loadingAvailability, setLoadingAvailability] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
-  const [showDeskCalculator, setShowDeskCalculator] = useState(false)
   const successModal = useSuccessModal()
   const rejectModal = useRejectRequestModal()
+  const router = useRouter()
 
   // Загружаем занятые слоты при выборе даты
   useEffect(() => {
@@ -244,7 +243,7 @@ export function BookingModal({
 
       const bookingDate = format(selectedDate, "dd MMMM yyyy", { locale: ru })
 
-      await api.post("/meeting-room-bookings", {
+      const response = await api.post("/meeting-room-bookings", {
         meeting_room_id: room.id,
         date: format(selectedDate, "yyyy-MM-dd"),
         start_time: startTimeFormatted,
@@ -252,34 +251,21 @@ export function BookingModal({
         company_name: companyName || null,
       })
       
+      const booking = response.data
+      
       // Сброс формы
       setSelectedDate(undefined)
       setSelectedTimeSlot(null)
       setCompanyName("")
       
-      // Вызываем callback для обновления списка
-      onBookingSuccess?.()
-      
-      // Закрываем модальное окно сначала
+      // Закрываем модальное окно
       onClose()
       
-      // Показываем успешное уведомление через callback в родительском компоненте
-      // чтобы оно отобразилось вне модального окна
-      if (onSuccess) {
-        setTimeout(() => {
-          onSuccess({
-            title: "Бронирование успешно создано",
-            message: `Комната "${room.name}" (вместимость: до ${room.capacity} человек) забронирована на ${bookingDate} с ${timeSlot.start} до ${timeSlot.end}${companyName ? `. Компания: ${companyName}` : ''}`,
-          })
-        }, 300)
-      } else {
-        // Fallback на локальный SuccessModal, если callback не передан
-        successModal.showSuccess({
-          title: "Бронирование успешно создано",
-          message: `Комната "${room.name}" (вместимость: до ${room.capacity} человек) забронирована на ${bookingDate} с ${timeSlot.start} до ${timeSlot.end}${companyName ? `. Компания: ${companyName}` : ''}`,
-          duration: 3000,
-        })
-      }
+      // Вызываем callback успешного бронирования
+      onBookingSuccess?.()
+      
+      // Сразу переходим на страницу с QR кодом
+      router.push(`/booking/${booking.id}`)
     } catch (error: any) {
       console.error("Ошибка при бронировании:", error)
       const errorMessage = error.response?.data?.message || error.message || "Ошибка при бронировании комнаты"
@@ -320,34 +306,6 @@ export function BookingModal({
               <span className="text-sm text-purple-800">
                 {format(selectedDate, "dd MMMM yyyy", { locale: ru })} {selectedTimeSlot}
               </span>
-            </div>
-          )}
-
-          {showDeskCalculator && (
-            <DeskHeightCalculator
-              isOpen={showDeskCalculator}
-              onToggle={() => setShowDeskCalculator(!showDeskCalculator)}
-            />
-          )}
-          
-          {!showDeskCalculator && (
-            <div className="space-y-2 border border-purple-200 rounded-lg p-4 bg-gradient-to-r from-purple-50 to-purple-100/50">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-start text-left font-normal hover:bg-white hover:border-purple-300 hover:shadow-md transition-all"
-                onClick={() => setShowDeskCalculator(true)}
-              >
-                <Ruler className="mr-3 h-5 w-5 text-purple-600" />
-                <div className="flex-1 text-left">
-                  <div className="font-semibold text-gray-900 text-base">
-                    Калькулятор высоты стола
-                  </div>
-                  <div className="text-sm text-gray-600 font-normal mt-0.5">
-                    Настройте высоту стола для сидячего и стоячего положения
-                  </div>
-                </div>
-              </Button>
             </div>
           )}
 

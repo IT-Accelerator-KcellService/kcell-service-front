@@ -26,6 +26,8 @@ import {
   Zap,
   Building2,
   Activity,
+  QrCode,
+  Camera,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import axios from "axios";
@@ -67,6 +69,7 @@ import ClientRatingModal from "@/components/ClientRatingModal";
 import PhotoModal from "@/components/photo/PhotoModal";
 import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
 import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
+import { QRScanner } from "@/components/QRScanner";
 
 const API_BASE_URL = 'https://workflow-back-zpk4.onrender.com/api';
 
@@ -128,6 +131,7 @@ export default function ExecutorDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [showDeleteRequestModal, setShowDeleteRequestModal] = useState(false)
+  const [showQRScanner, setShowQRScanner] = useState(false)
 
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
@@ -1763,6 +1767,13 @@ export default function ExecutorDashboard() {
                         <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                           Статистика
                         </TabsTrigger>
+                        <TabsTrigger value="scan-qr" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                          <span className="sm:hidden flex items-center gap-1">
+                            <QrCode className="h-3.5 w-3.5" />
+                            Сканировать QR
+                          </span>
+                          <span className="hidden sm:inline">Сканировать QR</span>
+                        </TabsTrigger>
                       </TabsList>
                     </div>
                   </div>
@@ -1786,6 +1797,10 @@ export default function ExecutorDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
                           Статистика
+                        </TabsTrigger>
+                        <TabsTrigger value="scan-qr" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                          <QrCode className="h-4 w-4" />
+                          Сканировать QR
                         </TabsTrigger>
                       </TabsList>
                     </div>
@@ -1988,11 +2003,41 @@ export default function ExecutorDashboard() {
                           </div>
                         </div>
                       </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-              </Tabs>
+              </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="scan-qr" className="pt-2 sm:pt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  Сканирование QR кода
+                </CardTitle>
+                <CardDescription>
+                  Отсканируйте QR код бронирования для уменьшения количества столов
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col items-center gap-4">
+                  <Button
+                    onClick={() => setShowQRScanner(true)}
+                    className="bg-purple-600 hover:bg-purple-700"
+                    size="lg"
+                  >
+                    <Camera className="mr-2 h-5 w-5" />
+                    Открыть сканер
+                  </Button>
+                  
+                  <p className="text-sm text-gray-600 text-center">
+                    Отсканируйте QR код бронирования, чтобы уменьшить количество доступных столов
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
 
             <div className="space-y-6 mb-20">
               <Card className="overflow-hidden">
@@ -2623,10 +2668,18 @@ export default function ExecutorDashboard() {
             duration={successModal.duration}
         />
 
+        <QRScanner
+          isOpen={showQRScanner}
+          onClose={() => setShowQRScanner(false)}
+          onScanSuccess={(data) => {
+            console.log('QR код успешно отсканирован:', data)
+          }}
+        />
+
         <BottomNav
 
             activeTab="history"
-            hidden={showCreateRequestModal || !! selectedRequest || showMapModal || !!selectedPhoto || isModalOpen || showRejectModal || showRedirectModal}
+            hidden={showCreateRequestModal || !! selectedRequest || showMapModal || !!selectedPhoto || isModalOpen || showRejectModal || showRedirectModal || showQRScanner}
         />
 
         {isDesktop && <Link

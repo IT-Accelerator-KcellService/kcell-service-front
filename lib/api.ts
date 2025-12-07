@@ -387,6 +387,7 @@ export interface MeetingRoomBooking {
     company_name?: string | null;
     created_at?: string;
     updated_at?: string;
+    tables_remaining?: number;
     meetingRoom?: {
         id: number;
         name: string;
@@ -443,6 +444,21 @@ export const getMyBookings = () =>
 // Отменить бронирование
 export const cancelMeetingRoomBooking = (id: number) =>
     api.delete(`/meeting-room-bookings/${id}`);
+
+// Сканировать QR код бронирования (для исполнителя)
+export const scanBookingQRCode = (bookingId: number) =>
+    api.post<{ booking: MeetingRoomBooking; tables_remaining: number }>('/meeting-room-bookings/scan-qr', { bookingId });
+
+// Получить публичную информацию о бронировании (без аутентификации)
+export const getPublicBooking = (bookingId: number) => {
+    const publicApi = axios.create({
+        baseURL: API_BASE_URL,
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
+    return publicApi.get<MeetingRoomBooking>(`/meeting-room-bookings/${bookingId}/public`);
+};
 
 // Получить доступность комнаты на конкретную дату
 export const getRoomDailyAvailability = (roomId: number, date: string, slotMinutes?: number) => {
