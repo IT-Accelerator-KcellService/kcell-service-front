@@ -775,13 +775,10 @@ export function ActivityTracker() {
       
       // Проверяем рабочие часы
       if (!isWithinWorkingHours()) {
-        const wasManualStart = manualStartFromStore
         const currentTracking = isTracking
-        if (currentTracking && !wasManualStart && componentMounted) {
+        if (currentTracking && componentMounted) {
           console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
           await stopTracking(false) // Автоматическая остановка
-        } else if (currentTracking && wasManualStart) {
-          console.log('⏰ Рабочие часы закончились, но трекер запущен вручную - не останавливаю')
         }
         return
       }

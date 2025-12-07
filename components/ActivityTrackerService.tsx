@@ -730,7 +730,7 @@ export function ActivityTrackerService() {
       if (!componentMounted || isChecking) return
       
       if (!isWithinWorkingHours()) {
-        if (isTrackingRef.current && !manualStart) {
+        if (isTrackingRef.current) {
           console.log('⏰ [Service] Рабочие часы закончились, останавливаю трекер...')
           await stopTracking()
         }
