@@ -291,6 +291,9 @@ export default function ManagerDashboard() {
     city: "",
     address: "",
     photo: null,
+    working_hours_start: "08:00:00",
+    working_hours_end: "18:00:00",
+    auto_track_enabled: false,
   })
   const newOfficePhotoInputRef = useRef<HTMLInputElement | null>(null)
   const [page, setPage] = useState(1);
@@ -1262,6 +1265,17 @@ export default function ManagerDashboard() {
         }
       }
       
+      // Добавляем рабочие часы и автотрекинг, если они изменились
+      if (editedOffice.working_hours_start !== undefined) {
+        updateData.working_hours_start = editedOffice.working_hours_start;
+      }
+      if (editedOffice.working_hours_end !== undefined) {
+        updateData.working_hours_end = editedOffice.working_hours_end;
+      }
+      if (editedOffice.auto_track_enabled !== undefined) {
+        updateData.auto_track_enabled = editedOffice.auto_track_enabled;
+      }
+      
       await api.put(`/offices/${id}`, updateData) // Передаём данные для обновления
       const updatedOffices = offices.map((office) =>
           office.id === id ? { ...office, ...editedOffice } : office
@@ -1613,6 +1627,9 @@ export default function ManagerDashboard() {
       city: "",
       address: "",
       photo: null,
+      working_hours_start: "08:00:00",
+      working_hours_end: "18:00:00",
+      auto_track_enabled: false,
     });
   };
 
@@ -2641,6 +2658,46 @@ export default function ManagerDashboard() {
                                             className="w-full sm:flex-1"
                                         />
                                       </div>
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                        <div className="flex-1">
+                                          <Label className="text-sm font-medium mb-1 block">Начало рабочих часов</Label>
+                                          <Input
+                                            type="time"
+                                            value={editedOffice.working_hours_start?.substring(0, 5) || "08:00"}
+                                            onChange={(e) => {
+                                              const timeValue = e.target.value + ":00";
+                                              setEditedOffice({ ...editedOffice, working_hours_start: timeValue });
+                                            }}
+                                            className="w-full"
+                                          />
+                                        </div>
+                                        <div className="flex-1">
+                                          <Label className="text-sm font-medium mb-1 block">Конец рабочих часов</Label>
+                                          <Input
+                                            type="time"
+                                            value={editedOffice.working_hours_end?.substring(0, 5) || "18:00"}
+                                            onChange={(e) => {
+                                              const timeValue = e.target.value + ":00";
+                                              setEditedOffice({ ...editedOffice, working_hours_end: timeValue });
+                                            }}
+                                            className="w-full"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="checkbox"
+                                          id={`auto-track-${officeItem.id}`}
+                                          checked={editedOffice.auto_track_enabled || false}
+                                          onChange={(e) =>
+                                            setEditedOffice({ ...editedOffice, auto_track_enabled: e.target.checked })
+                                          }
+                                          className="h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                                        />
+                                        <Label htmlFor={`auto-track-${officeItem.id}`} className="text-sm font-medium cursor-pointer">
+                                          Автоматическое отслеживание активности
+                                        </Label>
+                                      </div>
                                       <div className="space-y-2">
                                         <Label className="text-sm font-medium text-muted-foreground">Фото офиса</Label>
                                         <Input
@@ -2698,6 +2755,18 @@ export default function ManagerDashboard() {
                                         <div className="text-sm text-gray-600">
                                           Адрес: <span className="font-medium">{officeItem.address}</span>
                                         </div>
+                                        {officeItem.working_hours_start && officeItem.working_hours_end && (
+                                          <div className="text-sm text-gray-600">
+                                            Рабочие часы: <span className="font-medium">
+                                              {officeItem.working_hours_start.substring(0, 5)} - {officeItem.working_hours_end.substring(0, 5)}
+                                            </span>
+                                          </div>
+                                        )}
+                                        <div className="text-sm text-gray-600">
+                                          Автотрекинг: <span className="font-medium">
+                                            {officeItem.auto_track_enabled ? "Включен" : "Выключен"}
+                                          </span>
+                                        </div>
                                         </div>
                                         {officeItem.photo ? (
                                           <div className="relative h-24 w-full sm:w-48 overflow-hidden rounded-lg border bg-muted">
@@ -2722,6 +2791,9 @@ export default function ManagerDashboard() {
                                                 city: officeItem.city,
                                                 address: officeItem.address,
                                                 photo: officeItem.photo ?? null,
+                                                working_hours_start: officeItem.working_hours_start ?? "08:00:00",
+                                                working_hours_end: officeItem.working_hours_end ?? "18:00:00",
+                                                auto_track_enabled: officeItem.auto_track_enabled ?? false,
                                               });
                                             }}
                                             className="w-full sm:w-auto"

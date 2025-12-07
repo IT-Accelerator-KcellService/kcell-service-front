@@ -99,6 +99,9 @@ export interface Office {
     lat?: number | null;
     lon?: number | null;
     photo?: string | null;
+    working_hours_start?: string | null; // формат "HH:mm:ss"
+    working_hours_end?: string | null; // формат "HH:mm:ss"
+    auto_track_enabled?: boolean;
 }
 
 // Получить все офисы
