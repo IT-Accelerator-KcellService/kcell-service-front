@@ -142,17 +142,31 @@ export function ActivityTrackerService() {
 
   // Сохранение статистики на сервер
   const saveStatisticsToServer = async () => {
-    if (!user || !isTracking) return
+    // Используем ref для проверки актуального состояния
+    if (!user || !isTrackingRef.current) {
+      console.log('⏭️ [Service] Пропуск сохранения: user=', !!user, 'isTracking=', isTrackingRef.current)
+      return
+    }
     
     try {
+      // Получаем актуальные значения из store
+      const storeState = useActivityTrackerStore.getState()
+      const currentStats = storeState.statistics
+      
+      console.log('💾 [Service] Сохранение статистики:', {
+        totalSittingTime: currentStats.totalSittingTime,
+        totalStandingTime: currentStats.totalStandingTime,
+        standUpCount: currentStats.standUpCount
+      })
+      
       const isInOffice = await checkIfInOffice(lastLocationRef.current)
       
       await api.post('/activity-stats/save', {
         userId: user.id,
         date: new Date().toISOString().split('T')[0],
-        totalSittingTime: statistics.totalSittingTime,
-        totalStandingTime: statistics.totalStandingTime,
-        standUpCount: statistics.standUpCount,
+        totalSittingTime: currentStats.totalSittingTime,
+        totalStandingTime: currentStats.totalStandingTime,
+        standUpCount: currentStats.standUpCount,
         isInOffice,
         location: lastLocationRef.current ? {
           latitude: lastLocationRef.current.latitude,
@@ -160,6 +174,8 @@ export function ActivityTrackerService() {
           accuracy: lastLocationRef.current.accuracy
         } : null
       })
+      
+      console.log('✅ [Service] Статистика успешно сохранена на сервер')
     } catch (error) {
       console.error('❌ [Service] Ошибка сохранения статистики:', error)
     }
@@ -475,8 +491,11 @@ export function ActivityTrackerService() {
       
       // Сохраняем статистику каждые 5 минут
       saveIntervalRef.current = window.setInterval(() => {
+        console.log('⏰ [Service] Интервал сохранения (5 минут) - вызываю saveStatisticsToServer')
         saveStatisticsToServer()
       }, 5 * 60 * 1000)
+      
+      console.log('✅ [Service] Интервал сохранения установлен на 5 минут')
       
       console.log('✅ [Service] Tracking started')
     } finally {
@@ -606,8 +625,11 @@ export function ActivityTrackerService() {
       }, 1000)
       
       saveIntervalRef.current = window.setInterval(() => {
+        console.log('⏰ [Service] Интервал сохранения (5 минут) - вызываю saveStatisticsToServer')
         saveStatisticsToServer()
       }, 5 * 60 * 1000)
+      
+      console.log('✅ [Service] Интервал сохранения восстановлен на 5 минут')
       
       // Восстанавливаем геолокацию
       if (navigator.geolocation) {
