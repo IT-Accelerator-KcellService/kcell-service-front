@@ -1256,17 +1256,77 @@ export default function ClientDashboard() {
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="mb-6">
-                {/* на телефоне только табы */}
+                {/* Карточки в стиле Каспи для мобильных устройств */}
                 {!isDesktop && (
-                  <div className="flex flex-col sm:hidden gap-3 mb-4">
-                    <TabsList>
-                      <TabsTrigger value="meeting-rooms" className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        Переговорные
-                      </TabsTrigger>
-                      <TabsTrigger value="requests">Мои заявки</TabsTrigger>
-                      <TabsTrigger value="statistics">Статистика</TabsTrigger>
-                    </TabsList>
+                  <div className="sm:hidden mb-6">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Card 
+                        className={`cursor-pointer transition-all active:scale-95 border-0 shadow-none rounded-lg ${
+                          activeTab === "meeting-rooms" 
+                            ? "bg-purple-50" 
+                            : "bg-transparent hover:bg-gray-50"
+                        }`}
+                        onClick={() => setActiveTab("meeting-rooms")}
+                      >
+                        <CardContent className="p-3 flex flex-col items-center justify-center min-h-[80px]">
+                          <div className="mb-2 flex items-center justify-center">
+                            <Building2 
+                              className={`w-7 h-7 ${activeTab === "meeting-rooms" ? "text-purple-600" : "text-purple-600"}`} 
+                              strokeWidth={2} 
+                            />
+                          </div>
+                          <p className={`text-[11px] text-center font-medium leading-tight ${
+                            activeTab === "meeting-rooms" ? "text-purple-600" : "text-gray-900"
+                          }`}>
+                            Бронировать комнату
+                          </p>
+                        </CardContent>
+                      </Card>
+                      <Card 
+                        className={`cursor-pointer transition-all active:scale-95 border-0 shadow-none rounded-lg ${
+                          activeTab === "requests" 
+                            ? "bg-purple-50" 
+                            : "bg-transparent hover:bg-gray-50"
+                        }`}
+                        onClick={() => setActiveTab("requests")}
+                      >
+                        <CardContent className="p-3 flex flex-col items-center justify-center min-h-[80px]">
+                          <div className="mb-2 flex items-center justify-center">
+                            <Settings 
+                              className={`w-7 h-7 ${activeTab === "requests" ? "text-purple-600" : "text-purple-600"}`} 
+                              strokeWidth={2} 
+                            />
+                          </div>
+                          <p className={`text-[11px] text-center font-medium leading-tight ${
+                            activeTab === "requests" ? "text-purple-600" : "text-gray-900"
+                          }`}>
+                            Заявки
+                          </p>
+                        </CardContent>
+                      </Card>
+                      <Card 
+                        className={`cursor-pointer transition-all active:scale-95 border-0 shadow-none rounded-lg ${
+                          activeTab === "statistics" 
+                            ? "bg-purple-50" 
+                            : "bg-transparent hover:bg-gray-50"
+                        }`}
+                        onClick={() => setActiveTab("statistics")}
+                      >
+                        <CardContent className="p-3 flex flex-col items-center justify-center min-h-[80px]">
+                          <div className="mb-2 flex items-center justify-center">
+                            <BarChart3 
+                              className={`w-7 h-7 ${activeTab === "statistics" ? "text-purple-600" : "text-purple-600"}`} 
+                              strokeWidth={2} 
+                            />
+                          </div>
+                          <p className={`text-[11px] text-center font-medium leading-tight ${
+                            activeTab === "statistics" ? "text-purple-600" : "text-gray-900"
+                          }`}>
+                            Статистика
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 )}
               </div>
