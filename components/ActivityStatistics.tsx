@@ -291,14 +291,14 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
               {executorsOutOfOffice.length === 0 ? (
                 <div className="text-center py-4 text-gray-500 text-sm">
                   Нет исполнителей вне офиса
-                </div>
-              ) : (
-                <div className="space-y-4">
+              </div>
+            ) : (
+              <div className="space-y-4">
                   {executorsOutOfOffice.map((stats) => (
-                    <UserStatsCard key={stats.userId} stats={stats} />
-                  ))}
-                </div>
-              )}
+                  <UserStatsCard key={stats.userId} stats={stats} />
+                ))}
+              </div>
+            )}
             </div>
           </CardContent>
         </Card>
@@ -309,7 +309,7 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
   // Для executor показываем трекер + статистику
   if (user?.role === 'executor') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Трекер активности */}
         <ActivityTracker />
         

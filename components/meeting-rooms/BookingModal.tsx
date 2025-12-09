@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { ru } from "date-fns/locale"
-import { Calendar as CalendarIcon, Clock } from "lucide-react"
+import { Calendar as CalendarIcon, Clock, Building2, Users, ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { MeetingRoom } from "@/stores/meetingRoomsStore"
 import api from "@/lib/api"
@@ -18,9 +18,12 @@ import { SuccessModal } from "@/components/success-model"
 import { useRejectRequestModal } from "@/hooks/use-reject-modal"
 import { RejectRequestModal } from "@/components/RejectRequestModal"
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal"
-import { getRoomDailyAvailability } from "@/lib/api"
-import { useEffect } from "react"
+import { getRoomDailyAvailability, getMeetingRoomById, type MeetingRoom as ApiMeetingRoom } from "@/lib/api"
 import { useRouter } from "next/navigation"
+import { ArrowLeft } from "lucide-react"
+import Image from "next/image"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 
 interface BookingModalProps {
   isOpen: boolean
@@ -28,6 +31,7 @@ interface BookingModalProps {
   room: MeetingRoom | null
   onBookingSuccess?: () => void
   onSuccess?: (message: { title: string; message: string }) => void
+  isPageMode?: boolean // Режим страницы для мобильных устройств
 }
 
 // Генерация временных слотов с 9:00 до 00:00 (24:00)
@@ -53,6 +57,7 @@ export function BookingModal({
   room,
   onBookingSuccess,
   onSuccess,
+  isPageMode = false,
 }: BookingModalProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null)
@@ -65,6 +70,23 @@ export function BookingModal({
   const successModal = useSuccessModal()
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
+  const [roomDetails, setRoomDetails] = useState<ApiMeetingRoom | null>(null)
+
+  // Загружаем детали комнаты
+  useEffect(() => {
+    if (room && isPageMode) {
+      getMeetingRoomById(room.id)
+        .then((response) => {
+          setRoomDetails(response.data)
+        })
+        .catch((error) => {
+          console.error("Ошибка при загрузке деталей комнаты:", error)
+        })
+    } else if (room) {
+      // В режиме модалки используем данные из пропсов
+      setRoomDetails(room as any)
+    }
+  }, [room, isPageMode])
 
   // Загружаем занятые слоты при выборе даты
   useEffect(() => {
@@ -175,7 +197,9 @@ export function BookingModal({
     }
   }, [isOpen])
 
-  if (!isOpen || !room) return null
+  // В режиме страницы всегда показываем, если есть комната
+  if (!isPageMode && (!isOpen || !room)) return null
+  if (isPageMode && !room) return null
 
   const handleBooking = () => {
     if (!selectedDate || !selectedTimeSlot) {
@@ -258,13 +282,15 @@ export function BookingModal({
       setSelectedTimeSlot(null)
       setCompanyName("")
       
-      // Закрываем модальное окно
-      onClose()
-      
       // Вызываем callback успешного бронирования
       onBookingSuccess?.()
       
       // Сразу переходим на страницу с QR кодом
+      // В режиме страницы не вызываем onClose, так как мы перенаправляемся
+      if (!isPageMode) {
+        onClose()
+      }
+      
       router.push(`/booking/${booking.id}`)
     } catch (error: any) {
       console.error("Ошибка при бронировании:", error)
@@ -287,19 +313,91 @@ export function BookingModal({
     }
   }
 
-  return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
+  const content = (
+    <>
       <Card
-        className="w-full max-w-4xl max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          isPageMode 
+            ? "w-full min-h-screen rounded-none border-0 shadow-none" 
+            : "w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+        )}
+        onClick={(e) => !isPageMode && e.stopPropagation()}
       >
-        <CardHeader>
-          <CardTitle>Бронирование</CardTitle>
-        </CardHeader>
+      <CardHeader className={cn(isPageMode && "pb-4")}>
+        <div className="flex items-center gap-4">
+          {isPageMode && (
+            <Button
+              variant="ghost"
+              onClick={onClose}
+              className="-ml-2"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Назад
+            </Button>
+          )}
+          <CardTitle className={isPageMode ? "" : "flex-1"}>Бронирование</CardTitle>
+        </div>
+      </CardHeader>
         <CardContent className="space-y-6">
+          {/* Информация о комнате */}
+          {room && roomDetails && (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-card overflow-hidden">
+                <div className="relative aspect-video bg-muted">
+                  {roomDetails.photos && roomDetails.photos.length > 0 ? (
+                    <Image
+                      src={roomDetails.photos[0]}
+                      alt={roomDetails.name}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 100%"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                      <ImageIcon className="h-12 w-12" />
+                      <span className="text-sm">Фото не загружено</span>
+                    </div>
+                  )}
+                  <Badge
+                    className={cn(
+                      "absolute top-3 left-3 rounded-full px-3 py-1 text-xs font-semibold",
+                      roomDetails.status === "available"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-amber-100 text-amber-700"
+                    )}
+                  >
+                    {roomDetails.status === "available" ? "Доступна" : "Забронирована"}
+                  </Badge>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div>
+                    <h3 className="text-lg font-semibold">{roomDetails.name}</h3>
+                    {roomDetails.description && (
+                      <p className="text-sm text-muted-foreground mt-1">{roomDetails.description}</p>
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Building2 className="h-4 w-4 text-primary" />
+                      <span>{roomDetails.floor} этаж</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Users className="h-4 w-4 text-primary" />
+                      <span>до {roomDetails.capacity} человек</span>
+                    </div>
+                    {roomDetails.office && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Building2 className="h-4 w-4 text-primary" />
+                        <span>{roomDetails.office.name}, {roomDetails.office.city}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <Separator />
+            </div>
+          )}
           {selectedDate && selectedTimeSlot && (
             <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
               <CalendarIcon className="w-4 h-4 text-purple-600" />
@@ -398,11 +496,17 @@ export function BookingModal({
                               : undefined
                           }
                         >
-                          <Clock className="w-4 h-4 mr-2" />
-                          {slot.label}
-                          {isBooked && (
-                            <span className="ml-auto text-xs">Занято</span>
-                          )}
+                          <div className="flex items-center justify-between gap-2 w-full min-w-0">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <Clock className="w-4 h-4 flex-shrink-0" />
+                              <span className="truncate">{slot.label}</span>
+                            </div>
+                            {isBooked && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 flex-shrink-0">
+                                Занято
+                              </span>
+                            )}
+                          </div>
                         </Button>
                       )
                     })}
@@ -423,9 +527,11 @@ export function BookingModal({
           </div>
 
           <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={onClose}>
-              Отмена
-            </Button>
+            {!isPageMode && (
+              <Button variant="outline" onClick={onClose}>
+                Отмена
+              </Button>
+            )}
             <Button
               onClick={handleBooking}
               disabled={!selectedDate || !selectedTimeSlot || isSubmitting}
@@ -436,7 +542,55 @@ export function BookingModal({
           </div>
         </CardContent>
       </Card>
+    </>
+  )
 
+  // В режиме страницы возвращаем только контент без overlay
+  if (isPageMode) {
+    return (
+      <div className="min-h-screen bg-background">
+        {content}
+        <SuccessModal
+          isOpen={successModal.isOpen}
+          onClose={successModal.hideSuccess}
+          title={successModal.title}
+          message={successModal.message}
+          duration={successModal.duration}
+        />
+        
+        <RejectRequestModal
+          isOpen={rejectModal.isOpen}
+          onClose={rejectModal.hideReject}
+          title={rejectModal.title}
+          message={rejectModal.message}
+          duration={rejectModal.duration}
+        />
+
+        <DeleteConfirmationModal
+          isOpen={showConfirmModal}
+          onClose={() => !isSubmitting && setShowConfirmModal(false)}
+          onConfirm={handleBookingConfirm}
+          title="Подтвердите бронирование"
+          description={
+            selectedDate && selectedTimeSlot && room
+              ? `Вы уверены, что хотите забронировать комнату "${room.name}"?${companyName ? `\nКомпания: ${companyName}` : ''}\n\nДата: ${format(selectedDate, "dd MMMM yyyy", { locale: ru })}\nВремя: ${TIME_SLOTS.find(s => s.label === selectedTimeSlot)?.label || selectedTimeSlot}`
+              : "Подтвердите бронирование"
+          }
+          confirmText={isSubmitting ? "Бронирование..." : "Забронировать"}
+          cancelText="Отмена"
+          isLoading={isSubmitting}
+        />
+      </div>
+    )
+  }
+
+  // В режиме модалки возвращаем с overlay
+  return (
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      {content}
       <SuccessModal
         isOpen={successModal.isOpen}
         onClose={successModal.hideSuccess}
@@ -467,7 +621,6 @@ export function BookingModal({
         cancelText="Отмена"
         isLoading={isSubmitting}
       />
-
     </div>
   )
 }

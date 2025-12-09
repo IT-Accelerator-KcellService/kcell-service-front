@@ -813,12 +813,12 @@ export function ActivityTracker() {
   // Этот компонент только отображает UI и управляет через store
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4">
+    <div className="space-y-4 sm:space-y-6">
       {/* Кнопка "Назад" */}
       <Button
         onClick={() => router.back()}
         variant="ghost"
-        className="mb-2 sm:mb-0 text-sm sm:text-base"
+        className="text-sm sm:text-base -ml-2"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
         Назад

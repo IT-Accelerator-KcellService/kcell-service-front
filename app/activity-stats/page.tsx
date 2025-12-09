@@ -38,7 +38,7 @@ export default function ActivityStatsPage() {
         handleLogout={handleLogout}
         role={user.role || 'Пользователь'}
       />
-      <div className="container mx-auto max-w-6xl px-4 py-8">
+      <div className="container mx-auto max-w-6xl px-4 pt-4 pb-6">
         <ActivityStatistics />
       </div>
     </div>

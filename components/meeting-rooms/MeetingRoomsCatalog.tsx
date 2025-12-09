@@ -1,4 +1,6 @@
-import { useMemo, useState, useEffect } from "react";
+"use client"
+
+import { useMemo, useState, useEffect, useRef } from "react";
 import { MeetingRoomCard } from "@/components/meeting-rooms/MeetingRoomCard";
 import {
   MeetingRoom,
@@ -15,6 +17,8 @@ import { useSuccessModal } from "@/hooks/use-success-modal";
 import { SuccessModal } from "@/components/success-model";
 import { DeskHeightCalculator } from "@/components/meeting-rooms/DeskHeightCalculator";
 import { Ruler } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import { Office } from "@/lib/api";
 
@@ -27,10 +31,26 @@ export function MeetingRoomsCatalog() {
   const [activeTab, setActiveTab] = useState<"book" | "my-bookings">("book");
   const [showDeskCalculator, setShowDeskCalculator] = useState(false);
   const successModal = useSuccessModal();
+  const router = useRouter();
+  const isMobile = useIsMobile();
+  const officeInfoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (selectedOffice) {
       fetchRooms(selectedOffice.id);
+      // Скроллим к информации об офисе после выбора
+      // Используем requestAnimationFrame для надежной прокрутки после обновления DOM
+      if (typeof window !== 'undefined') {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (officeInfoRef.current) {
+              officeInfoRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          });
+        });
+      }
     }
   }, [selectedOffice, fetchRooms]);
 
@@ -50,8 +70,14 @@ export function MeetingRoomsCatalog() {
   );
 
   const handleRoomClick = (room: MeetingRoom) => {
-    setSelectedRoom(room);
-    setIsBookingModalOpen(true);
+    if (isMobile) {
+      // На мобильных редиректим на страницу бронирования
+      router.push(`/meeting-rooms/booking?roomId=${room.id}`);
+    } else {
+      // На десктопе открываем модалку
+      setSelectedRoom(room);
+      setIsBookingModalOpen(true);
+    }
   };
 
   const handleBookingSuccess = () => {
@@ -68,9 +94,7 @@ export function MeetingRoomsCatalog() {
     });
   };
 
-  // Компонент для бронирования комнат
   const BookingContent = () => {
-    // Если офис не выбран, показываем выбор офисов
     if (!selectedOffice) {
       return (
         <div>
@@ -83,7 +107,7 @@ export function MeetingRoomsCatalog() {
 
     return (
       <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-4">
+      <div ref={officeInfoRef} className="flex items-center gap-4">
         <Button
           variant="ghost"
           onClick={() => {
