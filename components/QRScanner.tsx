@@ -28,7 +28,15 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
 
     if (isOpen) {
       isStoppingRef.current = false
-      startScanner()
+      // Небольшая задержка для рендеринга элемента
+      const timer = setTimeout(() => {
+        startScanner()
+      }, 100)
+      
+      return () => {
+        clearTimeout(timer)
+        stopScanner()
+      }
     } else {
       stopScanner()
     }
@@ -45,8 +53,35 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
         throw new Error('Сканер может работать только на клиенте')
       }
 
-      // Проверяем роль через localStorage и запрашиваем разрешение на камеру через Android
-      const userRole = localStorage.getItem('role')
+      // Проверяем, что элемент существует
+      const scannerElement = document.getElementById(scannerId)
+      if (!scannerElement) {
+        console.warn('⏳ Элемент сканера еще не готов, ждем...')
+        // Ждем немного и пробуем снова
+        await new Promise(resolve => setTimeout(resolve, 100))
+        const retryElement = document.getElementById(scannerId)
+        if (!retryElement) {
+          throw new Error('Элемент сканера не найден')
+        }
+      }
+
+      // Проверяем роль через localStorage (из auth-storage)
+      let userRole: string | null = null
+      try {
+        const authStorage = localStorage.getItem('auth-storage')
+        if (authStorage) {
+          const authData = JSON.parse(authStorage)
+          userRole = authData?.state?.role || authData?.state?.user?.role || null
+        }
+      } catch (error) {
+        console.warn('Не удалось прочитать роль из auth-storage:', error)
+      }
+      
+      // Если не нашли в auth-storage, пробуем напрямую
+      if (!userRole) {
+        userRole = localStorage.getItem('role')
+      }
+      
       console.log('🔍 QR Scanner - User role:', userRole)
       console.log('🔍 QR Scanner - androidApp available:', !!(window as any).androidApp)
       console.log('🔍 QR Scanner - requestCameraPermission available:', !!(window as any).androidApp?.requestCameraPermission)
