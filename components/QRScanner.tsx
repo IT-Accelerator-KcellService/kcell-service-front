@@ -153,20 +153,9 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
           }
           
           // Даем WebView время обновиться после получения разрешения
+          // WebView автоматически получит разрешение через onPermissionRequest
           console.log('⏳ Ожидание обновления WebView после получения разрешения...')
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          // Явно запрашиваем разрешение через WebView API для синхронизации
-          try {
-            console.log('📷 Запрос разрешения через WebView API для синхронизации...')
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-            // Сразу останавливаем стрим, нам нужно только разрешение
-            stream.getTracks().forEach(track => track.stop())
-            console.log('✅ WebView API разрешение получено')
-          } catch (webViewError: any) {
-            console.warn('⚠️ WebView API разрешение не получено, но продолжаем:', webViewError.message)
-            // Продолжаем попытку запуска сканера
-          }
+          await new Promise(resolve => setTimeout(resolve, 300))
         } else {
           console.warn('⚠️ androidApp.requestCameraPermission недоступен, пропускаем запрос разрешения')
         }
