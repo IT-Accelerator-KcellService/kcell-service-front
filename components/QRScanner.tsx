@@ -20,12 +20,14 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const scannerId = "qr-scanner"
+  const isStoppingRef = useRef(false)
 
   useEffect(() => {
     // Убеждаемся, что мы на клиенте
     if (typeof window === 'undefined') return
 
     if (isOpen) {
+      isStoppingRef.current = false
       startScanner()
     } else {
       stopScanner()
@@ -45,58 +47,77 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
 
       // Проверяем роль через localStorage и запрашиваем разрешение на камеру через Android
       const userRole = localStorage.getItem('role')
+      console.log('🔍 QR Scanner - User role:', userRole)
+      console.log('🔍 QR Scanner - androidApp available:', !!(window as any).androidApp)
+      console.log('🔍 QR Scanner - requestCameraPermission available:', !!(window as any).androidApp?.requestCameraPermission)
       
       // Если роль executor, запрашиваем разрешение на камеру через Android интерфейс
-      if (userRole === 'executor' && (window as any).androidApp?.requestCameraPermission) {
-        console.log('Запрос разрешения на камеру через Android интерфейс...')
-        
-        // Создаем глобальный callback для получения результата разрешения
-        const permissionGranted = await new Promise<boolean>((resolve) => {
-          // Сохраняем старый callback, если он был
-          const oldCallback = (window as any).onCameraPermissionResult
+      if (userRole === 'executor') {
+        if ((window as any).androidApp?.requestCameraPermission) {
+          console.log('📷 Запрос разрешения на камеру через Android интерфейс...')
           
-          // Устанавливаем новый callback
-          ;(window as any).onCameraPermissionResult = (granted: boolean) => {
-            console.log('Результат разрешения на камеру:', granted)
-            // Восстанавливаем старый callback, если он был
-            if (oldCallback) {
-              ;(window as any).onCameraPermissionResult = oldCallback
-            } else {
-              delete (window as any).onCameraPermissionResult
-            }
-            resolve(granted)
-          }
-          
-          // Вызываем Android метод
-          try {
-            ;(window as any).androidApp.requestCameraPermission()
-          } catch (error) {
-            console.error('Ошибка при вызове requestCameraPermission:', error)
-            // Восстанавливаем callback
-            if (oldCallback) {
-              ;(window as any).onCameraPermissionResult = oldCallback
-            } else {
-              delete (window as any).onCameraPermissionResult
-            }
-            resolve(false)
-          }
-          
-          // Таймаут на случай, если ответ не придет
-          setTimeout(() => {
-            if ((window as any).onCameraPermissionResult) {
-              // Восстанавливаем старый callback
+          // Создаем глобальный callback для получения результата разрешения
+          const permissionGranted = await new Promise<boolean>((resolve) => {
+            let resolved = false
+            // Сохраняем старый callback, если он был
+            const oldCallback = (window as any).onCameraPermissionResult
+            
+            // Устанавливаем новый callback
+            ;(window as any).onCameraPermissionResult = (granted: boolean) => {
+              if (resolved) return
+              resolved = true
+              console.log('✅ Результат разрешения на камеру:', granted)
+              // Восстанавливаем старый callback, если он был
               if (oldCallback) {
                 ;(window as any).onCameraPermissionResult = oldCallback
               } else {
                 delete (window as any).onCameraPermissionResult
               }
-              resolve(false)
+              resolve(granted)
             }
-          }, 10000) // Увеличиваем таймаут до 10 секунд
-        })
-        
-        if (!permissionGranted) {
-          throw new Error('Разрешение на использование камеры было отклонено. Пожалуйста, разрешите доступ к камере в настройках приложения.')
+            
+            // Вызываем Android метод
+            try {
+              console.log('📞 Вызываем androidApp.requestCameraPermission()...')
+              ;(window as any).androidApp.requestCameraPermission()
+              console.log('✅ requestCameraPermission вызван')
+            } catch (error) {
+              console.error('❌ Ошибка при вызове requestCameraPermission:', error)
+              if (!resolved) {
+                resolved = true
+                // Восстанавливаем callback
+                if (oldCallback) {
+                  ;(window as any).onCameraPermissionResult = oldCallback
+                } else {
+                  delete (window as any).onCameraPermissionResult
+                }
+                resolve(false)
+              }
+            }
+            
+            // Таймаут на случай, если ответ не придет
+            setTimeout(() => {
+              if (!resolved) {
+                resolved = true
+                console.warn('⏰ Таймаут ожидания разрешения на камеру')
+                // Восстанавливаем старый callback
+                if (oldCallback) {
+                  ;(window as any).onCameraPermissionResult = oldCallback
+                } else {
+                  delete (window as any).onCameraPermissionResult
+                }
+                resolve(false)
+              }
+            }, 10000) // Таймаут 10 секунд
+          })
+          
+          console.log('📷 Результат запроса разрешения:', permissionGranted)
+          
+          if (!permissionGranted) {
+            throw new Error('Разрешение на использование камеры было отклонено. Пожалуйста, разрешите доступ к камере в настройках приложения.')
+          }
+        } else {
+          console.warn('⚠️ androidApp.requestCameraPermission недоступен, пропускаем запрос разрешения')
         }
       }
 
@@ -156,12 +177,17 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
             setError(null)
           } catch (userError: any) {
             // Если и передняя не работает, пробуем получить список камер и использовать первую
-            console.log('Пробуем любую доступную камеру...')
+            console.log('📷 Пробуем любую доступную камеру...')
+            console.log('📷 Ошибка передней камеры:', userError.message)
             
             try {
               // Получаем список доступных камер
+              console.log('📷 Получаем список камер...')
               const devices = await Html5Qrcode.getCameras()
+              console.log('📷 Найдено камер:', devices?.length || 0)
+              
               if (devices && devices.length > 0) {
+                console.log('📷 Используем камеру:', devices[0].id, devices[0].label)
                 // Используем первую доступную камеру
                 await html5QrCode.start(
                   devices[0].id,
@@ -177,16 +203,18 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
                     // Игнорируем ошибки сканирования
                   }
                 )
+                
+                console.log('✅ QR сканер успешно запущен (любая камера)')
+                setScanning(true)
+                setError(null)
               } else {
-                throw new Error('Камера не найдена')
+                console.error('❌ Камеры не найдены')
+                throw new Error('Камера не найдена. Убедитесь, что камера доступна и разрешения предоставлены.')
               }
             } catch (cameraError: any) {
+              console.error('❌ Ошибка при получении камер:', cameraError)
               throw new Error('Не удалось получить доступ к камере: ' + (cameraError.message || 'Неизвестная ошибка'))
             }
-            
-            console.log('✅ QR сканер успешно запущен (любая камера)')
-            setScanning(true)
-            setError(null)
           }
         }
       } catch (startError: any) {
@@ -227,30 +255,79 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
   }
 
   const stopScanner = () => {
+    // Предотвращаем множественные вызовы
+    if (isStoppingRef.current) {
+      return
+    }
+
     if (scannerRef.current) {
+      isStoppingRef.current = true
+      const scanner = scannerRef.current
+      
       try {
-        // Проверяем, запущен ли сканер перед остановкой
-        scannerRef.current.stop().then(() => {
-          scannerRef.current?.clear()
-          scannerRef.current = null
-          setScanning(false)
-        }).catch((err: any) => {
-          // Игнорируем ошибку, если сканер уже остановлен
-          if (!err.message?.includes('not running') && !err.message?.includes('not started')) {
-            console.error('Ошибка остановки сканера:', err)
-          }
-          scannerRef.current?.clear()
-          scannerRef.current = null
-          setScanning(false)
-        })
+        // Сохраняем ссылку на сканер перед очисткой ref
+        scanner.stop()
+          .then(() => {
+            try {
+              scanner.clear()
+            } catch (clearError: any) {
+              // Игнорируем ошибки очистки
+              console.debug('Ошибка очистки сканера (игнорируется):', clearError)
+            }
+            scannerRef.current = null
+            setScanning(false)
+            isStoppingRef.current = false
+          })
+          .catch((err: any) => {
+            // Игнорируем ошибку, если сканер уже остановлен
+            const errorMessage = err?.message || err?.toString() || ''
+            const isIgnorableError = 
+              errorMessage.includes('not running') || 
+              errorMessage.includes('not started') ||
+              errorMessage.includes('already stopped') ||
+              errorMessage.includes('Camera is not started')
+            
+            if (!isIgnorableError) {
+              console.warn('Ошибка остановки сканера:', err)
+            }
+            
+            try {
+              scanner.clear()
+            } catch (clearError: any) {
+              // Игнорируем ошибки очистки
+              console.debug('Ошибка очистки сканера (игнорируется):', clearError)
+            }
+            
+            scannerRef.current = null
+            setScanning(false)
+            isStoppingRef.current = false
+          })
       } catch (err: any) {
-        // Если сканер не запущен, просто очищаем
-        scannerRef.current?.clear()
+        // Синхронная ошибка при вызове stop()
+        const errorMessage = err?.message || err?.toString() || ''
+        const isIgnorableError = 
+          errorMessage.includes('not running') || 
+          errorMessage.includes('not started') ||
+          errorMessage.includes('already stopped')
+        
+        if (!isIgnorableError) {
+          console.warn('Ошибка остановки сканера (синхронная):', err)
+        }
+        
+        try {
+          scanner.clear()
+        } catch (clearError: any) {
+          // Игнорируем ошибки очистки
+          console.debug('Ошибка очистки сканера (игнорируется):', clearError)
+        }
+        
         scannerRef.current = null
         setScanning(false)
+        isStoppingRef.current = false
       }
     } else {
       setScanning(false)
+      isStoppingRef.current = false
     }
   }
 
@@ -315,7 +392,14 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
             <Camera className="h-5 w-5" />
             Сканирование QR кода
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => {
+              stopScanner()
+              onClose()
+            }}
+          >
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>

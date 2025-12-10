@@ -561,6 +561,9 @@ export default function ExecutorDashboard() {
           case 'deleteRequestModal':
             setShowDeleteRequestModal(false);
             break;
+          case 'qrScanner':
+            setShowQRScanner(false);
+            break;
           default:
             break;
         }
@@ -2003,9 +2006,9 @@ export default function ExecutorDashboard() {
                           </div>
                         </div>
                       </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                    </Card>
+                  </div>
+                </TabsContent>
 
           <TabsContent value="scan-qr" className="pt-2 sm:pt-0">
             <Card>
@@ -2021,7 +2024,10 @@ export default function ExecutorDashboard() {
               <CardContent className="space-y-4">
                 <div className="flex flex-col items-center gap-4">
                   <Button
-                    onClick={() => setShowQRScanner(true)}
+                    onClick={() => {
+                      setShowQRScanner(true)
+                      openModal('qrScanner')
+                    }}
                     className="bg-purple-600 hover:bg-purple-700"
                     size="lg"
                   >
@@ -2036,8 +2042,8 @@ export default function ExecutorDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-      </div>
+              </Tabs>
+            </div>
 
             <div className="space-y-6 mb-20">
               <Card className="overflow-hidden">
@@ -2670,7 +2676,10 @@ export default function ExecutorDashboard() {
 
         <QRScanner
           isOpen={showQRScanner}
-          onClose={() => setShowQRScanner(false)}
+          onClose={() => {
+            setShowQRScanner(false)
+            closeModalWithHistory()
+          }}
           onScanSuccess={(data) => {
             console.log('QR код успешно отсканирован:', data)
           }}

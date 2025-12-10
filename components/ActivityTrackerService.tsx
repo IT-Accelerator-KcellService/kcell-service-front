@@ -438,18 +438,18 @@ export function ActivityTrackerService() {
         }
 
         if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-            try {
+          try {
               const orientationPermission = await (DeviceOrientationEvent as any).requestPermission()
               if (orientationPermission !== 'granted') {
                 console.warn('⚠️ [Service] Orientation permission denied')
                 return
               }
               console.log('✅ [Service] Orientation permission granted')
-            } catch (err) {
-              console.warn('⚠️ [Service] Orientation permission error:', err)
+          } catch (err) {
+            console.warn('⚠️ [Service] Orientation permission error:', err)
               return
-            }
           }
+        }
       }
 
       setIsTracking(true)

@@ -288,7 +288,7 @@ export function BookingModal({
       // Сразу переходим на страницу с QR кодом
       // В режиме страницы не вызываем onClose, так как мы перенаправляемся
       if (!isPageMode) {
-        onClose()
+      onClose()
       }
       
       router.push(`/booking/${booking.id}`)
@@ -337,7 +337,7 @@ export function BookingModal({
           )}
           <CardTitle className={isPageMode ? "" : "flex-1"}>Бронирование</CardTitle>
         </div>
-      </CardHeader>
+        </CardHeader>
         <CardContent className="space-y-6">
           {/* Информация о комнате */}
           {room && roomDetails && (
@@ -501,11 +501,11 @@ export function BookingModal({
                               <Clock className="w-4 h-4 flex-shrink-0" />
                               <span className="truncate">{slot.label}</span>
                             </div>
-                            {isBooked && (
+                          {isBooked && (
                               <span className="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 flex-shrink-0">
                                 Занято
                               </span>
-                            )}
+                          )}
                           </div>
                         </Button>
                       )
@@ -528,9 +528,9 @@ export function BookingModal({
 
           <div className="flex gap-3 justify-end">
             {!isPageMode && (
-              <Button variant="outline" onClick={onClose}>
-                Отмена
-              </Button>
+            <Button variant="outline" onClick={onClose}>
+              Отмена
+            </Button>
             )}
             <Button
               onClick={handleBooking}
