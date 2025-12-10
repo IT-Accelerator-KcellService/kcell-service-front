@@ -43,6 +43,63 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
         throw new Error('Сканер может работать только на клиенте')
       }
 
+      // Проверяем роль через localStorage и запрашиваем разрешение на камеру через Android
+      const userRole = localStorage.getItem('role')
+      
+      // Если роль executor, запрашиваем разрешение на камеру через Android интерфейс
+      if (userRole === 'executor' && (window as any).androidApp?.requestCameraPermission) {
+        console.log('Запрос разрешения на камеру через Android интерфейс...')
+        
+        // Создаем глобальный callback для получения результата разрешения
+        const permissionGranted = await new Promise<boolean>((resolve) => {
+          // Сохраняем старый callback, если он был
+          const oldCallback = (window as any).onCameraPermissionResult
+          
+          // Устанавливаем новый callback
+          ;(window as any).onCameraPermissionResult = (granted: boolean) => {
+            console.log('Результат разрешения на камеру:', granted)
+            // Восстанавливаем старый callback, если он был
+            if (oldCallback) {
+              ;(window as any).onCameraPermissionResult = oldCallback
+            } else {
+              delete (window as any).onCameraPermissionResult
+            }
+            resolve(granted)
+          }
+          
+          // Вызываем Android метод
+          try {
+            ;(window as any).androidApp.requestCameraPermission()
+          } catch (error) {
+            console.error('Ошибка при вызове requestCameraPermission:', error)
+            // Восстанавливаем callback
+            if (oldCallback) {
+              ;(window as any).onCameraPermissionResult = oldCallback
+            } else {
+              delete (window as any).onCameraPermissionResult
+            }
+            resolve(false)
+          }
+          
+          // Таймаут на случай, если ответ не придет
+          setTimeout(() => {
+            if ((window as any).onCameraPermissionResult) {
+              // Восстанавливаем старый callback
+              if (oldCallback) {
+                ;(window as any).onCameraPermissionResult = oldCallback
+              } else {
+                delete (window as any).onCameraPermissionResult
+              }
+              resolve(false)
+            }
+          }, 10000) // Увеличиваем таймаут до 10 секунд
+        })
+        
+        if (!permissionGranted) {
+          throw new Error('Разрешение на использование камеры было отклонено. Пожалуйста, разрешите доступ к камере в настройках приложения.')
+        }
+      }
+
       // Убираем предварительную проверку - просто пробуем запустить сканер
       // html5-qrcode сам проверит поддержку и запросит разрешения
       const html5QrCode = new Html5Qrcode(scannerId)
@@ -98,23 +155,34 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
             setScanning(true)
             setError(null)
           } catch (userError: any) {
-            // Если и передняя не работает, пробуем без указания камеры
+            // Если и передняя не работает, пробуем получить список камер и использовать первую
             console.log('Пробуем любую доступную камеру...')
             
-            await html5QrCode.start(
-              undefined, // Любая доступная камера
-              {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
-              },
-              (decodedText) => {
-                handleQRScan(decodedText)
-              },
-              (errorMessage) => {
-                // Игнорируем ошибки сканирования
+            try {
+              // Получаем список доступных камер
+              const devices = await Html5Qrcode.getCameras()
+              if (devices && devices.length > 0) {
+                // Используем первую доступную камеру
+                await html5QrCode.start(
+                  devices[0].id,
+                  {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0
+                  },
+                  (decodedText) => {
+                    handleQRScan(decodedText)
+                  },
+                  (errorMessage) => {
+                    // Игнорируем ошибки сканирования
+                  }
+                )
+              } else {
+                throw new Error('Камера не найдена')
               }
-            )
+            } catch (cameraError: any) {
+              throw new Error('Не удалось получить доступ к камере: ' + (cameraError.message || 'Неизвестная ошибка'))
+            }
             
             console.log('✅ QR сканер успешно запущен (любая камера)')
             setScanning(true)
