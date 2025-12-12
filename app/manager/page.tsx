@@ -386,7 +386,6 @@ export default function ManagerDashboard() {
           setShowCreateRequestModal(false);
           break;
         case 'requestDetails':
-        case 'taskDetails':
           setSelectedRequest(null);
           break;
         case 'ratingModal':
@@ -731,7 +730,6 @@ export default function ManagerDashboard() {
           case 'createRequest':
             setShowCreateRequestModal(false);
             break;
-          case 'taskDetails':
           case 'requestDetails':
             setSelectedRequest(null);
             break;
@@ -780,9 +778,6 @@ export default function ManagerDashboard() {
   const closeAllModalsExcept = (modalName: string) => {
     if (modalName !== 'createRequest') {
       setShowCreateRequestModal(false);
-    }
-    if (modalName !== 'taskDetails') {
-      setSelectedRequest(null);
     }
     if (modalName !== 'mapModal') {
       setShowMapModal(false);

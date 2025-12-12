@@ -180,7 +180,6 @@ export default function ExecutorDashboard() {
           setShowCreateRequestModal(false);
           break;
         case 'taskComplete':
-        case 'taskDetails':
         case 'requestDetails':
           setSelectedRequest(null);
           break;
@@ -588,11 +587,6 @@ export default function ExecutorDashboard() {
             setShowCreateRequestModal(false);
             break;
           case 'taskComplete':
-            setSelectedRequest(null);
-            break;
-          case 'taskDetails':
-            setSelectedRequest(null);
-            break;
           case 'requestDetails':
             setSelectedRequest(null);
             break;
@@ -867,9 +861,6 @@ export default function ExecutorDashboard() {
       setShowCreateRequestModal(false);
     }
     if (modalName !== 'taskComplete') {
-      setSelectedRequest(null);
-    }
-    if (modalName !== 'taskDetails') {
       setSelectedRequest(null);
     }
     if (modalName !== 'requestDetails') {
