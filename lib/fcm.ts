@@ -88,6 +88,8 @@ class FCMService {
      */
     private async sendTokenToBackend(token: string): Promise<void> {
         try {
+            const authToken = await this.getAuthToken();
+            
             const tokenData: FCMTokenData = {
                 token,
                 platform: 'android',
@@ -100,19 +102,25 @@ class FCMService {
                 tokenData.userId = userId;
             }
 
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
             const response = await fetch('/api/fcm/token', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`,
-                },
+                headers,
                 body: JSON.stringify(tokenData),
             });
 
             if (response.ok) {
                 console.log('FCM: Token successfully sent to backend');
             } else {
-                console.error('FCM: Failed to send token to backend:', response.status);
+                const errorText = await response.text().catch(() => 'Unknown error');
+                console.error('FCM: Failed to send token to backend:', response.status, errorText);
             }
         } catch (error) {
             console.error('FCM: Error sending token to backend:', error);
@@ -137,12 +145,24 @@ class FCMService {
     /**
      * Get authentication token from storage
      */
-    private getAuthToken(): string | null {
+    private async getAuthToken(): Promise<string | null> {
         if (typeof window === 'undefined') return null;
 
+        // Используем Android bridge если доступен
+        if (this.isAndroidWebView()) {
+            const androidBridge = (await import('./android-bridge')).androidBridge;
+            return await androidBridge.getAuthToken();
+        }
+
+        // Fallback для веба
         try {
-            return localStorage.getItem('authToken') ||
-                sessionStorage.getItem('authToken') ||
+            const authStorage = localStorage.getItem('auth-storage');
+            if (authStorage) {
+                const authData = JSON.parse(authStorage);
+                return authData.state?.token || authData.token || null;
+            }
+            return localStorage.getItem('token') ||
+                sessionStorage.getItem('token') ||
                 null;
         } catch {
             return null;

@@ -10,7 +10,18 @@ declare global {
             forceGetToken: () => string;
             checkTokenAfterPermission: () => string;
             notifyReady: () => void;
+            checkPermissionStatus: (permission: string) => string;
+            requestPermission: (permission: string) => void;
+            isLocationEnabled: () => boolean;
+            getAuthToken: (callback: string) => void;
+            getFCMTokenWithCallback: (callback: string) => void;
         };
+        androidApp?: {
+            notifyReady: () => void;
+            reloadPage: () => void;
+        };
+        onAndroidEvent?: (event: string, data: any) => void;
+        onFCMTokenSent?: (result: { success: boolean; code?: number; error?: string }) => void;
     }
 }
 
@@ -123,6 +134,190 @@ class AndroidBridge {
                 navigator.userAgent.includes('wv') ||
                 navigator.userAgent.includes('Android'));
     }
+    
+    /**
+     * Проверка статуса разрешения
+     * @param permission - тип разрешения: "camera", "location", "notifications"
+     * @returns Promise с статусом: "granted", "denied", или "unknown"
+     */
+    public async checkPermission(permission: 'camera' | 'location' | 'notifications'): Promise<string> {
+        if (this.isAndroidWebView() && window.FCM?.checkPermissionStatus) {
+            return window.FCM.checkPermissionStatus(permission);
+        }
+        
+        // Для веба используем стандартные API
+        if (permission === 'notifications' && 'Notification' in window) {
+            return Notification.permission;
+        }
+        
+        // Для камеры и локации в вебе всегда "unknown" (нужно использовать стандартные API)
+        return 'unknown';
+    }
+    
+    /**
+     * Запрос разрешения
+     * @param permission - тип разрешения: "camera", "location", "notifications"
+     * @returns Promise с результатом (true если разрешено)
+     */
+    public async requestPermission(permission: 'camera' | 'location' | 'notifications'): Promise<boolean> {
+        if (this.isAndroidWebView() && window.FCM?.requestPermission) {
+            window.FCM.requestPermission(permission);
+            
+            // Ждем результат через событие или проверяем статус
+            return new Promise((resolve) => {
+                const checkStatus = async () => {
+                    const status = await this.checkPermission(permission);
+                    if (status === 'granted' || status === 'denied') {
+                        resolve(status === 'granted');
+                    } else {
+                        // Повторяем проверку через 500ms
+                        setTimeout(checkStatus, 500);
+                    }
+                };
+                
+                // Начинаем проверку через небольшую задержку
+                setTimeout(checkStatus, 300);
+            });
+        }
+        
+        // Для веба используем стандартные API
+        if (permission === 'notifications' && 'Notification' in window) {
+            const result = await Notification.requestPermission();
+            return result === 'granted';
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Проверка включенности GPS
+     */
+    public isLocationEnabled(): boolean {
+        if (this.isAndroidWebView() && window.FCM?.isLocationEnabled) {
+            return window.FCM.isLocationEnabled();
+        }
+        return false;
+    }
+    
+    /**
+     * Получение auth токена
+     */
+    public async getAuthToken(): Promise<string | null> {
+        if (this.isAndroidWebView() && window.FCM?.getAuthToken) {
+            return new Promise((resolve) => {
+                window.FCM!.getAuthToken('__androidBridgeAuthTokenCallback');
+                
+                // Создаем временный callback
+                (window as any).__androidBridgeAuthTokenCallback = (token: string | null) => {
+                    delete (window as any).__androidBridgeAuthTokenCallback;
+                    resolve(token);
+                };
+                
+                // Таймаут на случай если callback не вызовется
+                setTimeout(() => {
+                    if ((window as any).__androidBridgeAuthTokenCallback) {
+                        delete (window as any).__androidBridgeAuthTokenCallback;
+                        resolve(null);
+                    }
+                }, 3000);
+            });
+        }
+        
+        // Fallback для веба
+        if (typeof window !== 'undefined') {
+            try {
+                const authStorage = localStorage.getItem('auth-storage');
+                if (authStorage) {
+                    const authData = JSON.parse(authStorage);
+                    return authData.state?.token || authData.token || null;
+                }
+                return localStorage.getItem('token') || sessionStorage.getItem('token') || null;
+            } catch {
+                return null;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Получение FCM токена
+     */
+    public async getFCMToken(): Promise<string | null> {
+        if (this.isAndroidWebView() && window.FCM?.getFCMTokenWithCallback) {
+            return new Promise((resolve) => {
+                window.FCM!.getFCMTokenWithCallback('__androidBridgeFCMTokenCallback');
+                
+                // Создаем временный callback
+                (window as any).__androidBridgeFCMTokenCallback = (token: string | null) => {
+                    delete (window as any).__androidBridgeFCMTokenCallback;
+                    resolve(token);
+                };
+                
+                // Таймаут на случай если callback не вызовется
+                setTimeout(() => {
+                    if ((window as any).__androidBridgeFCMTokenCallback) {
+                        delete (window as any).__androidBridgeFCMTokenCallback;
+                        resolve(null);
+                    }
+                }, 3000);
+            });
+        }
+        
+        // Fallback
+        if (this.isAndroidWebView() && window.FCM?.getFCMToken) {
+            return window.FCM.getFCMToken();
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Настройка обработчиков событий от Android
+     */
+    public setupEventListeners(): void {
+        if (typeof window === 'undefined') return;
+        
+        // Обработчик событий от Android
+        window.onAndroidEvent = (event: string, data: any) => {
+            console.log('📱 Android event received:', event, data);
+            
+            try {
+                const eventData = typeof data === 'string' ? JSON.parse(data) : data;
+                
+                switch (event) {
+                    case 'permission':
+                        this.handlePermissionEvent(eventData);
+                        break;
+                    default:
+                        console.log('Unknown Android event:', event);
+                }
+            } catch (error) {
+                console.error('Error handling Android event:', error);
+            }
+        };
+        
+        // Обработчик результата отправки FCM токена
+        window.onFCMTokenSent = (result: { success: boolean; code?: number; error?: string }) => {
+            console.log('📱 FCM token send result:', result);
+            
+            if (result.success) {
+                console.log('✅ FCM token successfully sent to backend');
+            } else {
+                console.error('❌ Failed to send FCM token:', result.error || `HTTP ${result.code}`);
+            }
+        };
+    }
+    
+    /**
+     * Обработка события разрешения
+     */
+    private handlePermissionEvent(data: { type: string; granted: boolean }): void {
+        console.log(`📱 Permission ${data.type}: ${data.granted ? 'granted' : 'denied'}`);
+        
+        // Можно добавить логику для обновления UI или состояния приложения
+        // Например, обновить состояние в Zustand store
+    }
 
     /**
      * Отладочная информация
@@ -150,6 +345,9 @@ export const androidBridge = AndroidBridge.getInstance();
 
 // Автоматически инициализируем мост
 if (typeof window !== 'undefined') {
+    // Настраиваем обработчики событий
+    androidBridge.setupEventListeners();
+    
     // Даем время на загрузку страницы
     setTimeout(() => {
         if (androidBridge.isAndroidWebView()) {
