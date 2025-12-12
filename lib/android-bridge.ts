@@ -19,6 +19,7 @@ declare global {
         androidApp?: {
             notifyReady: () => void;
             reloadPage: () => void;
+            saveFileBase64: (fileName: string, base64: string, mimeType: string) => void;
         };
         onAndroidEvent?: (event: string, data: any) => void;
         onFCMTokenSent?: (result: { success: boolean; code?: number; error?: string }) => void;

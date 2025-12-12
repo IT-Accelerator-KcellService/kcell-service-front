@@ -89,15 +89,6 @@ import {RatingModal} from "@/components/RatingModal";
 import RegistrationRequestsManager from "@/components/RegistrationRequestsManager";
 import { getPreviewUrl } from "@/lib/imageOptimization";
 
-declare global {
-  interface Window {
-    androidApp?: {
-      saveFileBase64: (fileName: string, base64: string, mimeType: string) => void;
-      reloadPage: () => void;
-      notifyReady: () => void;
-    };
-  }
-}
 const roleTranslations: Record<string, string> = {
   client: "Клиент",
   "admin-worker": "Администратор офиса",
@@ -395,14 +386,58 @@ export default function ManagerDashboard() {
   // Функция для закрытия модалки без использования window.history.back()
   // Используется при закрытии через X кнопку, чтобы не выходить из сайта
   const closeModal = useCallback(() => {
+    setIsClosingProgrammatically(true);
     setModalStack(prev => {
+      if (prev.length === 0) return prev;
+      
+      const lastModal = prev[prev.length - 1];
       const newStack = prev.slice(0, -1);
-      // Обновляем историю без навигации
-      if (newStack.length > 0) {
-        window.history.replaceState({ modal: newStack[newStack.length - 1] }, '', window.location.pathname);
-      } else {
-        window.history.replaceState({ modal: null }, '', window.location.pathname);
+      
+      // Закрываем соответствующее модальное окно
+      switch (lastModal) {
+        case 'createRequest':
+          setShowCreateRequestModal(false);
+          break;
+        case 'requestDetails':
+        case 'taskDetails':
+          setSelectedRequest(null);
+          break;
+        case 'ratingModal':
+          setShowRatingModal(false);
+          setRatingValue(0);
+          setRequestToRate(null);
+          setRatingComment("");
+          break;
+        case 'mapModal':
+          setShowMapModal(false);
+          break;
+        case 'photoPreview':
+          setSelectedPhoto(null);
+          break;
+        case 'notification':
+          setIsModalOpen(false);
+          break;
+        case 'deleteRequest':
+          setShowDeleteRequestModal(false);
+          setRequestToDelete(null);
+          break;
+        case 'categoryDelete':
+          setCategoryToDelete(null);
+          break;
+        default:
+          break;
       }
+      
+      // Обновляем историю асинхронно, чтобы не вызывать обновление Router во время рендеринга
+      setTimeout(() => {
+        if (newStack.length > 0) {
+          window.history.replaceState({ modal: newStack[newStack.length - 1] }, '', window.location.pathname);
+        } else {
+          window.history.replaceState({ modal: null }, '', window.location.pathname);
+        }
+        setIsClosingProgrammatically(false);
+      }, 0);
+      
       return newStack;
     });
   }, []);

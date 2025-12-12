@@ -218,38 +218,59 @@ export default function ClientDashboard() {
     });
   }, []);
 
-  const closeNotificationModal = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedNotification(null);
-    // Для уведомления используем replaceState вместо back(), чтобы не выходить из сайта
-    // Это важно, если модальное окно открыто первым (нет предыдущей записи в истории)
-    setIsClosingProgrammatically(true);
-    setModalStack(prev => {
-      const newStack = prev.slice(0, -1);
-      // Используем replaceState для безопасного закрытия без навигации
-      if (window.history.state?.modal) {
-        window.history.replaceState(
-          newStack.length > 0 ? { modal: newStack[newStack.length - 1] } : { modal: null },
-          '',
-          window.location.pathname
-        );
-      }
-      return newStack;
-    });
-    setTimeout(() => setIsClosingProgrammatically(false), 0);
-  }, []);
 
   // Функция для закрытия модалки без использования window.history.back()
   // Используется при закрытии через X кнопку, чтобы не выходить из сайта
   const closeModal = useCallback(() => {
+    setIsClosingProgrammatically(true);
     setModalStack(prev => {
+      if (prev.length === 0) return prev;
+      
+      const lastModal = prev[prev.length - 1];
       const newStack = prev.slice(0, -1);
-      // Обновляем историю без навигации
-      if (newStack.length > 0) {
-        window.history.replaceState({ modal: newStack[newStack.length - 1] }, '', window.location.pathname);
-      } else {
-        window.history.replaceState({ modal: null }, '', window.location.pathname);
+      
+      // Закрываем соответствующее модальное окно
+      switch (lastModal) {
+        case 'createRequest':
+          setShowCreateRequest(false);
+          break;
+        case 'requestDetails':
+          setSelectedRequest(null);
+          break;
+        case 'ratingModal':
+          setShowRatingModal(false);
+          setRatingValue(0);
+          setRequestToRate(null);
+          setRatingComment("");
+          break;
+        case 'mapModal':
+          setShowMapModal(false);
+          break;
+        case 'photoPreview':
+          setSelectedPhoto(null);
+          break;
+        case 'notification':
+          setIsModalOpen(false);
+          setSelectedNotification(null);
+          break;
+        case 'deleteRequest':
+          setShowDeleteRequestModal(false);
+          setRequestToDelete(null);
+          break;
+        default:
+          break;
       }
+      
+      // Обновляем историю асинхронно, чтобы не вызывать обновление Router во время рендеринга
+      setTimeout(() => {
+        if (newStack.length > 0) {
+          window.history.replaceState({ modal: newStack[newStack.length - 1] }, '', window.location.pathname);
+        } else {
+          window.history.replaceState({ modal: null }, '', window.location.pathname);
+        }
+        setIsClosingProgrammatically(false);
+      }, 0);
+      
       return newStack;
     });
   }, []);
@@ -313,8 +334,12 @@ export default function ClientDashboard() {
             break;
           case 'notification':
             setIsModalOpen(false);
+            setSelectedNotification(null);
             break;
-
+          case 'deleteRequest':
+            setShowDeleteRequestModal(false);
+            setRequestToDelete(null);
+            break;
           default:
             break;
         }
@@ -1867,7 +1892,7 @@ export default function ClientDashboard() {
         {isModalOpen && selectedNotification && (
             <div
                 className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-                onClick={closeNotificationModal}
+                onClick={closeModal}
             >
               <div
                   className="bg-white rounded-xl shadow-lg max-w-md w-full p-6"
@@ -1877,7 +1902,7 @@ export default function ClientDashboard() {
                   <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
                   <button
                       className="text-gray-500 hover:text-black text-2xl focus:outline-none"
-                      onClick={closeNotificationModal}
+                      onClick={closeModal}
                       aria-label="Закрыть модальное окно"
                   >
                     ×
