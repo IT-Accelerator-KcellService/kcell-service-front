@@ -24,11 +24,6 @@ import api from "@/lib/api";
 
 declare global {
   interface Window {
-    androidApp?: {
-      saveFileBase64: (fileName: string, base64: string, mimeType: string) => void;
-      reloadPage: () => void;
-      notifyReady: () => void;
-    };
     webkit?: {
       messageHandlers: {
         saveFile: {

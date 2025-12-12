@@ -211,14 +211,50 @@ export default function ClientDashboard() {
   // Функция для закрытия модалки без использования window.history.back()
   // Используется при закрытии через X кнопку, чтобы не выходить из сайта
   const closeModal = useCallback(() => {
+    setIsClosingProgrammatically(true);
     setModalStack(prev => {
+      if (prev.length === 0) return prev;
+      
+      const lastModal = prev[prev.length - 1];
       const newStack = prev.slice(0, -1);
-      // Обновляем историю без навигации
-      if (newStack.length > 0) {
-        window.history.replaceState({ modal: newStack[newStack.length - 1] }, '', window.location.pathname);
-      } else {
-        window.history.replaceState({ modal: null }, '', window.location.pathname);
+      
+      // Закрываем соответствующее модальное окно
+      switch (lastModal) {
+        case 'createRequest':
+          setShowCreateRequest(false);
+          break;
+        case 'requestDetails':
+          setSelectedRequest(null);
+          break;
+        case 'ratingModal':
+          setShowRatingModal(false);
+          setRatingValue(0);
+          setRequestToRate(null);
+          setRatingComment("");
+          break;
+        case 'mapModal':
+          setShowMapModal(false);
+          break;
+        case 'photoPreview':
+          setSelectedPhoto(null);
+          break;
+        case 'notification':
+          setIsModalOpen(false);
+          break;
+        default:
+          break;
       }
+      
+      // Обновляем историю асинхронно, чтобы не вызывать обновление Router во время рендеринга
+      setTimeout(() => {
+        if (newStack.length > 0) {
+          window.history.replaceState({ modal: newStack[newStack.length - 1] }, '', window.location.pathname);
+        } else {
+          window.history.replaceState({ modal: null }, '', window.location.pathname);
+        }
+        setIsClosingProgrammatically(false);
+      }, 0);
+      
       return newStack;
     });
   }, []);
