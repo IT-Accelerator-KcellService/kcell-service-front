@@ -171,6 +171,68 @@ export default function ExecutorDashboard() {
     window.history.back();
   };
 
+  // Функция для закрытия модалки без использования window.history.back()
+  // Используется при закрытии через X кнопку, чтобы не выходить из сайта
+  const closeModal = useCallback(() => {
+    setIsClosingProgrammatically(true);
+    setModalStack(prev => {
+      if (prev.length === 0) return prev;
+      
+      const lastModal = prev[prev.length - 1];
+      const newStack = prev.slice(0, -1);
+      
+      // Закрываем соответствующее модальное окно
+      switch (lastModal) {
+        case 'createRequest':
+          setShowCreateRequestModal(false);
+          break;
+        case 'taskComplete':
+        case 'requestDetails':
+          setSelectedRequest(null);
+          break;
+        case 'mapModal':
+          setShowMapModal(false);
+          break;
+        case 'photoPreview':
+          setSelectedPhoto(null);
+          break;
+        case 'notification':
+          setIsModalOpen(false);
+          break;
+        case 'rejectModal':
+          setShowRejectModal(false);
+          setSelectedRequestForReject(null);
+          setRejectError(null);
+          break;
+        case 'redirectModal':
+          setShowRedirectModal(false);
+          setSelectedRequestForRedirect(null);
+          setRedirectError(null);
+          break;
+        case 'deleteRequestModal':
+          setShowDeleteRequestModal(false);
+          break;
+        case 'qrScanner':
+          setShowQRScanner(false);
+          break;
+        default:
+          break;
+      }
+      
+      // Обновляем историю асинхронно, чтобы не вызывать обновление Router во время рендеринга
+      setTimeout(() => {
+        if (newStack.length > 0) {
+          window.history.replaceState({ modal: newStack[newStack.length - 1] }, '', window.location.pathname);
+        } else {
+          window.history.replaceState({ modal: null }, '', window.location.pathname);
+        }
+        setIsClosingProgrammatically(false);
+      }, 0);
+      
+      return newStack;
+    });
+  }, []);
+
   const handleCloseRejectModal = () => {
     setShowRejectModal(false);
     setSelectedRequestForReject(null);
@@ -535,11 +597,6 @@ export default function ExecutorDashboard() {
             setShowCreateRequestModal(false);
             break;
           case 'taskComplete':
-            setSelectedRequest(null);
-            break;
-          case 'taskDetails':
-            setSelectedRequest(null);
-            break;
           case 'requestDetails':
             setSelectedRequest(null);
             break;
@@ -817,9 +874,6 @@ export default function ExecutorDashboard() {
       setShowCreateRequestModal(false);
     }
     if (modalName !== 'taskComplete') {
-      setSelectedRequest(null);
-    }
-    if (modalName !== 'taskDetails') {
       setSelectedRequest(null);
     }
     if (modalName !== 'requestDetails') {
