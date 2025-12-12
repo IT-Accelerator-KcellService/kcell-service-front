@@ -392,6 +392,21 @@ export default function ManagerDashboard() {
     });
   }, []);
 
+  // Функция для закрытия модалки без использования window.history.back()
+  // Используется при закрытии через X кнопку, чтобы не выходить из сайта
+  const closeModal = useCallback(() => {
+    setModalStack(prev => {
+      const newStack = prev.slice(0, -1);
+      // Обновляем историю без навигации
+      if (newStack.length > 0) {
+        window.history.replaceState({ modal: newStack[newStack.length - 1] }, '', window.location.pathname);
+      } else {
+        window.history.replaceState({ modal: null }, '', window.location.pathname);
+      }
+      return newStack;
+    });
+  }, []);
+
   const checkUserRating = useCallback(async (requestId: number) => {
     try {
       const response = await api.get(`/ratings/user/${requestId}`);
@@ -3251,9 +3266,11 @@ export default function ManagerDashboard() {
                 <h2 className="text-lg font-semibold">{selectedNotification.title}</h2>
                 <button
                     className="text-gray-500 hover:text-black text-2xl focus:outline-none"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       setIsModalOpen(false);
-                      closeModalWithHistory();
+                      closeModal();
                     }}
                     aria-label="Закрыть модальное окно"
                 >
@@ -3288,6 +3305,7 @@ export default function ManagerDashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
             setSelectedRequest(null)
             setShowComments(null)
+            closeModal();
           }}>
             <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
               <CardHeader>
@@ -3715,7 +3733,7 @@ export default function ManagerDashboard() {
                     setEditingCategoryId(null);
                     setSubRequestSettings({});
                     setFormErrors(null);
-                    closeModalWithHistory();
+                    closeModal();
                   }}>
                     Закрыть
                   </Button>
@@ -3731,6 +3749,7 @@ export default function ManagerDashboard() {
               selectedPhoto={selectedPhoto}
               onClose={() => {
                 setSelectedPhoto(null);
+                closeModal();
               }}
           />
       )}
@@ -3740,7 +3759,7 @@ export default function ManagerDashboard() {
           isOpen={showMapModal}
           onClose={() => {
             setShowMapModal(false);
-            closeModalWithHistory();
+            closeModal();
           }}
           mapLocation={mapLocation}
       />
@@ -3748,7 +3767,7 @@ export default function ManagerDashboard() {
           isOpen={showRatingModal && !!requestToRate}
           onClose={() => {
             setShowRatingModal(false);
-            closeModalWithHistory();
+            closeModal();
             setRatingValue(0);
             setRequestToRate(null);
             setRatingComment("");
@@ -3793,7 +3812,7 @@ export default function ManagerDashboard() {
         isOpen={showDeleteRequestModal && !!requestToDelete}
         onClose={() => {
           setShowDeleteRequestModal(false);
-          closeModalWithHistory();
+          closeModal();
           setRequestToDelete(null);
         }}
         isLoading={isDeleteLoading}
