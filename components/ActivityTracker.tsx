@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Play, Pause, Square, TrendingUp, Clock, Activity, ArrowLeft, Settings, Bell } from "lucide-react"
 import { useAuthStore } from "@/stores/useAuthStore"
 import { useActivityTrackerStore } from "@/stores/useActivityTrackerStore"
@@ -1055,21 +1055,23 @@ export function ActivityTracker() {
                 <Label htmlFor="sitting-interval" className="text-sm font-medium">
                   Интервал напоминания (минуты)
                 </Label>
-                <Input
-                  id="sitting-interval"
-                  type="number"
-                  min="15"
-                  max="180"
-                  step="15"
-                  value={healthReminders.sittingIntervalMinutes}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value)
-                    if (value >= 15 && value <= 180) {
-                      setHealthReminders({ sittingIntervalMinutes: value })
-                    }
+                <Select
+                  value={healthReminders.sittingIntervalMinutes.toString()}
+                  onValueChange={(value) => {
+                    setHealthReminders({ sittingIntervalMinutes: parseInt(value, 10) })
                   }}
-                  className="max-w-32"
-                />
+                >
+                  <SelectTrigger id="sitting-interval" className="max-w-48">
+                    <SelectValue placeholder="Выберите интервал" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180].map((minutes) => (
+                      <SelectItem key={minutes} value={minutes.toString()}>
+                        {minutes} {minutes === 60 ? 'минута' : minutes < 60 ? 'минут' : 'минут'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-gray-500">
                   Напоминание появится после указанного времени непрерывного сидения (от 15 до 180 минут)
                 </p>
