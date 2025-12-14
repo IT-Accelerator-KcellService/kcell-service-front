@@ -51,7 +51,8 @@ export function ActivityTrackerService() {
     setPostureStartTime,
     setLastPosture,
     updateStatistics,
-    setHealthReminders
+    setHealthReminders,
+    resetStatistics
   } = useActivityTrackerStore()
 
   // Refs для хранения данных, которые не нужно сохранять в store
@@ -192,6 +193,16 @@ export function ActivityTrackerService() {
       // Получаем актуальные значения из store
       const storeState = useActivityTrackerStore.getState()
       const currentStats = storeState.statistics
+      
+      // Проверяем, что статистика не пустая (есть хотя бы какое-то время трекинга)
+      const hasAnyData = currentStats.totalSittingTime > 0 || 
+                        currentStats.totalStandingTime > 0 || 
+                        currentStats.standUpCount > 0
+      
+      if (!hasAnyData) {
+        console.log('⏭️ [Service] Пропуск сохранения: статистика пустая (все значения равны 0)')
+        return
+      }
       
       console.log('💾 [Service] Сохранение статистики:', {
         totalSittingTime: currentStats.totalSittingTime,
@@ -777,8 +788,11 @@ export function ActivityTrackerService() {
       
       if (!isWithinWorkingHours()) {
         if (isTrackingRef.current) {
-          console.log('⏰ [Service] Рабочие часы закончились, останавливаю трекер...')
+          console.log('⏰ [Service] Рабочие часы закончились, останавливаю трекер и сбрасываю статистику...')
           await stopTracking()
+          // Сбрасываем статистику после окончания рабочих часов
+          resetStatistics()
+          console.log('✅ [Service] Статистика сброшена после окончания рабочих часов')
         }
         return
       }

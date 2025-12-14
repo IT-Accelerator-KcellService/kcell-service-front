@@ -736,8 +736,10 @@ export function ActivityTracker() {
         const wasManualStart = manualStartFromStore
         const currentTracking = isTracking
         if (currentTracking && !wasManualStart && componentMounted) {
-          console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
+          console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер и сбрасываю статистику...')
           await stopTracking(false)
+          resetStatisticsLocal()
+          console.log('✅ Статистика сброшена после окончания рабочих часов')
         }
         isChecking = false
         return
@@ -782,8 +784,11 @@ export function ActivityTracker() {
       if (!isWithinWorkingHours()) {
         const currentTracking = isTracking
         if (currentTracking && componentMounted) {
-          console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер...')
+          console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер и сбрасываю статистику...')
           await stopTracking(false) // Автоматическая остановка
+          // Сбрасываем статистику после окончания рабочих часов
+          resetStatisticsLocal()
+          console.log('✅ Статистика сброшена после окончания рабочих часов')
         }
         return
       }
