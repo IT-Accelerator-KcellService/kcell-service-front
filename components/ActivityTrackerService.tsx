@@ -44,12 +44,14 @@ export function ActivityTrackerService() {
     postureStartTime,
     lastPosture,
     manualStart,
+    healthReminders,
     setIsTracking,
     setStatistics,
     setStartTime,
     setPostureStartTime,
     setLastPosture,
-    updateStatistics
+    updateStatistics,
+    setHealthReminders
   } = useActivityTrackerStore()
 
   // Refs для хранения данных, которые не нужно сохранять в store
@@ -69,11 +71,20 @@ export function ActivityTrackerService() {
   const isTrackingRef = useRef<boolean>(false)
   const androidSensorCallbackRef = useRef<((data: any) => void) | null>(null)
   const isAndroidWebView = useRef<boolean>(false)
+  const healthReminderIntervalRef = useRef<number | null>(null)
 
   // Синхронизация ref с store
   useEffect(() => {
     isTrackingRef.current = isTracking
   }, [isTracking])
+
+  // Проверка Android WebView для уведомлений
+  useEffect(() => {
+    if (typeof (window as any).androidApp !== 'undefined') {
+      isAndroidWebView.current = true
+      console.log('✅ [Health] Android WebView detected for notifications')
+    }
+  }, [])
 
   // Проверка Android WebView
   useEffect(() => {
@@ -121,6 +132,35 @@ export function ActivityTrackerService() {
     const endTime = officeInfoRef.current.working_hours_end || '18:00:00'
     
     return currentTime >= startTime && currentTime <= endTime
+  }
+
+  // Отправка Health уведомления через Android
+  const sendHealthNotification = async (message: string) => {
+    try {
+      // Проверяем Android WebView
+      if (typeof (window as any).androidApp?.showHealthNotification !== 'undefined') {
+        (window as any).androidApp.showHealthNotification(message)
+        console.log('✅ [Health] Уведомление отправлено через Android:', message)
+        
+        // Обновляем время последнего напоминания
+        setHealthReminders({ lastReminderTime: Date.now() })
+      } else if ('Notification' in window && Notification.permission === 'granted') {
+        // Fallback для веб-браузера
+        new Notification('Хелси - Напоминание', {
+          body: message,
+          icon: '/icon-192x192.png',
+          badge: '/icon-192x192.png',
+          tag: 'health-reminder',
+          requireInteraction: false
+        })
+        console.log('✅ [Health] Уведомление отправлено через Web API:', message)
+        setHealthReminders({ lastReminderTime: Date.now() })
+      } else {
+        console.warn('⚠️ [Health] Невозможно отправить уведомление: нет доступа')
+      }
+    } catch (error) {
+      console.error('❌ [Health] Ошибка отправки уведомления:', error)
+    }
   }
 
   // Загрузка информации об офисе
@@ -792,6 +832,61 @@ export function ActivityTrackerService() {
       }
     }
   }, [isTracking])
+
+  // Health напоминания - проверка времени сидения
+  useEffect(() => {
+    if (!isTracking || !healthReminders.enabled || lastPosture !== 'sitting') {
+      // Очищаем интервал если трекинг выключен или пользователь стоит
+      if (healthReminderIntervalRef.current) {
+        clearInterval(healthReminderIntervalRef.current)
+        healthReminderIntervalRef.current = null
+      }
+      return
+    }
+
+    // Проверяем только если пользователь сидит
+    const checkSittingTime = async () => {
+      if (lastPosture !== 'sitting' || !postureStartTime) {
+        return
+      }
+
+      const sittingDuration = Date.now() - postureStartTime
+      const intervalMs = healthReminders.sittingIntervalMinutes * 60 * 1000
+
+      // Проверяем, прошло ли достаточно времени с последнего напоминания
+      const timeSinceLastReminder = healthReminders.lastReminderTime 
+        ? Date.now() - healthReminders.lastReminderTime 
+        : Infinity
+
+      // Отправляем напоминание если:
+      // 1. Сидит дольше заданного интервала
+      // 2. С момента последнего напоминания прошло больше половины интервала (чтобы не спамить)
+      if (sittingDuration >= intervalMs && timeSinceLastReminder >= intervalMs / 2) {
+        const minutes = Math.floor(sittingDuration / 60000)
+        const messages = [
+          `Вы сидите уже ${minutes} минут. Пора встать и сделать перерыв!`,
+          `Долгое сидение вредно для здоровья. Рекомендуем встать и размяться.`,
+          `Вы работаете сидя ${minutes} минут. Сделайте паузу и пройдитесь!`,
+          `Пора размяться! Вы сидите уже ${minutes} минут.`
+        ]
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)]
+        await sendHealthNotification(randomMessage)
+      }
+    }
+
+    // Проверяем каждую минуту
+    healthReminderIntervalRef.current = window.setInterval(checkSittingTime, 60000)
+    
+    // Первая проверка через минуту
+    setTimeout(checkSittingTime, 60000)
+
+    return () => {
+      if (healthReminderIntervalRef.current) {
+        clearInterval(healthReminderIntervalRef.current)
+        healthReminderIntervalRef.current = null
+      }
+    }
+  }, [isTracking, healthReminders, lastPosture, postureStartTime, user?.id])
 
   // Этот компонент не рендерит ничего видимого
   return null

@@ -5,7 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Play, Pause, Square, TrendingUp, Clock, Activity, ArrowLeft } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
+import { Play, Pause, Square, TrendingUp, Clock, Activity, ArrowLeft, Settings, Bell } from "lucide-react"
 import { useAuthStore } from "@/stores/useAuthStore"
 import { useActivityTrackerStore } from "@/stores/useActivityTrackerStore"
 import { useRouter } from "next/navigation"
@@ -59,6 +62,7 @@ export function ActivityTracker() {
     postureStartTime: postureStartTimeFromStore,
     lastPosture: lastPostureFromStore,
     manualStart: manualStartFromStore,
+    healthReminders,
     setIsTracking,
     setStatistics,
     setStartTime,
@@ -66,7 +70,8 @@ export function ActivityTracker() {
     setLastPosture,
     setManualStart,
     resetStatistics,
-    updateStatistics
+    updateStatistics,
+    setHealthReminders
   } = useActivityTrackerStore()
   
   const [currentData, setCurrentData] = useState<ActivityData | null>(null)
@@ -864,17 +869,7 @@ export function ActivityTracker() {
             </div>
           )}
 
-          {isTracking && (
-            <div className="p-2 sm:p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-xs sm:text-sm">
-              <div className="flex items-start gap-2">
-                <span className="font-medium">⚠️ Внимание:</span>
-                <div className="flex-1">
-                  <p>Трекер работает и отслеживает вашу активность. Это может увеличить расход батареи.</p>
-                  <p className="mt-1 text-xs opacity-80">Для экономии батареи рекомендуется закрывать приложение, когда не используете трекер.</p>
-                </div>
-              </div>
-            </div>
-          )}
+
 
           <div className="flex flex-col sm:flex-row gap-2">
             {!isTracking ? (
@@ -924,9 +919,10 @@ export function ActivityTracker() {
       </Card>
 
       <Tabs defaultValue="stats" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-auto">
+        <TabsList className="grid w-full grid-cols-3 h-auto">
           <TabsTrigger value="stats" className="text-xs sm:text-sm py-2 px-2 sm:px-4">Статистика</TabsTrigger>
           <TabsTrigger value="intervals" className="text-xs sm:text-sm py-2 px-2 sm:px-4">Интервалы</TabsTrigger>
+          <TabsTrigger value="settings" className="text-xs sm:text-sm py-2 px-2 sm:px-4">Настройки</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stats" className="space-y-4 mt-4">
@@ -1019,6 +1015,73 @@ export function ActivityTracker() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span>Настройки Health напоминаний</span>
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Напоминания о необходимости встать и сделать перерыв во время работы
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 p-4 sm:p-6">
+              {/* Включить/выключить напоминания */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="health-enabled" className="text-sm font-medium">
+                    Включить напоминания
+                  </Label>
+                  <p className="text-xs text-gray-500">
+                    Приложение будет напоминать вам встать и сделать перерыв
+                  </p>
+                </div>
+                <Switch
+                  id="health-enabled"
+                  checked={healthReminders.enabled}
+                  onCheckedChange={(checked) => setHealthReminders({ enabled: checked })}
+                />
+              </div>
+
+              {/* Интервал времени сидения */}
+              <div className="space-y-2">
+                <Label htmlFor="sitting-interval" className="text-sm font-medium">
+                  Интервал напоминания (минуты)
+                </Label>
+                <Input
+                  id="sitting-interval"
+                  type="number"
+                  min="15"
+                  max="180"
+                  step="15"
+                  value={healthReminders.sittingIntervalMinutes}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value)
+                    if (value >= 15 && value <= 180) {
+                      setHealthReminders({ sittingIntervalMinutes: value })
+                    }
+                  }}
+                  className="max-w-32"
+                />
+                <p className="text-xs text-gray-500">
+                  Напоминание появится после указанного времени непрерывного сидения (от 15 до 180 минут)
+                </p>
+              </div>
+
+              {/* Информация о последнем напоминании */}
+              {healthReminders.lastReminderTime && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs sm:text-sm text-blue-800">
+                    <Clock className="h-3 w-3 inline mr-1" />
+                    Последнее напоминание: {new Date(healthReminders.lastReminderTime).toLocaleString('ru-RU')}
+                  </p>
                 </div>
               )}
             </CardContent>

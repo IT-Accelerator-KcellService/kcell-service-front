@@ -15,6 +15,13 @@ interface Statistics {
   }>
 }
 
+interface HealthReminderSettings {
+  enabled: boolean
+  sittingIntervalMinutes: number // Интервал сидения до напоминания (по умолчанию 60 минут)
+  disableDuringMeetings: boolean // Отключить во время встреч
+  lastReminderTime: number | null // Время последнего напоминания
+}
+
 interface ActivityTrackerState {
   isTracking: boolean
   statistics: Statistics
@@ -22,6 +29,7 @@ interface ActivityTrackerState {
   postureStartTime: number | null
   lastPosture: 'sitting' | 'standing' | 'unknown'
   manualStart: boolean
+  healthReminders: HealthReminderSettings
   
   // Actions
   setIsTracking: (isTracking: boolean) => void
@@ -32,6 +40,7 @@ interface ActivityTrackerState {
   setManualStart: (manual: boolean) => void
   resetStatistics: () => void
   updateStatistics: (updater: (prev: Statistics) => Statistics) => void
+  setHealthReminders: (settings: Partial<HealthReminderSettings>) => void
   
   // Методы управления трекером (будут вызываться из компонентов)
   requestStartTracking: (isManual: boolean) => void
@@ -47,6 +56,13 @@ const initialStatistics: Statistics = {
   intervals: []
 }
 
+const initialHealthReminders: HealthReminderSettings = {
+  enabled: true,
+  sittingIntervalMinutes: 60, // 60 минут по умолчанию
+  disableDuringMeetings: true,
+  lastReminderTime: null
+}
+
 export const useActivityTrackerStore = create<ActivityTrackerState>()(
   persist(
     (set) => ({
@@ -56,6 +72,7 @@ export const useActivityTrackerStore = create<ActivityTrackerState>()(
       postureStartTime: null,
       lastPosture: 'unknown',
       manualStart: false,
+      healthReminders: initialHealthReminders,
       
       setIsTracking: (isTracking) => set({ isTracking }),
       
@@ -80,6 +97,13 @@ export const useActivityTrackerStore = create<ActivityTrackerState>()(
       
       updateStatistics: (updater) => set((state) => ({
         statistics: updater(state.statistics)
+      })),
+      
+      setHealthReminders: (settings) => set((state) => ({
+        healthReminders: {
+          ...state.healthReminders,
+          ...settings
+        }
       })),
       
       // Методы управления трекером (сигналы для сервиса)
@@ -109,7 +133,8 @@ export const useActivityTrackerStore = create<ActivityTrackerState>()(
         startTime: state.startTime,
         postureStartTime: state.postureStartTime,
         lastPosture: state.lastPosture,
-        manualStart: state.manualStart
+        manualStart: state.manualStart,
+        healthReminders: state.healthReminders
       })
     }
   )
