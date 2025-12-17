@@ -581,6 +581,7 @@ export function MeetingRoomsAdmin() {
                 highlightInactive
                 isExpanded={expandedRooms.has(room.id)}
                 onToggleExpand={() => toggleRoomExpand(room.id)}
+                showOffice={true}
                 footer={
                   <div className="flex flex-wrap items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => handleEdit(room)}>

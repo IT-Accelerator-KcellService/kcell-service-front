@@ -10,6 +10,7 @@ import {
   ImageIcon,
   ChevronDown,
   ChevronUp,
+  MapPin,
 } from "lucide-react";
 import {
   MeetingRoom,
@@ -23,6 +24,7 @@ interface MeetingRoomCardProps {
   highlightInactive?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  showOffice?: boolean;
 }
 
 const statusVariant: Record<MeetingRoom["status"], string> = {
@@ -37,6 +39,7 @@ export function MeetingRoomCard({
   highlightInactive = true,
   isExpanded = false,
   onToggleExpand,
+  showOffice = false,
 }: MeetingRoomCardProps) {
   const coverPhoto = room.photos?.[0];
   const extraPhotos = room.photos?.length ? room.photos.length - 1 : 0;
@@ -123,6 +126,12 @@ export function MeetingRoomCard({
             <Users className="h-4 w-4 text-primary" />
             до {room.capacity} человек
           </span>
+          {showOffice && room.office && (
+            <span className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-primary" />
+              {room.office.name}
+            </span>
+          )}
         </div>
 
         <Separator />
