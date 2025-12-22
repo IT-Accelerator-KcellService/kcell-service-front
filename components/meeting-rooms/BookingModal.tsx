@@ -360,10 +360,10 @@ export function BookingModal({
                   )}
                   <Badge
                     className={cn(
-                      "absolute top-3 left-3 rounded-full px-3 py-1 text-xs font-semibold",
+                      "absolute top-3 left-3 rounded-full px-3 py-1 text-xs font-semibold shadow-lg",
                       roomDetails.status === "available"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-amber-100 text-amber-700"
+                        ? "bg-gradient-to-r from-[#114A65] to-[#114A65]/90 text-white backdrop-blur-md border border-[#114A65]/50"
+                        : "bg-gradient-to-r from-[#B8400E] to-[#B8400E]/90 text-white backdrop-blur-md border border-[#B8400E]/50"
                     )}
                   >
                     {roomDetails.status === "available" ? "Доступна" : "Забронирована"}
@@ -399,9 +399,9 @@ export function BookingModal({
             </div>
           )}
           {selectedDate && selectedTimeSlot && (
-            <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-              <CalendarIcon className="w-4 h-4 text-purple-600" />
-              <span className="text-sm text-purple-800">
+            <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-[#114A65]/10 to-[#B8400E]/10 border border-[#114A65]/20 rounded-lg">
+              <CalendarIcon className="w-4 h-4 text-[#114A65]" />
+              <span className="text-sm text-[#040404]">
                 {format(selectedDate, "dd MMMM yyyy", { locale: ru })} {selectedTimeSlot}
               </span>
             </div>
@@ -454,7 +454,7 @@ export function BookingModal({
                 <Label>Время</Label>
                 {loadingAvailability ? (
                   <div className="flex items-center justify-center p-8">
-                    <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-[#114A65] border-t-transparent rounded-full animate-spin" />
                     <span className="ml-2 text-sm text-muted-foreground">Загрузка доступности...</span>
                   </div>
                 ) : (
@@ -479,7 +479,7 @@ export function BookingModal({
                           className={cn(
                             "w-full justify-start text-sm",
                             selectedTimeSlot === slot.label &&
-                              "bg-purple-600 hover:bg-purple-700 text-white",
+                              "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white",
                             isDisabled && "opacity-50 cursor-not-allowed",
                             isBooked && !selectedTimeSlot && "bg-red-50 border-red-200 text-red-600"
                           )}
@@ -535,7 +535,7 @@ export function BookingModal({
             <Button
               onClick={handleBooking}
               disabled={!selectedDate || !selectedTimeSlot || isSubmitting}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]"
             >
               {isSubmitting ? "Бронирование..." : "Забронировать"}
             </Button>

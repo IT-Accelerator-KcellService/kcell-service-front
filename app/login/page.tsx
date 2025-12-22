@@ -139,16 +139,20 @@ export default function LoginPage() {
   }
 
   return (
-      <div className="min-h-screen bg-gradient-to-br from-violet-600 via-purple-600 to-violet-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#114A65] via-[#114A65] to-[#B8400E] flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-2 mb-4">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                <span className="text-violet-600 font-bold text-2xl">W</span>
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden">
+                <img 
+                  src="/app-icon.png" 
+                  alt="App Icon" 
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span className="text-white font-bold text-2xl">WorkFlow</span>
             </div>
-            <p className="text-violet-100">Система управления сервисными заявками</p>
+            <p className="text-white/90">Система управления сервисными заявками</p>
           </div>
 
           <Card className="border-0 shadow-2xl">
@@ -172,7 +176,7 @@ export default function LoginPage() {
                       onChange={handlePhoneChange}
                       maxLength={19}
                   />
-                  {phoneError && <p className="text-red-500 text-sm mt-1">{phoneError}</p>}
+                  {phoneError && <p className="text-[#B8400E] text-sm mt-1">{phoneError}</p>}
                 </div>
                 <div>
                   <Label htmlFor="password">Пароль</Label>
@@ -182,27 +186,27 @@ export default function LoginPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                   />
-                  {passwordError && <p className="text-red-500 text-sm mt-1">{passwordError}</p>}
+                  {passwordError && <p className="text-[#B8400E] text-sm mt-1">{passwordError}</p>}
                 </div>
               </div>
 
               <Button
                   onClick={handleLogin}
-                  className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl text-lg font-semibold"
+                  className="w-full bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white py-3 rounded-xl text-lg font-semibold transition-colors"
                   disabled={loading}
               >
                 {isLogin ? "Войти" : "Зарегистрироваться"}
               </Button>
 
               {formError && (
-                  <p className="text-red-500 text-center text-sm mt-2">{formError}</p>
+                  <p className="text-[#B8400E] text-center text-sm mt-2">{formError}</p>
               )}
 
               <div className="text-center">
                 <Button
                   onClick={() => setShowRegistrationModal(true)}
                   variant="outline"
-                  className="w-full text-violet-600 border-violet-600 hover:bg-violet-50"
+                  className="w-full text-[#114A65] border-[#114A65] hover:bg-[#114A65]/10"
                 >
                   <UserPlus className="w-4 h-4 mr-2" />
                   Запросить регистрацию

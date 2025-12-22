@@ -95,7 +95,7 @@ export function CommentList({
                                 <div
                                     key={c.id}
                                     className={`flex items-start gap-2.5 group relative transition-colors duration-150 ${
-                                        activeCommentId === c.id ? "bg-violet-50" : "hover:bg-gray-50"
+                                        activeCommentId === c.id ? "bg-[#114A65]/10" : "hover:bg-gray-50"
                                     }`}
                                     style={{ WebkitUserSelect: "none", userSelect: "none", position: 'relative', borderRadius: '0.5rem', padding: '0.5rem' }}
                                     onContextMenu={(e) => {
@@ -115,7 +115,7 @@ export function CommentList({
                                     }}
                                 >
                                     {/* Аватарка */}
-                                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-violet-400 to-purple-600 rounded-full flex items-center justify-center">
+                                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-[#114A65] to-[#B8400E] rounded-full flex items-center justify-center">
                     <span className="text-white text-xs font-bold">
                       {c.user.full_name?.charAt(0).toUpperCase() || "U"}
                     </span>

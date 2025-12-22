@@ -674,7 +674,7 @@ export function RoleBasedActionMenu({
         <div className="px-6 pb-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">Действия</h3>
           <p className="text-sm text-gray-500 mt-1">Выберите действие для заявки № {isSubRequest ? getSubRequestDisplayId(request, requestGroup.id) : request.id}</p>
-          <p className="text-xs text-purple-600 mt-1 font-medium">
+          <p className="text-xs text-[#114A65] mt-1 font-medium">
             {userRole === "client" && "Клиент"}
             {userRole === "executor" && "Исполнитель"}
             {userRole === "manager" && "Руководитель"}
@@ -695,8 +695,8 @@ export function RoleBasedActionMenu({
                   : action.longTerm
                     ? "text-blue-600 hover:text-blue-700 hover:bg-blue-50 active:bg-blue-100"
                     : action.primary
-                      ? "text-purple-600 font-semibold hover:bg-purple-50 active:bg-purple-100"
-                      : "text-gray-700 hover:text-purple-600 hover:bg-purple-50 active:bg-purple-100"
+                      ? "text-[#114A65] font-semibold hover:bg-[#114A65]/10 active:bg-[#114A65]/20"
+                      : "text-gray-700 hover:text-[#114A65] hover:bg-[#114A65]/10 active:bg-[#114A65]/20"
               }`}
               onClick={(e) => {
                 e.preventDefault()
@@ -706,7 +706,7 @@ export function RoleBasedActionMenu({
             >
               <div className={`p-2 rounded-lg ${
                 action.primary 
-                  ? "bg-purple-100 text-purple-600" 
+                  ? "bg-[#114A65]/10 text-[#114A65]" 
                   : action.longTerm
                     ? "bg-blue-100 text-blue-600"
                     : action.variant === "destructive"
@@ -735,19 +735,19 @@ export function RoleBasedActionMenu({
             <Button
               variant="outline"
               size="sm"
-              className="h-8 w-8 p-0 bg-white hover:bg-purple-50 border border-purple-200 rounded-full transition-all duration-200 shadow-sm hover:shadow-md"
+              className="h-8 w-8 p-0 bg-white hover:bg-[#114A65]/10 border border-[#114A65]/20 rounded-full transition-all duration-200 shadow-sm hover:shadow-md"
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
               }}
             >
-              <MoreHorizontal className="h-4 w-4 text-purple-600" />
+              <MoreHorizontal className="h-4 w-4 text-[#114A65]" />
               <span className="sr-only">Открыть меню действий</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent 
             align="end" 
-            className="w-48 shadow-xl border border-purple-100 rounded-xl overflow-hidden"
+            className="w-48 shadow-xl border border-[#114A65]/20 rounded-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {actions.map((action, index) => (
@@ -764,12 +764,12 @@ export function RoleBasedActionMenu({
                     : action.longTerm
                       ? "text-blue-600 hover:text-blue-700 hover:bg-blue-50 focus:bg-blue-50"
                       : action.primary
-                        ? "text-purple-600 font-semibold hover:bg-purple-50 focus:bg-purple-50"
-                        : "text-gray-700 hover:text-purple-600 hover:bg-purple-50 focus:bg-purple-50"
+                        ? "text-[#114A65] font-semibold hover:bg-[#114A65]/10 focus:bg-[#114A65]/20"
+                        : "text-gray-700 hover:text-[#114A65] hover:bg-[#114A65]/10 focus:bg-[#114A65]/20"
                 }`}
               >
                 <action.icon className={`h-4 w-4 flex-shrink-0 ${
-                  action.primary ? "text-purple-600" : action.longTerm ? "text-blue-600" : ""
+                  action.primary ? "text-[#114A65]" : action.longTerm ? "text-blue-600" : ""
                 }`} />
                 <span className="font-medium">{action.label}</span>
               </DropdownMenuItem>

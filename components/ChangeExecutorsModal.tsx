@@ -190,7 +190,7 @@ export function ChangeExecutorsModal({
         <CardHeader className="pb-4 border-b border-gray-100">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="h-5 w-5 text-purple-600" />
+              <Users className="h-5 w-5 text-[#114A65]" />
               Изменить исполнителей
             </CardTitle>
             <Button
@@ -234,7 +234,7 @@ export function ChangeExecutorsModal({
                   Добавить исполнителя
                 </Label>
                 <Select onValueChange={handleAddExecutor} value="">
-                  <SelectTrigger className="w-full h-11 border-gray-200 focus:border-purple-500 focus:ring-purple-500">
+                  <SelectTrigger className="w-full h-11 border-gray-200 focus:border-[#114A65] focus:ring-[#114A65]">
                     <SelectValue placeholder="Выберите исполнителя" />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,7 +354,7 @@ export function ChangeExecutorsModal({
                 <Button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !selectedExecutors.some(e => e.role === 'leader')}
-                  className="flex-1 h-11 bg-purple-600 hover:bg-purple-700 text-white
+                  className="flex-1 h-11 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white
                            disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (

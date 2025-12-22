@@ -28,8 +28,8 @@ interface MeetingRoomCardProps {
 }
 
 const statusVariant: Record<MeetingRoom["status"], string> = {
-  available: "bg-green-100 text-green-700",
-  booked: "bg-amber-100 text-amber-700",
+  available: "bg-gradient-to-r from-[#114A65] to-[#114A65]/90 text-white backdrop-blur-md border border-[#114A65]/50 shadow-lg font-bold",
+  booked: "bg-gradient-to-r from-[#B8400E] to-[#B8400E]/90 text-white backdrop-blur-md border border-[#B8400E]/50 shadow-lg font-bold",
 };
 
 export function MeetingRoomCard({
@@ -48,7 +48,7 @@ export function MeetingRoomCard({
   return (
     <Card
       className={cn(
-        "overflow-hidden h-full flex flex-col",
+        "overflow-hidden h-full flex flex-col bg-gradient-to-br from-white via-[#F3F3F3] to-white backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300",
         highlightInactive && !room.isActive && "opacity-70",
         className,
       )}
@@ -80,13 +80,13 @@ export function MeetingRoomCard({
         </Badge>
 
         {!room.isActive && (
-          <div className="absolute bottom-3 left-3 rounded-full bg-gray-900/80 px-3 py-1 text-xs font-medium text-white">
+          <div className="absolute bottom-3 left-3 rounded-full bg-[#040404]/80 px-3 py-1 text-xs font-medium text-white">
             На ремонте
           </div>
         )}
 
         {extraPhotos > 0 && (
-          <div className="absolute bottom-3 right-3 rounded-full bg-gray-900/75 px-3 py-1 text-xs font-medium text-white">
+          <div className="absolute bottom-3 right-3 rounded-full bg-[#040404]/75 px-3 py-1 text-xs font-medium text-white">
             +{extraPhotos} фото
           </div>
         )}

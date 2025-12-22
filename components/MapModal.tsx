@@ -62,7 +62,7 @@ export const MapModal: React.FC<MapModalProps> = ({
               <React.Suspense fallback={
                 <div className="w-full h-full bg-gray-50 flex items-center justify-center">
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto mb-3"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#114A65] mx-auto mb-3"></div>
                     <p className="text-sm text-gray-600">Загрузка карты...</p>
                   </div>
                 </div>
@@ -86,7 +86,7 @@ export const MapModal: React.FC<MapModalProps> = ({
                 </div>
                 <Button 
                   onClick={onClose}
-                  className="w-full bg-violet-600 hover:bg-violet-700 text-white py-2 text-sm"
+                  className="w-full bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white py-2 text-sm"
                 >
                   Закрыть
                 </Button>
@@ -132,7 +132,7 @@ export const MapModal: React.FC<MapModalProps> = ({
                 <React.Suspense fallback={
                   <div className="w-full h-full bg-gray-50 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto mb-3"></div>
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#114A65] mx-auto mb-3"></div>
                       <p className="text-sm text-gray-600">Загрузка карты...</p>
                     </div>
                   </div>
@@ -156,7 +156,7 @@ export const MapModal: React.FC<MapModalProps> = ({
                 </div>
                 <Button 
                   onClick={onClose}
-                  className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 text-sm"
+                  className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white px-4 py-2 text-sm"
                 >
                   Закрыть
                 </Button>

@@ -20,6 +20,7 @@ import {useStatsStore} from "@/stores/statsStore"
 import {useAuthStore} from "@/stores/useAuthStore"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { ProfileModal } from "@/components/ProfileModal"
+import Image from "next/image"
 
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
@@ -189,7 +190,7 @@ export default function ProfilePage() {
     // На десктопе показываем как модальное окно
     if (isDesktop) {
         return (
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-[#F3F3F3]">
                 <ProfileModal isOpen={isOpen} onClose={handleClose} isFullScreen={false} />
             </div>
         )
@@ -200,10 +201,16 @@ export default function ProfilePage() {
         <div className="pb-16">
             <div className="container px-4 py-6">
                 <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold">W</span>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+                        <Image 
+                            src="/app-icon.png" 
+                            alt="App Icon" 
+                            width={32} 
+                            height={32} 
+                            className="rounded-lg"
+                        />
                     </div>
-                    <span className="font-bold text-xl text-gray-900">Profile</span>
+                    <span className="font-bold text-xl text-[#040404]">Profile</span>
                 </div>
 
                 <Tabs defaultValue="profile" className="space-y-4">
@@ -247,7 +254,7 @@ export default function ProfilePage() {
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-sm">Роль</Label>
-                                    <Badge className="text-sm">
+                                    <Badge className="text-sm bg-gradient-to-r from-[#114A65] to-[#B8400E] text-white border-transparent">
                                         {role && roleTranslations[role] || role || "—"}
                                     </Badge>
                                 </div>
@@ -266,18 +273,18 @@ export default function ProfilePage() {
                                 <Button
                                     onClick={handleSaveProfile}
                                     disabled={isSavingProfile}
-                                    className="mt-2 w-full sm:w-auto"
+                                    className="mt-2 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
                                 >
                                     <Save className="mr-2 h-4 w-4" />
                                     {isSavingProfile ? "Сохранение..." : "Сохранить"}
                                 </Button>
-                                {profileError && <p className="text-sm text-red-500">{profileError}</p>}
-                                {profileSuccess && <p className="text-sm text-green-600">{profileSuccess}</p>}
+                                {profileError && <p className="text-sm text-[#B8400E]">{profileError}</p>}
+                                {profileSuccess && <p className="text-sm text-[#114A65]">{profileSuccess}</p>}
 
                                 {/* Кнопка Выйти */}
                                 <Button
                                     variant="outline"
-                                    className="mt-4 w-full text-red-600 border-red-500 hover:bg-red-50"
+                                    className="mt-4 w-full text-[#B8400E] border-[#B8400E] hover:bg-[#B8400E]/10"
                                     onClick={handleLogout}
                                 >
                                     {isLoggingOut ? (
@@ -332,13 +339,13 @@ export default function ProfilePage() {
                                 <Button
                                     onClick={handleChangePassword}
                                     disabled={isChanging}
-                                    className="mt-2 w-full sm:w-auto"
+                                    className="mt-2 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
                                 >
                                     <Lock className="mr-2 h-4 w-4" />
                                     {isChanging ? "Смена..." : "Сменить пароль"}
                                 </Button>
-                                {error && <p className="text-sm text-red-500">{error}</p>}
-                                {success && <p className="text-sm text-green-600">{success}</p>}
+                                {error && <p className="text-sm text-[#B8400E]">{error}</p>}
+                                {success && <p className="text-sm text-[#114A65]">{success}</p>}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -374,7 +381,7 @@ export default function ProfilePage() {
                                 <Button
                                     onClick={handleSaveNotifications}
                                     disabled={isSavingNotifications}
-                                    className="mt-2 w-full sm:w-auto"
+                                    className="mt-2 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
                                 >
                                     {isSavingNotifications ? (
                                         <>
@@ -388,8 +395,8 @@ export default function ProfilePage() {
                                         </>
                                     )}
                                 </Button>
-                                {notificationError && <p className="text-sm text-red-500 mt-2">{notificationError}</p>}
-                                {notificationSuccess && <p className="text-sm text-green-600 mt-2">{notificationSuccess}</p>}
+                                {notificationError && <p className="text-sm text-[#B8400E] mt-2">{notificationError}</p>}
+                                {notificationSuccess && <p className="text-sm text-[#114A65] mt-2">{notificationSuccess}</p>}
                             </CardContent>
                         </Card>
                     </TabsContent>

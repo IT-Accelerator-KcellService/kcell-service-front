@@ -103,7 +103,7 @@ export function MeetingRoomStatistics() {
                     <div
                       className="w-24 h-24 rounded-full flex items-center justify-center text-white font-bold text-lg"
                       style={{
-                        backgroundColor: "hsl(var(--primary))",
+                        backgroundColor: "#114A65",
                         transform: `rotate(${(room.occupancy_percentage / 100) * 360}deg)`,
                       }}
                     >
@@ -141,7 +141,7 @@ export function MeetingRoomStatistics() {
                     <div
                       className="w-24 h-24 rounded-full flex items-center justify-center text-white font-bold text-lg"
                       style={{
-                        backgroundColor: "hsl(142, 71%, 45%)",
+                        backgroundColor: "#B8400E",
                         transform: `rotate(${(room.occupancy_percentage / 100) * 360}deg)`,
                       }}
                     >

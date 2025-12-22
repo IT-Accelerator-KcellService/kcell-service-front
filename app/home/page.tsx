@@ -408,7 +408,7 @@ export default function HomePage() {
         if (doneRequests >= 20) {
             return {
                 label: "Platinum",
-                icon: <Gem className="w-5 h-5 text-indigo-600" />,
+                icon: <Gem className="w-5 h-5 text-[#114A65]" />,
             }
         }
         if (doneRequests >= 10) {
@@ -885,16 +885,16 @@ export default function HomePage() {
                                 onClick={() => setMapOpen(true)}
                             />
                             <div className="absolute left-3 top-3 flex gap-2">
-                                <span className="rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-purple-700 shadow">
+                                <span className="rounded-full bg-white/90 backdrop-blur-sm px-2 py-1 text-[11px] font-medium text-[#114A65] shadow">
                                   Kcell Kazakhstan
                                 </span>
-                                <span className="rounded-full bg-white/80 px-2 py-1 text-[11px] text-neutral-700 shadow">Mobile</span>
+                                <span className="rounded-full bg-white/80 backdrop-blur-sm px-2 py-1 text-[11px] text-[#040404] shadow">Mobile</span>
                             </div>
                             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
                             <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                                 <button
                                     onClick={() => setMapOpen(true)}
-                                    className="rounded-full bg-purple-700 px-3 py-2 text-xs font-medium text-white shadow active:scale-[0.98]"
+                                    className="rounded-full bg-gradient-to-r from-[#114A65] to-[#B8400E] px-3 py-2 text-xs font-medium text-white shadow active:scale-[0.98] hover:from-[#0d3a4f] hover:to-[#A3390D] transition-colors"
                                 >
                                   <span className="inline-flex items-center gap-1">
                                     <MapPin className="h-4 w-4" />
@@ -965,9 +965,9 @@ export default function HomePage() {
                                         <Stat label="Завершено" value={clientStats?.doneRequests ?? 0} />
                                         <Stat label="Просрочено" value={clientStats?.overdueRequests ?? 0} />
                                         <div className="rounded-lg border bg-white p-3">
-                                            <div className="text-xs text-neutral-500">Рейтинг</div>
+                                            <div className="text-xs text-[#C4C4CE]">Рейтинг</div>
                                             <div className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
-                                                <span className="text-purple-700">{rating.label}</span> {rating.icon}
+                                                <span className="text-[#114A65]">{rating.label}</span> {rating.icon}
                                             </div>
                                         </div>
                                         <div className="rounded-lg border bg-white p-3">
@@ -1163,21 +1163,21 @@ export default function HomePage() {
                                                     <LineChart data={chartData}>
                                                     <defs>
                                                             <linearGradient id="kcellGradientHome" x1="0" y1="0" x2="0" y2="1">
-                                                                <stop offset="0%" stopColor="#8E24AA" stopOpacity={1} />
-                                                                <stop offset="100%" stopColor="#6A1B9A" stopOpacity={0.8} />
+                                                                <stop offset="0%" stopColor="#114A65" stopOpacity={1} />
+                                                                <stop offset="100%" stopColor="#B8400E" stopOpacity={0.8} />
                                                         </linearGradient>
                                                     </defs>
 
-                                                        <CartesianGrid strokeDasharray="3 3" />
-                                                        <XAxis dataKey="date" />
-                                                        <YAxis allowDecimals={false} />
+                                                        <CartesianGrid strokeDasharray="3 3" stroke="#C4C4CE" />
+                                                        <XAxis dataKey="date" stroke="#040404" />
+                                                        <YAxis allowDecimals={false} stroke="#040404" />
                                                         <Tooltip />
                                                         <Line
                                                         type="monotone"
                                                         dataKey="count"
                                                             stroke="url(#kcellGradientHome)"
                                                             strokeWidth={2.5}
-                                                            dot={{ r: 4, stroke: '#6A1B9A', strokeWidth: 1.5, fill: '#fff' }}
+                                                            dot={{ r: 4, stroke: '#114A65', strokeWidth: 1.5, fill: '#fff' }}
                                                             activeDot={{ r: 6 }}
                                                         />
                                                     </LineChart>
@@ -1241,19 +1241,19 @@ export default function HomePage() {
                                                             key: "normal",
                                                             label: "Обычные",
                                                             pctKey: "normalPercent",
-                                                            icon: <BarChart3 className="h-4 w-4 text-purple-700" />,
+                                                            icon: <BarChart3 className="h-4 w-4 text-[#114A65]" />,
                                                         },
                                                         {
                                                             key: "urgent",
                                                             label: "Экстренные",
                                                             pctKey: "urgentPercent",
-                                                            icon: <AlertTriangle className="h-4 w-4 text-purple-700" />,
+                                                            icon: <AlertTriangle className="h-4 w-4 text-[#B8400E]" />,
                                                         },
                                                         {
                                                             key: "planned",
                                                             label: "Плановые",
                                                             pctKey: "plannedPercent",
-                                                            icon: <CalendarLucid className="h-4 w-4 text-purple-700" />,
+                                                            icon: <CalendarLucid className="h-4 w-4 text-[#114A65]" />,
                                                         },
                                                     ].map((row) => {
                                                         const totalKey = row.key as "normal" | "urgent" | "planned"
@@ -1261,7 +1261,7 @@ export default function HomePage() {
                                                         return (
                                                             <div key={row.key} className="space-y-2">
                                                                 <div 
-                                                                    className="flex items-center justify-between text-sm cursor-pointer hover:bg-gray-50 rounded p-1 transition-colors"
+                                                                    className="flex items-center justify-between text-sm cursor-pointer hover:bg-[#F3F3F3] rounded p-1 transition-colors"
                                                                     onClick={() => {
                                                                         if (row.key === 'normal') {
                                                                             handleNormalRequestsClick();
@@ -1280,9 +1280,9 @@ export default function HomePage() {
                                                                   {distribution[totalKey]} ({distribution[pctKey]}%)
                                                                 </span>
                                                                 </div>
-                                                                <div className="h-2 w-full overflow-hidden rounded bg-neutral-200">
+                                                                <div className="h-2 w-full overflow-hidden rounded bg-[#C4C4CE]/30">
                                                                     <div
-                                                                        className="h-full bg-purple-700 transition-all"
+                                                                        className="h-full bg-gradient-to-r from-[#114A65] to-[#B8400E] transition-all"
                                                                         style={{ width: `${distribution[pctKey]}%` }}
                                                                     />
                                                                 </div>
@@ -1309,10 +1309,10 @@ export default function HomePage() {
                 description="Коснитесь маркеров для информации. Карта с плавным появлением и жестами."
                 footer={
                     <div className="flex gap-2">
-                        <Button variant="outline" className="w-full bg-transparent" onClick={() => setMapOpen(false)}>
+                        <Button variant="outline" className="w-full bg-transparent border-[#C4C4CE]" onClick={() => setMapOpen(false)}>
                             Закрыть
                         </Button>
-                        <Button className="w-full bg-purple-700 hover:bg-purple-700/90" onClick={() => setMapOpen(false)}>
+                        <Button className="w-full bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]" onClick={() => setMapOpen(false)}>
                             Готово
                         </Button>
                     </div>
@@ -1333,7 +1333,7 @@ export default function HomePage() {
                                     href={`https://www.google.com/maps?q=${o.lat},${o.lon}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="text-xs font-medium text-purple-700 underline"
+                                    className="text-xs font-medium text-[#114A65] underline hover:text-[#B8400E] transition-colors"
                                 >
                                     Открыть в картах
                                 </a>

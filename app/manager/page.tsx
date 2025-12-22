@@ -377,7 +377,6 @@ export default function ManagerDashboard() {
     setIsClosingProgrammatically(true);
     setModalStack(prev => {
       const newStack = prev.slice(0, -1);
-      // Откатываем историю браузера назад
       window.history.back();
       return newStack;
     });
@@ -2104,7 +2103,15 @@ export default function ManagerDashboard() {
                 </h3>
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  isLongTerm 
+                    ? 'text-[#114A65] bg-[#114A65]/20' 
+                    : requestGroup.request_type === 'urgent'
+                      ? 'text-white bg-gradient-to-r from-[#B8400E] to-[#B8400E]/80'
+                      : requestGroup.request_type === 'planned'
+                        ? 'text-white bg-gradient-to-r from-[#114A65] to-[#114A65]/80'
+                        : 'text-white bg-[#114A65]'
+                }`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
               </div>

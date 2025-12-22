@@ -172,18 +172,18 @@ export default function NotificationsPage() {
 
     // Получить цвет фона для уведомления
     const getNotificationBgColor = (title: string, isRead: boolean) => {
-        if (isRead) return 'bg-gray-50/80 border-gray-100';
+        if (isRead) return 'bg-gradient-to-r from-[#F3F3F3] to-[#C4C4CE]/30 border-[#C4C4CE] backdrop-blur-sm';
         
         if (title.toLowerCase().includes('принята') || title.toLowerCase().includes('одобрена')) {
-            return 'bg-green-50/90 border-green-200';
+            return 'bg-gradient-to-r from-[#114A65]/20 via-[#114A65]/10 to-[#114A65]/20 border-[#114A65]/30 backdrop-blur-md';
         }
         if (title.toLowerCase().includes('завершена') || title.toLowerCase().includes('выполнена')) {
-            return 'bg-blue-50/90 border-blue-200';
+            return 'bg-gradient-to-r from-[#114A65]/20 via-[#B8400E]/10 to-[#114A65]/20 border-[#114A65]/30 backdrop-blur-md';
         }
         if (title.toLowerCase().includes('просрочена') || title.toLowerCase().includes('отклонена')) {
-            return 'bg-red-50/90 border-red-200';
+            return 'bg-gradient-to-r from-[#B8400E]/20 via-[#B8400E]/10 to-[#B8400E]/20 border-[#B8400E]/30 backdrop-blur-md';
         }
-        return 'bg-violet-50/90 border-violet-200';
+        return 'bg-gradient-to-r from-[#114A65]/15 via-[#B8400E]/10 to-[#114A65]/15 border-[#114A65]/30 backdrop-blur-md';
     };
 
     const unreadNotificationCount = allNotifications.filter(n => !n.is_read).length;
@@ -214,7 +214,7 @@ export default function NotificationsPage() {
                         </svg>
                     </Button>
                     <div className="flex items-center gap-3 flex-1">
-                        <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <div className="w-8 h-8 bg-[#114A65] rounded-lg flex items-center justify-center">
                             <Bell className="h-4 w-4 text-white" />
                         </div>
                         <div>
@@ -260,7 +260,7 @@ export default function NotificationsPage() {
                                                     {n.title}
                                                 </h3>
                                                 {!n.is_read && (
-                                                    <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-violet-600 bg-violet-100 rounded-full whitespace-nowrap">
+                                                    <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-[#B8400E] bg-[#B8400E]/20 rounded-full whitespace-nowrap">
                                                         Новое
                                                     </span>
                                                 )}
@@ -318,9 +318,9 @@ export default function NotificationsPage() {
             {/* Модальное окно */}
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-auto overflow-hidden animate-in zoom-in-95 fade-in duration-300 border border-gray-200">
                 {/* Заголовок */}
-                <div className="flex items-center border-b border-gray-100 px-6 py-4 bg-gradient-to-r from-violet-50 to-purple-50">
+                <div className="flex items-center border-b border-[#C4C4CE] px-6 py-4 bg-[#F3F3F3]">
                     <div className="flex items-center gap-3 flex-1">
-                        <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                        <div className="w-10 h-10 bg-[#114A65] rounded-xl flex items-center justify-center shadow-sm">
                             <Bell className="h-5 w-5 text-white" />
                         </div>
                         <div>
@@ -374,7 +374,7 @@ export default function NotificationsPage() {
                                                     {n.title}
                                                 </h3>
                                                 {!n.is_read && (
-                                                    <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-violet-600 bg-violet-100 rounded-full whitespace-nowrap">
+                                                    <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-[#B8400E] bg-[#B8400E]/20 rounded-full whitespace-nowrap">
                                                         Новое
                                                     </span>
                                                 )}

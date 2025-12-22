@@ -295,14 +295,14 @@ export default function CreateRequestPage() {
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm animate-fade-in">
-        <Loader2 className="h-12 w-12 animate-spin text-violet-600" />
+        <Loader2 className="h-12 w-12 animate-spin text-[#114A65]" />
         <span className="sr-only">Загрузка...</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F3F3F3]">
       <CreateRequestModal
         isOpen={isOpen}
         onClose={handleClose}

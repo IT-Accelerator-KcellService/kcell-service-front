@@ -206,7 +206,7 @@ export function AssignExecutorsModal({
           <CardHeader className="flex-shrink-0 pb-3 sm:pb-4 px-3 sm:px-4 md:px-6 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#114A65] to-[#B8400E] rounded-lg flex items-center justify-center">
                   <Users className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -279,7 +279,7 @@ export function AssignExecutorsModal({
                               className="rounded-md hover:bg-gray-50"
                             >
                               <div className="flex items-center gap-2 sm:gap-3">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-purple-600 rounded-full flex items-center justify-center">
+                                <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-[#114A65] to-[#B8400E] rounded-full flex items-center justify-center">
                                   <User className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
                                 </div>
                                 <div className="min-w-0 flex-1">
@@ -312,7 +312,7 @@ export function AssignExecutorsModal({
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                                  <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <div className="w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#114A65] to-[#B8400E] rounded-lg flex items-center justify-center flex-shrink-0">
                                     <User className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
                                   </div>
                                   <div className="flex-1 min-w-0">
@@ -416,7 +416,7 @@ export function AssignExecutorsModal({
                 <Button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !selectedExecutors.some(e => e.role === 'leader')}
-                  className="flex-1 h-9 sm:h-10 md:h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                  className="flex-1 h-9 sm:h-10 md:h-12 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
                 >
                   {isSubmitting ? (
                     <div className="flex items-center gap-1 sm:gap-2">

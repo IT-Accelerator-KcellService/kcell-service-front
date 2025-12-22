@@ -20,6 +20,7 @@ import {useNotificationStore} from "@/stores/notificationStore";
 import {useRequestStore} from "@/stores/useRequestStore";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
+import Image from "next/image";
 
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
@@ -188,8 +189,14 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                         </svg>
                     </Button>
                     <div className="flex items-center gap-3 flex-1">
-                        <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">W</span>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
+                            <Image 
+                                src="/app-icon.png" 
+                                alt="App Icon" 
+                                width={32} 
+                                height={32} 
+                                className="rounded-lg"
+                            />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-gray-900">Профиль</h2>
@@ -257,7 +264,7 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-sm">Роль</Label>
-                                        <Badge className="text-sm">
+                                        <Badge className="text-sm bg-gradient-to-r from-[#114A65] to-[#B8400E] text-white border-transparent">
                                             {user ? roleTranslations[user.role] || user.role : "—"}
                                         </Badge>
                                     </div>
@@ -276,13 +283,13 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                     <Button
                                         onClick={handleSaveProfile}
                                         disabled={isSavingProfile}
-                                        className="mt-4 w-full sm:w-auto"
+                                        className="mt-4 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
                                     >
                                         <Save className="mr-2 h-4 w-4" />
                                         {isSavingProfile ? "Сохранение..." : "Сохранить"}
                                     </Button>
-                                    {profileError && <p className="text-sm text-red-500 mt-2">{profileError}</p>}
-                                    {profileSuccess && <p className="text-sm text-green-600 mt-2">{profileSuccess}</p>}
+                                    {profileError && <p className="text-sm text-[#B8400E] mt-2">{profileError}</p>}
+                                    {profileSuccess && <p className="text-sm text-[#114A65] mt-2">{profileSuccess}</p>}
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -324,13 +331,13 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                     <Button
                                         onClick={handleChangePassword}
                                         disabled={isChanging}
-                                        className="mt-4 w-full sm:w-auto"
+                                        className="mt-4 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
                                     >
                                         <Lock className="mr-2 h-4 w-4" />
                                         {isChanging ? "Смена..." : "Сменить пароль"}
                                     </Button>
-                                    {profileError && <p className="text-sm text-red-500 mt-2">{profileError}</p>}
-                                    {profileSuccess && <p className="text-sm text-green-600 mt-2">{profileSuccess}</p>}
+                                    {profileError && <p className="text-sm text-[#B8400E] mt-2">{profileError}</p>}
+                                    {profileSuccess && <p className="text-sm text-[#114A65] mt-2">{profileSuccess}</p>}
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -372,7 +379,7 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                     <Button
                                         onClick={handleSaveNotifications}
                                         disabled={isSavingNotifications}
-                                        className="mt-4 w-full sm:w-auto"
+                                        className="mt-4 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
                                     >
                                         {isSavingNotifications ? (
                                             <>
@@ -386,8 +393,8 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                             </>
                                         )}
                                     </Button>
-                                    {notificationError && <p className="text-sm text-red-500 mt-2">{notificationError}</p>}
-                                    {notificationSuccess && <p className="text-sm text-green-600 mt-2">{notificationSuccess}</p>}
+                                    {notificationError && <p className="text-sm text-[#B8400E] mt-2">{notificationError}</p>}
+                                    {notificationSuccess && <p className="text-sm text-[#114A65] mt-2">{notificationSuccess}</p>}
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -398,7 +405,7 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                     <div className="border-t px-4 py-4 bg-gray-50 mt-4">
                         <Button
                             variant="outline"
-                            className="w-full text-red-600 border-red-500 hover:bg-red-50"
+                            className="w-full text-[#B8400E] border-[#B8400E] hover:bg-[#B8400E]/10"
                             onClick={() => {
                                 clearAuth()
                                 handleClose()
@@ -440,8 +447,14 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                 {/* Заголовок */}
                 <div className="flex items-center justify-between border-b px-6 py-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-violet-600 rounded-lg flex items-center justify-center">
-                            <span className="text-white font-bold">W</span>
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
+                            <Image 
+                                src="/app-icon.png" 
+                                alt="App Icon" 
+                                width={40} 
+                                height={40} 
+                                className="rounded-lg"
+                            />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-gray-900">Профиль</h2>
@@ -517,7 +530,7 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-sm">Роль</Label>
-                                        <Badge className="text-sm">
+                                        <Badge className="text-sm bg-gradient-to-r from-[#114A65] to-[#B8400E] text-white border-transparent">
                                             {user ? roleTranslations[user.role] || user.role : "—"}
                                         </Badge>
                                     </div>
@@ -536,13 +549,13 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                     <Button
                                         onClick={handleSaveProfile}
                                         disabled={isSavingProfile}
-                                        className="mt-4 w-full sm:w-auto"
+                                        className="mt-4 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
                                     >
                                         <Save className="mr-2 h-4 w-4" />
                                         {isSavingProfile ? "Сохранение..." : "Сохранить"}
                                     </Button>
-                                    {profileError && <p className="text-sm text-red-500 mt-2">{profileError}</p>}
-                                    {profileSuccess && <p className="text-sm text-green-600 mt-2">{profileSuccess}</p>}
+                                    {profileError && <p className="text-sm text-[#B8400E] mt-2">{profileError}</p>}
+                                    {profileSuccess && <p className="text-sm text-[#114A65] mt-2">{profileSuccess}</p>}
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -584,13 +597,13 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                     <Button
                                         onClick={handleChangePassword}
                                         disabled={isChanging}
-                                        className="mt-4 w-full sm:w-auto"
+                                        className="mt-4 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
                                     >
                                         <Lock className="mr-2 h-4 w-4" />
                                         {isChanging ? "Смена..." : "Сменить пароль"}
                                     </Button>
-                                    {profileError && <p className="text-sm text-red-500 mt-2">{profileError}</p>}
-                                    {profileSuccess && <p className="text-sm text-green-600 mt-2">{profileSuccess}</p>}
+                                    {profileError && <p className="text-sm text-[#B8400E] mt-2">{profileError}</p>}
+                                    {profileSuccess && <p className="text-sm text-[#114A65] mt-2">{profileSuccess}</p>}
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -632,7 +645,7 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                     <Button
                                         onClick={handleSaveNotifications}
                                         disabled={isSavingNotifications}
-                                        className="mt-4 w-full sm:w-auto"
+                                        className="mt-4 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
                                     >
                                         {isSavingNotifications ? (
                                             <>
@@ -646,8 +659,8 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                             </>
                                         )}
                                     </Button>
-                                    {notificationError && <p className="text-sm text-red-500 mt-2">{notificationError}</p>}
-                                    {notificationSuccess && <p className="text-sm text-green-600 mt-2">{notificationSuccess}</p>}
+                                    {notificationError && <p className="text-sm text-[#B8400E] mt-2">{notificationError}</p>}
+                                    {notificationSuccess && <p className="text-sm text-[#114A65] mt-2">{notificationSuccess}</p>}
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -658,7 +671,7 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                 <div className="border-t px-6 py-4 bg-gray-50">
                     <Button
                         variant="outline"
-                        className="w-full text-red-600 border-red-500 hover:bg-red-50"
+                        className="w-full text-[#B8400E] border-[#B8400E] hover:bg-[#B8400E]/10"
                         onClick={() => {
                             clearAuth()
                             handleClose()

@@ -35,6 +35,7 @@ import {
 import Header from "@/app/header/Header"
 import api, { getOffices } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
+import Image from "next/image";
 import {useNotificationStore} from "@/stores/notificationStore";
 import {SuccessModal} from "@/components/success-model";
 import {useSuccessModal} from "@/hooks/use-success-modal";
@@ -173,6 +174,7 @@ export default function DepartmentHeadDashboard() {
   const [userRatings, setUserRatings] = useState<Record<number, any>>({});
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
   const [offices, setOffices] = useState<any[]>([]);
+  const [selectedOffice, setSelectedOffice] = useState<any>(null);
 
   const openModal = (name: string) => {
     setModalStack(prev => [...prev, name]);
@@ -1458,7 +1460,15 @@ export default function DepartmentHeadDashboard() {
               </h3>
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isLongTerm ? 'text-indigo-700 bg-indigo-100' : 'text-gray-600 bg-gray-100'}`}>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                isLongTerm 
+                  ? 'text-[#114A65] bg-[#114A65]/20' 
+                  : requestGroup.request_type === 'urgent'
+                    ? 'text-white bg-gradient-to-r from-[#B8400E] to-[#B8400E]/80'
+                    : requestGroup.request_type === 'planned'
+                      ? 'text-white bg-gradient-to-r from-[#114A65] to-[#114A65]/80'
+                      : 'text-white bg-[#114A65]'
+              }`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
             </div>
@@ -1950,7 +1960,58 @@ export default function DepartmentHeadDashboard() {
                 </TabsContent>
 
                 <TabsContent value="meeting-rooms" className="pt-2 sm:pt-0">
-                  <MeetingRoomsCatalog />
+                  {!selectedOffice ? (
+                    <>
+                      {/* Секция выбора офиса */}
+                      <div className="space-y-3">
+                        <div>
+                          <h2 className="text-lg font-semibold text-gray-900">Выбрать офис</h2>
+                          <p className="text-sm text-gray-500">Выберите офис для бронирования переговорной комнаты</p>
+                        </div>
+                        <div className="overflow-x-auto -mx-2 px-2">
+                          <div className="flex gap-3 pb-2" style={{ scrollbarWidth: 'thin' }}>
+                            {offices.map((office: any) => (
+                              <Card
+                                key={office.id}
+                                className="min-w-[280px] cursor-pointer transition-all hover:shadow-md active:scale-95 flex-shrink-0"
+                                onClick={() => {
+                                  setSelectedOffice(office);
+                                }}
+                              >
+                                <CardContent className="p-0">
+                                  <div className="relative aspect-[4/3] bg-gradient-to-br from-[#114A65]/10 to-[#114A65]/5 overflow-hidden rounded-t-lg">
+                                    {office.photo ? (
+                                      <Image
+                                        src={office.photo}
+                                        alt={office.name}
+                                        fill
+                                        sizes="280px"
+                                        className="object-cover"
+                                      />
+                                    ) : (
+                                      <div className="absolute inset-0 flex items-center justify-center">
+                                        <Building2 className="w-16 h-16 text-[#114A65]" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="p-4">
+                                    <h3 className="font-semibold text-gray-900">{office.name}</h3>
+                                    <p className="text-sm text-gray-600 mt-1">{office.city}</p>
+                                    <p className="text-sm text-gray-500">{office.address}</p>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <MeetingRoomsCatalog 
+                      initialOffice={selectedOffice}
+                      onOfficeChange={(office) => setSelectedOffice(office)}
+                    />
+                  )}
                 </TabsContent>
 
 

@@ -105,7 +105,7 @@ export function DeskHeightCalculator({
   if (!isOpen) return null
 
   return (
-    <Card className="mt-4 border-purple-200 shadow-md">
+    <Card className="mt-4 border-[#C4C4CE] shadow-md">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl font-bold">
@@ -178,23 +178,23 @@ export function DeskHeightCalculator({
         {(sittingHeight !== null || standingHeight !== null) && (
           <div className="border-t pt-6">
             <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col items-center justify-center space-y-3 p-4 rounded-lg bg-purple-50/50">
-                <div className="p-3 rounded-full bg-purple-100">
-                  <UserCircle className="w-8 h-8 text-purple-600" />
+              <div className="flex flex-col items-center justify-center space-y-3 p-4 rounded-lg bg-[#114A65]/10">
+                <div className="p-3 rounded-full bg-[#114A65]/20">
+                  <UserCircle className="w-8 h-8 text-[#114A65]" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-semibold text-gray-700 mb-1">
+                  <p className="text-sm font-semibold text-[#040404] mb-1">
                     Сидя
                   </p>
-                  <p className="text-xl font-bold text-gray-900">
+                  <p className="text-xl font-bold text-[#040404]">
                     {sittingHeight !== null ? `${sittingHeight} см` : "—"}
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-col items-center justify-center space-y-3 p-4 rounded-lg bg-purple-50/50">
-                <div className="p-3 rounded-full bg-purple-100">
-                  <User className="w-8 h-8 text-purple-600" />
+              <div className="flex flex-col items-center justify-center space-y-3 p-4 rounded-lg bg-[#B8400E]/10">
+                <div className="p-3 rounded-full bg-[#B8400E]/20">
+                  <User className="w-8 h-8 text-[#B8400E]" />
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-semibold text-gray-700 mb-1">

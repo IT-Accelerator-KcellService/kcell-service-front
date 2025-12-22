@@ -47,11 +47,11 @@ export function OfficeSelection({ onSelectOffice }: OfficeSelectionProps) {
         {offices.map((office) => (
           <Card
             key={office.id}
-            className="cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-2 hover:border-purple-300"
+            className="cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] border-2 hover:border-[#114A65]/30"
             onClick={() => onSelectOffice(office)}
           >
             <CardContent className="p-0">
-              <div className="relative aspect-[4/3] bg-gradient-to-br from-purple-100 to-purple-50 overflow-hidden">
+              <div className="relative aspect-[4/3] bg-gradient-to-br from-[#114A65]/10 to-[#B8400E]/10 overflow-hidden">
                 {office.photo ? (
                   <>
                     <Image
@@ -65,7 +65,7 @@ export function OfficeSelection({ onSelectOffice }: OfficeSelectionProps) {
                   </>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Building2 className="w-20 h-20 text-purple-600" />
+                    <Building2 className="w-20 h-20 text-[#114A65]" />
                   </div>
                 )}
               </div>

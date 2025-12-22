@@ -58,31 +58,31 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick }: Pr
     // Получить иконку для типа уведомления
     const getNotificationIcon = (title: string) => {
         if (title.toLowerCase().includes('принята') || title.toLowerCase().includes('одобрена')) {
-            return <CheckCircle className="w-4 h-4 text-green-600" />;
+            return <CheckCircle className="w-4 h-4 text-[#114A65]" />;
         }
         if (title.toLowerCase().includes('завершена') || title.toLowerCase().includes('выполнена')) {
-            return <CheckCircle className="w-4 h-4 text-blue-600" />;
+            return <CheckCircle className="w-4 h-4 text-[#114A65]" />;
         }
         if (title.toLowerCase().includes('просрочена') || title.toLowerCase().includes('отклонена')) {
-            return <AlertCircle className="w-4 h-4 text-red-600" />;
+            return <AlertCircle className="w-4 h-4 text-[#B8400E]" />;
         }
-        return <Clock className="w-4 h-4 text-gray-600" />;
+        return <Clock className="w-4 h-4 text-[#C4C4CE]" />;
     }
 
     // Получить цвет фона для уведомления
     const getNotificationBgColor = (title: string, isRead: boolean) => {
-        if (isRead) return 'bg-gray-50/80 border-gray-100';
+        if (isRead) return 'bg-gradient-to-r from-[#F3F3F3] to-[#C4C4CE]/30 border-[#C4C4CE] backdrop-blur-sm';
         
         if (title.toLowerCase().includes('принята') || title.toLowerCase().includes('одобрена')) {
-            return 'bg-green-50/90 border-green-200';
+            return 'bg-gradient-to-r from-[#114A65]/20 via-[#114A65]/10 to-[#114A65]/20 border-[#114A65]/30 backdrop-blur-md';
         }
         if (title.toLowerCase().includes('завершена') || title.toLowerCase().includes('выполнена')) {
-            return 'bg-blue-50/90 border-blue-200';
+            return 'bg-gradient-to-r from-[#114A65]/20 via-[#B8400E]/10 to-[#114A65]/20 border-[#114A65]/30 backdrop-blur-md';
         }
         if (title.toLowerCase().includes('просрочена') || title.toLowerCase().includes('отклонена')) {
-            return 'bg-red-50/90 border-red-200';
+            return 'bg-gradient-to-r from-[#B8400E]/20 via-[#B8400E]/10 to-[#B8400E]/20 border-[#B8400E]/30 backdrop-blur-md';
         }
-        return 'bg-violet-50/90 border-violet-200';
+        return 'bg-gradient-to-r from-[#114A65]/15 via-[#B8400E]/10 to-[#114A65]/15 border-[#114A65]/30 backdrop-blur-md';
     }
 
     // Обработчик клика по ID заявки
@@ -106,27 +106,27 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick }: Pr
         <Card className="border-0 shadow-lg bg-white/95 backdrop-blur-sm">
             <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-[#114A65] rounded-lg flex items-center justify-center">
                         <Bell className="h-4 w-4 text-white" />
                     </div>
-                    <CardTitle className="text-lg font-bold text-gray-900">Уведомления</CardTitle>
+                    <CardTitle className="text-lg font-bold text-[#040404]">Уведомления</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="pt-0">
                 {notificationLoading ? (
                     <div className="flex justify-center py-8">
                         <div className="flex items-center gap-2 text-gray-500">
-                            <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+                            <div className="w-4 h-4 border-2 border-[#114A65] border-t-transparent rounded-full animate-spin"></div>
                             <span className="text-sm">Загрузка...</span>
                         </div>
                     </div>
                 ) : displayedNotifications.length === 0 ? (
                     <div className="text-center py-8">
-                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <Bell className="h-6 w-6 text-gray-400" />
+                        <div className="w-12 h-12 bg-[#F3F3F3] rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Bell className="h-6 w-6 text-[#C4C4CE]" />
                         </div>
-                        <p className="text-gray-500 font-medium text-sm">Нет уведомлений</p>
-                        <p className="text-xs text-gray-400 mt-1">Новые уведомления появятся здесь</p>
+                        <p className="text-[#C4C4CE] font-medium text-sm">Нет уведомлений</p>
+                        <p className="text-xs text-[#C4C4CE] mt-1">Новые уведомления появятся здесь</p>
                     </div>
                 ) : (
                     <div className="space-y-3">
@@ -144,20 +144,20 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick }: Pr
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-2">
-                                            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">
+                                            <h3 className="text-sm font-semibold text-[#040404] line-clamp-2 leading-tight">
                                                 {n.title}
                                             </h3>
                                             {!n.is_read && (
-                                                <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-violet-600 bg-violet-100 rounded-full whitespace-nowrap">
+                                                <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-[#B8400E] bg-[#B8400E]/20 rounded-full whitespace-nowrap">
                                                     Новое
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                        <p className="text-xs text-[#C4C4CE] mt-1 flex items-center gap-1">
                                             <Clock className="w-3 h-3" />
                                             {formatTimeAgo(n.created_at)}
                                         </p>
-                                        <p className="text-sm text-gray-700 mt-2 leading-relaxed line-clamp-2">
+                                        <p className="text-sm text-[#040404] mt-2 leading-relaxed line-clamp-2">
                                             {createClickableRequestIds(n.content, handleRequestIdClick)}
                                         </p>
                                     </div>

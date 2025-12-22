@@ -23,11 +23,6 @@ export interface MeetingRoom {
   isActive: boolean;
   description?: string;
   office_id?: number | null;
-  office?: {
-    id: number;
-    name: string;
-    city: string;
-  } | null;
 }
 
 interface MeetingRoomsState {
@@ -53,7 +48,6 @@ const convertApiRoomToStoreRoom = (apiRoom: ApiMeetingRoom): MeetingRoom => ({
   isActive: apiRoom.isActive,
   description: apiRoom.description || undefined,
   office_id: apiRoom.office_id || null,
-  office: apiRoom.office || null,
 });
 
 export const useMeetingRoomsStore = create<MeetingRoomsState>((set, get) => ({

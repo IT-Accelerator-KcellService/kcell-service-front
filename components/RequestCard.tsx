@@ -80,10 +80,10 @@ function RequestCardComponent({
   const formattedDate = useMemo(() => formatDate(request.created_date), [request.created_date, formatDate])
   
   const cardClassName = useMemo(() => {
-    return `hover:shadow-md transition-shadow duration-200 border-0 shadow-sm relative overflow-hidden cursor-pointer will-change-transform ${
+    return `hover:shadow-xl transition-all duration-300 border-0 shadow-md relative overflow-hidden cursor-pointer will-change-transform backdrop-blur-sm ${
       request.is_long_term && request.request_type !== 'recurring'
-        ? 'bg-blue-50 hover:shadow-blue-200/50 border-l-4 border-blue-500' 
-        : 'bg-white hover:shadow-gray-200/50'
+        ? 'bg-gradient-to-r from-[#114A65]/10 via-white to-[#114A65]/5 hover:from-[#114A65]/15 hover:via-white hover:to-[#114A65]/10 border-l-4 border-[#114A65] backdrop-blur-md' 
+        : 'bg-gradient-to-br from-white via-[#F3F3F3] to-white hover:shadow-[#C4C4CE]/40'
     }`
   }, [request.is_long_term, request.request_type])
   
@@ -104,13 +104,13 @@ function RequestCardComponent({
       <CardContent className="px-5 pb-5 pt-0 space-y-3">
         {/* Основная информация в сетке */}
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-            <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+          <div className="flex items-center gap-2 text-[#040404] bg-gradient-to-r from-[#114A65]/10 to-[#B8400E]/10 backdrop-blur-sm border border-[#114A65]/20 p-2 rounded-lg shadow-sm">
+            <MapPin className="w-4 h-4 flex-shrink-0 text-[#114A65]" />
             <span className="truncate font-medium">{request.location_detail}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-            <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
+          <div className="flex items-center gap-2 text-[#040404] bg-gradient-to-r from-[#B8400E]/10 to-[#114A65]/10 backdrop-blur-sm border border-[#B8400E]/20 p-2 rounded-lg shadow-sm">
+            <CalendarLucid className="w-4 h-4 flex-shrink-0 text-[#114A65]" />
             <span className="truncate font-medium">{formattedDate}</span>
           </div>
         </div>
@@ -119,8 +119,8 @@ function RequestCardComponent({
         {request.photos && request.photos.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-purple-500" />
-              <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
+              <ImageIcon className="w-4 h-4 text-[#114A65]" />
+              <span className="text-sm font-medium text-[#040404]">{request.photos.length} фото</span>
             </div>
             <div className="flex gap-2 overflow-x-auto">
               {request.photos.slice(0, 2).map((photo, index) => (
@@ -128,11 +128,11 @@ function RequestCardComponent({
                   key={index}
                   src={getThumbnailUrl(photo.photo_url)}
                   alt={`Фото ${index + 1}`}
-                  className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm flex-shrink-0"
+                  className="w-12 h-12 rounded-lg object-cover border-2 border-[#C4C4CE] shadow-sm flex-shrink-0"
                 />
               ))}
               {request.photos.length > 2 && (
-                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-purple-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-[#114A65] border-2 border-[#C4C4CE] flex items-center justify-center shadow-sm">
                   <span className="text-xs font-bold text-white">+{request.photos.length - 2}</span>
                 </div>
               )}
@@ -142,21 +142,21 @@ function RequestCardComponent({
 
         {/* Рейтинг клиента */}
         {clientRating && request.status === "completed" && request.client?.role === "client" && (
-          <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+          <div className="p-3 bg-gradient-to-br from-[#114A65]/15 via-[#B8400E]/10 to-[#114A65]/15 backdrop-blur-md border border-[#114A65]/30 rounded-lg shadow-sm">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm font-medium text-purple-800">
+              <span className="text-sm font-medium text-[#114A65]">
                 {userRole === "client" ? "Оценки от исполнителей:" : "Оценки клиента:"}
               </span>
               {Array.isArray(clientRating) ? (
                 // Показываем количество оценок
-                <span className="text-xs text-purple-700">
+                <span className="text-xs text-[#114A65]">
                   {clientRating.length} оценок
                 </span>
               ) : (
                 // Обратная совместимость для старого формата
                 <div className="flex">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <span key={star} className={`text-sm ${star <= clientRating.rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                    <span key={star} className={`text-sm ${star <= clientRating.rating ? 'text-[#B8400E]' : 'text-[#C4C4CE]'}`}>
                       ★
                     </span>
                   ))}
@@ -171,22 +171,22 @@ function RequestCardComponent({
                   <div className="flex items-center gap-2 mb-1">
                     <div className="flex">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <span key={star} className={`text-sm ${star <= clientRating[0].rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                        <span key={star} className={`text-sm ${star <= clientRating[0].rating ? 'text-[#B8400E]' : 'text-[#C4C4CE]'}`}>
                           ★
                         </span>
                       ))}
                     </div>
-                    <span className="text-xs text-purple-700">
+                    <span className="text-xs text-[#114A65]">
                       {clientRating[0].rating}/5
                     </span>
                   </div>
                   {clientRating[0].comment && (
-                    <p className="text-xs text-purple-700 break-words line-clamp-2">
+                    <p className="text-xs text-[#040404] break-words line-clamp-2">
                       "{clientRating[0].comment}"
                     </p>
                   )}
                   {clientRating.length > 1 && (
-                    <p className="text-xs text-purple-600 mt-1">
+                    <p className="text-xs text-[#114A65] mt-1">
                       +{clientRating.length - 1} еще оценок
                     </p>
                   )}
@@ -195,7 +195,7 @@ function RequestCardComponent({
             ) : (
               // Обратная совместимость для старого формата
               clientRating.comment && (
-                <p className="text-xs text-purple-700 break-words line-clamp-2">
+                <p className="text-xs text-[#040404] break-words line-clamp-2">
                   "{clientRating.comment}"
                 </p>
               )
@@ -204,8 +204,8 @@ function RequestCardComponent({
         )}
 
         {/* Нижняя панель */}
-        <div className="flex flex-wrap items-center justify-between pt-3 border-t border-gray-100 gap-2">
-          <div className="flex items-center gap-1 text-xs text-gray-600 min-w-0">
+        <div className="flex flex-wrap items-center justify-between pt-3 border-t border-[#C4C4CE] gap-2">
+          <div className="flex items-center gap-1 text-xs text-[#040404] min-w-0">
             <User className="w-3 h-3 flex-shrink-0" />
             <span className="font-medium truncate" title={request.client?.full_name || 'Неизвестный клиент'}>
               {request.client?.full_name || 'Неизвестный клиент'}
@@ -214,7 +214,7 @@ function RequestCardComponent({
           {request.client?.phone && (
             <a
               href={`tel:${request.client.phone}`}
-              className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full transition-colors duration-200 cursor-pointer break-words"
+              className="text-xs font-bold text-[#114A65] bg-[#114A65]/10 hover:bg-[#114A65]/20 px-2 py-1 rounded-full transition-colors duration-200 cursor-pointer break-words"
               onClick={(e) => e.stopPropagation()}
               title="Позвонить"
             >

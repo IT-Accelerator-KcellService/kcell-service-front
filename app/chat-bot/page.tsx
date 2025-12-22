@@ -140,9 +140,9 @@ export default function ChatPage() {
     }, []);
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50 safe-area-padding">
+        <div className="flex flex-col h-screen bg-[#F3F3F3] safe-area-padding">
             {/* Header */}
-            <header className="sticky top-0 z-10 bg-purple-100 border-b p-4 safe-area-top">
+            <header className="sticky top-0 z-10 bg-gradient-to-r from-[#114A65]/20 via-[#114A65]/10 to-[#114A65]/20 border-b border-[#C4C4CE] backdrop-blur-md p-4 safe-area-top">
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
                     <Link
                         href="/"
@@ -187,14 +187,14 @@ export default function ChatPage() {
                             >
                                 <Copy className="w-3 h-3 text-gray-500" />
                             </button>
-                            <div className={`px-4 py-3 rounded-2xl ${msg.from === "bot" ? "bg-purple-100 text-gray-800 rounded-tl-none" : "bg-gray-100 text-gray-800 rounded-tr-none"}`}>
+                            <div className={`px-4 py-3 rounded-2xl ${msg.from === "bot" ? "bg-gradient-to-r from-[#114A65]/20 via-[#114A65]/10 to-[#114A65]/20 text-[#040404] rounded-tl-none backdrop-blur-sm" : "bg-gradient-to-r from-[#F3F3F3] to-[#C4C4CE]/30 text-[#040404] rounded-tr-none backdrop-blur-sm"}`}>
                                 <ReactMarkdown components={{
                                     p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
                                     ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-2" {...props} />,
                                     ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-2" {...props} />,
                                     li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-                                    code: ({ node, ...props }) => <code className="bg-gray-200 px-1 rounded text-sm font-mono" {...props} />,
-                                    a: ({ node, ...props }) => <a className="text-purple-600 hover:underline" {...props} />
+                                    code: ({ node, ...props }) => <code className="bg-[#C4C4CE]/30 px-1 rounded text-sm font-mono" {...props} />,
+                                    a: ({ node, ...props }) => <a className="text-[#114A65] hover:underline" {...props} />
                                 }}>
                                     {msg.text}
                                 </ReactMarkdown>
@@ -222,11 +222,11 @@ export default function ChatPage() {
                             width={32}
                             height={32}
                         />
-                        <div className="px-4 py-3 rounded-2xl bg-purple-100 text-gray-800 rounded-tl-none">
+                        <div className="px-4 py-3 rounded-2xl bg-gradient-to-r from-[#114A65]/20 via-[#114A65]/10 to-[#114A65]/20 text-[#040404] rounded-tl-none backdrop-blur-sm">
                             <div className="flex space-x-2">
-                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce"></div>
-                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                                <div className="w-2 h-2 rounded-full bg-[#114A65] animate-bounce"></div>
+                                <div className="w-2 h-2 rounded-full bg-[#114A65] animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                <div className="w-2 h-2 rounded-full bg-[#114A65] animate-bounce" style={{animationDelay: '0.4s'}}></div>
                             </div>
                         </div>
                     </div>
@@ -237,10 +237,10 @@ export default function ChatPage() {
             {/* Input */}
             <form
                 onSubmit={handleSubmit}
-                className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 max-w-2xl mx-auto w-full safe-area-bottom"
+                className="fixed bottom-16 left-0 right-0 bg-gradient-to-r from-[#F3F3F3] via-white to-[#F3F3F3] border-t border-[#C4C4CE] backdrop-blur-md p-4 max-w-2xl mx-auto w-full safe-area-bottom"
             >
                 {error && (
-                    <div className="text-red-500 text-xs mb-2 px-2">{error}</div>
+                    <div className="text-[#B8400E] text-xs mb-2 px-2">{error}</div>
                 )}
                 <div className="flex items-end gap-2">
                     <textarea
@@ -249,14 +249,14 @@ export default function ChatPage() {
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Напишите сообщение..."
-                        className="flex-1 border border-gray-300 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm min-h-[48px] max-h-[150px] bg-white"
+                        className="flex-1 border border-[#C4C4CE] rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#114A65] focus:border-transparent text-sm min-h-[48px] max-h-[150px] bg-white"
                         rows={1}
                         aria-label="Поле ввода сообщения"
                         disabled={isSending}
                     />
                     <button
                         type="submit"
-                        className="bg-purple-600 text-white rounded-xl p-3 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 mb-[2px]"
+                        className="bg-gradient-to-r from-[#114A65] to-[#B8400E] text-white rounded-xl p-3 hover:from-[#0d3a4f] hover:to-[#A3390D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#114A65] mb-[2px]"
                         disabled={!inputValue.trim() || isSending}
                         aria-label="Отправить сообщение"
                     >

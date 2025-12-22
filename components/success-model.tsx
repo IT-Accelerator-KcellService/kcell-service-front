@@ -36,7 +36,7 @@ export function SuccessModal({
 
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto p-8 animate-in zoom-in-95 fade-in duration-300 border border-gray-100">
                 <div className="flex justify-center mb-6">
-                    <div className="w-16 h-16 rounded-full flex items-center justify-center bg-purple-600 text-white animate-in zoom-in duration-300 delay-100">
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-[#114A65] to-[#B8400E] text-white animate-in zoom-in duration-300 delay-100 shadow-lg backdrop-blur-sm">
                         <Check className="w-8 h-8 stroke-[2.5]" />
                     </div>
                 </div>

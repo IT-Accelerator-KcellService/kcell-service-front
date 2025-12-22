@@ -9,7 +9,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { OfficeSelection } from "@/components/meeting-rooms/OfficeSelection";
 import { BookingModal } from "@/components/meeting-rooms/BookingModal";
 import { MyBookings } from "@/components/meeting-rooms/MyBookings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,14 +21,58 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 import { Office } from "@/lib/api";
 
-export function MeetingRoomsCatalog() {
+interface MeetingRoomsCatalogProps {
+  initialOffice?: Office | null;
+  onOfficeChange?: (office: Office | null) => void;
+  initialTab?: "book" | "my-bookings";
+  onTabChange?: (tab: "book" | "my-bookings") => void;
+  showCalculator?: boolean;
+  onCalculatorToggle?: (show: boolean) => void;
+}
+
+export function MeetingRoomsCatalog({ 
+  initialOffice = null, 
+  onOfficeChange,
+  initialTab = "book",
+  onTabChange,
+  showCalculator = false,
+  onCalculatorToggle
+}: MeetingRoomsCatalogProps) {
   const rooms = useMeetingRoomsStore((state) => state.rooms);
   const fetchRooms = useMeetingRoomsStore((state) => state.fetchRooms);
-  const [selectedOffice, setSelectedOffice] = useState<Office | null>(null);
+  const [selectedOffice, setSelectedOffice] = useState<Office | null>(initialOffice);
   const [selectedRoom, setSelectedRoom] = useState<MeetingRoom | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"book" | "my-bookings">("book");
-  const [showDeskCalculator, setShowDeskCalculator] = useState(false);
+  const [activeTab, setActiveTab] = useState<"book" | "my-bookings">(initialTab);
+  
+  // Синхронизируем с внешним состоянием
+  useEffect(() => {
+    if (initialOffice !== selectedOffice) {
+      setSelectedOffice(initialOffice);
+    }
+  }, [initialOffice]);
+  
+  // Синхронизируем активную вкладку с внешним состоянием
+  useEffect(() => {
+    if (initialTab !== activeTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+  
+  
+  const handleOfficeChange = (office: Office | null) => {
+    setSelectedOffice(office);
+    onOfficeChange?.(office);
+  };
+  
+  const handleTabChange = (tab: "book" | "my-bookings") => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
+  
+  const handleCalculatorToggle = (show: boolean) => {
+    onCalculatorToggle?.(show);
+  };
   const successModal = useSuccessModal();
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -97,10 +140,11 @@ export function MeetingRoomsCatalog() {
   const BookingContent = () => {
     if (!selectedOffice) {
       return (
-        <div>
-          <OfficeSelection
-            onSelectOffice={(office) => setSelectedOffice(office)}
-          />
+        <div className="rounded-lg border border-dashed p-10 text-center">
+          <h3 className="text-lg font-semibold">Выберите офис</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Выберите офис из главной страницы для просмотра переговорных комнат
+          </p>
         </div>
       );
     }
@@ -111,7 +155,7 @@ export function MeetingRoomsCatalog() {
         <Button
           variant="ghost"
           onClick={() => {
-            setSelectedOffice(null);
+            handleOfficeChange(null);
           }}
           className="gap-2"
         >
@@ -181,34 +225,12 @@ export function MeetingRoomsCatalog() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "book" | "my-bookings")}>
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList>
-            <TabsTrigger value="book">Бронировать</TabsTrigger>
-            <TabsTrigger value="my-bookings">Мои бронирования</TabsTrigger>
-          </TabsList>
-          
-          <Button
-            type="button"
-            variant="outline"
-            className="flex items-center gap-2 hover:bg-purple-50 hover:border-purple-200 transition-all"
-            onClick={() => setShowDeskCalculator(!showDeskCalculator)}
-          >
-            <Ruler className="h-4 w-4 text-purple-600" />
-            <span className="font-medium">Калькулятор высоты стола</span>
-          </Button>
-        </div>
-        
-        <DeskHeightCalculator
-          isOpen={showDeskCalculator}
-          onToggle={() => setShowDeskCalculator(!showDeskCalculator)}
-        />
-        
-        <TabsContent value="book" className="mt-6">
+      <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as "book" | "my-bookings")}>
+        <TabsContent value="book">
           <BookingContent />
         </TabsContent>
         
-        <TabsContent value="my-bookings" className="mt-6">
+        <TabsContent value="my-bookings">
           <MyBookings />
         </TabsContent>
       </Tabs>
