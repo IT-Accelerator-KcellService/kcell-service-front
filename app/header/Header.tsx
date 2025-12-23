@@ -105,7 +105,7 @@ const Header: React.FC<HeaderProps> = ({
                                     variant="ghost"
                                     size="sm"
                                     onClick={onRefresh}
-                                    className="p-2 hover:bg-violet-50 transition-colors duration-200"
+                                    className="p-2 hover:bg-[#114A65]/10 transition-colors duration-200"
                                 >
                                     <RefreshCw className="w-5 h-5 text-[#040404]"/>
                                     <span className="ml-1 text-sm">Обновить</span>

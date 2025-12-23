@@ -86,7 +86,7 @@ html {
 
 /* Custom gradient backgrounds */
 .gradient-violet {
-  background: linear-gradient(135deg, #6a1b9a 0%, #8e24aa 50%, #ab47bc 100%);
+  background: linear-gradient(135deg, #114A65 0%, #114A65 50%, #B8400E 100%);
 }
 
 /* Prevent iOS zoom on input focus */

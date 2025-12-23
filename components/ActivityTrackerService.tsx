@@ -74,10 +74,37 @@ export function ActivityTrackerService() {
   const isAndroidWebView = useRef<boolean>(false)
   const healthReminderIntervalRef = useRef<number | null>(null)
 
+  // Ранний выход, если пользователь не executor - сервис не должен работать для других ролей
+  useEffect(() => {
+    if (user && user.role !== 'executor') {
+      // Останавливаем все процессы, если они были запущены
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      if (saveIntervalRef.current) {
+        clearInterval(saveIntervalRef.current)
+        saveIntervalRef.current = null
+      }
+      if (autoStartCheckRef.current) {
+        clearInterval(autoStartCheckRef.current)
+        autoStartCheckRef.current = null
+      }
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      if (isTracking) {
+        setIsTracking(false)
+      }
+    }
+  }, [user, isTracking, setIsTracking])
+
   // Синхронизация ref с store
   useEffect(() => {
+    if (!user || user.role !== 'executor') return // Не обновляем ref для не-executor
     isTrackingRef.current = isTracking
-  }, [isTracking])
+  }, [isTracking, user])
 
   // Проверка Android WebView для уведомлений
   useEffect(() => {
@@ -183,9 +210,15 @@ export function ActivityTrackerService() {
 
   // Сохранение статистики на сервер
   const saveStatisticsToServer = async () => {
+    // Проверка роли - только executor может сохранять статистику
+    if (!user || user.role !== 'executor') {
+      console.log('⏭️ [Service] Пропуск сохранения: пользователь не executor')
+      return
+    }
+    
     // Используем ref для проверки актуального состояния
-    if (!user || !isTrackingRef.current) {
-      console.log('⏭️ [Service] Пропуск сохранения: user=', !!user, 'isTracking=', isTrackingRef.current)
+    if (!isTrackingRef.current) {
+      console.log('⏭️ [Service] Пропуск сохранения: трекер не запущен')
       return
     }
     
@@ -407,6 +440,12 @@ export function ActivityTrackerService() {
 
   // Запуск трекера
   const startTracking = async () => {
+    // Дополнительная проверка роли для безопасности
+    if (!user || user.role !== 'executor') {
+      console.warn('⚠️ [Service] Попытка запуска трекера для пользователя без роли executor')
+      return
+    }
+    
     if (isStartingRef.current || isTrackingRef.current) return
     
     isStartingRef.current = true
@@ -639,6 +678,7 @@ export function ActivityTrackerService() {
 
   // Реакция на изменения isTracking из store (запросы на запуск/остановку)
   useEffect(() => {
+    if (!user || user.role !== 'executor') return // Только для executor
     if (isTracking && !intervalRef.current && !isStartingRef.current) {
       // Запускаем трекер, если он был запрошен
       console.log('🔄 [Service] Tracking requested, starting...')
@@ -648,10 +688,11 @@ export function ActivityTrackerService() {
       console.log('🔄 [Service] Tracking stop requested, stopping...')
       stopTracking()
     }
-  }, [isTracking])
+  }, [isTracking, user])
 
   // Восстановление трекера при монтировании (если был запущен)
   useEffect(() => {
+    if (!user || user.role !== 'executor') return // Только для executor
     if (isTracking && !intervalRef.current) {
       console.log('🔄 [Service] Restoring tracking state...')
       // Восстанавливаем обработчики событий
@@ -818,6 +859,13 @@ export function ActivityTrackerService() {
 
   // Обработчики событий для стандартных Web API
   useEffect(() => {
+    if (!user || user.role !== 'executor') {
+      // Удаляем обработчики, если пользователь не executor
+      window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
+      window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
+      return
+    }
+    
     if (isTracking && !isAndroidWebView.current) {
       window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
       window.addEventListener('deviceorientation', handleDeviceOrientation as EventListener)
@@ -845,10 +893,19 @@ export function ActivityTrackerService() {
         saveIntervalRef.current = null
       }
     }
-  }, [isTracking])
+  }, [isTracking, user])
 
   // Health напоминания - проверка времени сидения
   useEffect(() => {
+    if (!user || user.role !== 'executor') {
+      // Очищаем интервал для не-executor
+      if (healthReminderIntervalRef.current) {
+        clearInterval(healthReminderIntervalRef.current)
+        healthReminderIntervalRef.current = null
+      }
+      return
+    }
+    
     if (!isTracking || !healthReminders.enabled || lastPosture !== 'sitting') {
       // Очищаем интервал если трекинг выключен или пользователь стоит
       if (healthReminderIntervalRef.current) {

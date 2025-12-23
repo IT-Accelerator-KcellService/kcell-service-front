@@ -314,14 +314,14 @@ export function ActionMenu({
       <Button
         variant="outline"
         size="sm"
-        className="h-8 w-8 p-0 bg-white hover:bg-purple-50 border border-purple-200 rounded-full transition-all duration-200 shadow-sm hover:shadow-md"
+        className="h-8 w-8 p-0 bg-white hover:bg-[#114A65]/10 border border-[#114A65]/20 rounded-full transition-all duration-200 shadow-sm hover:shadow-md"
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
           setOpen(true)
         }}
       >
-        <MoreHorizontal className="h-4 w-4 text-purple-600" />
+        <MoreHorizontal className="h-4 w-4 text-[#114A65]" />
         <span className="sr-only">Открыть меню действий</span>
       </Button>
       {mobileActionMenu}

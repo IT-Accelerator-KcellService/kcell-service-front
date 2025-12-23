@@ -225,7 +225,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   onKeyPress={handleKeyPress}
                   onInput={handleInput}
                   placeholder="Написать комментарий..."
-                  className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                  className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#114A65] focus:border-transparent resize-none"
                   style={{
                     height: 'auto',
                     minHeight: '40px',
@@ -236,7 +236,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
               <Button
                 size="sm"
                 onClick={() => handleSend(requestId)}
-                className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
+                className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] p-3 rounded-lg flex-shrink-0 text-white"
                 disabled={!comment.trim()}
               >
                 <Send className="w-4 w-4" />

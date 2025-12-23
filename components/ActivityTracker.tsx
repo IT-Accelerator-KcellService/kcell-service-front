@@ -465,6 +465,12 @@ export function ActivityTracker() {
 
   // Запрос разрешения и начало отслеживания
   const startTracking = useCallback(async (isManual = false) => {
+    // Проверка роли - трекер доступен только для executor
+    if (!user || user.role !== 'executor') {
+      setError('Трекер активности доступен только для исполнителей')
+      return
+    }
+    
     // Защита от множественных запусков
     if (isStartingRef.current || isTracking) {
       console.log('⚠️ Трекер уже запускается или уже запущен')
@@ -709,6 +715,15 @@ export function ActivityTracker() {
     }
   }, [])
 
+  // Проверка, что пользователь имеет право использовать трекер
+  useEffect(() => {
+    if (!user) return
+    if (user.role !== 'executor') {
+      setError('Трекер активности доступен только для исполнителей')
+      setIsTracking(false)
+    }
+  }, [user])
+
   // Автоматический запуск трекера в рабочие часы И если в офисе
   useEffect(() => {
     if (!isMounted) return // Ждем монтирования компонента
@@ -821,6 +836,29 @@ export function ActivityTracker() {
 
   // Обработчики событий теперь в ActivityTrackerService
   // Этот компонент только отображает UI и управляет через store
+
+  // Проверка роли перед рендерингом (после всех хуков)
+  if (user && user.role !== 'executor') {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <Button
+          onClick={() => router.back()}
+          variant="ghost"
+          className="text-sm sm:text-base -ml-2"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Назад
+        </Button>
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs sm:text-sm text-center">
+              Трекер активности доступен только для исполнителей
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -958,16 +996,16 @@ export function ActivityTracker() {
                 </div>
               </div>
 
-              <div className="p-3 sm:p-4 bg-violet-50 rounded-lg">
+              <div className="p-3 sm:p-4 bg-[#114A65]/10 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-violet-600 flex-shrink-0" />
-                  <span className="text-xs sm:text-sm font-medium text-violet-900">Количество вставаний</span>
+                  <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-[#114A65] flex-shrink-0" />
+                  <span className="text-xs sm:text-sm font-medium text-[#040404]">Количество вставаний</span>
                 </div>
-                <div className="text-xl sm:text-2xl font-bold text-violet-600">
+                <div className="text-xl sm:text-2xl font-bold text-[#114A65]">
                   {statistics.standUpCount}
                 </div>
                 {statistics.lastStandUpTime && (
-                  <div className="text-xs text-violet-700 mt-1">
+                  <div className="text-xs text-[#114A65] mt-1">
                     Последнее: {new Date(statistics.lastStandUpTime).toLocaleTimeString()}
                   </div>
                 )}

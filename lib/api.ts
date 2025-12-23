@@ -123,6 +123,10 @@ export const updateOfficeWorkingHours = (
 
 // ==================== Users ====================
 
+// Получить всех пользователей (для админа)
+export const getUsers = (page = 1, limit = 1000) => 
+    api.get(`/users?page=${page}&limit=${limit}`);
+
 // Обновить пользователя
 export const updateUser = (
     id: number,
@@ -132,6 +136,14 @@ export const updateUser = (
 // Изменить пароль пользователя (только для админа офиса)
 export const changeUserPassword = (userId: number, newPassword: string) =>
     api.patch(`/users/${userId}/change-password`, { new_password: newPassword });
+
+// Отправить код верификации email
+export const sendEmailVerificationCode = (email: string) =>
+    api.post('/users/send-email-verification', { email });
+
+// Верифицировать email по коду
+export const verifyEmail = (code: string) =>
+    api.post('/users/verify-email', { code });
 
 
 
@@ -544,3 +556,95 @@ export interface WeeklyCalendarData {
 
 export const getMeetingRoomWeeklyCalendar = (startDate: string, endDate: string) =>
     api.get<WeeklyCalendarData>(`/meeting-room-bookings/calendar/weekly?start_date=${startDate}&end_date=${endDate}`);
+
+// ==================== Yandex Smart Home ====================
+// Все запросы к Яндекс умному дому обрабатываются через бэкенд
+// Бэкенд отправляет запросы на Яндекс и возвращает результат на фронтенд
+
+// Получить информацию о токенах (без самих токенов)
+export const getYandexTokens = () =>
+    api.get('/yandex-smart-home/tokens');
+
+// Удалить токены
+export const deleteYandexTokens = () =>
+    api.delete('/yandex-smart-home/tokens');
+
+// Обновить токены через refresh_token
+export const refreshYandexTokens = () =>
+    api.post('/yandex-smart-home/tokens/refresh');
+
+// ==================== Управление устройствами для комнат ====================
+
+// Интерфейсы для устройств
+export interface YandexDevice {
+    id: string;
+    name: string;
+    aliases?: string[];
+    type?: string;
+    external_id?: string;
+    skill_id?: string;
+    household_id?: string;
+    room?: string;
+    groups?: string[];
+    capabilities?: any[];
+    properties?: any[];
+}
+
+export interface RoomDevice {
+    id: number;
+    meeting_room_id: number;
+    device_id: string;
+    device_name: string;
+    device_type: string | null;
+    created_at: string;
+    updated_at: string;
+    meetingRoom?: {
+        id: number;
+        name: string;
+        office_id: number | null;
+    };
+}
+
+// Получить список устройств из Яндекс API
+export const getYandexDevicesList = () =>
+    api.get<{ success: boolean; devices: YandexDevice[] }>('/yandex-smart-home/devices/list');
+
+// Создать связь устройства с комнатой
+export const createRoomDevice = (data: {
+    meeting_room_id: number;
+    device_id: string;
+    device_name: string;
+    device_type?: string;
+}) =>
+    api.post<{ success: boolean; message: string; data: RoomDevice }>('/yandex-smart-home/room-devices', data);
+
+// Получить все связи устройств с комнатами
+export const getAllRoomDevices = () =>
+    api.get<{ success: boolean; devices: RoomDevice[] }>('/yandex-smart-home/room-devices');
+
+// Получить устройства для конкретной комнаты
+export const getRoomDevices = (meeting_room_id: number) =>
+    api.get<{ success: boolean; devices: RoomDevice[] }>(`/yandex-smart-home/room-devices/room/${meeting_room_id}`);
+
+// Удалить связь устройства с комнатой
+export const deleteRoomDevice = (id: number) =>
+    api.delete<{ success: boolean; message: string }>(`/yandex-smart-home/room-devices/${id}`);
+
+// ==================== Управление устройствами для клиентов ====================
+
+// Получить устройства для забронированной комнаты (для клиента)
+export const getRoomDevicesForClient = (meeting_room_id: number) =>
+    api.get<{ success: boolean; devices: YandexDevice[] }>(`/yandex-smart-home/room-devices/room/${meeting_room_id}/client`);
+
+// Управление устройством
+export interface ControlDeviceRequest {
+    device_id: string;
+    action_type: string;
+    action_state: {
+        instance: string;
+        value: any;
+    };
+}
+
+export const controlDevice = (data: ControlDeviceRequest) =>
+    api.post<{ success: boolean; message: string; data: any }>('/yandex-smart-home/devices/control', data);

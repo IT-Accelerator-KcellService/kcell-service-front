@@ -1486,12 +1486,12 @@ export default function ExecutorDashboard() {
         return "bg-emerald-500 text-white border-emerald-500"
       case "in_progress":
       case "execution":
-        return "bg-purple-500 text-white border-purple-500"
+        return "bg-[#114A65] text-white border-[#114A65]"
       case "awaiting_assignment":
       case "awaiting_sla":
         return "bg-amber-400 text-gray-900 border-amber-400"
       case "assigned":
-        return "bg-violet-500 text-white border-violet-500"
+        return "bg-[#114A65] text-white border-[#114A65]"
       case "rejected":
         return "bg-red-500 text-white border-red-500"
       case "pending":
@@ -1545,7 +1545,7 @@ export default function ExecutorDashboard() {
       case "medium":
         return "bg-gradient-to-r from-orange-400 to-yellow-400 text-gray-900 border-orange-400"
       case "simple":
-        return "bg-gradient-to-r from-purple-400 to-violet-400 text-white border-purple-400"
+        return "bg-gradient-to-r from-[#114A65] to-[#B8400E] text-white border-[#114A65]"
       default:
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
@@ -1873,7 +1873,7 @@ export default function ExecutorDashboard() {
                     </div>
                     <Button
                         onClick={() => router.push('/create-request')}
-                        className="bg-violet-600 hover:bg-violet-700"
+                        className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Создать заявку
@@ -2115,9 +2115,9 @@ export default function ExecutorDashboard() {
                             <span className="text-sm">Качественная работа</span>
                             <CheckCircle className="w-5 h-5 text-blue-600" />
                           </div>
-                          <div className="flex items-center justify-between p-2 bg-purple-50 rounded-lg">
+                          <div className="flex items-center justify-between p-2 bg-[#114A65]/10 rounded-lg">
                             <span className="text-sm">Надежный партнер</span>
-                            <CheckCircle className="w-5 h-5 text-purple-600" />
+                            <CheckCircle className="w-5 h-5 text-[#114A65]" />
                           </div>
                         </div>
                       </CardContent>
@@ -2143,7 +2143,7 @@ export default function ExecutorDashboard() {
                       setShowQRScanner(true)
                       openModal('qrScanner')
                     }}
-                    className="bg-purple-600 hover:bg-purple-700"
+                    className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]"
                     size="lg"
                   >
                     <Camera className="mr-2 h-5 w-5" />
@@ -2183,9 +2183,9 @@ export default function ExecutorDashboard() {
               <Card className="overflow-hidden">
                 <CardContent className="p-4">
                   <Link href="/activity-stats" className="block">
-                    <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <Activity className="w-5 h-5 text-purple-600" />
+                    <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-[#114A65]/10 transition-colors cursor-pointer">
+                      <div className="p-2 bg-[#114A65]/10 rounded-lg">
+                        <Activity className="w-5 h-5 text-[#114A65]" />
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900">Статистика активности</p>
@@ -2330,7 +2330,7 @@ export default function ExecutorDashboard() {
                     </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
-                                        <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                        <span className="w-2 h-2 bg-[#114A65] rounded-full"></span>
                                         {subRequest.category?.name || 'Без категории'}
                                       </span>
                   </div>
@@ -2343,7 +2343,7 @@ export default function ExecutorDashboard() {
                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
+                                        className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-[#114A65]/10`}
                                         onClick={() => {
                                           if (hasComments) {
                                             setShowComments(null);
@@ -2352,7 +2352,7 @@ export default function ExecutorDashboard() {
                                           }
                                         }}
                                     >
-                                      <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
+                                      <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-[#114A65]' : 'text-gray-500'}`} />
                     </Button>
 
                                     <RoleBasedActionMenu
@@ -2506,7 +2506,7 @@ export default function ExecutorDashboard() {
                                   key={index}
                                   src={photo.photo_url || "/placeholder.svg"}
                                   alt={`Фото ${index + 1}`}
-                                  className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                  className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#114A65] transition-colors"
                                   onClick={() => {
                                     setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                     openModal('photoPreview');
@@ -2532,7 +2532,7 @@ export default function ExecutorDashboard() {
                                     key={index}
                                     src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-border duration-150"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#114A65] transition-border duration-150"
                                       onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
@@ -2549,31 +2549,31 @@ export default function ExecutorDashboard() {
 
                   {/* Отображение рейтинга клиента (если исполнитель уже оценил) */}
                   {selectedRequest.status === "completed" && clientRatings[selectedRequest.id] && selectedRequest.client?.role === "client" && (
-                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="p-4 bg-[#114A65]/10 border border-[#114A65]/20 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
-                        <Star className="w-5 h-5 text-purple-600" />
-                        <h4 className="font-semibold text-purple-800">Ваша оценка клиента</h4>
+                        <Star className="w-5 h-5 text-[#114A65]" />
+                        <h4 className="font-semibold text-[#040404]">Ваша оценка клиента</h4>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
                         <div className="flex">
                           {[1, 2, 3, 4, 5].map((star) => (
-                            <span key={star} className={`text-xl ${star <= clientRatings[selectedRequest.id].rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                            <span key={star} className={`text-xl ${star <= clientRatings[selectedRequest.id].rating ? 'text-[#114A65]' : 'text-gray-300'}`}>
                               ★
                             </span>
                           ))}
                         </div>
-                        <span className="text-sm text-purple-700">
+                        <span className="text-sm text-[#114A65]">
                           {clientRatings[selectedRequest.id].rating} из 5
                         </span>
                       </div>
                       {clientRatings[selectedRequest.id].comment && (
                         <div className="mt-2">
-                          <p className="text-sm text-purple-700 break-words">
+                          <p className="text-sm text-[#114A65] break-words">
                             "{clientRatings[selectedRequest.id].comment}"
                           </p>
                         </div>
                       )}
-                      <div className="mt-2 text-xs text-purple-600">
+                      <div className="mt-2 text-xs text-[#114A65]">
                         Оценка от {new Date(clientRatings[selectedRequest.id].created_at).toLocaleDateString('ru-RU')}
                       </div>
                     </div>
@@ -2808,7 +2808,7 @@ export default function ExecutorDashboard() {
 
         {isDesktop && <Link
             href="/chat-bot"
-            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
+            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-[#114A65]/10 text-[#114A65] rounded-full shadow-lg hover:bg-[#114A65]/20 transition"
         >
           <MessageCircle className="w-7 h-7" />
 

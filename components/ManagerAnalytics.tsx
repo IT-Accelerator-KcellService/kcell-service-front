@@ -416,8 +416,8 @@ export default function ManagerAnalytics() {
             <StatCard
               title="Исполнителей"
               value={detailedStats?.byExecutor.length || 0}
-              icon={<BarChart3 className="w-4 h-4 text-purple-600" />}
-              bg="bg-purple-100"
+              icon={<BarChart3 className="w-4 h-4 text-[#114A65]" />}
+              bg="bg-[#114A65]/10"
             />
           </div>
 

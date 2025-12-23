@@ -1928,12 +1928,12 @@ export default function ManagerDashboard() {
         return "bg-emerald-500 text-white border-emerald-500"
       case "in_progress":
       case "execution":
-        return "bg-purple-500 text-white border-purple-500"
+        return "bg-[#114A65] text-white border-[#114A65]"
       case "awaiting_assignment":
       case "awaiting_sla":
         return "bg-amber-400 text-gray-900 border-amber-400"
       case "assigned":
-        return "bg-violet-500 text-white border-violet-500"
+        return "bg-[#114A65] text-white border-[#114A65]"
       case "rejected":
         return "bg-red-500 text-white border-red-500"
       default:
@@ -1967,7 +1967,7 @@ export default function ManagerDashboard() {
       case "medium":
         return "bg-gradient-to-r from-orange-400 to-yellow-400 text-gray-900 border-orange-400"
       case "simple":
-        return "bg-gradient-to-r from-purple-400 to-violet-400 text-white border-purple-400"
+        return "bg-gradient-to-r from-[#114A65] to-[#B8400E] text-white border-[#114A65]"
       default:
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
@@ -2263,7 +2263,7 @@ export default function ManagerDashboard() {
             {isDesktop ? (
                 <Button
                     onClick={() => router.push('/create-request')}
-                    className="flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white min-w-[150px] h-10 px-4"
+                    className="flex items-center justify-center bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white min-w-[150px] h-10 px-4"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Создать заявку
@@ -2633,7 +2633,7 @@ export default function ManagerDashboard() {
                     <Button
                         onClick={handleAddOffice}
                         disabled={!newOfficeName.trim()}
-                        className="w-full sm:w-auto bg-violet-600 hover:bg-violet-700"
+                        className="w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Добавить офис
@@ -2744,7 +2744,7 @@ export default function ManagerDashboard() {
                                           onChange={(e) =>
                                             setEditedOffice({ ...editedOffice, auto_track_enabled: e.target.checked })
                                           }
-                                          className="h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                                          className="h-4 w-4 rounded border-gray-300 text-[#114A65] focus:ring-[#114A65]"
                                         />
                                         <Label htmlFor={`auto-track-${officeItem.id}`} className="text-sm font-medium cursor-pointer">
                                           Автоматическое отслеживание активности
@@ -3352,7 +3352,7 @@ export default function ManagerDashboard() {
                     <Button
                       variant={isEditingMode ? "destructive" : "outline"}
                       size="sm"
-                      className={!isEditingMode ? "bg-purple-600 hover:bg-purple-700 text-white border-purple-600" : ""}
+                      className={!isEditingMode ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white border-[#114A65]" : ""}
                       onClick={() => {
                         if (isEditingMode) {
                           // Отменяем редактирование
@@ -3463,7 +3463,7 @@ export default function ManagerDashboard() {
                   </div>
                                   <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
-                                        <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                        <span className="w-2 h-2 bg-[#114A65] rounded-full"></span>
                                         {subRequest.category?.name || 'Без категории'}
                                       </span>
                   </div>
@@ -3476,7 +3476,7 @@ export default function ManagerDashboard() {
                             <Button
                                       variant="ghost"
                                       size="sm"
-                                      className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
+                                      className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-[#114A65]/10`}
                                       onClick={() => {
                                         if (hasComments) {
                                           setShowComments(null);
@@ -3485,7 +3485,7 @@ export default function ManagerDashboard() {
                                         }
                                       }}
                                   >
-                                    <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
+                                    <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-[#114A65]' : 'text-gray-500'}`} />
                             </Button>
 
                                   <RoleBasedActionMenu
@@ -3665,7 +3665,7 @@ export default function ManagerDashboard() {
                                               key={index}
                                               src={getPreviewUrl(photo.photo_url)}
                                     alt={`Фото ${index + 1}`}
-                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#114A65] transition-colors"
                                     onClick={() => {
                                       setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                       openModal('photoPreview');
@@ -3691,7 +3691,7 @@ export default function ManagerDashboard() {
                                               key={index}
                                               src={getPreviewUrl(photo.photo_url)}
                                     alt={`Фото ${index + 1}`}
-                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                                    className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#114A65] transition-colors"
                                     onClick={() => {
                                       setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                       openModal('photoPreview');
@@ -3948,7 +3948,7 @@ export default function ManagerDashboard() {
 
       {isDesktop && <Link
           href="/chat-bot"
-          className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-purple-100 text-purple-600 rounded-full shadow-lg hover:bg-purple-200 transition"
+          className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-[#114A65]/10 text-[#114A65] rounded-full shadow-lg hover:bg-[#114A65]/20 transition"
       >
         <MessageCircle className="w-7 h-7" />
 

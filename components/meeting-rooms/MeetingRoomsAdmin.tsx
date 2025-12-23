@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
 import {
   MeetingRoom,
   MeetingRoomStatus,
@@ -7,6 +7,7 @@ import {
 import { MeetingRoomCard } from "@/components/meeting-rooms/MeetingRoomCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getOffices, Office } from "@/lib/api";
 
 interface RoomFormState {
   id?: number;
@@ -81,6 +83,8 @@ const MAX_PHOTO_SIZE_BYTES = 2 * 1024 * 1024; // 2MB per file
 
 export function MeetingRoomsAdmin() {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const formRef = useRef<HTMLDivElement>(null);
   const rooms = useMeetingRoomsStore((state) => state.rooms);
   const loading = useMeetingRoomsStore((state) => state.loading);
   const fetchRooms = useMeetingRoomsStore((state) => state.fetchRooms);
@@ -98,15 +102,32 @@ export function MeetingRoomsAdmin() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [expandedRooms, setExpandedRooms] = useState<Set<number>>(new Set());
   const [errors, setErrors] = useState<{ name?: string; floor?: string; capacity?: string; photos?: string }>({});
+  const [touched, setTouched] = useState(false);
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [selectedOfficeId, setSelectedOfficeId] = useState<number | "all">("all");
 
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
 
+  useEffect(() => {
+    const loadOffices = async () => {
+      try {
+        const response = await getOffices();
+        setOffices(response.data);
+      } catch (error) {
+        console.error("Ошибка при загрузке офисов:", error);
+      }
+    };
+    loadOffices();
+  }, []);
+
 
   const resetForm = () => {
     setFormState(EMPTY_FORM);
     setIsEditing(false);
+    setErrors({});
+    setTouched(false);
   };
 
   const readFileAsDataUrl = (file: File): Promise<string> =>
@@ -206,6 +227,17 @@ export function MeetingRoomsAdmin() {
     setIsEditing(true);
     setFormState(toFormState(room));
     setOpen(true);
+    
+    // На мобильных устройствах прокручиваем к форме редактирования
+    if (isMobile && typeof window !== 'undefined') {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (formRef.current) {
+            formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+    }
   };
 
   const handleDuplicate = async (id: number) => {
@@ -284,18 +316,26 @@ export function MeetingRoomsAdmin() {
     });
   };
 
-  const isFormValid = useMemo(() => {
+  const filteredRooms = useMemo(() => {
+    if (selectedOfficeId === "all") {
+      return rooms;
+    }
+    return rooms.filter((room) => room.office_id === selectedOfficeId);
+  }, [rooms, selectedOfficeId]);
+
+  const validateForm = (): boolean => {
     const next: typeof errors = {};
     if (!formState.name.trim()) next.name = "Введите название комнаты";
     if (!formState.floor || Number(formState.floor) < 1) next.floor = "Выберите этаж";
     if (!formState.capacity || Number(formState.capacity) < 1) next.capacity = "Укажите вместимость";
     if (!formState.photos.length) next.photos = "Добавьте минимум одно фото";
-    setErrors((prev) => ({ ...prev, ...next }));
+    setErrors(next);
     return Object.keys(next).length === 0;
-  }, [formState.name, formState.floor, formState.capacity, formState.photos]);
+  };
 
   const handleSubmit = async () => {
-    if (!isFormValid) {
+    setTouched(true);
+    if (!validateForm()) {
       toast({ title: "Заполните обязательные поля", variant: "destructive" });
       return;
     }
@@ -333,21 +373,41 @@ export function MeetingRoomsAdmin() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="rounded-full px-4 py-1 text-sm">
-            Всего: {rooms.length}
+            Всего: {filteredRooms.length}
           </Badge>
           <Badge variant="outline" className="rounded-full px-4 py-1 text-sm">
-            Активных: {rooms.filter((room) => room.isActive).length}
+            Активных: {filteredRooms.filter((room) => room.isActive).length}
           </Badge>
           <Button className="gap-2" onClick={handleAddRoomClick}>
             <Plus className="h-4 w-4" />
             Добавить комнату
           </Button>
         </div>
+        {offices.length > 0 && (
+          <div className="w-full md:w-auto">
+            <Select
+              value={selectedOfficeId === "all" ? "all" : selectedOfficeId.toString()}
+              onValueChange={(value) => setSelectedOfficeId(value === "all" ? "all" : Number(value))}
+            >
+              <SelectTrigger className="w-full md:w-[200px]">
+                <SelectValue placeholder="Фильтр по офису" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все офисы</SelectItem>
+                {offices.map((office) => (
+                  <SelectItem key={office.id} value={office.id.toString()}>
+                    {office.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Форма создания/редактирования комнаты */}
       {open && (
-        <Card>
+        <Card ref={formRef}>
           <CardHeader>
             <CardTitle>
               {isEditing ? "Редактирование переговорной" : "Новая переговорная"}
@@ -367,7 +427,7 @@ export function MeetingRoomsAdmin() {
                           setFormState((prev) => ({ ...prev, name: event.target.value }))
                         }
                       />
-                      {errors.name ? (
+                      {touched && errors.name ? (
                         <p className="text-xs text-red-500">{errors.name}</p>
                       ) : null}
                     </div>
@@ -394,7 +454,7 @@ export function MeetingRoomsAdmin() {
                             ))}
                           </SelectContent>
                         </Select>
-                        {errors.floor ? (
+                        {touched && errors.floor ? (
                           <p className="text-xs text-red-500">{errors.floor}</p>
                         ) : null}
                       </div>
@@ -412,7 +472,7 @@ export function MeetingRoomsAdmin() {
                             }))
                           }
                         />
-                        {errors.capacity ? (
+                        {touched && errors.capacity ? (
                           <p className="text-xs text-red-500">{errors.capacity}</p>
                         ) : null}
                       </div>
@@ -456,7 +516,7 @@ export function MeetingRoomsAdmin() {
                         <p className="text-xs text-muted-foreground">
                           Поддерживаются форматы JPG и PNG. Максимум {MAX_PHOTOS} фото, размер каждого ≤ 2MB.
                         </p>
-                        {errors.photos ? (
+                        {touched && errors.photos ? (
                           <p className="text-xs text-red-500">{errors.photos}</p>
                         ) : null}
                     </div>
@@ -565,16 +625,18 @@ export function MeetingRoomsAdmin() {
       )}
 
       <div className="space-y-4">
-        {rooms.length === 0 ? (
+        {filteredRooms.length === 0 ? (
           <div className="rounded-lg border border-dashed p-10 text-center">
             <h3 className="text-lg font-semibold">Комнаты не найдены</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Добавьте новую переговорную комнату.
+              {selectedOfficeId === "all" 
+                ? "Добавьте новую переговорную комнату."
+                : "Для выбранного офиса комнаты не найдены."}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {rooms.map((room) => (
+            {filteredRooms.map((room) => (
               <MeetingRoomCard
                 key={room.id}
                 room={room}

@@ -77,6 +77,7 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
       // Загружаем всех исполнителей
       const params = new URLSearchParams()
       if (date) params.append('date', date)
+      if (period !== 'day') params.append('period', period)
       params.append('role', 'executor')
 
       const response = await api.get(`/activity-stats/all?${params.toString()}`)
@@ -97,7 +98,7 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [period])
 
   useEffect(() => {
     if (!user) return // Не загружаем, если пользователь не загружен
@@ -129,7 +130,7 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
       <Card>
         <CardContent className="p-6">
           <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#114A65]"></div>
           </div>
         </CardContent>
       </Card>
@@ -199,12 +200,12 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
               </div>
             </div>
 
-            <div className="p-3 sm:p-4 bg-violet-50 rounded-lg sm:col-span-2">
+            <div className="p-3 sm:p-4 bg-[#114A65]/10 rounded-lg sm:col-span-2">
               <div className="flex items-center gap-2 mb-2">
-                <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-violet-600 flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium text-violet-900">Количество вставаний</span>
+                <Activity className="h-3 w-3 sm:h-4 sm:w-4 text-[#114A65] flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-[#040404]">Количество вставаний</span>
               </div>
-              <div className="text-xl sm:text-2xl font-bold text-violet-600">
+              <div className="text-xl sm:text-2xl font-bold text-[#114A65]">
                 {displayStats.standUpCount}
               </div>
             </div>
@@ -420,7 +421,7 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
                       <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-xs sm:text-sm">
                         <span className="text-blue-600">Сидя: {formatTime(day.totalSittingTime)}</span>
                         <span className="text-green-600">Стоя: {formatTime(day.totalStandingTime)}</span>
-                        <span className="text-violet-600">Вставаний: {day.standUpCount}</span>
+                        <span className="text-[#114A65]">Вставаний: {day.standUpCount}</span>
                       </div>
                     </div>
                   ))}

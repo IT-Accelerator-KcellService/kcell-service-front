@@ -116,10 +116,10 @@ interface LogsViewerProps {
 const actionTypeColors: Record<string, string> = {
   created: "bg-green-100 text-green-800 border-green-200",
   updated: "bg-blue-100 text-blue-800 border-blue-200",
-  status_changed: "bg-purple-100 text-purple-800 border-purple-200",
+  status_changed: "bg-[#114A65]/10 text-[#114A65] border-[#114A65]/20",
   assigned: "bg-orange-100 text-orange-800 border-orange-200",
   completed: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  commented: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  commented: "bg-[#114A65]/10 text-[#114A65] border-[#114A65]/20",
   deleted: "bg-red-100 text-red-800 border-red-200",
   rejected: "bg-red-100 text-red-800 border-red-200",
 }
@@ -551,9 +551,9 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs md:text-sm font-medium text-gray-600">За неделю</p>
-                  <p className="text-lg md:text-2xl font-bold text-purple-600">{statistics?.thisWeekLogs || 0}</p>
+                  <p className="text-lg md:text-2xl font-bold text-[#114A65]">{statistics?.thisWeekLogs || 0}</p>
                 </div>
-                <RefreshCw className="w-6 h-6 md:w-8 md:h-8 text-purple-500" />
+                <RefreshCw className="w-6 h-6 md:w-8 md:h-8 text-[#114A65]" />
               </div>
             </CardContent>
           </Card>

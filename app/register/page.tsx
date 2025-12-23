@@ -11,16 +11,16 @@ export default function RegisterPage() {
   const [showModal, setShowModal] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-600 via-purple-600 to-violet-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#114A65] via-[#114A65] to-[#B8400E] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-              <span className="text-violet-600 font-bold text-2xl">W</span>
+              <span className="text-[#114A65] font-bold text-2xl">W</span>
             </div>
             <span className="text-white font-bold text-2xl">WorkFlow</span>
           </div>
-          <p className="text-violet-100">Система управления сервисными заявками</p>
+          <p className="text-[#C4C4CE]">Система управления сервисными заявками</p>
         </div>
 
         <Card className="border-0 shadow-2xl">
@@ -35,7 +35,7 @@ export default function RegisterPage() {
           <CardContent className="space-y-6">
             <Button
               onClick={() => setShowModal(true)}
-              className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl text-lg font-semibold"
+              className="w-full bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white py-3 rounded-xl text-lg font-semibold"
             >
               <UserPlus className="w-5 h-5 mr-2" />
               Заполнить форму регистрации
@@ -45,7 +45,7 @@ export default function RegisterPage() {
               <Link href="/login">
                 <Button
                   variant="outline"
-                  className="w-full text-violet-600 border-violet-600 hover:bg-violet-50"
+                  className="w-full text-[#114A65] border-[#114A65] hover:bg-[#114A65]/10"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Вернуться к входу

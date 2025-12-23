@@ -283,7 +283,7 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
             <div
               className={`mt-2 border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                 dragActive 
-                  ? 'border-violet-500 bg-violet-50' 
+                  ? 'border-[#114A65] bg-[#114A65]/10' 
                   : selectedFile 
                     ? 'border-green-500 bg-green-50' 
                     : 'border-gray-300 hover:border-gray-400'
@@ -327,7 +327,7 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="text-violet-600 hover:text-violet-700 underline"
+                      className="text-[#114A65] hover:text-[#0d3a4f] underline"
                     >
                       выберите файл
                     </button>
@@ -399,7 +399,7 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
             <Button
               onClick={handleUpload}
               disabled={!selectedFile || isUploading}
-              className="flex-1 bg-violet-600 hover:bg-violet-700"
+              className="flex-1 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
             >
               {isUploading ? (
                 <>

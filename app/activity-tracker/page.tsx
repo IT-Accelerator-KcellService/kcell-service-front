@@ -19,6 +19,12 @@ export default function ActivityTrackerPage() {
 
     if (!user) {
       router.push('/login')
+      return
+    }
+
+    // Трекер активности доступен только для исполнителей
+    if (user.role !== 'executor') {
+      router.push('/')
     }
   }, [hydrated, user, router])
 

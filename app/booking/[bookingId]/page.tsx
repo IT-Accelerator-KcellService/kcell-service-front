@@ -96,10 +96,10 @@ export default function BookingQRPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#114A65]/10 to-blue-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#114A65] mx-auto"></div>
             <p className="mt-4 text-gray-600">Загрузка...</p>
           </CardContent>
         </Card>
@@ -109,7 +109,7 @@ export default function BookingQRPage() {
 
   if (error || !booking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-[#114A65]/10 to-blue-50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-8 text-center">
             <p className="text-red-600">{error || "Бронирование не найдено"}</p>
@@ -128,7 +128,7 @@ export default function BookingQRPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#114A65]/10 to-blue-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <Card className="shadow-lg">
           <CardHeader className="pb-4">
@@ -144,7 +144,7 @@ export default function BookingQRPage() {
               </Button>
             </div>
             <div className="flex items-center justify-center gap-2 mb-2">
-              <QrCode className="h-6 w-6 text-purple-600" />
+              <QrCode className="h-6 w-6 text-[#114A65]" />
               <CardTitle className="text-2xl">Бронирование переговорной комнаты</CardTitle>
             </div>
           </CardHeader>
@@ -153,7 +153,7 @@ export default function BookingQRPage() {
             {office && (
               <div className="bg-white rounded-lg p-4 border border-gray-200">
                 <div className="flex items-start gap-3">
-                  <Building2 className="h-5 w-5 text-purple-600 mt-0.5" />
+                  <Building2 className="h-5 w-5 text-[#114A65] mt-0.5" />
                   <div className="flex-1">
                     <h3 className="font-semibold text-gray-900 mb-1">{office.name}</h3>
                     {office.address && (
@@ -197,14 +197,14 @@ export default function BookingQRPage() {
               {booking.tables_remaining !== undefined && (
                 <div className="pt-2 border-t border-gray-200">
                   <span className="text-sm text-gray-600">Столов осталось: </span>
-                  <span className="font-semibold text-purple-600">{booking.tables_remaining}</span>
+                  <span className="font-semibold text-[#114A65]">{booking.tables_remaining}</span>
                 </div>
               )}
             </div>
 
             {/* QR код */}
             <div className="flex flex-col items-center gap-4 bg-white rounded-lg p-6 border border-gray-200">
-              <div className="p-4 bg-white rounded-lg border-2 border-purple-200 shadow-sm">
+              <div className="p-4 bg-white rounded-lg border-2 border-[#114A65]/20 shadow-sm">
                 <QRCodeSVG
                   value={qrData}
                   size={256}
@@ -229,7 +229,7 @@ export default function BookingQRPage() {
               </Button>
               <Button
                 onClick={handleShare}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 flex items-center justify-center gap-2"
+                className="flex-1 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] flex items-center justify-center gap-2"
               >
                 <Share2 className="h-4 w-4" />
                 Поделиться

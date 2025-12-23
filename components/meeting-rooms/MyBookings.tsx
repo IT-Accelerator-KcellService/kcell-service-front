@@ -14,6 +14,7 @@ import { useRejectRequestModal } from "@/hooks/use-reject-modal"
 import { RejectRequestModal } from "@/components/RejectRequestModal"
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal"
 import { useRouter } from "next/navigation"
+import { RoomDevicesControl } from "./RoomDevicesControl"
 
 export function MyBookings() {
   const [bookings, setBookings] = useState<MeetingRoomBooking[]>([])
@@ -98,18 +99,90 @@ export function MyBookings() {
     }
   }
 
+  // Helper функция для конвертации времени в строку
+  const timeToString = (time: string | Date): string => {
+    return typeof time === 'string' ? time : time.toISOString()
+  }
+
   const isUpcoming = (booking: MeetingRoomBooking) => {
-    // Исключаем отмененные бронирования
-    if (booking.status === 'cancelled' || booking.status === 'auto_cancelled') {
+    // Исключаем отмененные, завершенные и активные бронирования
+    if (booking.status === 'cancelled' || 
+        booking.status === 'auto_cancelled' || 
+        booking.status === 'completed' ||
+        booking.status === 'in_progress') {
       return false
     }
     const bookingDateTime = new Date(booking.start_time)
     return bookingDateTime > new Date()
   }
 
+  const isActive = (booking: MeetingRoomBooking) => {
+    // Исключаем отмененные бронирования
+    if (booking.status === 'cancelled' || booking.status === 'auto_cancelled') {
+      return false
+    }
+    
+    // Если статус in_progress, то всегда показываем как активное
+    if (booking.status === 'in_progress') {
+      return true
+    }
+    
+    // Иначе проверяем время
+    const now = new Date()
+    const start = new Date(booking.start_time)
+    const end = new Date(booking.end_time)
+    return now >= start && now <= end
+  }
+  
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'in_progress':
+        return { text: 'В процессе', className: 'bg-blue-100 text-blue-700' }
+      case 'confirmed':
+        return { text: 'Подтверждено', className: 'bg-green-100 text-green-700' }
+      case 'scheduled':
+        return { text: 'Запланировано', className: 'bg-yellow-100 text-yellow-700' }
+      case 'completed':
+        return { text: 'Завершено', className: 'bg-gray-100 text-gray-700' }
+      case 'cancelled':
+      case 'auto_cancelled':
+        return { text: 'Отменено', className: 'bg-red-100 text-red-700' }
+      default:
+        return { text: 'Активно', className: 'bg-green-100 text-green-700' }
+    }
+  }
+
   const isPast = (booking: MeetingRoomBooking) => {
-    const bookingDateTime = new Date(booking.end_time)
-    return bookingDateTime < new Date()
+    // Если статус уже "completed", показываем как завершенное
+    if (booking.status === 'completed') {
+      return true
+    }
+    
+    // Иначе проверяем время окончания
+    // Учитываем, что время приходит с сервера как UTC, но это время Алматы
+    const now = new Date()
+    const nowTime = now.getTime()
+    
+    // Конвертируем end_time в строку для работы с ней
+    const endTimeStr = typeof booking.end_time === 'string' ? booking.end_time : booking.end_time.toISOString()
+    
+    let endTime: number
+    const hasTimezone = endTimeStr.includes('Z') || 
+                       endTimeStr.includes('+') || 
+                       (endTimeStr.includes('-') && endTimeStr.lastIndexOf('-') > 10)
+    
+    if (hasTimezone && endTimeStr.endsWith('Z')) {
+      // Время с Z - это UTC, но на самом деле это время Алматы
+      // Вычитаем 5 часов для конвертации в правильное UTC
+      const ALMATY_OFFSET_MS = 5 * 60 * 60 * 1000
+      const end = new Date(endTimeStr)
+      endTime = end.getTime() - ALMATY_OFFSET_MS
+    } else {
+      const end = new Date(endTimeStr)
+      endTime = end.getTime()
+    }
+    
+    return endTime < nowTime
   }
 
   const isCancelled = (booking: MeetingRoomBooking) => {
@@ -129,6 +202,7 @@ export function MyBookings() {
   }
 
   const upcomingBookings = bookings.filter(isUpcoming)
+  const activeBookings = bookings.filter(isActive)
   const pastBookings = bookings.filter((booking) => isPast(booking) && !isCancelled(booking))
   const cancelledBookings = bookings.filter(isCancelled)
 
@@ -191,9 +265,14 @@ export function MyBookings() {
                         </p>
                       )}
                     </div>
-                    <Badge className="bg-green-100 text-green-700">
-                      Активно
-                    </Badge>
+                    {(() => {
+                      const statusBadge = getStatusBadge(booking.status || 'scheduled')
+                      return (
+                        <Badge className={statusBadge.className}>
+                          {statusBadge.text}
+                        </Badge>
+                      )
+                    })()}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -211,9 +290,13 @@ export function MyBookings() {
                       <Clock className="w-4 h-4" />
                       <span>
                         {/* Извлекаем час напрямую из ISO строки, чтобы избежать проблем с часовыми поясами */}
-                        {booking.start_time && typeof booking.start_time === 'string'
-                          ? `${booking.start_time.substring(11, 16)} - ${booking.end_time.substring(11, 16)}`
-                          : `${format(new Date(booking.start_time), "HH:mm", { locale: ru })} - ${format(new Date(booking.end_time), "HH:mm", { locale: ru })}`}
+                        {(() => {
+                          const startStr = timeToString(booking.start_time)
+                          const endStr = timeToString(booking.end_time)
+                          return typeof booking.start_time === 'string'
+                            ? `${startStr.substring(11, 16)} - ${endStr.substring(11, 16)}`
+                            : `${format(new Date(booking.start_time), "HH:mm", { locale: ru })} - ${format(new Date(booking.end_time), "HH:mm", { locale: ru })}`
+                        })()}
                       </span>
                     </div>
                     {(booking.meetingRoom?.office || booking.office) && (
@@ -223,6 +306,11 @@ export function MyBookings() {
                       </div>
                     )}
                   </div>
+                  <RoomDevicesControl
+                    meeting_room_id={booking.meeting_room_id}
+                    bookingStartTime={timeToString(booking.start_time)}
+                    bookingEndTime={timeToString(booking.end_time)}
+                  />
                   <Button
                     variant="outline"
                     size="sm"
@@ -287,9 +375,13 @@ export function MyBookings() {
                       <Clock className="w-4 h-4" />
                       <span>
                         {/* Извлекаем час напрямую из ISO строки, чтобы избежать проблем с часовыми поясами */}
-                        {booking.start_time && typeof booking.start_time === 'string'
-                          ? `${booking.start_time.substring(11, 16)} - ${booking.end_time.substring(11, 16)}`
-                          : `${format(new Date(booking.start_time), "HH:mm", { locale: ru })} - ${format(new Date(booking.end_time), "HH:mm", { locale: ru })}`}
+                        {(() => {
+                          const startStr = timeToString(booking.start_time)
+                          const endStr = timeToString(booking.end_time)
+                          return typeof booking.start_time === 'string'
+                            ? `${startStr.substring(11, 16)} - ${endStr.substring(11, 16)}`
+                            : `${format(new Date(booking.start_time), "HH:mm", { locale: ru })} - ${format(new Date(booking.end_time), "HH:mm", { locale: ru })}`
+                        })()}
                       </span>
                     </div>
                     {(booking.meetingRoom?.office || booking.office) && (
@@ -342,9 +434,13 @@ export function MyBookings() {
                       <Clock className="w-4 h-4" />
                       <span>
                         {/* Извлекаем час напрямую из ISO строки, чтобы избежать проблем с часовыми поясами */}
-                        {booking.start_time && typeof booking.start_time === 'string'
-                          ? `${booking.start_time.substring(11, 16)} - ${booking.end_time.substring(11, 16)}`
-                          : `${format(new Date(booking.start_time), "HH:mm", { locale: ru })} - ${format(new Date(booking.end_time), "HH:mm", { locale: ru })}`}
+                        {(() => {
+                          const startStr = timeToString(booking.start_time)
+                          const endStr = timeToString(booking.end_time)
+                          return typeof booking.start_time === 'string'
+                            ? `${startStr.substring(11, 16)} - ${endStr.substring(11, 16)}`
+                            : `${format(new Date(booking.start_time), "HH:mm", { locale: ru })} - ${format(new Date(booking.end_time), "HH:mm", { locale: ru })}`
+                        })()}
                       </span>
                     </div>
                     {(booking.meetingRoom?.office || booking.office) && (

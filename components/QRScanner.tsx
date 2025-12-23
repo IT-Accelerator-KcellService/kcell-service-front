@@ -461,7 +461,7 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
                 <div id={scannerId} className="w-full h-full" />
                 {scanning && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="border-4 border-purple-500 rounded-lg w-64 h-64" />
+                    <div className="border-4 border-[#114A65] rounded-lg w-64 h-64" />
                   </div>
                 )}
               </div>

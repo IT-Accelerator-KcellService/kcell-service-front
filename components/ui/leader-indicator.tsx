@@ -41,7 +41,7 @@ export function LeaderIndicator({ isDesktop, size = 'md', className = '' }: Lead
         <Tooltip>
           <TooltipTrigger asChild>
             <div className={`inline-flex items-center justify-center ${className}`}>
-              <Crown className={`${iconSize} text-purple-600 hover:text-purple-700 transition-colors`} />
+              <Crown className={`${iconSize} text-[#114A65] hover:text-[#0d3a4f] transition-colors`} />
             </div>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs bg-white border border-gray-200 shadow-lg rounded-lg">
@@ -62,10 +62,10 @@ export function LeaderIndicator({ isDesktop, size = 'md', className = '' }: Lead
       <Button
         variant="ghost"
         size="sm"
-        className={`p-1 h-auto hover:bg-purple-50 ${className}`}
+        className={`p-1 h-auto hover:bg-[#114A65]/10 ${className}`}
         onClick={handleClick}
       >
-        <Crown className={`${iconSize} text-purple-600`} />
+        <Crown className={`${iconSize} text-[#114A65]`} />
       </Button>
 
       {/* Минималистичная модалка */}
@@ -82,7 +82,7 @@ export function LeaderIndicator({ isDesktop, size = 'md', className = '' }: Lead
             {/* Заголовок */}
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[#114A65] to-[#B8400E] rounded-lg flex items-center justify-center">
                   <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 <div>
@@ -105,20 +105,20 @@ export function LeaderIndicator({ isDesktop, size = 'md', className = '' }: Lead
               {/* Полномочия */}
               <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                 <div className="flex items-start gap-3">
-                  <Info className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                  <Info className="w-4 h-4 sm:w-5 sm:h-5 text-[#114A65] flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <h3 className="font-medium text-gray-900 text-sm sm:text-base mb-2">Полномочия:</h3>
                     <ul className="space-y-1.5 text-xs sm:text-sm text-gray-700">
                       <li className="flex items-center gap-2">
-                        <div className="w-1 h-1 bg-purple-600 rounded-full"></div>
+                        <div className="w-1 h-1 bg-[#114A65] rounded-full"></div>
                         Начать выполнение
                       </li>
                       <li className="flex items-center gap-2">
-                        <div className="w-1 h-1 bg-purple-600 rounded-full"></div>
+                        <div className="w-1 h-1 bg-[#114A65] rounded-full"></div>
                         Завершить заявку
                       </li>
                       <li className="flex items-center gap-2">
-                        <div className="w-1 h-1 bg-purple-600 rounded-full"></div>
+                        <div className="w-1 h-1 bg-[#114A65] rounded-full"></div>
                         Координировать команду
                       </li>
                     </ul>
@@ -130,7 +130,7 @@ export function LeaderIndicator({ isDesktop, size = 'md', className = '' }: Lead
               <div className="flex justify-center pt-2">
                 <Button
                   onClick={handleClose}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                   Понятно
                 </Button>
