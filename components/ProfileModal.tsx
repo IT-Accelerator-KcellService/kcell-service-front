@@ -13,9 +13,10 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Lock, Save, X, Loader2 } from "lucide-react"
+import { Lock, Save, X, Loader2, Mail, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import api from "@/lib/api"
+import { sendEmailVerificationCode, verifyEmail } from "@/lib/api"
 import {useNotificationStore} from "@/stores/notificationStore";
 import {useRequestStore} from "@/stores/useRequestStore";
 import {useStatsStore} from "@/stores/statsStore";
@@ -49,6 +50,19 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
     const [notificationError, setNotificationError] = useState("")
     const [notificationSuccess, setNotificationSuccess] = useState("")
     const [isLoggingOut, setIsLoggingOut] = useState(false)
+    const [email, setEmail] = useState("")
+    const [verificationCode, setVerificationCode] = useState("")
+    const [isSendingCode, setIsSendingCode] = useState(false)
+    const [isVerifying, setIsVerifying] = useState(false)
+    const [emailError, setEmailError] = useState("")
+    const [emailSuccess, setEmailSuccess] = useState("")
+
+    // Инициализация email при монтировании
+    React.useEffect(() => {
+        if (user?.email) {
+            setEmail(user.email)
+        }
+    }, [user?.email])
 
 
     // Форматирование номера телефона: +7 (___) ___-__-__
@@ -261,6 +275,130 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                             className="text-sm"
                                             placeholder="+7 (999) 123-45-67"
                                         />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-sm">Email адрес</Label>
+                                            {user?.email_verified && (
+                                                <Badge className="text-xs bg-green-100 text-green-700 flex items-center gap-1">
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    Верифицирован
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="email"
+                                                value={email || user?.email || ""}
+                                                onChange={(e) => {
+                                                    setEmail(e.target.value)
+                                                    setEmailError("")
+                                                    setEmailSuccess("")
+                                                }}
+                                                className="text-sm flex-1"
+                                                placeholder="example@mail.com"
+                                                disabled={isSendingCode || isVerifying}
+                                            />
+                                            <Button
+                                                type="button"
+                                                onClick={async () => {
+                                                    const emailToSend = email || user?.email
+                                                    if (!emailToSend) {
+                                                        setEmailError("Введите email адрес")
+                                                        return
+                                                    }
+                                                    // Проверяем, что email отличается от текущего верифицированного
+                                                    if (user?.email_verified && emailToSend === user?.email) {
+                                                        setEmailError("Email уже верифицирован")
+                                                        return
+                                                    }
+                                                    setIsSendingCode(true)
+                                                    setEmailError("")
+                                                    setEmailSuccess("")
+                                                    try {
+                                                        await sendEmailVerificationCode(emailToSend)
+                                                        setEmailSuccess("Код верификации отправлен на email")
+                                                        setEmail(emailToSend)
+                                                    } catch (err: any) {
+                                                        setEmailError(err.response?.data?.error || "Ошибка при отправке кода")
+                                                    } finally {
+                                                        setIsSendingCode(false)
+                                                    }
+                                                }}
+                                                disabled={isSendingCode || isVerifying || (!email && !user?.email) || (user?.email_verified && (email || user?.email) === user?.email)}
+                                                variant="outline"
+                                                size="sm"
+                                                className="whitespace-nowrap"
+                                            >
+                                                {isSendingCode ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                                        Отправка...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Mail className="h-4 w-4 mr-1" />
+                                                        Отправить код
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+                                        {emailSuccess && <p className="text-xs text-green-600">{emailSuccess}</p>}
+                                        {emailError && <p className="text-xs text-[#B8400E]">{emailError}</p>}
+                                        {((email || user?.email) && (!user?.email_verified || emailSuccess?.includes("Код верификации отправлен"))) && (
+                                            <div className="space-y-2 mt-2 p-3">
+                                                <Label className="text-sm">Код верификации</Label>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        type="text"
+                                                        value={verificationCode}
+                                                        onChange={(e) => {
+                                                            setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                                                            setEmailError("")
+                                                        }}
+                                                        className="text-sm flex-1"
+                                                        placeholder="000000"
+                                                        maxLength={6}
+                                                        disabled={isVerifying}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            if (!verificationCode || verificationCode.length !== 6) {
+                                                                setEmailError("Введите 6-значный код")
+                                                                return
+                                                            }
+                                                            setIsVerifying(true)
+                                                            setEmailError("")
+                                                            try {
+                                                                await verifyEmail(verificationCode)
+                                                                setEmailSuccess("Email успешно верифицирован")
+                                                                setVerificationCode("")
+                                                                const emailToUpdate = email || user?.email
+                                                                updateUser((prev) => prev ? { ...prev, email: emailToUpdate, email_verified: true } : null)
+                                                            } catch (err: any) {
+                                                                setEmailError(err.response?.data?.error || "Неверный код верификации")
+                                                            } finally {
+                                                                setIsVerifying(false)
+                                                            }
+                                                        }}
+                                                        disabled={isVerifying || verificationCode.length !== 6}
+                                                        variant="default"
+                                                        size="sm"
+                                                        className="whitespace-nowrap bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                                                    >
+                                                        {isVerifying ? (
+                                                            <>
+                                                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                                                Проверка...
+                                                            </>
+                                                        ) : (
+                                                            "Подтвердить"
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-sm">Роль</Label>
@@ -527,6 +665,130 @@ export function ProfileModal({ isOpen, onClose, isFullScreen = false }: ProfileM
                                             className="text-sm"
                                             placeholder="+7 (999) 123-45-67"
                                         />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-sm">Email адрес</Label>
+                                            {user?.email_verified && (
+                                                <Badge className="text-xs bg-green-100 text-green-700 flex items-center gap-1">
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    Верифицирован
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                type="email"
+                                                value={email || user?.email || ""}
+                                                onChange={(e) => {
+                                                    setEmail(e.target.value)
+                                                    setEmailError("")
+                                                    setEmailSuccess("")
+                                                }}
+                                                className="text-sm flex-1"
+                                                placeholder="example@mail.com"
+                                                disabled={isSendingCode || isVerifying}
+                                            />
+                                            <Button
+                                                type="button"
+                                                onClick={async () => {
+                                                    const emailToSend = email || user?.email
+                                                    if (!emailToSend) {
+                                                        setEmailError("Введите email адрес")
+                                                        return
+                                                    }
+                                                    // Проверяем, что email отличается от текущего верифицированного
+                                                    if (user?.email_verified && emailToSend === user?.email) {
+                                                        setEmailError("Email уже верифицирован")
+                                                        return
+                                                    }
+                                                    setIsSendingCode(true)
+                                                    setEmailError("")
+                                                    setEmailSuccess("")
+                                                    try {
+                                                        await sendEmailVerificationCode(emailToSend)
+                                                        setEmailSuccess("Код верификации отправлен на email")
+                                                        setEmail(emailToSend)
+                                                    } catch (err: any) {
+                                                        setEmailError(err.response?.data?.error || "Ошибка при отправке кода")
+                                                    } finally {
+                                                        setIsSendingCode(false)
+                                                    }
+                                                }}
+                                                disabled={isSendingCode || isVerifying || (!email && !user?.email) || (user?.email_verified && (email || user?.email) === user?.email)}
+                                                variant="outline"
+                                                size="sm"
+                                                className="whitespace-nowrap"
+                                            >
+                                                {isSendingCode ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                                        Отправка...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Mail className="h-4 w-4 mr-1" />
+                                                        Отправить код
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+                                        {emailSuccess && <p className="text-xs text-green-600">{emailSuccess}</p>}
+                                        {emailError && <p className="text-xs text-[#B8400E]">{emailError}</p>}
+                                        {((email || user?.email) && (!user?.email_verified || emailSuccess?.includes("Код верификации отправлен"))) && (
+                                            <div className="space-y-2 mt-2 p-3">
+                                                <Label className="text-sm">Код верификации</Label>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        type="text"
+                                                        value={verificationCode}
+                                                        onChange={(e) => {
+                                                            setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                                                            setEmailError("")
+                                                        }}
+                                                        className="text-sm flex-1"
+                                                        placeholder="000000"
+                                                        maxLength={6}
+                                                        disabled={isVerifying}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            if (!verificationCode || verificationCode.length !== 6) {
+                                                                setEmailError("Введите 6-значный код")
+                                                                return
+                                                            }
+                                                            setIsVerifying(true)
+                                                            setEmailError("")
+                                                            try {
+                                                                await verifyEmail(verificationCode)
+                                                                setEmailSuccess("Email успешно верифицирован")
+                                                                setVerificationCode("")
+                                                                const emailToUpdate = email || user?.email
+                                                                updateUser((prev) => prev ? { ...prev, email: emailToUpdate, email_verified: true } : null)
+                                                            } catch (err: any) {
+                                                                setEmailError(err.response?.data?.error || "Неверный код верификации")
+                                                            } finally {
+                                                                setIsVerifying(false)
+                                                            }
+                                                        }}
+                                                        disabled={isVerifying || verificationCode.length !== 6}
+                                                        variant="default"
+                                                        size="sm"
+                                                        className="whitespace-nowrap bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                                                    >
+                                                        {isVerifying ? (
+                                                            <>
+                                                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                                                Проверка...
+                                                            </>
+                                                        ) : (
+                                                            "Подтвердить"
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-sm">Роль</Label>
