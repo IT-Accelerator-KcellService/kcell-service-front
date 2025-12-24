@@ -65,7 +65,7 @@ export default function CreateRequestPage() {
       setIsLoading(true);
       try {
         await fetchCategories(token || '');
-        await fetchOfficeLocations();
+        await fetchOfficeLocations(token || undefined);
         
         // Загружаем исполнителей для department-head
         if (user.role === 'department-head') {

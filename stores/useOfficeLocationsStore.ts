@@ -149,7 +149,8 @@ export const useOfficeLocationsStore = create<OfficeLocationsState>()(
 
           if (!res.ok) {
             const errorData = await res.json();
-            throw new Error(errorData.message || `Ошибка при удалении локации: ${res.status}`);
+            console.error(errorData.error);
+            throw new Error(errorData.error || `Ошибка при удалении локации: ${res.status}`);
           }
 
           // Обновляем локации после удаления

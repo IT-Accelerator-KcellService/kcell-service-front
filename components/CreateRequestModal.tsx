@@ -13,7 +13,9 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ImportExcelModal } from "./ImportExcelModal";
 import { findNearestOffice, getLocationByIP } from "@/lib/utils";
-import { getBlocksForOffice, getLocationsForBlock, getRoomsForLocation, hasLocationsForBlock, hasRoomsForLocation } from "@/lib/office-locations";
+import { getBlocksForOffice, getLocationsForBlock, getRoomsForLocation, hasLocationsForBlock, hasRoomsForLocation } from "@/lib/office-locations-utils";
+import { useOfficeLocationsStore } from "@/stores/useOfficeLocationsStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface ServiceCategory {
   id: number;
@@ -126,6 +128,20 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [customLocation, setCustomLocation] = useState<string>("");
   const [customRoom, setCustomRoom] = useState<string>("");
 
+  // Получаем данные офисных локаций из store
+  const officeLocations = useOfficeLocationsStore(state => state.locations);
+  const fetchOfficeLocations = useOfficeLocationsStore(state => state.fetchLocations);
+  const { token } = useAuthStore();
+
+  // Загружаем данные офисных локаций при открытии модального окна, если их еще нет
+  useEffect(() => {
+    if (isOpen && officeLocations.length === 0 && token) {
+      fetchOfficeLocations(token).catch((error) => {
+        console.error('Ошибка загрузки офисных локаций:', error);
+      });
+    }
+  }, [isOpen, officeLocations.length, token, fetchOfficeLocations]);
+
   // Состояния для повторяющихся задач
   const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
@@ -175,13 +191,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     if (selectedBlock && selectedOfficeId) {
       const currentOffice = offices.find(o => o.id === selectedOfficeId);
       if (currentOffice) {
-        const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+        const hasLocations = hasLocationsForBlock(officeLocations, selectedOfficeId, selectedBlock);
         if (!hasLocations) {
           setSelectedLocation(""); // Устанавливаем пустую строку для перехода к помещению
         }
       }
     }
-  }, [selectedBlock, selectedOfficeId, offices]);
+  }, [selectedBlock, selectedOfficeId, offices, officeLocations]);
 
   // Сброс помещения при изменении местонахождения
   useEffect(() => {
@@ -351,35 +367,34 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
     // Проверка местонахождения
     if (selectedBlock && selectedOfficeId) {
-      const currentOffice = offices.find(o => o.id === selectedOfficeId);
-      if (currentOffice) {
-        const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
-        if (hasLocations) {
-          if (!selectedLocation || selectedLocation === "") {
-            newBasicFieldErrors.add('location');
-          } else if (selectedLocation === "Другое" && !customLocation.trim()) {
-            newBasicFieldErrors.add('customLocation');
-          }
+      const hasLocations = hasLocationsForBlock(officeLocations, selectedOfficeId, selectedBlock);
+      if (hasLocations) {
+        if (!selectedLocation || selectedLocation === "") {
+          newBasicFieldErrors.add('location');
+        } else if (selectedLocation === "Другое" && !customLocation.trim()) {
+          newBasicFieldErrors.add('customLocation');
         }
       }
     }
 
     // Проверка помещения
     if (selectedBlock && selectedLocation && selectedOfficeId) {
-      const currentOffice = offices.find(o => o.id === selectedOfficeId);
-      if (currentOffice) {
-        const hasRooms = hasRoomsForLocation(currentOffice.name, selectedBlock, selectedLocation === "Другое" ? "" : selectedLocation);
-        if (hasRooms) {
-          if (!selectedRoom || selectedRoom === "") {
-            newBasicFieldErrors.add('room');
-          } else if (selectedRoom === "Другое" && !customRoom.trim()) {
-            newBasicFieldErrors.add('customRoom');
-          }
-        } else if (selectedLocation !== "Другое" && selectedLocation !== "") {
-          // Если местонахождение выбрано (не "Другое"), но помещений нет в справочнике
-          if (!customRoom.trim()) {
-            newBasicFieldErrors.add('customRoom');
-          }
+      const hasRooms = hasRoomsForLocation(
+        officeLocations, 
+        selectedOfficeId, 
+        selectedBlock, 
+        selectedLocation === "Другое" ? "" : selectedLocation
+      );
+      if (hasRooms) {
+        if (!selectedRoom || selectedRoom === "") {
+          newBasicFieldErrors.add('room');
+        } else if (selectedRoom === "Другое" && !customRoom.trim()) {
+          newBasicFieldErrors.add('customRoom');
+        }
+      } else if (selectedLocation !== "Другое" && selectedLocation !== "") {
+        // Если местонахождение выбрано (не "Другое"), но помещений нет в справочнике
+        if (!customRoom.trim()) {
+          newBasicFieldErrors.add('customRoom');
         }
       }
     }
@@ -399,7 +414,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     setBasicFieldErrors(newBasicFieldErrors);
-  }, [requestType, selectedBlock, selectedLocation, selectedRoom, customLocation, customRoom, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit, offices]);
+  }, [requestType, selectedBlock, selectedLocation, selectedRoom, customLocation, customRoom, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit, officeLocations]);
 
   useEffect(() => {
     if (isOpen) {
@@ -475,9 +490,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     const currentOffice = offices.find(o => o.id === selectedOfficeId);
-    if (currentOffice && selectedBlock) {
+    if (currentOffice && selectedOfficeId && selectedBlock) {
       // Проверка местонахождения
-      const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+      const hasLocations = hasLocationsForBlock(officeLocations, selectedOfficeId, selectedBlock);
       if (hasLocations) {
         if (!selectedLocation || selectedLocation === "") {
           basicFieldErrors.push('местонахождение');
@@ -489,7 +504,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       // Проверка помещения
       if (selectedLocation) {
         const hasRooms = hasRoomsForLocation(
-          currentOffice.name,
+          officeLocations,
+          selectedOfficeId,
           selectedBlock, 
           selectedLocation === "Другое" ? "" : selectedLocation
         );
@@ -604,8 +620,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     locationParts.push(`Блок: ${selectedBlock}`);
     
     // Добавляем местонахождение
-    if (currentOffice) {
-      const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+    if (selectedOfficeId) {
+      const hasLocations = hasLocationsForBlock(officeLocations, selectedOfficeId, selectedBlock);
       if (hasLocations) {
         // Есть справочные местонахождения
         const locationValue = selectedLocation === "Другое" ? customLocation : selectedLocation;
@@ -621,17 +637,15 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
     
     // Добавляем помещение
-    if (currentOffice) {
-      const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+    if (selectedOfficeId) {
+      const hasLocations = hasLocationsForBlock(officeLocations, selectedOfficeId, selectedBlock);
       
       // Определяем текущее местонахождение для проверки помещений
-      let currentLocationForRooms = "";
-      if (hasLocations) {
-        currentLocationForRooms = selectedLocation === "Другое" ? "" : selectedLocation;
-      }
+      const currentLocationForRooms = hasLocations ? (selectedLocation === "Другое" ? "" : selectedLocation) : "";
       
       const hasRooms = hasRoomsForLocation(
-        currentOffice.name,
+        officeLocations,
+        selectedOfficeId,
         selectedBlock, 
         currentLocationForRooms
       );
@@ -856,16 +870,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 </SelectTrigger>
                 <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
                   {selectedOfficeId && (() => {
-                    const currentOffice = offices.find(o => o.id === selectedOfficeId);
-                    if (currentOffice) {
-                      const blocks = getBlocksForOffice(currentOffice.name);
-                      return blocks.map((block) => (
-                        <SelectItem key={block} value={block}>
-                          {block}
-                        </SelectItem>
-                      ));
-                    }
-                    return null;
+                    const blocks = getBlocksForOffice(officeLocations, selectedOfficeId);
+                    return blocks.map((block) => (
+                      <SelectItem key={block} value={block}>
+                        {block}
+                      </SelectItem>
+                    ));
                   })()}
                 </SelectContent>
               </Select>
@@ -875,12 +885,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </div>
 
             {/* Местонахождение */}
-            {selectedBlock && (() => {
-              const currentOffice = offices.find(o => o.id === selectedOfficeId);
-              if (!currentOffice) return null;
-              
-              const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
-              const locations = hasLocations ? getLocationsForBlock(currentOffice.name, selectedBlock) : [];
+            {selectedBlock && selectedOfficeId && (() => {
+              const hasLocations = hasLocationsForBlock(officeLocations, selectedOfficeId, selectedBlock);
+              const locations = hasLocations ? getLocationsForBlock(officeLocations, selectedOfficeId, selectedBlock) : [];
               
               if (hasLocations && locations.length > 0) {
                 // Показываем селект если есть местонахождения в справочнике
@@ -933,25 +940,24 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             })()}
 
             {/* Помещение */}
-            {selectedBlock && (() => {
-              const currentOffice = offices.find(o => o.id === selectedOfficeId);
-              if (!currentOffice) return null;
-              
+            {selectedBlock && selectedOfficeId && (() => {
               // Проверяем, нужно ли показывать поле помещения
-              const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+              const hasLocations = hasLocationsForBlock(officeLocations, selectedOfficeId, selectedBlock);
               const shouldShowRoom = !hasLocations || (hasLocations && selectedLocation !== "");
               
               if (!shouldShowRoom) return null;
 
               const hasRooms = hasRoomsForLocation(
-                currentOffice.name,
+                officeLocations,
+                selectedOfficeId,
                 selectedBlock, 
                 selectedLocation === "Другое" ? "" : selectedLocation
               );
 
               if (hasRooms) {
                 const rooms = getRoomsForLocation(
-                  currentOffice.name,
+                  officeLocations,
+                  selectedOfficeId,
                   selectedBlock, 
                   selectedLocation === "Другое" ? "" : selectedLocation
                 );
@@ -1003,7 +1009,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 return (
                   <div>
                     <Label className="flex items-center gap-1 mb-2">
-                      Помещение *
+                      Помещение
                     </Label>
                     <Input
                       placeholder="Введите помещение"
