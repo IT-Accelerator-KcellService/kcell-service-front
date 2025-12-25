@@ -2543,6 +2543,7 @@ export default function ExecutorDashboard() {
                 selectedPhoto={selectedPhoto}
                 onClose={() => {
                   setSelectedPhoto(null);
+                  closeModal();
                 }}
             />
         )}
