@@ -2419,6 +2419,7 @@ export default function DepartmentHeadDashboard() {
                 selectedPhoto={selectedPhoto}
                 onClose={() => {
                   setSelectedPhoto(null);
+                  closeModal();
                 }}
             />
         )}

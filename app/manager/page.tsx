@@ -3475,6 +3475,7 @@ export default function ManagerDashboard() {
               selectedPhoto={selectedPhoto}
               onClose={() => {
                 setSelectedPhoto(null);
+                // Закрываем только photoPreview из стека, не трогая selectedRequest
                 closeModal();
               }}
           />

@@ -4157,6 +4157,7 @@ export default function AdminWorkerDashboard() {
                 selectedPhoto={selectedPhoto}
                 onClose={() => {
                   setSelectedPhoto(null);
+                  closeModal();
                 }}
             />
         )}

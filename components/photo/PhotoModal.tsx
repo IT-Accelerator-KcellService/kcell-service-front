@@ -14,8 +14,11 @@ export default function PhotoModal({ selectedPhoto, onClose }: PhotoModalProps) 
             {/* Модальное окно фото */}
             {selectedPhoto && (
                 <div
-                    className="fixed inset-0 bg-black/90 flex justify-center items-center z-50 p-4"
-                    onClick={onClose}
+                    className="fixed inset-0 bg-black/90 flex justify-center items-center z-[60] p-4"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClose();
+                    }}
                 >
                     <div className="relative w-full h-full max-w-7xl max-h-full flex items-center justify-center">
                         <img
@@ -53,7 +56,10 @@ export default function PhotoModal({ selectedPhoto, onClose }: PhotoModalProps) 
                         )}
 
                         <button
-                            onClick={onClose}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClose();
+                            }}
                             className="absolute top-3 right-3 md:top-6 md:right-6 w-8 h-8 md:w-10 md:h-10 bg-black/85 hover:bg-black/95 text-white rounded-full flex items-center justify-center border border-white/20 transition-colors"
                             aria-label="Закрыть"
                         >
