@@ -112,7 +112,7 @@ export default function DepartmentHeadDashboard() {
   const successModal = useSuccessModal()
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState("incoming")
+  const [activeTab, setActiveTab] = useState("meeting-rooms")
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
   const [showNotFoundModal, setShowNotFoundModal] = useState(false)
@@ -1724,7 +1724,13 @@ export default function DepartmentHeadDashboard() {
           {/* Main Content */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <Tabs value={activeTab} onValueChange={(value) => {
+                if (value === "statistics") {
+                  router.push('/department-head/statistics');
+                } else {
+                  setActiveTab(value);
+                }
+              }}>
                 <div className="mb-3">
                   {/* на телефоне только табы */}
                   <div className="w-full mb-2 sm:hidden">
@@ -1745,9 +1751,6 @@ export default function DepartmentHeadDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
                           <span className="sm:hidden">Повторяющиеся</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
-                          Статистика
                         </TabsTrigger>
                         <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
                           <span className="sm:hidden flex items-center gap-1">
@@ -1891,73 +1894,6 @@ export default function DepartmentHeadDashboard() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="statistics" className="pt-2 sm:pt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="w-full">
-                      <CardHeader>
-                        <CardTitle className="text-base sm:text-lg break-words">Статистика по заявкам</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4 text-sm sm:text-base">
-                          <div className="flex justify-between items-center flex-wrap gap-1">
-                            <span className="break-words">Ожидает назначения</span>
-                            <span className="font-bold">{stats && stats.statusCounts && stats.statusCounts.awaitingAssignment ? (stats.statusCounts.awaitingAssignment) : 0}</span>
-                          </div>
-                          <div className="flex justify-between items-center flex-wrap gap-1">
-                            <span className="break-words">Всего заявок</span>
-                            <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests) : 0}</span>
-                          </div>
-                          <div className="flex justify-between items-center flex-wrap gap-1">
-                            <span className="break-words">Завершено</span>
-                            <span className="font-bold text-green-600">
-                              {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center flex-wrap gap-1">
-                            <span className="break-words">В работе</span>
-                            <span className="font-bold text-blue-600">
-                              {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center flex-wrap gap-1">
-                            <span className="break-words">Просрочено</span>
-                            <span className="font-bold text-red-600">
-                              {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="w-full">
-                      <CardHeader>
-                        <CardTitle className="text-base sm:text-lg break-words">По типам заявок</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4 text-sm sm:text-base">
-                          <div className="flex justify-between items-center flex-wrap gap-1">
-                            <span className="break-words">Обычные</span>
-                            <span className="font-bold">
-                              {stats && stats.requestTypeSummary && stats.requestTypeSummary.normal ? (stats.requestTypeSummary.normal) : 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center flex-wrap gap-1">
-                            <span className="break-words">Экстренные</span>
-                            <span className="font-bold">
-                              {stats && stats.requestTypeSummary && stats.requestTypeSummary.urgent ? (stats.requestTypeSummary.urgent) : 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center flex-wrap gap-1">
-                            <span className="break-words">Плановые</span>
-                            <span className="font-bold">
-                              {stats && stats.requestTypeSummary && stats.requestTypeSummary.planned ? (stats.requestTypeSummary.planned) : 0}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
 
                 <TabsContent value="meeting-rooms" className="pt-2 sm:pt-0">
                   {!selectedOffice ? (
@@ -2670,7 +2606,6 @@ export default function DepartmentHeadDashboard() {
         />
 
         <BottomNav
-
             activeTab="history"
             hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal || showChangeExecutorsModal}
         />

@@ -163,7 +163,7 @@ export default function ManagerDashboard() {
   const [office, setOffice] = useState("all")
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
   const [notFoundRequestId, setNotFoundRequestId] = useState<string>('');
-  const [tab, setTab] = useState("requests")
+  const [tab, setTab] = useState("meeting-rooms")
   const [offices, setOffices] = useState<OfficeType[]>([])
   const [newOfficeName, setNewOfficeName] = useState("")
   const [newOfficeCity, setNewOfficeCity] = useState("")
@@ -2311,7 +2311,13 @@ export default function ManagerDashboard() {
           ):null}
 
         {/* Mobile-optimized Tabs */}
-        <Tabs value={tab} onValueChange={setTab}>
+        <Tabs value={tab} onValueChange={(value) => {
+          if (value === "statistics") {
+            router.push('/manager/statistics');
+          } else {
+            setTab(value);
+          }
+        }}>
           <div className="w-full mb-3">
             {/* на телефоне только табы с горизонтальным скроллом */}
             <div className="w-full mb-2 sm:hidden">
@@ -2338,6 +2344,10 @@ export default function ManagerDashboard() {
                   </TabsTrigger>
                   <TabsTrigger value="registration-requests" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0">
                     Регистрации
+                  </TabsTrigger>
+                  <TabsTrigger value="statistics" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0 flex items-center gap-1">
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Статистика
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -2368,6 +2378,10 @@ export default function ManagerDashboard() {
                   </TabsTrigger>
                   <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap h-auto">
                     Регистрации
+                  </TabsTrigger>
+                  <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap h-auto flex items-center gap-1.5">
+                    <BarChart3 className="h-4 w-4 flex-shrink-0" />
+                    Статистика
                   </TabsTrigger>
                 </TabsList>
               </div>

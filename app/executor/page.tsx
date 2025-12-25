@@ -109,7 +109,7 @@ export default function ExecutorDashboard() {
   const [notFoundRequestId, setNotFoundRequestId] = useState<string>('');
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({})
 
-  const [activeTab, setActiveTab] = useState("tasks")
+  const [activeTab, setActiveTab] = useState("meeting-rooms")
   const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
@@ -1809,7 +1809,13 @@ export default function ExecutorDashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <Tabs value={activeTab} onValueChange={(value) => {
+                if (value === "statistics") {
+                  router.push('/executor/statistics');
+                } else {
+                  setActiveTab(value);
+                }
+              }}>
                 <div className="mb-3">
                   {/* на телефоне только табы */}
                   <div className="w-full mb-2 sm:hidden">
@@ -1830,9 +1836,6 @@ export default function ExecutorDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="completed" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                           Завершенные
-                        </TabsTrigger>
-                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
-                          Статистика
                         </TabsTrigger>
                         <TabsTrigger value="scan-qr" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
                           <span className="sm:hidden flex items-center gap-1">
@@ -2066,64 +2069,6 @@ export default function ExecutorDashboard() {
                   )}
                 </TabsContent>
 
-                <TabsContent value="statistics" className="pt-2 sm:pt-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Моя статистика</CardTitle>
-                        <CardDescription>Показатели за весь период</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span>Всего выполнено задач</span>
-                            <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Выполнено в срок</span>
-                            <span className="font-bold text-green-600">{stats && stats.onTime ? (stats.onTime): 0}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Просрочено</span>
-                            <span className="font-bold text-red-600">{stats && stats.overdue ? (stats.overdue): 0}</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Средняя оценка</span>
-                            <span className="font-bold">{myRating}/5</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span>Среднее время выполнения</span>
-                            <span className="font-bold">{stats && stats.averageExecutionHours ? (stats.averageExecutionHours): 0} часа</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Рейтинг и достижения</CardTitle>
-                        <CardDescription>Ваш текущий статус</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <PerformerCard myRating={myRating ?? 0}/>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
-                            <span className="text-sm">Быстрое выполнение</span>
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          </div>
-                          <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
-                            <span className="text-sm">Качественная работа</span>
-                            <CheckCircle className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="flex items-center justify-between p-2 bg-[#114A65]/10 rounded-lg">
-                            <span className="text-sm">Надежный партнер</span>
-                            <CheckCircle className="w-5 h-5 text-[#114A65]" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
 
           <TabsContent value="scan-qr" className="pt-2 sm:pt-0">
             <Card>
@@ -2801,7 +2746,6 @@ export default function ExecutorDashboard() {
         />
 
         <BottomNav
-
             activeTab="history"
             hidden={showCreateRequestModal || !! selectedRequest || showMapModal || !!selectedPhoto || isModalOpen || showRejectModal || showRedirectModal || showQRScanner}
         />

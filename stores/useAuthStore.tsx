@@ -10,6 +10,8 @@ interface User {
     id: number;
     full_name: string;
     phone?: string;
+    email?: string;
+    email_verified?: boolean;
     office_id: number;
     office: Office;
     role: string;

@@ -203,37 +203,27 @@ export function MeetingRoomStatistics() {
         </CardContent>
       </Card>
 
-      {/* Общее количество броней за месяц */}
+      {/* Компактная статистика */}
       <Card>
-        <CardHeader>
-          <CardTitle>Общее количество броней за месяц</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold text-primary">{stats.totalBookingsThisMonth || 0}</p>
-        </CardContent>
-      </Card>
-
-      {/* Средняя продолжительность брони */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Средняя продолжительность брони</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold text-primary">
-            {formatDuration(stats.averageBookingDuration || 0)}
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Количество отмен / неявок */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Кол-во отмен / неявок</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold text-destructive">
-            {stats.cancellationsAndNoShows || 0}
-          </p>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <div className="text-xs text-neutral-500">Броней за месяц</div>
+              <div className="mt-1 text-lg font-semibold tracking-tight">{stats.totalBookingsThisMonth || 0}</div>
+            </div>
+            <div>
+              <div className="text-xs text-neutral-500">Средняя продолжительность</div>
+              <div className="mt-1 text-lg font-semibold tracking-tight">
+                {formatDuration(stats.averageBookingDuration || 0)}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-neutral-500">Отмен / неявок</div>
+              <div className="mt-1 text-lg font-semibold tracking-tight text-destructive">
+                {stats.cancellationsAndNoShows || 0}
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

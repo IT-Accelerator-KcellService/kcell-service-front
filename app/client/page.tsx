@@ -156,6 +156,16 @@ export default function ClientDashboard() {
   const lastElementRef = useRef<HTMLDivElement | null>(null);
   const [pageSize] = useState(10);
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  
+  // Обработка query параметра tab для установки активной вкладки
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab === "requests" || tab === "statistics" || tab === "meeting-rooms") {
+      setActiveTab(tab)
+    }
+    // По умолчанию остается meeting-rooms (бронирование)
+  }, [searchParams])
+  
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
   const [offices, setOffices] = useState<any[]>([]);
@@ -1297,7 +1307,7 @@ export default function ClientDashboard() {
                   </Card>
                   <Card
                     className="cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] border-2 hover:border-[#B8400E] bg-gradient-to-br from-white via-[#F3F3F3] to-white backdrop-blur-sm"
-                    onClick={() => setActiveTab("statistics")}
+                    onClick={() => router.push('/client/statistics')}
                   >
                     <CardContent className="p-6">
                       <div className="flex flex-col items-center justify-center text-center h-full min-h-[200px]">
@@ -1406,8 +1416,8 @@ export default function ClientDashboard() {
             {/* Главная секция для мобильных */}
             {!isDesktop && (
               <div className="mb-6 space-y-4">
-                {/* Три большие кнопки */}
-                <div className="grid grid-cols-3 gap-3">
+                {/* Две большие кнопки */}
+                <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={() => {
                       setActiveTab("meeting-rooms");
@@ -1430,13 +1440,6 @@ export default function ClientDashboard() {
                       <span className="text-xs font-medium leading-tight">Сервисные</span>
                       <span className="text-xs font-medium leading-tight">заявки</span>
                     </div>
-                  </Button>
-                  <Button
-                    onClick={() => setActiveTab("statistics")}
-                    className="h-24 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-xl flex flex-col items-center justify-center gap-2 px-2"
-                  >
-                    <BarChart3 className="h-8 w-8" />
-                    <span className="text-xs font-medium">Статистика</span>
                   </Button>
                 </div>
 
@@ -1668,8 +1671,7 @@ export default function ClientDashboard() {
       </div>
       </PullToRefresh>
   <BottomNav
-
-      activeTab ="history"
+      activeTab={activeTab === "requests" ? "home" : activeTab === "meeting-rooms" ? "home" : "history"}
       hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showDeleteRequestModal}
   />
         {/* Request Details Modal */}

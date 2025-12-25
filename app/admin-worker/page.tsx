@@ -122,7 +122,7 @@ export default function AdminWorkerDashboard() {
   const rejectModal = useRejectRequestModal()
   const approveModal = useAcceptRequestModal()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState("incoming");
+  const [activeTab, setActiveTab] = useState("meeting-rooms");
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false);
@@ -2483,7 +2483,13 @@ export default function AdminWorkerDashboard() {
           {/* Main Content */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <Tabs value={activeTab} onValueChange={(value) => {
+                if (value === "statistics") {
+                  router.push('/admin-worker/statistics');
+                } else {
+                  setActiveTab(value);
+                }
+              }}>
                 <div className="mb-3">
                   {/* на телефоне только табы */}
                   <div className="w-full mb-2 sm:hidden">
@@ -2534,6 +2540,9 @@ export default function AdminWorkerDashboard() {
                       </TabsTrigger>
                       <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
                           Повторяющиеся
+                      </TabsTrigger>
+                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                        Статистика
                       </TabsTrigger>
                       <TabsTrigger value="change-head" className="text-sm px-3 py-2 whitespace-nowrap">
                         Управление
@@ -2685,73 +2694,6 @@ export default function AdminWorkerDashboard() {
                         );
                       })}
                     </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="statistics">
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Статистика по заявкам</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                              <span>Всего заявок</span>
-                              <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Завершено</span>
-                              <span className="font-bold text-green-600">
-                            {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed): 0}
-                          </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>В работе</span>
-                              <span className="font-bold text-blue-600">
-                            {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork): 0}
-                          </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Просрочено</span>
-                              <span className="font-bold text-red-600">
-                            {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue): 0}
-                          </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>По типам заявок</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                              <span>Обычные</span>
-                              <span className="font-bold">
-                            {stats && stats.requestTypeSummary && stats.requestTypeSummary.normal ? (stats.requestTypeSummary.normal): 0}
-                          </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Экстренные</span>
-                              <span className="font-bold">
-                            {stats && stats.requestTypeSummary && stats.requestTypeSummary.urgent ? (stats.requestTypeSummary.urgent): 0}
-                          </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span>Плановые</span>
-                              <span className="font-bold">
-                            {stats && stats.requestTypeSummary && stats.requestTypeSummary.planned ? (stats.requestTypeSummary.planned): 0}
-                          </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                    <MeetingRoomStatistics />
                   </div>
                 </TabsContent>
 
@@ -4319,7 +4261,6 @@ export default function AdminWorkerDashboard() {
 
 
         <BottomNav
-
             activeTab="history"
             hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto}
         />
