@@ -7,11 +7,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Building2, Users, UserPlus } from "lucide-react"
 import {useRouter} from "next/navigation";
+import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import api from "@/lib/api";
 import {useCategoryStore} from "@/stores/useCategoryStore";
-import RegistrationRequestModal from "@/components/RegistrationRequestModal";
 
 export default function LoginPage() {
   const router = useRouter()
@@ -22,7 +22,6 @@ export default function LoginPage() {
   const [passwordError, setPasswordError] = useState("")
   const [formError, setFormError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [showRegistrationModal, setShowRegistrationModal] = useState(false)
   const {role, token} = useAuthStore()
 
   useEffect(() => {
@@ -198,15 +197,24 @@ export default function LoginPage() {
                   <p className="text-red-500 text-center text-sm mt-2">{formError}</p>
               )}
 
-              <div className="text-center">
-                <Button
-                  onClick={() => setShowRegistrationModal(true)}
-                  variant="outline"
-                  className="w-full text-violet-600 border-violet-600 hover:bg-violet-50"
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Запросить регистрацию
-                </Button>
+              <div className="text-center space-y-2">
+                <Link href="/reset-password" className="block">
+                  <Button
+                    variant="link"
+                    className="text-violet-600 hover:text-violet-700 text-sm"
+                  >
+                    Забыли пароль?
+                  </Button>
+                </Link>
+                <Link href="/register" className="block w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full text-violet-600 border-violet-600 hover:bg-violet-50"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Запросить регистрацию
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
@@ -226,11 +234,6 @@ export default function LoginPage() {
             </Card>
           </div>
         </div>
-
-        <RegistrationRequestModal
-          isOpen={showRegistrationModal}
-          onClose={() => setShowRegistrationModal(false)}
-        />
       </div>
   )
 }

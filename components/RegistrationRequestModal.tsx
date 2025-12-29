@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { api } from '@/lib/api';
 import { SuccessModal } from '@/components/success-model';
 import { Eye, EyeOff } from 'lucide-react';
 import {useSuccessModal} from "@/hooks/use-success-modal";
+import { generateVerificationCode, sendVerificationCode } from '@/lib/mobizon';
 
 interface RegistrationRequestModalProps {
     isOpen: boolean;
@@ -54,14 +56,35 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const successModal = useSuccessModal()
     const [formErrors, setFormErrors] = useState<string | null>(null);
+    
+    // SMS верификация
+    const [verificationCode, setVerificationCode] = useState('');
+    const [storedVerificationCode, setStoredVerificationCode] = useState('');
+    const [isSendingCode, setIsSendingCode] = useState(false);
+    const [codeSent, setCodeSent] = useState(false);
+    const [countdown, setCountdown] = useState(0);
 
     // Загружаем список офисов и категорий при открытии модала
     React.useEffect(() => {
         if (isOpen) {
             loadOffices();
             loadCategories();
+            // Сброс состояния при открытии
+            setStep(1);
+            setVerificationCode('');
+            setStoredVerificationCode('');
+            setCodeSent(false);
+            setCountdown(0);
         }
     }, [isOpen]);
+
+    // Таймер обратного отсчета для повторной отправки кода
+    useEffect(() => {
+        if (countdown > 0) {
+            const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [countdown]);
 
     const loadOffices = async () => {
         try {
@@ -111,6 +134,64 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
         const value = e.target.value;
         const formatted = formatPhone(value);
         setFormData(prev => ({ ...prev, phone: formatted }));
+        // Сбрасываем верификацию при изменении номера
+        if (codeSent) {
+            setCodeSent(false);
+            setVerificationCode('');
+            setStoredVerificationCode('');
+        }
+    };
+
+    // Отправка кода верификации
+    const handleSendVerificationCode = async () => {
+        if (!formData.phone) {
+            setFormErrors('Введите номер телефона');
+            return;
+        }
+
+        const phoneRegex = /^\+7 \d{3} \d{3} \d{2} \d{2}$/;
+        if (!phoneRegex.test(formData.phone)) {
+            setFormErrors('Введите корректный номер телефона');
+            return;
+        }
+
+        setIsSendingCode(true);
+        setFormErrors(null);
+
+        try {
+            const code = generateVerificationCode(6);
+            setStoredVerificationCode(code);
+
+            const result = await sendVerificationCode(formData.phone, code);
+
+            if (result.success) {
+                setCodeSent(true);
+                setCountdown(60); // 60 секунд до возможности повторной отправки
+            } else {
+                setFormErrors(result.message || 'Ошибка при отправке SMS. Попробуйте позже.');
+            }
+        } catch (error: any) {
+            console.error('Ошибка отправки кода:', error);
+            setFormErrors('Ошибка при отправке SMS. Попробуйте позже.');
+        } finally {
+            setIsSendingCode(false);
+        }
+    };
+
+    // Проверка кода верификации
+    const handleVerifyCode = () => {
+        if (!verificationCode || verificationCode.length !== 6) {
+            setFormErrors('Введите код из 6 цифр');
+            return;
+        }
+
+        if (verificationCode !== storedVerificationCode) {
+            setFormErrors('Неверный код верификации');
+            return;
+        }
+
+        setFormErrors(null);
+        setStep(3); // Переход к шагу с паролем
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -157,6 +238,10 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
                 confirm_password: ''
             });
             setStep(1);
+            setVerificationCode('');
+            setStoredVerificationCode('');
+            setCodeSent(false);
+            setCountdown(0);
         } catch (error: any) {
             console.error(error);
             setFormErrors(error.response?.data?.error || 'Произошла ошибка при отправке запроса')
@@ -172,7 +257,9 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
             <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
                 <CardHeader>
                     <CardTitle className="text-center text-lg md:text-xl">
-                        {step === 1 ? 'Запрос на регистрацию' : 'Придумать пароль'}
+                        {step === 1 && 'Запрос на регистрацию'}
+                        {step === 2 && 'Верификация номера телефона'}
+                        {step === 3 && 'Придумать пароль'}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -274,6 +361,10 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
                                     onClick={() => {
                                         setStep(2);
                                         setFormErrors("");
+                                        // Автоматически отправляем код при переходе к шагу верификации
+                                        if (!codeSent) {
+                                            handleSendVerificationCode();
+                                        }
                                     }}
                                     disabled={
                                         !formData.phone ||
@@ -286,6 +377,79 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
                                 >
                                     Далее
                                 </Button>
+                            </>
+                        ) : step === 2 ? (
+                            <>
+                                <div className="space-y-4">
+                                    <p className="text-sm text-gray-600 text-center">
+                                        Мы отправили SMS с кодом верификации на номер {formData.phone}
+                                    </p>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="verification-code" className="text-sm md:text-base text-center block">
+                                            Введите код из SMS
+                                        </Label>
+                                        <div className="flex justify-center">
+                                            <InputOTP
+                                                maxLength={6}
+                                                value={verificationCode}
+                                                onChange={(value) => {
+                                                    setVerificationCode(value);
+                                                    setFormErrors(null);
+                                                }}
+                                            >
+                                                <InputOTPGroup>
+                                                    <InputOTPSlot index={0} />
+                                                    <InputOTPSlot index={1} />
+                                                    <InputOTPSlot index={2} />
+                                                    <InputOTPSlot index={3} />
+                                                    <InputOTPSlot index={4} />
+                                                    <InputOTPSlot index={5} />
+                                                </InputOTPGroup>
+                                            </InputOTP>
+                                        </div>
+                                    </div>
+
+                                    {formErrors && <p className="text-sm text-red-500 text-center">{formErrors}</p>}
+
+                                    <div className="flex flex-col space-y-2">
+                                        <Button
+                                            type="button"
+                                            onClick={handleVerifyCode}
+                                            disabled={verificationCode.length !== 6}
+                                            className="w-full text-sm md:text-base py-2 md:py-3"
+                                        >
+                                            Подтвердить
+                                        </Button>
+
+                                        <Button
+                                            type="button"
+                                            onClick={handleSendVerificationCode}
+                                            disabled={isSendingCode || countdown > 0}
+                                            variant="outline"
+                                            className="w-full text-sm md:text-base py-2 md:py-3"
+                                        >
+                                            {isSendingCode 
+                                                ? 'Отправка...' 
+                                                : countdown > 0 
+                                                ? `Отправить повторно (${countdown}с)` 
+                                                : 'Отправить код повторно'}
+                                        </Button>
+
+                                        <Button
+                                            type="button"
+                                            onClick={() => {
+                                                setStep(1);
+                                                setFormErrors("");
+                                                setVerificationCode('');
+                                            }}
+                                            variant="ghost"
+                                            className="w-full text-sm md:text-base py-2 md:py-3"
+                                        >
+                                            Назад
+                                        </Button>
+                                    </div>
+                                </div>
                             </>
                         ) : (
                             <>
@@ -340,7 +504,7 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
                                     <Button
                                         type="button"
                                         onClick={() => {
-                                            setStep(1);
+                                            setStep(2);
                                             setFormErrors("");
                                         }}
                                         variant="outline"

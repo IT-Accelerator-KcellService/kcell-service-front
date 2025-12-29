@@ -491,13 +491,13 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     if (stats.length) {
-      setKpi(calculateKPI(stats, office, period));
-      setChartData(prepareChartData(stats, office, period));
-      setDistribution(getRequestsDistribution(stats, office, period));
+      setKpi(calculateKPI(stats, office, period, startDate, endDate));
+      setChartData(prepareChartData(stats, office, period, startDate, endDate));
+      setDistribution(getRequestsDistribution(stats, office, period, startDate, endDate));
     }
-  }, [stats, office, period]);
+  }, [stats, office, period, startDate, endDate]);
 
-  const getRequestsDistribution = (stats: Stats[], selectedOffice: string, selectedPeriod: string) => {
+  const getRequestsDistribution = (stats: Stats[], selectedOffice: string, selectedPeriod: string, startDateParam?: Date, endDateParam?: Date) => {
     let filteredStats = stats;
 
     if (selectedOffice !== "all") {
@@ -507,17 +507,25 @@ export default function ManagerDashboard() {
 
     const now = new Date();
     let startDate: Date = new Date(0); // По умолчанию - все время
+    let endDate: Date = new Date(); // По умолчанию - текущая дата
 
-    switch (selectedPeriod) {
-      case "week":
-        startDate = subDays(now, 7);
-        break;
-      case "month":
-        startDate = subMonths(now, 1);
-        break;
-      case "year":
-        startDate = subYears(now, 1);
-        break;
+    // Если выбран интервал дат, используем его
+    if (startDateParam && endDateParam) {
+      startDate = startDateParam;
+      endDate = endDateParam;
+    } else {
+      // Иначе используем обычную логику по периодам
+      switch (selectedPeriod) {
+        case "week":
+          startDate = subDays(now, 7);
+          break;
+        case "month":
+          startDate = subMonths(now, 1);
+          break;
+        case "year":
+          startDate = subYears(now, 1);
+          break;
+      }
     }
 
     let total = 0;
@@ -528,7 +536,7 @@ export default function ManagerDashboard() {
     filteredStats.forEach(stat => {
       Object.entries(stat.data).forEach(([date, data]) => {
         const entryDate = new Date(date);
-        if (entryDate >= startDate) {
+        if (entryDate >= startDate && entryDate <= endDate) {
           total += data.totalRequests;
           normal += data.normalRequests || 0;
           urgent += data.urgentRequests || 0;
@@ -558,7 +566,7 @@ export default function ManagerDashboard() {
     plannedPercent: 0,
   });
 
-  const calculateKPI = (stats: Stats[], selectedOffice: string, selectedPeriod: string) => {
+  const calculateKPI = (stats: Stats[], selectedOffice: string, selectedPeriod: string, startDateParam?: Date, endDateParam?: Date) => {
     let filteredStats = stats;
 
     if (selectedOffice !== "all") {
@@ -568,22 +576,30 @@ export default function ManagerDashboard() {
 
     const now = new Date();
     let startDate: Date;
+    let endDate: Date = new Date(); // По умолчанию - текущая дата
 
-    switch (selectedPeriod) {
-      case "week":
-        startDate = new Date(now);
-        startDate.setDate(now.getDate() - 7);
-        break;
-      case "month":
-        startDate = new Date(now);
-        startDate.setMonth(now.getMonth() - 1);
-        break;
-      case "year":
-        startDate = new Date(now);
-        startDate.setFullYear(now.getFullYear() - 1);
-        break;
-      default:
-        startDate = new Date(0);
+    // Если выбран интервал дат, используем его
+    if (startDateParam && endDateParam) {
+      startDate = startDateParam;
+      endDate = endDateParam;
+    } else {
+      // Иначе используем обычную логику по периодам
+      switch (selectedPeriod) {
+        case "week":
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case "month":
+          startDate = new Date(now);
+          startDate.setMonth(now.getMonth() - 1);
+          break;
+        case "year":
+          startDate = new Date(now);
+          startDate.setFullYear(now.getFullYear() - 1);
+          break;
+        default:
+          startDate = new Date(0);
+      }
     }
 
     let total = 0;
@@ -594,7 +610,7 @@ export default function ManagerDashboard() {
     filteredStats.forEach(stat => {
       Object.entries(stat.data).forEach(([date, data]) => {
         const entryDate = new Date(date);
-        if (entryDate >= startDate) {
+        if (entryDate >= startDate && entryDate <= endDate) {
           total += data.totalRequests;
           completed += data.completedRequests;
           overdue += data.overdueRequests;
@@ -2176,23 +2192,23 @@ export default function ManagerDashboard() {
         <Tabs value={tab} onValueChange={setTab}>
           <div className="w-full mb-3">
             <div className="overflow-x-auto">
-              <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-6 sm:w-full">
-                <TabsTrigger value="requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+              <TabsList className="flex w-max min-w-full sm:flex sm:w-full sm:items-center sm:justify-center sm:h-10">
+                <TabsTrigger value="requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 sm:h-full sm:py-0">
                   Заявки
                 </TabsTrigger>
-                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 sm:h-full sm:py-0">
                   Обзор
                 </TabsTrigger>
-                <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                <TabsTrigger value="analytics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 sm:h-full sm:py-0">
                   Аналитика
                 </TabsTrigger>
-                <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 sm:h-full sm:py-0">
                   Управление
                 </TabsTrigger>
-                <TabsTrigger value="logs" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                <TabsTrigger value="logs" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 sm:h-full sm:py-0">
                   Логи
                 </TabsTrigger>
-                <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                <TabsTrigger value="registration-requests" className="text-sm px-3 py-2 whitespace-nowrap sm:h-full sm:py-0">
                   Регистрации
                 </TabsTrigger>
               </TabsList>
@@ -2227,20 +2243,20 @@ export default function ManagerDashboard() {
                       </div>
 
                       {/* Выбор интервала дат */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
+                      <div className="grid grid-cols-2 gap-4 relative z-10">
+                        <div className="relative z-10">
                           <Label className="text-xs text-gray-600">От:</Label>
-                          <Popover>
+                          <Popover modal={true}>
                             <PopoverTrigger asChild>
                               <Button
                                   variant="outline"
-                                  className="w-full justify-start text-left font-normal"
+                                  className="w-full justify-start text-left font-normal relative z-10"
                               >
                                 <CalendarLucid className="mr-2 h-4 w-4" />
                                 {startDate ? format(startDate, "dd.MM.yyyy", { locale: ru }) : "Начальная дата"}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
+                            <PopoverContent className="w-auto p-0 z-[100]" align="start">
                               <Calendar
                                   mode="single"
                                   selected={startDate}
@@ -2251,19 +2267,19 @@ export default function ManagerDashboard() {
                           </Popover>
                         </div>
 
-                        <div>
+                        <div className="relative z-10">
                           <Label className="text-xs text-gray-600">До:</Label>
-                          <Popover>
+                          <Popover modal={true}>
                             <PopoverTrigger asChild>
                               <Button
                                   variant="outline"
-                                  className="w-full justify-start text-left font-normal"
+                                  className="w-full justify-start text-left font-normal relative z-10"
                               >
                                 <CalendarLucid className="mr-2 h-4 w-4" />
                                 {endDate ? format(endDate, "dd.MM.yyyy", { locale: ru }) : "Конечная дата"}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
+                            <PopoverContent className="w-auto p-0 z-[100]" align="start">
                               <Calendar
                                   mode="single"
                                   selected={endDate}
@@ -2277,7 +2293,7 @@ export default function ManagerDashboard() {
                       </div>
                     </div>
 
-                <div className="h-48 sm:h-64">
+                <div className="h-48 sm:h-64 relative z-0">
                   {chartData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData}>
