@@ -12,8 +12,7 @@ import { ArrowLeft } from "lucide-react";
 import { BookingModal } from "@/components/meeting-rooms/BookingModal";
 import { MyBookings } from "@/components/meeting-rooms/MyBookings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useSuccessModal } from "@/hooks/use-success-modal";
-import { SuccessModal } from "@/components/success-model";
+import { useToast } from "@/hooks/use-toast";
 import { DeskHeightCalculator } from "@/components/meeting-rooms/DeskHeightCalculator";
 import { Ruler } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -73,7 +72,7 @@ export function MeetingRoomsCatalog({
   const handleCalculatorToggle = (show: boolean) => {
     onCalculatorToggle?.(show);
   };
-  const successModal = useSuccessModal();
+  const { toast } = useToast();
   const router = useRouter();
   const isMobile = useIsMobile();
   const officeInfoRef = useRef<HTMLDivElement>(null);
@@ -130,9 +129,9 @@ export function MeetingRoomsCatalog({
   };
 
   const handleBookingModalSuccess = (message: { title: string; message: string }) => {
-    successModal.showSuccess({
+    toast({
       title: message.title,
-      message: message.message,
+      description: message.message,
       duration: 3000,
     });
   };
@@ -235,13 +234,6 @@ export function MeetingRoomsCatalog({
         </TabsContent>
       </Tabs>
 
-      <SuccessModal
-        isOpen={successModal.isOpen}
-        onClose={successModal.hideSuccess}
-        title={successModal.title}
-        message={successModal.message}
-        duration={successModal.duration}
-      />
     </div>
   );
 }

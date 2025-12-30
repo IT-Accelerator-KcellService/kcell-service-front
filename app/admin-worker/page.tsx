@@ -38,8 +38,7 @@ import Header from "@/app/header/Header";
 import api, { getOffices, getExecutorsByCategory, changeCategoryHead, createServiceCategory, deleteServiceCategory, assignExecutorToCategory, getAllExecutorsForAdmin } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
-import {useSuccessModal} from "@/hooks/use-success-modal";
-import {SuccessModal} from "@/components/success-model";
+import { useToast } from "@/hooks/use-toast";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {useAcceptRequestModal} from "@/hooks/use-approve-modal";
@@ -79,6 +78,7 @@ import { MeetingRoomsAdmin } from "@/components/meeting-rooms/MeetingRoomsAdmin"
 import { MeetingRoomStatistics } from "@/components/meeting-rooms/MeetingRoomStatistics";
 import { YandexSmartHomeAdmin } from "@/components/yandex-smart-home/YandexSmartHomeAdmin";
 import { RoomDevicesAdmin } from "@/components/yandex-smart-home/RoomDevicesAdmin";
+import { ClientRoomSubscriptionsAdmin } from "@/components/yandex-smart-home/ClientRoomSubscriptionsAdmin";
 
 interface User {
   id: number;
@@ -118,7 +118,7 @@ export default function AdminWorkerDashboard() {
   const {token, clearAuth, user} = useAuthStore()
   const {categories, fetchCategories, clearCategories, createSubcategory, deleteSubcategory} = useCategoryStore()
   const searchParams = useSearchParams()
-  const successModal = useSuccessModal()
+  const { toast } = useToast()
   const rejectModal = useRejectRequestModal()
   const approveModal = useAcceptRequestModal()
   const router = useRouter()
@@ -129,10 +129,6 @@ export default function AdminWorkerDashboard() {
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
   const [notFoundRequestId, setNotFoundRequestId] = useState<string>('');
 
-  // Debug: отслеживаем изменения selectedRequest
-  useEffect(() => {
-    console.log('ADMIN: selectedRequest changed:', selectedRequest);
-  }, [selectedRequest]);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [ratingValue, setRatingValue] = useState(0);
   const [requestToRate, setRequestToRate] = useState<Request | null>(null);
@@ -276,10 +272,6 @@ export default function AdminWorkerDashboard() {
   const lastElementRef = useRef<HTMLDivElement | null>(null);
   const [offices, setOffices] = useState<any[]>([]);
 
-  // Debug: отслеживаем изменения modalStack
-  useEffect(() => {
-    console.log('ADMIN: modalStack changed:', modalStack);
-  }, [modalStack]);
 
   const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
     lastElementRef.current = node;
@@ -489,12 +481,6 @@ export default function AdminWorkerDashboard() {
 
   // Обработка query параметров для открытия заявки
   useEffect(() => {
-    console.log('=== ADMIN: QUERY PARAMS EFFECT START ===');
-    console.log('ADMIN: Full URL:', window.location.href);
-    console.log('ADMIN: searchParams.toString():', searchParams.toString());
-    console.log('ADMIN: window.location.search:', window.location.search);
-    console.log('ADMIN: window.location.pathname:', window.location.pathname);
-    
     // Сначала пробуем получить из URL напрямую
     const urlParams = new URLSearchParams(window.location.search);
     const requestIdFromUrl = urlParams.get("requestId");
@@ -503,22 +489,9 @@ export default function AdminWorkerDashboard() {
     // Если в URL нет, пробуем из searchParams
     const requestId = requestIdFromUrl || searchParams.get("requestId");
     const subRequestId = subRequestIdFromUrl || searchParams.get("subRequestId");
-    
-    console.log('ADMIN: requestId from URL:', requestIdFromUrl);
-    console.log('ADMIN: subRequestId from URL:', subRequestIdFromUrl);
-    console.log('ADMIN: requestId from searchParams:', searchParams.get("requestId"));
-    console.log('ADMIN: subRequestId from searchParams:', searchParams.get("subRequestId"));
-    console.log('ADMIN: requestId (final):', requestId);
-    console.log('ADMIN: subRequestId (final):', subRequestId);
-    console.log('ADMIN: pendingRequestId:', pendingRequestId);
-    console.log('ADMIN: selectedRequest:', selectedRequest);
-    console.log('ADMIN: incomingRequests.length:', incomingRequests.length);
-    console.log('ADMIN: myRequests.length:', myRequests.length);
-    console.log('ADMIN: loading:', loading);
 
     // Сохраняем requestId в state, если он есть и еще не сохранен
     if (requestId && !pendingRequestId) {
-      console.log('ADMIN: Saving requestId to state:', requestId);
       setPendingRequestId(requestId);
       if (subRequestId) {
         setPendingSubRequestId(subRequestId);
@@ -527,55 +500,38 @@ export default function AdminWorkerDashboard() {
 
     // Ждем, пока заявки загрузятся
     if (loading) {
-      console.log('ADMIN: Still loading, waiting...');
       return;
     }
 
     // Проверяем, что заявки загружены
     if (incomingRequests.length === 0 && myRequests.length === 0) {
-      console.log('ADMIN: No requests loaded yet');
       return;
     }
 
     // Используем сохраненный requestId вместо текущего из URL
     const idToUse = pendingRequestId || requestId;
     const subIdToUse = pendingSubRequestId || subRequestId;
-    
-    console.log('ADMIN: idToUse:', idToUse);
-    console.log('ADMIN: subIdToUse:', subIdToUse);
 
     if (idToUse && !selectedRequest) {
-      console.log('ADMIN: Looking for request with ID:', idToUse);
-      
       // Объединяем все списки заявок
       const allRequests = [...incomingRequests, ...myRequests];
-      console.log('ADMIN: allRequests.length:', allRequests.length);
-      console.log('ADMIN: allRequests IDs:', allRequests.map(r => r.id));
       
       const foundRequest = allRequests.find(r => r.id === parseInt(idToUse));
-      console.log('ADMIN: foundRequest:', foundRequest);
       
       if (foundRequest) {
-        console.log('ADMIN: Request found! Opening modal...');
-        
         // Если указан subRequestId, фильтруем подзаявки
         if (subIdToUse) {
           const subRequest = foundRequest.requests.find((req: SubRequest) => req.id === parseInt(subIdToUse));
-          console.log('ADMIN: subRequest:', subRequest);
           
           if (subRequest) {
-            console.log('ADMIN: SubRequest found, setting selected request...');
             setSelectedRequest(foundRequest);
             setExpandedSubRequests(new Set([subRequest.id]));
-            console.log('ADMIN: Calling openModal...');
             openModal('requestDetails');
-            console.log('ADMIN: openModal called');
             // Очищаем pending requestId
             setPendingRequestId(null);
             setPendingSubRequestId(null);
           } else {
             // Подзаявка не найдена
-            console.log('ADMIN: SubRequest not found');
             setNotFoundRequestId(`${idToUse}/${subIdToUse}`);
             setShowNotFoundModal(true);
             setPendingRequestId(null);
@@ -583,22 +539,17 @@ export default function AdminWorkerDashboard() {
           }
         } else {
           // Открываем всю группу заявок
-          console.log('ADMIN: Opening modal without subRequest, setting selected request...');
           setSelectedRequest(foundRequest);
-          console.log('ADMIN: Calling openModal...');
           openModal('requestDetails');
-          console.log('ADMIN: openModal called');
           // Очищаем pending requestId
           setPendingRequestId(null);
           setPendingSubRequestId(null);
         }
         
         // Очищаем query параметры из URL
-        console.log('ADMIN: Clearing query params from URL');
         window.history.replaceState({}, '', window.location.pathname);
       } else if (idToUse) {
         // Заявка не найдена
-        console.log('ADMIN: Request not found in all requests');
         setNotFoundRequestId(idToUse);
         setShowNotFoundModal(true);
         setPendingRequestId(null);
@@ -606,13 +557,7 @@ export default function AdminWorkerDashboard() {
         // Очищаем query параметры из URL
         window.history.replaceState({}, '', window.location.pathname);
       }
-    } else if (!idToUse) {
-      console.log('ADMIN: No requestId found');
-    } else if (selectedRequest) {
-      console.log('ADMIN: selectedRequest already exists, skipping');
     }
-    
-    console.log('=== ADMIN: QUERY PARAMS EFFECT END ===');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, incomingRequests, myRequests, selectedRequest, loading, pendingRequestId, pendingSubRequestId, openModal]);
 
@@ -917,9 +862,9 @@ export default function AdminWorkerDashboard() {
         message += `\n\n${response.data.processedTasks.message}`;
       }
       
-      successModal.showSuccess({
+      toast({
         title: "Руководитель изменен",
-        message: message,
+        description: message,
       });
 
       // Сбросить выбор
@@ -948,9 +893,9 @@ export default function AdminWorkerDashboard() {
     try {
       await createServiceCategory({ name: newCategoryName.trim() });
       
-      successModal.showSuccess({
+      toast({
         title: "Категория создана",
-        message: `Категория "${newCategoryName}" успешно создана`
+        description: `Категория "${newCategoryName}" успешно создана`
       });
 
       setNewCategoryName("");
@@ -989,9 +934,9 @@ export default function AdminWorkerDashboard() {
     try {
       await deleteServiceCategory(categoryToDelete);
       
-      successModal.showSuccess({
+      toast({
         title: "Категория удалена",
-        message: "Категория успешно удалена"
+        description: "Категория успешно удалена"
       });
 
       setCategoryToDelete(null);
@@ -1018,9 +963,9 @@ export default function AdminWorkerDashboard() {
         category_id: selectedCategoryForSubcategory
       });
       
-      successModal.showSuccess({
+      toast({
         title: "Подкатегория создана",
-        message: `Подкатегория "${newSubcategoryName}" успешно создана`
+        description: `Подкатегория "${newSubcategoryName}" успешно создана`
       });
 
       setSelectedCategoryForSubcategory(null);
@@ -1043,9 +988,9 @@ export default function AdminWorkerDashboard() {
     try {
       await deleteSubcategory(token!, subcategoryToDelete);
       
-      successModal.showSuccess({
+      toast({
         title: "Подкатегория удалена",
-        message: "Подкатегория успешно удалена"
+        description: "Подкатегория успешно удалена"
       });
 
       setSubcategoryToDelete(null);
@@ -1117,9 +1062,9 @@ export default function AdminWorkerDashboard() {
         throw new Error(errorData.message || "Ошибка при смене пароля");
       }
 
-      successModal.showSuccess({
+      toast({
         title: "Пароль изменен",
-        message: "Пароль пользователя успешно изменен"
+        description: "Пароль пользователя успешно изменен"
       });
 
       setSelectedUserForPassword(null);
@@ -1159,14 +1104,14 @@ export default function AdminWorkerDashboard() {
       const response = await assignExecutorToCategory(selectedCategoryId, selectedExecutorForAssignment);
       
       if (response.data.isNewHead) {
-        successModal.showSuccess({
+        toast({
           title: "Исполнитель назначен и стал руководителем",
-          message: `Исполнитель ${response.data.executor.name} успешно назначен к категории "${response.data.category.name}" и автоматически стал руководителем этой категории`
+          description: `Исполнитель ${response.data.executor.name} успешно назначен к категории "${response.data.category.name}" и автоматически стал руководителем этой категории`
         });
       } else {
-        successModal.showSuccess({
+        toast({
           title: "Исполнитель назначен",
-          message: `Исполнитель ${response.data.executor.name} успешно назначен к категории "${response.data.category.name}"`
+          description: `Исполнитель ${response.data.executor.name} успешно назначен к категории "${response.data.category.name}"`
         });
       }
 
@@ -1323,15 +1268,16 @@ export default function AdminWorkerDashboard() {
     try {
       await api.delete(`/request-groups/${request.id}`)
       fetchRequests()
-      successModal.showSuccess({
+      toast({
         title: "Заявка удалена",
-        message: "Заявка была успешно удалена."
+        description: "Заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Failed to delete request:", error)
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: "Не удалось удалить заявку."
+        description: "Не удалось удалить заявку.",
+        variant: "destructive"
       })
     }
   }
@@ -1409,9 +1355,9 @@ export default function AdminWorkerDashboard() {
       if (Object.keys(updateData).length > 0) {
         await api.put(`/request-groups/${selectedRequest.id}`, updateData);
         
-        successModal.showSuccess({
+        toast({
           title: "Заявка обновлена",
-          message: "Информация о заявке успешно обновлена"
+          description: "Информация о заявке успешно обновлена"
         });
 
         // Обновляем локальное состояние
@@ -1529,9 +1475,9 @@ export default function AdminWorkerDashboard() {
         const newRecurringTask = response.data;
         setMyRequests(prev => [newRecurringTask, ...prev]);
         
-        successModal.showSuccess({
+        toast({
           title: "Повторяющаяся задача создана!",
-          message: "Задача будет автоматически создавать экземпляры согласно расписанию."
+          description: "Задача будет автоматически создавать экземпляры согласно расписанию."
         });
       } else {
         // Создаем обычную заявку
@@ -1542,9 +1488,9 @@ export default function AdminWorkerDashboard() {
         const newRequestGroup = response.data;
         setMyRequests(prev => [newRequestGroup, ...prev]);
         
-        successModal.showSuccess({
+        toast({
           title: "Заявка создана!",
-          message: "Заявка отправлена на назначение исполнителей."
+          description: "Заявка отправлена на назначение исполнителей."
         });
       }
 
@@ -1634,9 +1580,9 @@ export default function AdminWorkerDashboard() {
       
       await api.patch(`/request-groups/${selectedRequest.id}`, requestData);
 
-      successModal.showSuccess({
+      toast({
         title: "Заявка принята в работу",
-        message: "Все под заявки успешно приняты"
+        description: "Все под заявки успешно приняты"
       });
       setSelectedRequest(null);
       closeModalWithHistory();
@@ -1667,9 +1613,9 @@ export default function AdminWorkerDashboard() {
         rejection_reason: rejectionReason
       });
 
-      successModal.showSuccess({
+      toast({
         title: "Заявка отклонена",
-        message: "Группа заявок успешно отклонена"
+        description: "Группа заявок успешно отклонена"
       });
       setSelectedRequest(null);
       setRejectionReason("");
@@ -1698,9 +1644,9 @@ export default function AdminWorkerDashboard() {
         location_detail: editableLocationDetail
       });
 
-      successModal.showSuccess({
+      toast({
         title: "Локация обновлена",
-        message: "Расположение в офисе успешно обновлено"
+        description: "Расположение в офисе успешно обновлено"
       });
 
       // Обновляем локальное состояние
@@ -1746,9 +1692,9 @@ export default function AdminWorkerDashboard() {
 
       await api.patch(`/requests/${subRequest.id}`, updateData);
 
-      successModal.showSuccess({
+      toast({
         title: "Настройки обновлены",
-        message: "Время выполнения, сложность и локация успешно обновлены"
+        description: "Время выполнения, сложность и локация успешно обновлены"
       });
 
       // Обновляем данные в selectedRequest
@@ -1811,15 +1757,16 @@ export default function AdminWorkerDashboard() {
         }
       }
 
-      successModal.showSuccess({
+      toast({
         title: "Под заявка удалена",
-        message: "Под заявка была успешно удалена."
+        description: "Под заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Error deleting sub-request:", error)
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: "Не удалось удалить под заявку."
+        description: "Не удалось удалить под заявку.",
+        variant: "destructive"
       })
     }
   }
@@ -1947,9 +1894,9 @@ export default function AdminWorkerDashboard() {
         setClientRatingComment("");
         setRequestGroupToRate(null);
         
-        successModal.showSuccess({
+        toast({
           title: "Оценка отправлена",
-          message: "Оценка клиента была успешно отправлена."
+          description: "Оценка клиента была успешно отправлена."
         });
       } catch (error) {
         // В случае ошибки откатываем изменения
@@ -2196,18 +2143,19 @@ export default function AdminWorkerDashboard() {
       setMyRequests(updateRequestGroups);
 
       // Показываем сообщение об успехе
-      successModal.showSuccess({
+      toast({
         title: currentStatus ? "Задача снята с долгосрочных" : "Задача помечена как долгосрочная",
-        message: currentStatus 
+        description: currentStatus 
           ? "Задача больше не отображается как долгосрочная" 
-          : "Задача помечена как долгосрочная и будет выделена синим цветом"
+          : "Задача теперь отображается как долгосрочная"
       });
 
     } catch (error: any) {
       console.error("Ошибка при изменении статуса долгосрочной задачи:", error);
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: error.response?.data?.error || "Не удалось изменить статус задачи"
+        description: error.response?.data?.error || "Не удалось изменить статус задачи",
+        variant: "destructive"
       });
     }
   };
@@ -2219,15 +2167,16 @@ export default function AdminWorkerDashboard() {
       // Обновляем виджет предстоящих задач
       setUpcomingTasksRefreshTrigger(prev => prev + 1);
 
-      successModal.showSuccess({
+      toast({
         title: "Повторяющаяся задача удалена",
-        message: "Повторяющаяся задача была успешно удалена."
+        description: "Повторяющаяся задача была успешно удалена."
       });
     } catch (error: any) {
       console.error("Ошибка при удалении повторяющейся задачи:", error);
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: error.response?.data?.error || "Не удалось удалить повторяющуюся задачу"
+        description: error.response?.data?.error || "Не удалось удалить повторяющуюся задачу",
+        variant: "destructive"
       });
     }
   };
@@ -2263,9 +2212,9 @@ export default function AdminWorkerDashboard() {
       });
 
       fetchRequests();
-      successModal.showSuccess({
+      toast({
         title: "Заявка перенаправлена",
-        message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+        description: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
       });
 
       handleCloseRedirectModal();
@@ -2296,9 +2245,9 @@ export default function AdminWorkerDashboard() {
 
   const handleAssignExecutorsSuccess = () => {
     fetchRequests();
-    successModal.showSuccess({
+    toast({
       title: "Исполнители назначены",
-      message: "Исполнители успешно назначены на заявку"
+      description: "Исполнители успешно назначены на заявку"
     });
   };
 
@@ -3305,8 +3254,9 @@ export default function AdminWorkerDashboard() {
                       {/* Управление умным домом */}
                       {selectedManagementSection === "smart-home" && (
                         <div className="space-y-6">
-                          <YandexSmartHomeAdmin />
                           <RoomDevicesAdmin />
+                          <ClientRoomSubscriptionsAdmin />
+                          <YandexSmartHomeAdmin />
                         </div>
                       )}
                     </div>
@@ -4217,13 +4167,6 @@ export default function AdminWorkerDashboard() {
             closeModalWithHistory();
           }}
           mapLocation={mapLocation}
-        />
-        <SuccessModal
-            isOpen={successModal.isOpen}
-            onClose={successModal.hideSuccess}
-            title={successModal.title}
-            message={successModal.message}
-            duration={successModal.duration}
         />
         <AcceptRequestModal
             isOpen={approveModal.isOpen}

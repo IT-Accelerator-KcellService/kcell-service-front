@@ -8,13 +8,11 @@ import { Calendar, Clock, Building2, X, ExternalLink } from "lucide-react"
 import { format } from "date-fns"
 import { ru } from "date-fns/locale"
 import { getMyBookings, cancelMeetingRoomBooking, MeetingRoomBooking } from "@/lib/api"
-import { useSuccessModal } from "@/hooks/use-success-modal"
-import { SuccessModal } from "@/components/success-model"
+import { useToast } from "@/hooks/use-toast"
 import { useRejectRequestModal } from "@/hooks/use-reject-modal"
 import { RejectRequestModal } from "@/components/RejectRequestModal"
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal"
 import { useRouter } from "next/navigation"
-import { RoomDevicesControl } from "./RoomDevicesControl"
 
 export function MyBookings() {
   const [bookings, setBookings] = useState<MeetingRoomBooking[]>([])
@@ -22,7 +20,7 @@ export function MyBookings() {
   const [cancellingId, setCancellingId] = useState<number | null>(null)
   const [bookingToCancel, setBookingToCancel] = useState<MeetingRoomBooking | null>(null)
   const [showCancelModal, setShowCancelModal] = useState(false)
-  const successModal = useSuccessModal()
+  const { toast } = useToast()
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
 
@@ -76,9 +74,9 @@ export function MyBookings() {
       
       await cancelMeetingRoomBooking(bookingId)
       
-      successModal.showSuccess({
+      toast({
         title: "Бронирование отменено",
-        message: "Бронирование успешно отменено",
+        description: "Бронирование успешно отменено",
       })
       
       // Перезагружаем список для получения актуальных данных
@@ -213,14 +211,6 @@ export function MyBookings() {
         <p className="text-muted-foreground">Управляйте своими бронированиями переговорных комнат</p>
       </div>
 
-      <SuccessModal
-        isOpen={successModal.isOpen}
-        onClose={successModal.hideSuccess}
-        title={successModal.title}
-        message={successModal.message}
-        duration={successModal.duration}
-      />
-
       <RejectRequestModal
         isOpen={rejectModal.isOpen}
         onClose={rejectModal.hideReject}
@@ -306,11 +296,6 @@ export function MyBookings() {
                       </div>
                     )}
                   </div>
-                  <RoomDevicesControl
-                    meeting_room_id={booking.meeting_room_id}
-                    bookingStartTime={timeToString(booking.start_time)}
-                    bookingEndTime={timeToString(booking.end_time)}
-                  />
                   <Button
                     variant="outline"
                     size="sm"

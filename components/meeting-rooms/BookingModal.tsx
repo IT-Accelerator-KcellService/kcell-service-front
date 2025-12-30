@@ -13,8 +13,7 @@ import { Calendar as CalendarIcon, Clock, Building2, Users, ImageIcon } from "lu
 import { cn } from "@/lib/utils"
 import { MeetingRoom } from "@/stores/meetingRoomsStore"
 import api from "@/lib/api"
-import { useSuccessModal } from "@/hooks/use-success-modal"
-import { SuccessModal } from "@/components/success-model"
+import { useToast } from "@/hooks/use-toast"
 import { useRejectRequestModal } from "@/hooks/use-reject-modal"
 import { RejectRequestModal } from "@/components/RejectRequestModal"
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal"
@@ -67,7 +66,7 @@ export function BookingModal({
   const [loadingAvailability, setLoadingAvailability] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
-  const successModal = useSuccessModal()
+  const { toast } = useToast()
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
   const [roomDetails, setRoomDetails] = useState<ApiMeetingRoom | null>(null)
@@ -550,13 +549,6 @@ export function BookingModal({
     return (
       <div className="min-h-screen bg-background">
         {content}
-        <SuccessModal
-          isOpen={successModal.isOpen}
-          onClose={successModal.hideSuccess}
-          title={successModal.title}
-          message={successModal.message}
-          duration={successModal.duration}
-        />
         
         <RejectRequestModal
           isOpen={rejectModal.isOpen}
@@ -591,13 +583,6 @@ export function BookingModal({
       onClick={onClose}
     >
       {content}
-      <SuccessModal
-        isOpen={successModal.isOpen}
-        onClose={successModal.hideSuccess}
-        title={successModal.title}
-        message={successModal.message}
-        duration={successModal.duration}
-      />
       
       <RejectRequestModal
         isOpen={rejectModal.isOpen}

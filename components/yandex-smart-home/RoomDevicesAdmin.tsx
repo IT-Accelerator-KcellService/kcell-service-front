@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, CheckCircle, Loader2, Trash2, Link2, Plus } from "lucide-react"
+import { AlertTriangle, CheckCircle, Loader2, Trash2, Link2, Plus, ChevronLeft, ChevronRight, Power } from "lucide-react"
 import {
     Select,
     SelectContent,
@@ -27,12 +27,14 @@ import {
     createRoomDevice,
     deleteRoomDevice,
     getMeetingRooms,
+    controlDevice,
+    getRoomDevicesForClient,
     type YandexDevice,
     type RoomDevice,
-    type MeetingRoom
+    type MeetingRoom,
+    type ControlDeviceRequest
 } from "@/lib/api"
-import { useSuccessModal } from "@/hooks/use-success-modal"
-import { SuccessModal } from "@/components/success-model"
+import { useToast } from "@/hooks/use-toast"
 
 export function RoomDevicesAdmin() {
     const [isLoading, setIsLoading] = useState(false)
@@ -46,7 +48,11 @@ export function RoomDevicesAdmin() {
     const [selectedDevice, setSelectedDevice] = useState<string>("")
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [deviceToDelete, setDeviceToDelete] = useState<RoomDevice | null>(null)
-    const successModal = useSuccessModal()
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 5
+    const { toast } = useToast()
+    const [isControlling, setIsControlling] = useState<string | null>(null)
+    const [devicesForControl, setDevicesForControl] = useState<Map<number, YandexDevice[]>>(new Map())
 
     useEffect(() => {
         loadData()
@@ -74,8 +80,14 @@ export function RoomDevicesAdmin() {
             const response = await getYandexDevicesList()
             setYandexDevices(response.data.devices || [])
         } catch (err: any) {
-            if (err.response?.status !== 404) {
-                setError(err.response?.data?.message || "Ошибка при загрузке устройств из Яндекс")
+            if (err.response?.status === 404) {
+                // Токены не настроены - это нормально, не показываем ошибку
+                setYandexDevices([])
+            } else if (err.response?.status === 401) {
+                setError("Токены Яндекс умного дома истекли или недействительны. Обновите токены в разделе 'Управление Яндекс умным домом'")
+            } else {
+                const errorMessage = err.response?.data?.message || err.message || "Ошибка при загрузке устройств из Яндекс"
+                setError(errorMessage)
             }
         } finally {
             setIsLoadingDevices(false)
@@ -85,12 +97,39 @@ export function RoomDevicesAdmin() {
     const loadRoomDevices = async () => {
         try {
             const response = await getAllRoomDevices()
-            setRoomDevices(response.data.devices || [])
+            const devices = response.data.devices || []
+            setRoomDevices(devices)
+            
+            // Загружаем устройства для управления по комнатам
+            await loadDevicesForControl(devices)
         } catch (err: any) {
             if (err.response?.status !== 404) {
                 setError(err.response?.data?.message || "Ошибка при загрузке связей устройств")
             }
         }
+    }
+
+    const loadDevicesForControl = async (roomDevices: RoomDevice[]) => {
+        const devicesMap = new Map<number, YandexDevice[]>()
+        
+        // Группируем устройства по комнатам
+        const roomIds = [...new Set(roomDevices.map(rd => rd.meeting_room_id))]
+        
+        for (const roomId of roomIds) {
+            try {
+                // Получаем устройства для комнаты через API клиента (они возвращают YandexDevice с возможностью управления)
+                const response = await getRoomDevicesForClient(roomId)
+                const devices = response.data.devices || []
+                if (devices.length > 0) {
+                    devicesMap.set(roomId, devices)
+                }
+            } catch (err) {
+                // Игнорируем ошибки для отдельных комнат
+                console.error(`Ошибка загрузки устройств для комнаты ${roomId}:`, err)
+            }
+        }
+        
+        setDevicesForControl(devicesMap)
     }
 
     const loadMeetingRooms = async () => {
@@ -124,9 +163,9 @@ export function RoomDevicesAdmin() {
                 device_type: device.type
             })
 
-            successModal.showSuccess({
+            toast({
                 title: "Успешно",
-                message: "Устройство успешно связано с комнатой",
+                description: "Устройство успешно связано с комнатой",
                 duration: 3000
             })
 
@@ -153,9 +192,9 @@ export function RoomDevicesAdmin() {
             setError(null)
             await deleteRoomDevice(deviceToDelete.id)
 
-            successModal.showSuccess({
+            toast({
                 title: "Успешно",
-                message: "Связь устройства с комнатой удалена",
+                description: "Связь устройства с комнатой удалена",
                 duration: 3000
             })
 
@@ -177,6 +216,76 @@ export function RoomDevicesAdmin() {
             .map(rd => rd.device_id)
         return yandexDevices.filter(device => !linkedDeviceIds.includes(device.id))
     }
+
+    // Получаем состояние устройства (включено/выключено)
+    const getDeviceState = (device: YandexDevice, capabilityType: string): boolean | null => {
+        const capability = device.capabilities?.find((cap: any) => cap.type === capabilityType)
+        if (capability?.state?.value !== undefined) {
+            return capability.state.value
+        }
+        return null
+    }
+
+    const handleControlDevice = async (device: YandexDevice, actionType: string, value: any) => {
+        try {
+            setIsControlling(device.id)
+            setError(null)
+
+            const request: ControlDeviceRequest = {
+                device_id: device.id,
+                action_type: actionType,
+                action_state: {
+                    instance: "on",
+                    value: value
+                }
+            }
+
+            await controlDevice(request)
+
+            toast({
+                title: "Успешно",
+                description: `Устройство "${device.name}" ${value ? "включено" : "выключено"}`,
+                duration: 2000
+            })
+
+            // Обновляем состояние устройства локально
+            setDevicesForControl(prev => {
+                const newMap = new Map(prev)
+                for (const [roomId, devices] of newMap.entries()) {
+                    const updatedDevices = devices.map(d => {
+                        if (d.id === device.id) {
+                            const updatedDevice = { ...d }
+                            const capability = updatedDevice.capabilities?.find(
+                                (cap: any) => cap.type === actionType
+                            )
+                            if (capability) {
+                                capability.state = { ...capability.state, value }
+                            }
+                            return updatedDevice
+                        }
+                        return d
+                    })
+                    newMap.set(roomId, updatedDevices)
+                }
+                return newMap
+            })
+        } catch (err: any) {
+            setError(err.response?.data?.message || "Ошибка при управлении устройством")
+        } finally {
+            setIsControlling(null)
+        }
+    }
+
+    // Пагинация для списка связей
+    const totalPages = Math.ceil(roomDevices.length / itemsPerPage)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    const paginatedRoomDevices = roomDevices.slice(startIndex, endIndex)
+
+    useEffect(() => {
+        // Сбрасываем страницу при изменении данных
+        setCurrentPage(1)
+    }, [roomDevices.length])
 
     return (
         <div className="space-y-4 sm:space-y-6">
@@ -218,7 +327,7 @@ export function RoomDevicesAdmin() {
                                     <SelectContent>
                                         {meetingRooms.map((room) => (
                                             <SelectItem key={room.id} value={room.id.toString()}>
-                                                {room.name}
+                                                {room.name}{room.office ? ` (${room.office.name})` : ''}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -291,52 +400,156 @@ export function RoomDevicesAdmin() {
                                 Нет связанных устройств
                             </div>
                         ) : (
-                            <div className="space-y-2">
-                                {roomDevices.map((roomDevice) => (
-                                    <div
-                                        key={roomDevice.id}
-                                        className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between"
-                                    >
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <CheckCircle className="w-4 h-4 text-blue-600" />
-                                                <div>
-                                                    <p className="text-sm font-medium text-blue-900">
-                                                        {roomDevice.device_name}
-                                                    </p>
-                                                    <p className="text-xs text-blue-700">
-                                                        Комната: {roomDevice.meetingRoom?.name || `ID: ${roomDevice.meeting_room_id}`}
-                                                    </p>
+                            <>
+                                <div className="space-y-2">
+                                    {paginatedRoomDevices.map((roomDevice) => (
+                                        <div
+                                            key={roomDevice.id}
+                                            className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between"
+                                        >
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                                                    <div>
+                                                        <p className="text-sm font-medium text-blue-900">
+                                                            {roomDevice.device_name}
+                                                        </p>
+                                                        <p className="text-xs text-blue-700">
+                                                            Комната: {roomDevice.meetingRoom?.name || `ID: ${roomDevice.meeting_room_id}`}
+                                                            {roomDevice.meetingRoom?.office && ` (${roomDevice.meetingRoom.office.name})`}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDeleteClick(roomDevice)}
+                                                disabled={isDeleting === roomDevice.id}
+                                            >
+                                                {isDeleting === roomDevice.id ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="w-4 h-4 text-red-600" />
+                                                )}
+                                            </Button>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleDeleteClick(roomDevice)}
-                                            disabled={isDeleting === roomDevice.id}
-                                        >
-                                            {isDeleting === roomDevice.id ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                <Trash2 className="w-4 h-4 text-red-600" />
-                                            )}
-                                        </Button>
+                                    ))}
+                                </div>
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between pt-2">
+                                        <div className="text-sm text-gray-600">
+                                            Показано {startIndex + 1}-{Math.min(endIndex, roomDevices.length)} из {roomDevices.length}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                disabled={currentPage === 1}
+                                            >
+                                                <ChevronLeft className="w-4 h-4" />
+                                            </Button>
+                                            <span className="text-sm text-gray-600">
+                                                Страница {currentPage} из {totalPages}
+                                            </span>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                                disabled={currentPage === totalPages}
+                                            >
+                                                <ChevronRight className="w-4 h-4" />
+                                            </Button>
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </CardContent>
             </Card>
 
-            <SuccessModal
-                isOpen={successModal.isOpen}
-                onClose={successModal.hideSuccess}
-                title={successModal.title}
-                message={successModal.message}
-                duration={successModal.duration}
-            />
+            {/* Управление устройствами */}
+            <Card className="w-full">
+                <CardHeader className="pb-3 sm:pb-6">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                        <Power className="h-5 w-5" />
+                        Управление устройствами
+                    </CardTitle>
+                    <CardDescription>
+                        Управляйте всеми устройствами из всех комнат
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {Array.from(devicesForControl.entries()).length === 0 ? (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-600">
+                            Нет устройств для управления. Сначала создайте связи устройств с комнатами.
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {Array.from(devicesForControl.entries()).map(([roomId, devices]) => {
+                                const room = meetingRooms.find(r => r.id === roomId)
+                                const controllableDevices = devices.filter(device => {
+                                    return device.capabilities?.some((cap: any) => cap.type === "devices.capabilities.on_off")
+                                })
+
+                                if (controllableDevices.length === 0) return null
+
+                                return (
+                                    <div key={roomId} className="space-y-2">
+                                        <h4 className="text-sm font-semibold text-gray-700">
+                                            {room?.name || `Комната ID: ${roomId}`}
+                                            {room?.office && ` (${room.office.name})`}
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {controllableDevices.map((device) => {
+                                                const isOn = getDeviceState(device, "devices.capabilities.on_off")
+                                                const isControllingThis = isControlling === device.id
+
+                                                return (
+                                                    <div
+                                                        key={device.id}
+                                                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <Power className={`w-5 h-5 ${isOn ? 'text-yellow-500' : 'text-gray-400'}`} />
+                                                            <div>
+                                                                <p className="text-sm font-medium">{device.name}</p>
+                                                                <p className="text-xs text-gray-500">
+                                                                    {device.type?.replace('devices.types.', '') || 'Устройство'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            onClick={() => handleControlDevice(
+                                                                device,
+                                                                "devices.capabilities.on_off",
+                                                                !isOn
+                                                            )}
+                                                            disabled={isControllingThis || isOn === null}
+                                                            variant={isOn ? "default" : "outline"}
+                                                            size="sm"
+                                                        >
+                                                            {isControllingThis ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : isOn ? (
+                                                                "Выключить"
+                                                            ) : (
+                                                                "Включить"
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent>

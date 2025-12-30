@@ -1,90 +1,399 @@
 'use client';
 
 import React, { useState } from 'react';
-import RegistrationRequestModal from '@/components/RegistrationRequestModal';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, UserPlus, ArrowLeft } from 'lucide-react';
+import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
+import { Eye, EyeOff, ArrowLeft, Building2, Users } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+interface Office {
+    id: number;
+    name: string;
+    photo?: string | null;
+}
+
+interface Role {
+    value: string;
+    label: string;
+}
+
+interface ServiceCategory {
+    id: number;
+    name: string;
+}
+
+const ROLES: Role[] = [
+    { value: 'client', label: 'Клиент' },
+    { value: 'executor', label: 'Исполнитель' }
+];
 
 export default function RegisterPage() {
-  const [showModal, setShowModal] = useState(false);
+    const router = useRouter();
+    const [formData, setFormData] = useState({
+        phone: '',
+        full_name: '',
+        office_id: '',
+        role: '',
+        service_category_id: '',
+        password: '',
+        confirm_password: ''
+    });
+    const [offices, setOffices] = useState<Office[]>([]);
+    const [categories, setCategories] = useState<ServiceCategory[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [step, setStep] = useState(1);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const { toast } = useToast();
+    const [formErrors, setFormErrors] = useState<string | null>(null);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#114A65] via-[#114A65] to-[#B8400E] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-              <span className="text-[#114A65] font-bold text-2xl">W</span>
+    // Загружаем список офисов и категорий при загрузке страницы
+    React.useEffect(() => {
+        loadOffices();
+        loadCategories();
+    }, []);
+
+    const loadOffices = async () => {
+        try {
+            const response = await api.get('/offices');
+            setOffices(response.data);
+        } catch (error) {
+            console.error('Ошибка при загрузке офисов:', error);
+        }
+    };
+
+    const loadCategories = async () => {
+        try {
+            const response = await api.get('/service-categories/public');
+            setCategories(response.data);
+        } catch (error) {
+            console.error('Ошибка при загрузке категорий:', error);
+        }
+    };
+
+    // Автоматическое форматирование телефона
+    const formatPhone = (value: string) => {
+        // убираем всё, кроме цифр
+        let numbers = value.replace(/\D/g, '');
+
+        // если номер начинается с "8", заменяем на "7"
+        if (numbers.startsWith('8')) {
+            numbers = '7' + numbers.slice(1);
+        }
+
+        // если нет "7" в начале — добавляем
+        if (!numbers.startsWith('7')) {
+            numbers = '7' + numbers;
+        }
+
+        // оставляем максимум 11 цифр
+        numbers = numbers.slice(0, 11);
+
+        // форматируем
+        if (numbers.length <= 1) return '+7 ';
+        if (numbers.length <= 4) return `+7 ${numbers.slice(1)}`;
+        if (numbers.length <= 7) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4)}`;
+        if (numbers.length <= 9) return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7)}`;
+        return `+7 ${numbers.slice(1, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7, 9)} ${numbers.slice(9, 11)}`;
+    };
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        const formatted = formatPhone(value);
+        setFormData(prev => ({ ...prev, phone: formatted }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setFormErrors("");
+
+        if (formData.password !== formData.confirm_password) {
+            setFormErrors("Пароли не совпадают");
+            return;
+        }
+
+        if (formData.password.length < 6) {
+            setFormErrors("Пароль должен содержать минимум 6 символов");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const { phone, full_name, office_id, role, service_category_id, password } = formData;
+            const requestData: any = {
+                phone,
+                full_name,
+                office_id: parseInt(office_id),
+                role,
+                password
+            };
+
+            // Добавляем service_category_id только если роль - executor и категория выбрана
+            if (role === 'executor' && service_category_id) {
+                requestData.service_category_id = parseInt(service_category_id);
+            }
+
+            await api.post('/registration-requests', requestData);
+
+            toast({
+              title: "Успешно",
+              description: "Заявка на регистрацию отправлена"
+            });
+
+            // Перенаправляем на страницу логина после успешной регистрации
+            setTimeout(() => {
+                router.push('/login');
+            }, 1500);
+        } catch (error: any) {
+            console.error(error);
+            setFormErrors(error.response?.data?.error || 'Произошла ошибка при отправке запроса');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-[#114A65] via-[#114A65] to-[#B8400E] flex items-center justify-center p-4">
+            <div className="w-full max-w-md">
+                <div className="text-center mb-8">
+                    <div className="flex items-center justify-center space-x-2 mb-4">
+                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden">
+                            <img 
+                                src="/app-icon.png" 
+                                alt="App Icon" 
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                        <span className="text-white font-bold text-2xl">WorkFlow</span>
+                    </div>
+                    <p className="text-white/90">Система управления сервисными заявками</p>
+                </div>
+
+                <Card className="border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
+                    <CardHeader>
+                        <CardTitle className="text-center text-lg md:text-xl">
+                            {step === 1 ? 'Запрос на регистрацию' : 'Придумать пароль'}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            {step === 1 ? (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="phone" className="text-sm md:text-base">Номер телефона *</Label>
+                                        <Input
+                                            id="phone"
+                                            type="tel"
+                                            value={formData.phone}
+                                            onChange={handlePhoneChange}
+                                            placeholder="+7 XXX XXX XX XX"
+                                            required
+                                            maxLength={19}
+                                            className="text-sm md:text-base"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="full_name" className="text-sm md:text-base">ФИО *</Label>
+                                        <Input
+                                            id="full_name"
+                                            value={formData.full_name}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                                            placeholder="Введите полное имя"
+                                            required
+                                            className="text-sm md:text-base"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="office" className="text-sm md:text-base">Офис *</Label>
+                                        <Select
+                                            value={formData.office_id}
+                                            onValueChange={(value) => setFormData(prev => ({ ...prev, office_id: value }))}
+                                            required
+                                        >
+                                            <SelectTrigger className="text-sm md:text-base">
+                                                <SelectValue placeholder="Выберите офис" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {offices.map((office) => (
+                                                    <SelectItem key={office.id} value={office.id.toString()}>
+                                                        {office.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="role" className="text-sm md:text-base">Роль *</Label>
+                                        <Select
+                                            value={formData.role}
+                                            onValueChange={(value) => setFormData(prev => ({ ...prev, role: value, service_category_id: '' }))}
+                                            required
+                                        >
+                                            <SelectTrigger className="text-sm md:text-base">
+                                                <SelectValue placeholder="Выберите роль" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {ROLES.map((role) => (
+                                                    <SelectItem key={role.value} value={role.value}>
+                                                        {role.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {formData.role === 'executor' && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="service_category" className="text-sm md:text-base">Категория услуг *</Label>
+                                            <Select
+                                                value={formData.service_category_id}
+                                                onValueChange={(value) => setFormData(prev => ({ ...prev, service_category_id: value }))}
+                                                required
+                                            >
+                                                <SelectTrigger className="text-sm md:text-base">
+                                                    <SelectValue placeholder="Выберите категорию услуг" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {categories.map((category) => (
+                                                        <SelectItem key={category.id} value={category.id.toString()}>
+                                                            {category.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+
+                                    {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+
+                                    <Button
+                                        type="button"
+                                        onClick={() => {
+                                            setStep(2);
+                                            setFormErrors("");
+                                        }}
+                                        disabled={
+                                            !formData.phone ||
+                                            !formData.full_name ||
+                                            !formData.office_id ||
+                                            !formData.role ||
+                                            (formData.role === 'executor' && !formData.service_category_id)
+                                        }
+                                        className="w-full text-sm md:text-base py-2 md:py-3 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                                    >
+                                        Далее
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="space-y-2 relative">
+                                        <Label htmlFor="password" className="text-sm md:text-base">Пароль *</Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="password"
+                                                type={showPassword ? "text" : "password"}
+                                                value={formData.password}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                                                placeholder="Минимум 6 символов"
+                                                required
+                                                minLength={6}
+                                                className="text-sm md:text-base"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                                            >
+                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2 relative">
+                                        <Label htmlFor="confirm_password" className="text-sm md:text-base">Подтвердите пароль *</Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="confirm_password"
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                value={formData.confirm_password}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, confirm_password: e.target.value }))}
+                                                placeholder="Повторите пароль"
+                                                required
+                                                className="text-sm md:text-base"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                                            >
+                                                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+
+                                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                                        <Button
+                                            type="button"
+                                            onClick={() => {
+                                                setStep(1);
+                                                setFormErrors("");
+                                            }}
+                                            variant="outline"
+                                            className="flex-1 text-sm md:text-base py-2 md:py-3"
+                                        >
+                                            Назад
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            disabled={loading}
+                                            className="flex-1 text-sm md:text-base py-2 md:py-3 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                                        >
+                                            {loading ? 'Отправка...' : 'Отправить запрос'}
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
+
+                            <Link href="/login">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="w-full text-sm md:text-base py-2 md:py-3"
+                                >
+                                    <ArrowLeft className="w-4 h-4 mr-2" />
+                                    Вернуться к входу
+                                </Button>
+                            </Link>
+                        </form>
+                    </CardContent>
+                </Card>
+
+                <div className="mt-8 grid grid-cols-2 gap-4">
+                    <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+                        <CardContent className="p-4 text-center">
+                            <Building2 className="w-8 h-8 mx-auto mb-2" />
+                            <p className="text-sm">2 офиса</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
+                        <CardContent className="p-4 text-center">
+                            <Users className="w-8 h-8 mx-auto mb-2" />
+                            <p className="text-sm">5 ролей</p>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
-            <span className="text-white font-bold text-2xl">WorkFlow</span>
-          </div>
-          <p className="text-[#C4C4CE]">Система управления сервисными заявками</p>
         </div>
-
-        <Card className="border-0 shadow-2xl">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-gray-900">
-              Регистрация в системе
-            </CardTitle>
-            <p className="text-gray-600 text-sm">
-              Для создания аккаунта заполните форму запроса на регистрацию
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Button
-              onClick={() => setShowModal(true)}
-              className="w-full bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white py-3 rounded-xl text-lg font-semibold"
-            >
-              <UserPlus className="w-5 h-5 mr-2" />
-              Заполнить форму регистрации
-            </Button>
-
-            <div className="text-center">
-              <Link href="/login">
-                <Button
-                  variant="outline"
-                  className="w-full text-[#114A65] border-[#114A65] hover:bg-[#114A65]/10"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Вернуться к входу
-                </Button>
-              </Link>
-            </div>
-
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-semibold text-blue-900 mb-2 text-sm md:text-base">Как это работает?</h3>
-              <ol className="text-xs md:text-sm text-blue-800 space-y-1">
-                <li>1. Заполните форму с вашими данными</li>
-                <li>2. Администратор проверит информацию</li>
-                <li>3. После одобрения вы сможете войти в систему</li>
-                <li>4. Обработка занимает до 24 часов</li>
-              </ol>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="mt-8 grid grid-cols-2 gap-4">
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
-            <CardContent className="p-4 text-center">
-              <Building2 className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">2 офиса</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
-            <CardContent className="p-4 text-center">
-              <Users className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">5 ролей</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <RegistrationRequestModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-        />
-      </div>
-    </div>
-  );
+    );
 }

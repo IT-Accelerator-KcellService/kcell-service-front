@@ -127,6 +127,9 @@ export const updateOfficeWorkingHours = (
 export const getUsers = (page = 1, limit = 1000) => 
     api.get(`/users?page=${page}&limit=${limit}`);
 
+export const getAllUsers = () => 
+    api.get('/users?page=1&limit=10000');
+
 // Обновить пользователя
 export const updateUser = (
     id: number,
@@ -602,6 +605,10 @@ export interface RoomDevice {
         id: number;
         name: string;
         office_id: number | null;
+        office?: {
+            id: number;
+            name: string;
+        };
     };
 }
 
@@ -648,3 +655,56 @@ export interface ControlDeviceRequest {
 
 export const controlDevice = (data: ControlDeviceRequest) =>
     api.post<{ success: boolean; message: string; data: any }>('/yandex-smart-home/devices/control', data);
+
+// ==================== Управление подписками клиентов на комнаты ====================
+
+export interface ClientRoomSubscription {
+    id: number;
+    client_id: number;
+    meeting_room_id: number;
+    created_at: string;
+    updated_at: string;
+    subscribedClient?: {
+        id: number;
+        full_name: string;
+        phone: string;
+    };
+    // Для обратной совместимости
+    client?: {
+        id: number;
+        full_name: string;
+        phone: string;
+    };
+    meetingRoom?: {
+        id: number;
+        name: string;
+        office_id: number | null;
+        office?: {
+            id: number;
+            name: string;
+        };
+    };
+}
+
+// Создать подписку клиента на комнату
+export const createClientRoomSubscription = (data: {
+    client_id: number;
+    meeting_room_id: number;
+}) =>
+    api.post<{ success: boolean; message: string; data: ClientRoomSubscription }>('/client-room-subscriptions', data);
+
+// Удалить подписку
+export const deleteClientRoomSubscription = (id: number) =>
+    api.delete<{ success: boolean; message: string }>(`/client-room-subscriptions/${id}`);
+
+// Получить все подписки (для админа)
+export const getAllClientRoomSubscriptions = () =>
+    api.get<{ success: boolean; subscriptions: ClientRoomSubscription[] }>('/client-room-subscriptions');
+
+// Получить подписки конкретного клиента
+export const getClientRoomSubscriptions = (client_id: number) =>
+    api.get<{ success: boolean; subscriptions: ClientRoomSubscription[] }>(`/client-room-subscriptions/client/${client_id}`);
+
+// Получить подписки для конкретной комнаты
+export const getRoomSubscriptions = (meeting_room_id: number) =>
+    api.get<{ success: boolean; subscriptions: ClientRoomSubscription[] }>(`/client-room-subscriptions/room/${meeting_room_id}`);

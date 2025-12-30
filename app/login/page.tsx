@@ -11,7 +11,6 @@ import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import api from "@/lib/api";
 import {useCategoryStore} from "@/stores/useCategoryStore";
-import RegistrationRequestModal from "@/components/RegistrationRequestModal";
 
 export default function LoginPage() {
   const router = useRouter()
@@ -22,7 +21,6 @@ export default function LoginPage() {
   const [passwordError, setPasswordError] = useState("")
   const [formError, setFormError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [showRegistrationModal, setShowRegistrationModal] = useState(false)
   const {role, token} = useAuthStore()
 
   useEffect(() => {
@@ -204,7 +202,7 @@ export default function LoginPage() {
 
               <div className="text-center">
                 <Button
-                  onClick={() => setShowRegistrationModal(true)}
+                  onClick={() => router.push('/register')}
                   variant="outline"
                   className="w-full text-[#114A65] border-[#114A65] hover:bg-[#114A65]/10"
                 >
@@ -230,11 +228,6 @@ export default function LoginPage() {
             </Card>
           </div>
         </div>
-
-        <RegistrationRequestModal
-          isOpen={showRegistrationModal}
-          onClose={() => setShowRegistrationModal(false)}
-        />
       </div>
   )
 }

@@ -5,8 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Loader2, Power, Lightbulb } from "lucide-react"
 import { getRoomDevicesForClient, controlDevice, type YandexDevice, type ControlDeviceRequest } from "@/lib/api"
-import { useSuccessModal } from "@/hooks/use-success-modal"
-import { SuccessModal } from "@/components/success-model"
+import { useToast } from "@/hooks/use-toast"
 
 interface RoomDevicesControlProps {
     meeting_room_id: number
@@ -20,7 +19,7 @@ export function RoomDevicesControl({ meeting_room_id, bookingStartTime, bookingE
     const [error, setError] = useState<string | null>(null)
     const [devices, setDevices] = useState<YandexDevice[]>([])
     const [isBookingActive, setIsBookingActive] = useState(false)
-    const successModal = useSuccessModal()
+    const { toast } = useToast()
 
     // Проверяем, активно ли бронирование
     useEffect(() => {
@@ -121,9 +120,9 @@ export function RoomDevicesControl({ meeting_room_id, bookingStartTime, bookingE
 
             await controlDevice(request)
 
-            successModal.showSuccess({
+            toast({
                 title: "Успешно",
-                message: `Устройство "${device.name}" ${value ? "включено" : "выключено"}`,
+                description: `Устройство "${device.name}" ${value ? "включено" : "выключено"}`,
                 duration: 2000
             })
 
@@ -274,13 +273,6 @@ export function RoomDevicesControl({ meeting_room_id, bookingStartTime, bookingE
                 )}
             </CardContent>
 
-            <SuccessModal
-                isOpen={successModal.isOpen}
-                onClose={successModal.hideSuccess}
-                title={successModal.title}
-                message={successModal.message}
-                duration={successModal.duration}
-            />
         </Card>
     )
 }

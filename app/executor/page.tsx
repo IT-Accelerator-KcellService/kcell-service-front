@@ -35,8 +35,7 @@ import api, { getOffices } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import Image from "next/image";
 import {useNotificationStore} from "@/stores/notificationStore";
-import {useSuccessModal} from "@/hooks/use-success-modal";
-import {SuccessModal} from "@/components/success-model";
+import { useToast } from "@/hooks/use-toast";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import PerformerCard from "@/components/rating";
@@ -97,7 +96,7 @@ export default function ExecutorDashboard() {
   const {token, clearAuth, user} = useAuthStore()
   const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
-  const successModal = useSuccessModal()
+  const { toast } = useToast()
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
   const {assignedRequests, setAssignedRequests, myRequests, setMyRequests, completedRequests, setCompletedRequests, clearRequests} = useRequestStore()
@@ -280,9 +279,9 @@ export default function ExecutorDashboard() {
       handleCloseRejectModal();
 
       // Показываем сообщение об успехе
-      successModal.showSuccess({
+      toast({
         title: "Заявка отклонена",
-        message: "Заявка успешно отклонена и возвращена в очередь назначения"
+        description: "Заявка успешно отклонена и возвращена в очередь назначения"
       });
 
     } catch (error: any) {
@@ -364,9 +363,9 @@ export default function ExecutorDashboard() {
       closeModalWithHistory();
 
       // Показываем сообщение об успехе
-      successModal.showSuccess({
+      toast({
         title: "Подзаявка отклонена",
-        message: "Подзаявка успешно отклонена и возвращена в очередь назначения"
+        description: "Подзаявка успешно отклонена и возвращена в очередь назначения"
       });
 
     } catch (error: any) {
@@ -440,9 +439,9 @@ export default function ExecutorDashboard() {
 
       if (hasOtherSubRequestsWithExecutor) {
         // Если есть другие подзаявки с этим исполнителем, просто показываем сообщение
-        successModal.showSuccess({
+        toast({
           title: "Подзаявка перенаправлена",
-          message: `Подзаявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+          description: `Подзаявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
         });
       } else {
         // Если нет других подзаявок с этим исполнителем, удаляем заявку из UI
@@ -455,9 +454,9 @@ export default function ExecutorDashboard() {
         setAssignedRequests(prev =>
           prev.filter(req => req.id !== requestGroup?.id)
         );
-        successModal.showSuccess({
+        toast({
           title: "Заявка перенаправлена",
-          message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+          description: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
         });
       }
       
@@ -540,18 +539,19 @@ export default function ExecutorDashboard() {
       setCompletedRequests(updateRequestGroups);
 
       // Показываем сообщение об успехе
-      successModal.showSuccess({
+      toast({
         title: currentStatus ? "Задача снята с долгосрочных" : "Задача помечена как долгосрочная",
-        message: currentStatus 
+        description: currentStatus 
           ? "Задача больше не отображается как долгосрочная" 
-          : "Задача помечена как долгосрочная и будет выделена синим цветом"
+          : "Задача теперь отображается как долгосрочная"
       });
 
     } catch (error: any) {
       console.error("Ошибка при изменении статуса долгосрочной задачи:", error);
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: error.response?.data?.error || "Не удалось изменить статус задачи"
+        description: error.response?.data?.error || "Не удалось изменить статус задачи",
+        variant: "destructive"
       });
     }
   };
@@ -740,15 +740,16 @@ export default function ExecutorDashboard() {
     try {
       await api.delete(`/request-groups/${request.id}`)
       fetchRequests()
-      successModal.showSuccess({
+      toast({
         title: "Заявка удалена",
-        message: "Заявка была успешно удалена."
+        description: "Заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Failed to delete request:", error)
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: "Не удалось удалить заявку."
+        description: "Не удалось удалить заявку.",
+        variant: "destructive"
       })
     }
   }
@@ -790,15 +791,16 @@ export default function ExecutorDashboard() {
         }
       }
 
-      successModal.showSuccess({
+      toast({
         title: "Под заявка удалена",
-        message: "Под заявка была успешно удалена."
+        description: "Под заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Error deleting sub-request:", error)
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: "Не удалось удалить под заявку."
+        description: "Не удалось удалить под заявку.",
+        variant: "destructive"
       })
     }
   }
@@ -962,15 +964,15 @@ export default function ExecutorDashboard() {
               // Обновляем состояние в зависимости от режима
         if (createMode === 'createAndComplete') {
           setMyRequests(prev => [updatedRequestGroup, ...prev]);
-      successModal.showSuccess({
+      toast({
         title: "Заявка создана и завершена!",
-        message: "Заявка успешно создана, выполнена и закрыта с отчётом."
+        description: "Заявка успешно создана, выполнена и закрыта с отчётом."
       });
         } else {
           setMyRequests(prev => [updatedRequestGroup, ...prev]);
-          successModal.showSuccess({
+          toast({
             title: "Заявка создана!",
-            message: "Заявка успешно создана и взята в работу."
+            description: "Заявка успешно создана и взята в работу."
           });
         }
 
@@ -1257,9 +1259,9 @@ export default function ExecutorDashboard() {
       await api.patch(`/requests/${taskId}/execute`);
       
       // Показываем уведомление об успехе
-      successModal.showSuccess({
+      toast({
         title: "Задача начата",
-        message: "Вы успешно начали выполнение задачи"
+        description: "Вы успешно начали выполнение задачи"
       });
 
       // Не вызываем fetchRequests() чтобы сохранить оптимистичные обновления
@@ -1293,17 +1295,19 @@ export default function ExecutorDashboard() {
     
     // Валидация фотографий
     if (photos.length === 0) {
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: "Пожалуйста, добавьте хотя бы одну фотографию результата"
+        description: "Пожалуйста, добавьте хотя бы одну фотографию результата",
+        variant: "destructive"
       });
       return;
     }
     
     if (photos.length > 3) {
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: "Максимальное количество фотографий - 3"
+        description: "Максимальное количество фотографий - 3",
+        variant: "destructive"
       });
       return;
     }
@@ -1376,9 +1380,10 @@ export default function ExecutorDashboard() {
           } catch (deleteError) {
             console.error("Ошибка при откате заявки:", deleteError);
           }
-          successModal.showSuccess({
+          toast({
             title: "Ошибка",
-            message: "Не удалось загрузить фотографии. Заявка не была завершена."
+            description: "Не удалось загрузить фотографии. Заявка не была завершена.",
+            variant: "destructive"
           });
           setIsSubmitting(false);
           return;
@@ -1432,9 +1437,9 @@ export default function ExecutorDashboard() {
 
       setSelectedRequest(null);
 
-      successModal.showSuccess({
+      toast({
         title: "Успешно",
-        message: "Заявка успешно завершена"
+        description: "Заявка успешно завершена"
       });
       
       setShowCompleteTaskModal(false);
@@ -2725,14 +2730,6 @@ export default function ExecutorDashboard() {
             requestId={selectedRequestForReject?.id}
             isLoading={isRejecting}
             error={rejectError}
-        />
-
-        <SuccessModal
-            isOpen={successModal.isOpen}
-            onClose={successModal.hideSuccess}
-            title={successModal.title}
-            message={successModal.message}
-            duration={successModal.duration}
         />
 
         <QRScanner

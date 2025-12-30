@@ -37,8 +37,7 @@ import api, { getOffices } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import Image from "next/image";
 import {useNotificationStore} from "@/stores/notificationStore";
-import {SuccessModal} from "@/components/success-model";
-import {useSuccessModal} from "@/hooks/use-success-modal";
+import { useToast } from "@/hooks/use-toast";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {NotificationsSidebar} from "@/components/notification/NotificationsSidebar";
@@ -109,7 +108,7 @@ export default function DepartmentHeadDashboard() {
   const {token, clearAuth, user} = useAuthStore()
   const {categories, fetchCategories, clearCategories} = useCategoryStore()
   const searchParams = useSearchParams()
-  const successModal = useSuccessModal()
+  const { toast } = useToast()
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("meeting-rooms")
@@ -978,9 +977,9 @@ export default function DepartmentHeadDashboard() {
         const newRecurringTask = response.data;
         setMyRequests(prev => [newRecurringTask, ...prev]);
         
-        successModal.showSuccess({
+        toast({
           title: "Повторяющаяся задача создана!",
-          message: "Задача будет автоматически создавать экземпляры согласно расписанию."
+          description: "Задача будет автоматически создавать экземпляры согласно расписанию."
         });
       } else {
         // Получаем данные из FormData
@@ -1017,14 +1016,14 @@ export default function DepartmentHeadDashboard() {
         // Показываем соответствующее сообщение об успехе
         const hasExecutors = subRequests.some((subReq: any) => subReq.executors && subReq.executors.length > 0);
         if (hasExecutors) {
-          successModal.showSuccess({
+          toast({
             title: "Заявка создана и исполнители назначены!",
-            message: "Заявка успешно создана и передана исполнителям."
+            description: "Заявка успешно создана и передана исполнителям."
           });
         } else {
-          successModal.showSuccess({
+          toast({
             title: "Заявка создана!",
-            message: "Заявка отправлена на рассмотрение администратора."
+            description: "Заявка отправлена на рассмотрение администратора."
           });
         }
       }
@@ -1287,18 +1286,19 @@ export default function DepartmentHeadDashboard() {
       setMyRequests(updateRequestGroups);
 
       // Показываем сообщение об успехе
-      successModal.showSuccess({
+      toast({
         title: currentStatus ? "Задача снята с долгосрочных" : "Задача помечена как долгосрочная",
-        message: currentStatus 
+        description: currentStatus 
           ? "Задача больше не отображается как долгосрочная" 
-          : "Задача помечена как долгосрочная и будет выделена синим цветом"
+          : "Задача теперь отображается как долгосрочная"
       });
 
     } catch (error: any) {
       console.error("Ошибка при изменении статуса долгосрочной задачи:", error);
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: error.response?.data?.error || "Не удалось изменить статус задачи"
+        description: error.response?.data?.error || "Не удалось изменить статус задачи",
+        variant: "destructive"
       });
     }
   };
@@ -1310,9 +1310,9 @@ export default function DepartmentHeadDashboard() {
       // Обновляем виджет предстоящих задач
       setUpcomingTasksRefreshTrigger(prev => prev + 1);
 
-      successModal.showSuccess({
+      toast({
         title: "Успешно",
-        message: "Повторяющаяся задача удалена"
+        description: "Повторяющаяся задача удалена"
       });
     } catch (error) {
       console.error("Failed to delete recurring task:", error);
@@ -1388,15 +1388,16 @@ export default function DepartmentHeadDashboard() {
     try {
       await api.delete(`/request-groups/${request.id}`)
       fetchRequests()
-      successModal.showSuccess({
+      toast({
         title: "Заявка удалена",
-        message: "Заявка была успешно удалена."
+        description: "Заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Failed to delete request:", error)
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: "Не удалось удалить заявку."
+        description: "Не удалось удалить заявку.",
+        variant: "destructive"
       })
     }
   }
@@ -1433,15 +1434,16 @@ export default function DepartmentHeadDashboard() {
         }
       }
 
-      successModal.showSuccess({
+      toast({
         title: "Под заявка удалена",
-        message: "Под заявка была успешно удалена."
+        description: "Под заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Error deleting sub-request:", error)
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: "Не удалось удалить под заявку."
+        description: "Не удалось удалить под заявку.",
+        variant: "destructive"
       })
     }
   }
@@ -1565,9 +1567,9 @@ export default function DepartmentHeadDashboard() {
       if (hasOtherSubRequestsWithOurCategory) {
         // Если есть другие подзаявки с нашей категорией, просто обновляем данные
         fetchRequests();
-        successModal.showSuccess({
+        toast({
           title: "Подзаявка перенаправлена",
-          message: `Подзаявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+          description: `Подзаявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
         });
       } else {
         // Если нет других подзаявок с нашей категорией, удаляем заявку из UI
@@ -1577,10 +1579,10 @@ export default function DepartmentHeadDashboard() {
       setIncomingRequests(prev =>
           prev.filter(req => req.id !== requestGroup.id)
       );
-      successModal.showSuccess({
+      toast({
         title: "Заявка перенаправлена",
-          message: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
-        });
+        description: `Заявка успешно перенаправлена руководителям категории "${categories.find(c => c.id === selectedCategoryId)?.name}"`
+      });
       }
 
       // Закрываем все модальные окна
@@ -1615,9 +1617,9 @@ export default function DepartmentHeadDashboard() {
   const handleAssignExecutorsSuccess = () => {
     // Оптимистичное обновление уже выполнено в AssignExecutorsModal
     // Просто показываем сообщение об успехе
-    successModal.showSuccess({
+    toast({
       title: "Исполнители назначены",
-      message: "Исполнители успешно назначены на заявку"
+      description: "Исполнители успешно назначены на заявку"
     });
   };
 
@@ -1636,9 +1638,9 @@ export default function DepartmentHeadDashboard() {
   const handleChangeExecutorsSuccess = () => {
     // Оптимистичное обновление уже выполнено в ChangeExecutorsModal
     // Просто показываем сообщение об успехе
-    successModal.showSuccess({
+    toast({
       title: "Исполнители изменены",
-      message: "Исполнители успешно изменены для подзаявки"
+      description: "Исполнители успешно изменены для подзаявки"
     });
     setSelectedRequest(null);
     closeModalWithHistory();
@@ -2578,14 +2580,6 @@ export default function DepartmentHeadDashboard() {
             title={rejectModal.title}
             message={rejectModal.message}
             duration={rejectModal.duration}
-        />
-
-        <SuccessModal
-            isOpen={successModal.isOpen}
-            onClose={successModal.hideSuccess}
-            title={successModal.title}
-            message={successModal.message}
-            duration={successModal.duration}
         />
 
         {/* Unified Delete Confirmation Modal */}

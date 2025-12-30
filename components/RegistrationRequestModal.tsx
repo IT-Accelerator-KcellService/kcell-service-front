@@ -7,9 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
-import { SuccessModal } from '@/components/success-model';
+import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
-import {useSuccessModal} from "@/hooks/use-success-modal";
 
 interface RegistrationRequestModalProps {
     isOpen: boolean;
@@ -53,7 +52,7 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
     const [step, setStep] = useState(1);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const successModal = useSuccessModal()
+    const { toast } = useToast()
     const [formErrors, setFormErrors] = useState<string | null>(null);
 
     // Загружаем список офисов и категорий при открытии модала
@@ -146,7 +145,10 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
 
             await api.post('/registration-requests', requestData);
 
-            successModal.showSuccess();
+            toast({
+              title: "Успешно",
+              description: "Заявка на регистрацию отправлена"
+            });
 
             setFormData({
                 phone: '',
@@ -371,13 +373,6 @@ export default function RegistrationRequestModal({ isOpen, onClose }: Registrati
                     </form>
                 </CardContent>
             </Card>
-
-            <SuccessModal
-                isOpen={successModal.isOpen}
-                onClose={onClose}
-                title="Успешно"
-                message="Запрос на регистрацию отправлен. Ожидайте одобрения администратора."
-            />
         </div>
     );
 }

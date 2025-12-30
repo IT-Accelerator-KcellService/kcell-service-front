@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import "../lib/fcm"
 import { ActivityTrackerService } from "@/components/ActivityTrackerService"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body className={inter.className}>
         {children}
         <ActivityTrackerService />
+        <Toaster />
       </body>
     </html>
   )

@@ -22,6 +22,7 @@ import {useAuthStore} from "@/stores/useAuthStore"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { ProfileModal } from "@/components/ProfileModal"
 import Image from "next/image"
+import { useToast } from "@/hooks/use-toast"
 
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
@@ -35,6 +36,7 @@ export default function ProfilePage() {
     const {clearAuth, user, updateUser, role} = useAuthStore()
     const router = useRouter()
     const isDesktop = useMediaQuery("(min-width: 768px)")
+    const { toast } = useToast()
     const [isOpen, setIsOpen] = useState(true)
     const [oldPassword, setOldPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
@@ -121,7 +123,10 @@ export default function ProfilePage() {
                 full_name: user.full_name,
                 phone: user.phone,
             })
-            setProfileSuccess("Профиль обновлён.")
+            toast({
+                title: "Успешно",
+                description: "Профиль обновлён."
+            })
         } catch (err: any) {
             const message = err?.response?.data?.error || "Ошибка при сохранении профиля"
             setProfileError(message)
@@ -152,7 +157,10 @@ export default function ProfilePage() {
                 currentPassword: oldPassword,
                 newPassword,
             })
-            setSuccess("Пароль изменён.")
+            toast({
+                title: "Успешно",
+                description: "Пароль изменён."
+            })
             setOldPassword("")
             setNewPassword("")
             setConfirmPassword("")
@@ -176,7 +184,10 @@ export default function ProfilePage() {
                 securityNotifications: user.security_notifications,
                 marketingNotifications: user.marketing_notifications,
             })
-            setNotificationSuccess("Настройки уведомлений сохранены")
+            toast({
+                title: "Успешно",
+                description: "Настройки уведомлений сохранены"
+            })
         } catch (err) {
             console.error("Ошибка при сохранении уведомлений:", err)
             setNotificationError("Ошибка при сохранении настроек")
@@ -307,7 +318,10 @@ export default function ProfilePage() {
                                                 setEmailSuccess("")
                                                 try {
                                                     await sendEmailVerificationCode(emailToSend)
-                                                    setEmailSuccess("Код верификации отправлен на email")
+                                                    toast({
+                                                        title: "Успешно",
+                                                        description: "Код верификации отправлен на email"
+                                                    })
                                                     setEmail(emailToSend)
                                                 } catch (err: any) {
                                                     setEmailError(err.response?.data?.error || "Ошибка при отправке кода")
@@ -362,7 +376,10 @@ export default function ProfilePage() {
                                                         setEmailError("")
                                                         try {
                                                             await verifyEmail(verificationCode)
-                                                            setEmailSuccess("Email успешно верифицирован")
+                                                                toast({
+                                                                    title: "Успешно",
+                                                                    description: "Email успешно верифицирован"
+                                                                })
                                                             setVerificationCode("")
                                                             const emailToUpdate = email || user?.email
                                                             updateUser((prev) => prev ? { ...prev, email: emailToUpdate, email_verified: true } : null)
@@ -417,7 +434,6 @@ export default function ProfilePage() {
                                     {isSavingProfile ? "Сохранение..." : "Сохранить"}
                                 </Button>
                                 {profileError && <p className="text-sm text-[#B8400E]">{profileError}</p>}
-                                {profileSuccess && <p className="text-sm text-[#114A65]">{profileSuccess}</p>}
 
                                 {/* Кнопка Выйти */}
                                 <Button
@@ -483,7 +499,6 @@ export default function ProfilePage() {
                                     {isChanging ? "Смена..." : "Сменить пароль"}
                                 </Button>
                                 {error && <p className="text-sm text-[#B8400E]">{error}</p>}
-                                {success && <p className="text-sm text-[#114A65]">{success}</p>}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -534,7 +549,6 @@ export default function ProfilePage() {
                                     )}
                                 </Button>
                                 {notificationError && <p className="text-sm text-[#B8400E] mt-2">{notificationError}</p>}
-                                {notificationSuccess && <p className="text-sm text-[#114A65] mt-2">{notificationSuccess}</p>}
                             </CardContent>
                         </Card>
                     </TabsContent>

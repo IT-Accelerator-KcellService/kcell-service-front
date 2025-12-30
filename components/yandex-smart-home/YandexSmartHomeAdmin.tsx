@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, CheckCircle, Loader2, Trash2, Home } from "lucide-react"
 import api, { getYandexTokens, deleteYandexTokens, refreshYandexTokens } from "@/lib/api"
-import { useSuccessModal } from "@/hooks/use-success-modal"
-import { SuccessModal } from "@/components/success-model"
+import { useToast } from "@/hooks/use-toast"
 
 interface YandexToken {
   id: number
@@ -24,7 +23,7 @@ export function YandexSmartHomeAdmin() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [existingToken, setExistingToken] = useState<YandexToken | null>(null)
-  const successModal = useSuccessModal()
+  const { toast } = useToast()
 
   useEffect(() => {
     loadTokens()
@@ -59,9 +58,9 @@ export function YandexSmartHomeAdmin() {
       setError(null)
       await deleteYandexTokens()
 
-      successModal.showSuccess({
+      toast({
         title: "Успешно",
-        message: "Токены удалены",
+        description: "Токены удалены",
         duration: 3000
       })
 
@@ -79,9 +78,9 @@ export function YandexSmartHomeAdmin() {
       setError(null)
       const response = await refreshYandexTokens()
 
-      successModal.showSuccess({
+      toast({
         title: "Успешно",
-        message: "Токены обновлены",
+        description: "Токены обновлены",
         duration: 3000
       })
 
@@ -205,14 +204,6 @@ export function YandexSmartHomeAdmin() {
           </div>
         </CardContent>
       </Card>
-
-      <SuccessModal
-        isOpen={successModal.isOpen}
-        onClose={successModal.hideSuccess}
-        title={successModal.title}
-        message={successModal.message}
-        duration={successModal.duration}
-      />
     </div>
   )
 }

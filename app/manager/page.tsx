@@ -42,8 +42,7 @@ import api, { createServiceCategory, deleteServiceCategory, getExecutorsByCatego
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip as TooltipForTabs} from "recharts";
 import {format, isAfter, subDays, subMonths, subYears} from "date-fns";
 import {useNotificationStore} from "@/stores/notificationStore";
-import {SuccessModal} from "@/components/success-model";
-import {useSuccessModal} from "@/hooks/use-success-modal";
+import { useToast } from "@/hooks/use-toast";
 import {BottomNav} from "@/components/BottomNav";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {AcceptRequestModal} from "@/components/AcceptRequestModal";
@@ -152,7 +151,7 @@ export default function ManagerDashboard() {
   const fetchCategories = useCategoryStore(state => state.fetchCategories)
   const clearCategories = useCategoryStore(state => state.clearCategories)
   const searchParams = useSearchParams()
-  const successModal = useSuccessModal()
+  const { toast } = useToast()
   const approveModal = useAcceptRequestModal()
   const router = useRouter()
   const [showIconInfo, setShowIconInfo] = useState<{type: 'status' | 'longTerm', value: string} | null>(null);
@@ -979,9 +978,9 @@ export default function ManagerDashboard() {
       if (response.status === 204) {
       setUsers((prev) => prev.filter((user) => user.id !== userId));
         // Показываем уведомление об успехе
-        successModal.showSuccess({
+        toast({
           title: "Успешно",
-          message: "Пользователь успешно удален"
+          description: "Пользователь успешно удален"
         });
       }
     } catch (err: any) {
@@ -1195,9 +1194,9 @@ export default function ManagerDashboard() {
       try {
         await api.delete(`/request-groups/${requestToDelete.id}`)
         setShowDeleteRequestModal(false);
-        successModal.showSuccess({
+        toast({
           title: "Заявка удалена",
-          message: "Заявка была успешно удалена."
+          description: "Заявка была успешно удалена."
         })
         fetchRequests()
         setRequestToDelete(null)
@@ -1225,9 +1224,9 @@ export default function ManagerDashboard() {
       const newRequestGroup = response.data;
       setRequests(prev => [newRequestGroup, ...prev]);
       
-      successModal.showSuccess({
+      toast({
         title: "Заявка создана!",
-        message: "Заявка успешно создана."
+        description: "Заявка успешно создана."
       });
       
       resetForm();
@@ -1265,9 +1264,9 @@ export default function ManagerDashboard() {
         }
       }
 
-      successModal.showSuccess({
+      toast({
         title: "Под заявка удалена",
-        message: "Под заявка была успешно удалена."
+        description: "Под заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Error deleting sub-request:", error)
@@ -1744,9 +1743,9 @@ export default function ManagerDashboard() {
     try {
       await createServiceCategory({ name: newCategoryName.trim() });
       
-      successModal.showSuccess({
+      toast({
         title: "Категория создана",
-        message: `Категория "${newCategoryName}" успешно создана`
+        description: `Категория "${newCategoryName}" успешно создана`
       });
 
       setNewCategoryName("");
@@ -1785,9 +1784,9 @@ export default function ManagerDashboard() {
     try {
       await deleteServiceCategory(categoryToDelete!);
       
-      successModal.showSuccess({
+      toast({
         title: "Категория удалена",
-        message: "Категория успешно удалена"
+        description: "Категория успешно удалена"
       });
 
       setCategoryToDelete(null);
@@ -1874,9 +1873,9 @@ export default function ManagerDashboard() {
       if (Object.keys(updateData).length > 0) {
         await api.put(`/request-groups/${selectedRequest.id}`, updateData);
         
-        successModal.showSuccess({
+        toast({
           title: "Заявка обновлена",
-          message: "Информация о заявке успешно обновлена"
+          description: "Информация о заявке успешно обновлена"
         });
 
         // Обновляем локальное состояние
@@ -2173,9 +2172,9 @@ export default function ManagerDashboard() {
         }));
 
         // Показываем уведомление об успехе
-        successModal.showSuccess({
+        toast({
           title: "Оценка отправлена",
-          message: "Ваша оценка была успешно отправлена."
+          description: "Ваша оценка была успешно отправлена."
         });
 
         // Закрываем модалку и сбрасываем состояние
@@ -3878,13 +3877,6 @@ export default function ManagerDashboard() {
           title={rejectModal.title}
           message={rejectModal.message}
           duration={rejectModal.duration}
-      />
-      <SuccessModal
-          isOpen={successModal.isOpen}
-          onClose={successModal.hideSuccess}
-          title={successModal.title}
-          message={successModal.message}
-          duration={successModal.duration}
       />
       <AcceptRequestModal
           isOpen={approveModal.isOpen}

@@ -41,8 +41,7 @@ import Header from "@/app/header/Header";
 import api, { getOffices } from "@/lib/api";
 import {useRouter, useSearchParams} from "next/navigation";
 import {useNotificationStore} from "@/stores/notificationStore";
-import {useSuccessModal} from "@/hooks/use-success-modal";
-import {SuccessModal} from "@/components/success-model";
+import { useToast } from "@/hooks/use-toast";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {BottomNav} from "@/components/BottomNav";
 import Link from "next/link";
@@ -76,6 +75,7 @@ import PhotoModal from "@/components/photo/PhotoModal";
 import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
 import { MeetingRoomStatistics } from "@/components/meeting-rooms/MeetingRoomStatistics";
 import { DeskHeightCalculator } from "@/components/meeting-rooms/DeskHeightCalculator";
+import { ClientSmartHomeControl } from "@/components/yandex-smart-home/ClientSmartHomeControl";
 
 interface Rating {
   id: number;
@@ -109,7 +109,7 @@ export default function ClientDashboard() {
   const removeRequest = useRequestStore(state => state.removeRequest)
   
   const searchParams = useSearchParams()
-  const successModal = useSuccessModal()
+  const { toast } = useToast()
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("meeting-rooms")
@@ -170,7 +170,7 @@ export default function ClientDashboard() {
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
   const [offices, setOffices] = useState<any[]>([]);
   const [selectedOffice, setSelectedOffice] = useState<any | null>(null);
-  const [meetingRoomsTab, setMeetingRoomsTab] = useState<"book" | "my-bookings">("book");
+  const [meetingRoomsTab, setMeetingRoomsTab] = useState<"book" | "my-bookings" | "smart-home">("book");
   const [showDeskCalculator, setShowDeskCalculator] = useState(false);
 
   const lastRequestRef = useCallback((node: HTMLDivElement | null) => {
@@ -604,15 +604,16 @@ export default function ClientDashboard() {
         }
       }
 
-      successModal.showSuccess({
+      toast({
         title: "Под заявка удалена",
-        message: "Под заявка была успешно удалена."
+        description: "Под заявка была успешно удалена."
       })
     } catch (error) {
       console.error("Error deleting sub-request:", error)
-      successModal.showSuccess({
+      toast({
         title: "Ошибка",
-        message: "Не удалось удалить под заявку."
+        description: "Не удалось удалить под заявку.",
+        variant: "destructive"
       })
     }
   }
@@ -630,15 +631,16 @@ export default function ClientDashboard() {
         setSelectedRequest(null);
         setRequestToDelete(null);
         setShowDeleteRequestModal(false);
-        successModal.showSuccess({
+        toast({
           title: "Заявка удалена",
-          message: "Заявка была успешно удалена."
+          description: "Заявка была успешно удалена."
         })
       } catch (error) {
         console.error("Failed to delete request group:", error)
-        successModal.showSuccess({
+        toast({
           title: "Ошибка",
-          message: "Не удалось удалить заявку."
+          description: "Не удалось удалить заявку.",
+          variant: "destructive"
         })
       } finally {
         setDeleteLoading(false)
@@ -834,7 +836,10 @@ export default function ClientDashboard() {
 
       // Обновляем состояние
       addRequests([newRequestGroup]);
-      successModal.showSuccess();
+      toast({
+        title: "Успешно",
+        description: "Заявка создана"
+      });
 
       // Сброс формы
       resetForm();
@@ -1323,13 +1328,17 @@ export default function ClientDashboard() {
                 {/* Кнопки и элементы для meeting-rooms на десктопе */}
                 {activeTab === "meeting-rooms" && (
                   <div className="mb-6 space-y-4">
-                    {/* Две кнопки */}
+                    {/* Три кнопки */}
                     <div className="flex gap-4">
                       <Button
                         onClick={() => {
                           setMeetingRoomsTab("book");
                         }}
-                        className="flex-1 h-12 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white rounded-lg font-medium shadow-lg backdrop-blur-sm transition-all duration-300"
+                        className={`flex-1 h-12 rounded-lg font-medium shadow-lg backdrop-blur-sm transition-all duration-300 ${
+                          meetingRoomsTab === "book"
+                            ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                        }`}
                       >
                         Бронировать
                       </Button>
@@ -1337,9 +1346,25 @@ export default function ClientDashboard() {
                         onClick={() => {
                           setMeetingRoomsTab("my-bookings");
                         }}
-                        className="flex-1 h-12 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg font-medium"
+                        className={`flex-1 h-12 rounded-lg font-medium ${
+                          meetingRoomsTab === "my-bookings"
+                            ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                        }`}
                       >
                         Мои бронирования
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setMeetingRoomsTab("smart-home");
+                        }}
+                        className={`flex-1 h-12 rounded-lg font-medium ${
+                          meetingRoomsTab === "smart-home"
+                            ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                        }`}
+                      >
+                        Умный дом
                       </Button>
                     </div>
 
@@ -1443,14 +1468,18 @@ export default function ClientDashboard() {
                   </Button>
                 </div>
 
-                {/* Две меньшие кнопки - показываются только для meeting-rooms */}
+                {/* Три меньшие кнопки - показываются только для meeting-rooms */}
                 {activeTab === "meeting-rooms" && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     <Button
                       onClick={() => {
                         setMeetingRoomsTab("book");
                       }}
-                      className="h-12 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white rounded-lg font-medium transition-all duration-300"
+                      className={`h-10 text-xs px-2 rounded-lg font-medium transition-all duration-300 ${
+                        meetingRoomsTab === "book"
+                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                          : "bg-[#C4C4CE] hover:bg-[#B0B0BC] text-[#040404]"
+                      }`}
                     >
                       Бронировать
                     </Button>
@@ -1458,9 +1487,25 @@ export default function ClientDashboard() {
                       onClick={() => {
                         setMeetingRoomsTab("my-bookings");
                       }}
-                      className="h-12 bg-[#C4C4CE] hover:bg-[#B0B0BC] text-[#040404] rounded-lg font-medium"
+                      className={`h-10 text-xs px-2 rounded-lg font-medium ${
+                        meetingRoomsTab === "my-bookings"
+                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                          : "bg-[#C4C4CE] hover:bg-[#B0B0BC] text-[#040404]"
+                      }`}
                     >
                       Мои бронирования
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setMeetingRoomsTab("smart-home");
+                      }}
+                      className={`h-10 text-xs px-2 rounded-lg font-medium ${
+                        meetingRoomsTab === "smart-home"
+                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                          : "bg-[#C4C4CE] hover:bg-[#B0B0BC] text-[#040404]"
+                      }`}
+                    >
+                      Умный дом
                     </Button>
                   </div>
                 )}
@@ -1633,14 +1678,18 @@ export default function ClientDashboard() {
                   </TabsContent>
 
                   <TabsContent value="meeting-rooms">
-                    <MeetingRoomsCatalog 
-                      initialOffice={selectedOffice} 
-                      onOfficeChange={setSelectedOffice}
-                      initialTab={meetingRoomsTab}
-                      onTabChange={setMeetingRoomsTab}
-                      showCalculator={showDeskCalculator}
-                      onCalculatorToggle={setShowDeskCalculator}
-                    />
+                    {meetingRoomsTab === "smart-home" ? (
+                      <ClientSmartHomeControl />
+                    ) : (
+                      <MeetingRoomsCatalog 
+                        initialOffice={selectedOffice} 
+                        onOfficeChange={setSelectedOffice}
+                        initialTab={meetingRoomsTab === "book" ? "book" : "my-bookings"}
+                        onTabChange={(tab) => setMeetingRoomsTab(tab === "book" ? "book" : "my-bookings")}
+                        showCalculator={showDeskCalculator}
+                        onCalculatorToggle={setShowDeskCalculator}
+                      />
+                    )}
                   </TabsContent>
                 </Tabs>
           </div>
@@ -2143,13 +2192,6 @@ export default function ClientDashboard() {
           isDesktop={isDesktop}
         />
 
-        <SuccessModal
-            isOpen={successModal.isOpen}
-            onClose={successModal.hideSuccess}
-            title={successModal.title}
-            message={successModal.message}
-            duration={successModal.duration}
-        />
         <RejectRequestModal
             isOpen={rejectModal.isOpen}
             onClose={rejectModal.hideReject}
