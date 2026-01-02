@@ -277,6 +277,134 @@ export default function AdminWorkerDashboard() {
     lastElementRef.current = node;
   }, []);
 
+  const checkUserRating = useCallback(async (requestId: number) => {
+    try {
+      const response = await api.get(`/ratings/user/${requestId}`);
+      if (response.data && response.data.length > 0) {
+        const ratingData = response.data[0];
+        setUserRatings(prev => ({
+          ...prev,
+          [requestId]: {
+            ...ratingData,
+            comments: ratingData.comment ? [ratingData.comment] : [] // Преобразуем в массив для совместимости
+          }
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to check user rating:", error);
+    }
+  }, []);
+
+  const fetchRequests = useCallback(async (currentPage = 1, pageSize = 10) => {
+    if (loading && currentPage !== 1) return;
+    setLoading(true);
+
+    try {
+      // Создаем параметры запроса
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        pageSize: pageSize.toString()
+      });
+
+      // Добавляем фильтр статуса если он не "all"
+      if (filterIncomingStatus !== "all" && filterIncomingStatus !== "long_term") {
+        params.append('status', filterIncomingStatus);
+      }
+
+      // Добавляем фильтр приоритета если он не "all"
+      if (filterIncomingType !== "all") {
+        params.append('priority', filterIncomingType);
+      }
+
+      const response = await api.get<{
+        otherRequests: Request[];
+        myRequests: Request[];
+      }>(`/request-groups?${params.toString()}`);
+      
+      console.log('=== FETCH REQUESTS ===');
+      console.log('Filter status:', filterIncomingStatus);
+      console.log('Filter type:', filterIncomingType);
+      console.log('Current page:', currentPage);
+      console.log('API URL:', `/request-groups?${params.toString()}`);
+      console.log('API Response:', response.data);
+      console.log('Incoming requests count:', response.data.otherRequests.length);
+      console.log('My requests count:', response.data.myRequests.length);
+      
+      const sortedNewIncomingRequests = sortRequests(response.data.otherRequests);
+      const sortedNewMyRequests = sortRequests(response.data.myRequests);
+
+      setIncomingRequests((prev) => {
+        const sortedNewItems = sortRequests(sortedNewIncomingRequests);
+        const newIncomingRequests = currentPage === 1
+            ? sortedNewItems
+            : [...prev, ...sortedNewItems.filter(item => !prev.some(p => p.id === item.id))];
+        console.log('Setting incomingRequests:', newIncomingRequests.length, 'items');
+        console.log('Previous incomingRequests:', prev.length, 'items');
+        return newIncomingRequests;
+      });
+      setMyRequests((prev) => {
+        const sortedNewItems = sortRequests(sortedNewMyRequests);
+        return currentPage === 1
+            ? sortedNewItems
+            : [...prev, ...sortedNewItems.filter(item => !prev.some(p => p.id === item.id))];
+      });
+
+      const allRequests = [
+        ...(response.data.otherRequests || []),
+        ...(response.data.myRequests || [])
+      ];
+
+      await Promise.all(
+          allRequests
+              .filter((r) => r.status === "completed")
+              .map((r) => {
+                r.requests.forEach((subRequest) => {
+                  if (subRequest.status === "completed") {
+                    checkUserRating(subRequest.id)
+                  }
+                })
+              })
+      );
+
+      // Обрабатываем рейтинги клиентов из ответа API
+      const processClientRatings = (requestGroups: any[]) => {
+        setClientRatings(prevRatings => {
+          const newRatings = { ...prevRatings };
+          
+          requestGroups.forEach((requestGroup: any) => {
+            if (requestGroup.clientRatings && requestGroup.clientRatings.length > 0) {
+              const rating = requestGroup.clientRatings[0]; // Берем первый рейтинг
+              newRatings[requestGroup.id] = {
+                id: rating.id,
+                rating: rating.rating,
+                comment: rating.comment,
+                request_group_id: requestGroup.id,
+                created_at: rating.created_at,
+                ratedClient: rating.ratedClient
+              };
+            }
+          });
+          
+          return newRatings;
+        });
+      };
+
+      // Обрабатываем рейтинги клиентов для всех групп заявок
+      processClientRatings(allRequests);
+
+      // Обновляем флаг hasMore
+      setHasMore(
+          (response.data.otherRequests?.length || 0) +
+          (response.data.myRequests?.length || 0) >= pageSize
+      );
+
+    } catch (error) {
+      console.error("Ошибка при загрузке заявок:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, filterIncomingStatus, filterIncomingType, checkUserRating]);
+
   useEffect(() => {
     if (loading) return;
 
@@ -297,7 +425,7 @@ export default function AdminWorkerDashboard() {
     if (lastElementRef.current) {
       observer.current.observe(lastElementRef.current);
     }
-  }, [loading, hasMore]);
+  }, [loading, hasMore, fetchRequests]);
 
   const openModal = (name: string) => {
     setModalStack(prev => {
@@ -808,7 +936,7 @@ export default function AdminWorkerDashboard() {
       prevFilterStatus.current = filterIncomingStatus;
       fetchRequests(1); // Сбрасываем на первую страницу при изменении фильтра
     }
-  }, [filterIncomingStatus, isLoggedIn]);
+  }, [filterIncomingStatus, isLoggedIn, fetchRequests]);
 
   // Перезагружаем данные при изменении фильтра типа
   useEffect(() => {
@@ -1152,115 +1280,6 @@ export default function AdminWorkerDashboard() {
     }
   }
 
-  const fetchRequests = useCallback(async (currentPage = 1, pageSize = 10) => {
-    if (loading && currentPage !== 1) return;
-    setLoading(true);
-
-    try {
-      // Создаем параметры запроса
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        pageSize: pageSize.toString()
-      });
-
-      // Добавляем фильтр статуса если он не "all"
-      if (filterIncomingStatus !== "all" && filterIncomingStatus !== "long_term") {
-        params.append('status', filterIncomingStatus);
-      }
-
-      // Добавляем фильтр приоритета если он не "all"
-      if (filterIncomingType !== "all") {
-        params.append('priority', filterIncomingType);
-      }
-
-      const response = await api.get<{
-        otherRequests: Request[];
-        myRequests: Request[];
-      }>(`/request-groups?${params.toString()}`);
-      
-      console.log('=== FETCH REQUESTS ===');
-      console.log('Filter status:', filterIncomingStatus);
-      console.log('Filter type:', filterIncomingType);
-      console.log('Current page:', currentPage);
-      console.log('API URL:', `/request-groups?${params.toString()}`);
-      console.log('API Response:', response.data);
-      console.log('Incoming requests count:', response.data.otherRequests.length);
-      console.log('My requests count:', response.data.myRequests.length);
-      
-      const sortedNewIncomingRequests = sortRequests(response.data.otherRequests);
-      const sortedNewMyRequests = sortRequests(response.data.myRequests);
-
-      setIncomingRequests((prev) => {
-        const sortedNewItems = sortRequests(sortedNewIncomingRequests);
-        const newIncomingRequests = currentPage === 1
-            ? sortedNewItems
-            : [...prev, ...sortedNewItems.filter(item => !prev.some(p => p.id === item.id))];
-        console.log('Setting incomingRequests:', newIncomingRequests.length, 'items');
-        console.log('Previous incomingRequests:', prev.length, 'items');
-        return newIncomingRequests;
-      });
-      setMyRequests((prev) => {
-        const sortedNewItems = sortRequests(sortedNewMyRequests);
-        return currentPage === 1
-            ? sortedNewItems
-            : [...prev, ...sortedNewItems.filter(item => !prev.some(p => p.id === item.id))];
-      });
-
-      const allRequests = [
-        ...(response.data.otherRequests || []),
-        ...(response.data.myRequests || [])
-      ];
-
-      await Promise.all(
-          allRequests
-              .filter((r) => r.status === "completed")
-              .map((r) => {
-                r.requests.forEach((subRequest) => {
-                  if (subRequest.status === "completed") {
-                    checkUserRating(subRequest.id)
-                  }
-                })
-              })
-      );
-
-      // Обрабатываем рейтинги клиентов из ответа API
-      const processClientRatings = (requestGroups: any[]) => {
-        setClientRatings(prevRatings => {
-          const newRatings = { ...prevRatings };
-          
-          requestGroups.forEach((requestGroup: any) => {
-            if (requestGroup.clientRatings && requestGroup.clientRatings.length > 0) {
-              const rating = requestGroup.clientRatings[0]; // Берем первый рейтинг
-              newRatings[requestGroup.id] = {
-                id: rating.id,
-                rating: rating.rating,
-                comment: rating.comment,
-                request_group_id: requestGroup.id,
-                created_at: rating.created_at,
-                ratedClient: rating.ratedClient
-              };
-            }
-          });
-          
-          return newRatings;
-        });
-      };
-
-      // Обрабатываем рейтинги клиентов для всех групп заявок
-      processClientRatings(allRequests);
-
-      // Обновляем флаг hasMore
-      setHasMore(
-          (response.data.otherRequests?.length || 0) +
-          (response.data.myRequests?.length || 0) >= pageSize
-      );
-
-    } catch (error) {
-      console.error("Ошибка при загрузке заявок:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [loading, filterIncomingStatus, filterIncomingType]);
 
 
 
@@ -1414,7 +1433,7 @@ export default function AdminWorkerDashboard() {
       setMyRequests([]);
       fetchRequests();
     }
-  }, [filterMyStatus, filterMyType, filterIncomingType]);
+  }, [filterMyStatus, filterMyType, filterIncomingType, fetchRequests]);
 
 
 
@@ -1511,24 +1530,6 @@ export default function AdminWorkerDashboard() {
     closeModalWithHistory();
     setExpandedSubRequests(new Set());
   };
-
-  const checkUserRating = useCallback(async (requestId: number) => {
-    try {
-      const response = await api.get(`/ratings/user/${requestId}`);
-      if (response.data && response.data.length > 0) {
-        const ratingData = response.data[0];
-        setUserRatings(prev => ({
-          ...prev,
-          [requestId]: {
-            ...ratingData,
-            comments: ratingData.comment ? [ratingData.comment] : [] // Преобразуем в массив для совместимости
-          }
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to check user rating:", error);
-    }
-  }, []);
 
   const handleAcceptRequestGroup = async () => {
     try {
@@ -2358,7 +2359,6 @@ export default function AdminWorkerDashboard() {
             handleLogout={handleLogout}
             notificationCount={3}
             role="Администратор"
-            onRefresh={handleRefresh}
         />
         <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">

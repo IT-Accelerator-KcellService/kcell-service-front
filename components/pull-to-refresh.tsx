@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import Image from "next/image"
 
 type PullToRefreshProps = {
     children?: React.ReactNode
@@ -19,7 +20,7 @@ export default function PullToRefresh(props: PullToRefreshProps) {
         },
         threshold = 96,
         maxPull = 180,
-        color = "#7B28CC",
+        color = "#114A65",
     } = props
 
     const containerRef = React.useRef<HTMLDivElement | null>(null)
@@ -181,14 +182,16 @@ export default function PullToRefresh(props: PullToRefreshProps) {
 function ProgressRing({
                           size = 48,
                           thickness = 5,
-                          color = "#7B28CC",
+                          color = "#114A65",
                           angle = 0,
                           spinning = false,
                           progress = 0,
                       }) {
+    const primaryColor = "#114A65"
+    const secondaryColor = "#B8400E"
     const bg = spinning
-        ? `conic-gradient(${color} 0deg, ${color} 270deg, #e5e7eb 270deg 360deg)`
-        : `conic-gradient(${color} ${angle}deg, #e5e7eb 0deg)`
+        ? `conic-gradient(from 0deg, ${primaryColor} 0deg, ${secondaryColor} 180deg, ${primaryColor} 360deg)`
+        : `conic-gradient(${primaryColor} ${angle}deg, #e5e7eb 0deg)`
     const rotate = spinning ? "animate-spin" : ""
     const scale = 0.9 + progress * 0.15
     const rotateDeg = spinning ? 0 : Math.round(progress * 20)
@@ -214,7 +217,7 @@ function ProgressRing({
                 }}
             />
             <div
-                className="absolute rounded-full bg-white shadow-sm"
+                className="absolute rounded-full bg-white shadow-lg"
                 style={{
                     top: thickness,
                     left: thickness,
@@ -229,25 +232,24 @@ function ProgressRing({
                     transition: "transform 120ms ease",
                 }}
             >
-                <WorkFlowMark size={size - thickness * 2 - 6} color={color} />
+                <WorkFlowMark size={size - thickness * 2 - 6} />
             </div>
         </div>
     )
 }
 
-function WorkFlowMark({ size = 40, color = "#7B28CC" }) {
+function WorkFlowMark({ size = 40 }) {
     return (
         <div
-            className="rounded-full grid place-items-center"
+            className="rounded-full grid place-items-center bg-gradient-to-br from-[#114A65] to-[#B8400E] shadow-lg"
             style={{
                 width: size,
                 height: size,
-                backgroundColor: color,
                 color: "white",
                 fontWeight: 800,
                 letterSpacing: "0.02em",
                 fontSize: Math.max(14, Math.round(size * 0.48)),
-                boxShadow: "0 6px 16px rgba(123,40,204,0.25)",
+                boxShadow: "0 6px 16px rgba(17, 74, 101, 0.3)",
             }}
             aria-hidden="true"
         >

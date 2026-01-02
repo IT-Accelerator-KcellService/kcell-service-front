@@ -23,6 +23,7 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 import { ProfileModal } from "@/components/ProfileModal"
 import Image from "next/image"
 import { useToast } from "@/hooks/use-toast"
+import Header from "@/app/header/Header"
 
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
@@ -57,7 +58,7 @@ export default function ProfilePage() {
     const [isVerifying, setIsVerifying] = useState(false)
     const [emailError, setEmailError] = useState("")
     const [emailSuccess, setEmailSuccess] = useState("")
-    const {clearNotifications} = useNotificationStore()
+    const {clearNotifications, notifications} = useNotificationStore()
     const {clearRequests} = useRequestStore()
 
     // Инициализация email при монтировании
@@ -223,22 +224,15 @@ export default function ProfilePage() {
 
     // На мобильных показываем как обычную страницу
     return (
-        <div className="pb-16">
-            <div className="container px-4 py-6">
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
-                        <Image 
-                            src="/app-icon.png" 
-                            alt="App Icon" 
-                            width={32} 
-                            height={32} 
-                            className="rounded-lg"
-                        />
-                    </div>
-                    <span className="font-bold text-xl text-[#040404]">Profile</span>
-                </div>
-
-                <Tabs defaultValue="profile" className="space-y-4">
+        <>
+            <Header
+                handleLogout={handleLogout}
+                notificationCount={notifications.length}
+                role={roleTranslations[role || 'client'] || 'Клиент'}
+            />
+            <div className="pb-16">
+                <div className="container px-4 py-6">
+                    <Tabs defaultValue="profile" className="space-y-4">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="profile" className="text-xs sm:text-sm">
                             Профиль
@@ -552,9 +546,10 @@ export default function ProfilePage() {
                             </CardContent>
                         </Card>
                     </TabsContent>
-                </Tabs>
+                    </Tabs>
+                </div>
+                <BottomNav activeTab="profile" />
             </div>
-            <BottomNav activeTab="profile" />
-        </div>
+        </>
     )
 }

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, ArrowLeft, Building2, Users } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -159,34 +159,59 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#114A65] via-[#114A65] to-[#B8400E] flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                <div className="text-center mb-8">
-                    <div className="flex items-center justify-center space-x-2 mb-4">
-                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center overflow-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-[#114A65] via-[#0f3d52] to-[#B8400E] flex items-center justify-center p-4 relative overflow-hidden">
+            {/* Декоративные элементы фона */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-20 left-10 w-72 h-72 bg-[#B8400E]/20 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#114A65]/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-r from-[#114A65]/10 to-[#B8400E]/10 rounded-full blur-3xl"></div>
+            </div>
+            
+            <div className="w-full max-w-md relative z-10 animate-in fade-in duration-500">
+                <div className="text-center mb-10">
+                    <div className="flex items-center justify-center space-x-3 mb-5 animate-in slide-in-from-top-4 duration-700">
+                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl ring-4 ring-white/20 transform hover:scale-105 transition-transform duration-300">
                             <img 
                                 src="/app-icon.png" 
                                 alt="App Icon" 
                                 className="w-full h-full object-cover"
                             />
                         </div>
-                        <span className="text-white font-bold text-2xl">WorkFlow</span>
+                        <span className="text-white font-bold text-3xl tracking-tight drop-shadow-lg">WorkFlow</span>
                     </div>
-                    <p className="text-white/90">Система управления сервисными заявками</p>
+                    <p className="text-white text-base font-semibold drop-shadow-md animate-in fade-in duration-1000 delay-200">Бронирование комнаты и управление сервисными заявками</p>
                 </div>
 
-                <Card className="border-0 shadow-2xl max-h-[90vh] overflow-y-auto">
-                    <CardHeader>
-                        <CardTitle className="text-center text-lg md:text-xl">
+                <Card className="border border-white/20 shadow-2xl max-h-[90vh] overflow-y-auto bg-white relative animate-in slide-in-from-bottom-4 duration-700 delay-300">
+                    {/* Декоративный градиент сверху карточки */}
+                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#114A65] via-[#B8400E] to-[#114A65]"></div>
+                    
+                    <CardHeader className="text-center pb-6 pt-8">
+                        {/* Индикатор шагов */}
+                        <div className="flex items-center justify-center gap-2 mb-6">
+                            <div className={`flex items-center ${step === 1 ? 'text-[#114A65]' : 'text-[#B8400E]'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all duration-300 ${step === 1 ? 'bg-[#114A65] text-white' : 'bg-[#B8400E] text-white'}`}>
+                                    1
+                                </div>
+                            </div>
+                            <div className={`h-0.5 w-12 ${step === 2 ? 'bg-[#B8400E]' : 'bg-gray-300'} transition-all duration-300`}></div>
+                            <div className={`flex items-center ${step === 2 ? 'text-[#B8400E]' : 'text-gray-400'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all duration-300 ${step === 2 ? 'bg-[#B8400E] text-white' : 'bg-gray-300 text-gray-600'}`}>
+                                    2
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <CardTitle className="text-center text-xl md:text-2xl font-bold bg-gradient-to-r from-[#114A65] to-[#B8400E] bg-clip-text text-transparent mb-2">
                             {step === 1 ? 'Запрос на регистрацию' : 'Придумать пароль'}
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                    <CardContent className="px-8 pb-8">
+                        <form onSubmit={handleSubmit} className="space-y-5">
                             {step === 1 ? (
                                 <>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="phone" className="text-sm md:text-base">Номер телефона *</Label>
+                                    <div className="space-y-2.5">
+                                        <Label htmlFor="phone" className="text-sm font-semibold text-gray-900">Номер телефона *</Label>
                                         <Input
                                             id="phone"
                                             type="tel"
@@ -195,30 +220,30 @@ export default function RegisterPage() {
                                             placeholder="+7 XXX XXX XX XX"
                                             required
                                             maxLength={19}
-                                            className="text-sm md:text-base"
+                                            className="text-base h-12 bg-gray-50 border-2 border-gray-200 focus:bg-white focus:border-[#114A65] focus:ring-2 focus:ring-[#114A65]/20 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-white placeholder:text-gray-400"
                                         />
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="full_name" className="text-sm md:text-base">ФИО *</Label>
+                                    <div className="space-y-2.5">
+                                        <Label htmlFor="full_name" className="text-sm font-semibold text-gray-900">ФИО *</Label>
                                         <Input
                                             id="full_name"
                                             value={formData.full_name}
                                             onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
                                             placeholder="Введите полное имя"
                                             required
-                                            className="text-sm md:text-base"
+                                            className="text-base h-12 bg-gray-50 border-2 border-gray-200 focus:bg-white focus:border-[#114A65] focus:ring-2 focus:ring-[#114A65]/20 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-white placeholder:text-gray-400"
                                         />
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="office" className="text-sm md:text-base">Офис *</Label>
+                                    <div className="space-y-2.5">
+                                        <Label htmlFor="office" className="text-sm font-semibold text-gray-900">Офис *</Label>
                                         <Select
                                             value={formData.office_id}
                                             onValueChange={(value) => setFormData(prev => ({ ...prev, office_id: value }))}
                                             required
                                         >
-                                            <SelectTrigger className="text-sm md:text-base">
+                                            <SelectTrigger className="text-base h-12 bg-gray-50 border-2 border-gray-200 focus:bg-white focus:border-[#114A65] focus:ring-2 focus:ring-[#114A65]/20 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-white">
                                                 <SelectValue placeholder="Выберите офис" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -231,14 +256,14 @@ export default function RegisterPage() {
                                         </Select>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="role" className="text-sm md:text-base">Роль *</Label>
+                                    <div className="space-y-2.5">
+                                        <Label htmlFor="role" className="text-sm font-semibold text-gray-900">Роль *</Label>
                                         <Select
                                             value={formData.role}
                                             onValueChange={(value) => setFormData(prev => ({ ...prev, role: value, service_category_id: '' }))}
                                             required
                                         >
-                                            <SelectTrigger className="text-sm md:text-base">
+                                            <SelectTrigger className="text-base h-12 bg-gray-50 border-2 border-gray-200 focus:bg-white focus:border-[#114A65] focus:ring-2 focus:ring-[#114A65]/20 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-white">
                                                 <SelectValue placeholder="Выберите роль" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -252,14 +277,14 @@ export default function RegisterPage() {
                                     </div>
 
                                     {formData.role === 'executor' && (
-                                        <div className="space-y-2">
-                                            <Label htmlFor="service_category" className="text-sm md:text-base">Категория услуг *</Label>
+                                        <div className="space-y-2.5 animate-in slide-in-from-top-2 duration-300">
+                                            <Label htmlFor="service_category" className="text-sm font-semibold text-gray-900">Категория услуг *</Label>
                                             <Select
                                                 value={formData.service_category_id}
                                                 onValueChange={(value) => setFormData(prev => ({ ...prev, service_category_id: value }))}
                                                 required
                                             >
-                                                <SelectTrigger className="text-sm md:text-base">
+                                                <SelectTrigger className="text-base h-12 bg-gray-50 border-2 border-gray-200 focus:bg-white focus:border-[#114A65] focus:ring-2 focus:ring-[#114A65]/20 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-white">
                                                     <SelectValue placeholder="Выберите категорию услуг" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -273,7 +298,11 @@ export default function RegisterPage() {
                                         </div>
                                     )}
 
-                                    {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+                                    {formErrors && (
+                                        <div className="bg-gradient-to-r from-red-50 to-red-50/50 border-2 border-red-200 rounded-xl p-4 animate-in slide-in-from-top-2 duration-300">
+                                            <p className="text-sm text-red-600 font-medium">{formErrors}</p>
+                                        </div>
+                                    )}
 
                                     <Button
                                         type="button"
@@ -288,15 +317,16 @@ export default function RegisterPage() {
                                             !formData.role ||
                                             (formData.role === 'executor' && !formData.service_category_id)
                                         }
-                                        className="w-full text-sm md:text-base py-2 md:py-3 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                                        className="w-full text-base h-14 bg-gradient-to-r from-[#114A65] via-[#0f4560] to-[#B8400E] hover:from-[#0d3a4f] hover:via-[#0c3345] hover:to-[#A3390D] text-white rounded-xl font-semibold shadow-lg hover:shadow-2xl hover:shadow-[#114A65]/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative overflow-hidden group"
                                     >
-                                        Далее
+                                        <span className="relative z-10">Далее</span>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
                                     </Button>
                                 </>
                             ) : (
                                 <>
-                                    <div className="space-y-2 relative">
-                                        <Label htmlFor="password" className="text-sm md:text-base">Пароль *</Label>
+                                    <div className="space-y-2.5 relative">
+                                        <Label htmlFor="password" className="text-sm font-semibold text-gray-900">Пароль *</Label>
                                         <div className="relative">
                                             <Input
                                                 id="password"
@@ -306,20 +336,20 @@ export default function RegisterPage() {
                                                 placeholder="Минимум 6 символов"
                                                 required
                                                 minLength={6}
-                                                className="text-sm md:text-base"
+                                                className="text-base h-12 bg-gray-50 border-2 border-gray-200 focus:bg-white focus:border-[#114A65] focus:ring-2 focus:ring-[#114A65]/20 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-white pr-12 placeholder:text-gray-400"
                                             />
                                             <button
                                                 type="button"
                                                 onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                                                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500 hover:text-gray-700 transition-colors"
                                             >
-                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                             </button>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2 relative">
-                                        <Label htmlFor="confirm_password" className="text-sm md:text-base">Подтвердите пароль *</Label>
+                                    <div className="space-y-2.5 relative">
+                                        <Label htmlFor="confirm_password" className="text-sm font-semibold text-gray-900">Подтвердите пароль *</Label>
                                         <div className="relative">
                                             <Input
                                                 id="confirm_password"
@@ -328,21 +358,25 @@ export default function RegisterPage() {
                                                 onChange={(e) => setFormData(prev => ({ ...prev, confirm_password: e.target.value }))}
                                                 placeholder="Повторите пароль"
                                                 required
-                                                className="text-sm md:text-base"
+                                                className="text-base h-12 bg-gray-50 border-2 border-gray-200 focus:bg-white focus:border-[#114A65] focus:ring-2 focus:ring-[#114A65]/20 rounded-xl transition-all duration-200 hover:border-gray-300 hover:bg-white pr-12 placeholder:text-gray-400"
                                             />
                                             <button
                                                 type="button"
                                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                                                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500 hover:text-gray-700 transition-colors"
                                             >
-                                                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                             </button>
                                         </div>
                                     </div>
 
-                                    {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+                                    {formErrors && (
+                                        <div className="bg-gradient-to-r from-red-50 to-red-50/50 border-2 border-red-200 rounded-xl p-4 animate-in slide-in-from-top-2 duration-300">
+                                            <p className="text-sm text-red-600 font-medium">{formErrors}</p>
+                                        </div>
+                                    )}
 
-                                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                                    <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                                         <Button
                                             type="button"
                                             onClick={() => {
@@ -350,49 +384,37 @@ export default function RegisterPage() {
                                                 setFormErrors("");
                                             }}
                                             variant="outline"
-                                            className="flex-1 text-sm md:text-base py-2 md:py-3"
+                                            className="flex-1 text-base h-13 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98]"
                                         >
                                             Назад
                                         </Button>
                                         <Button
                                             type="submit"
                                             disabled={loading}
-                                            className="flex-1 text-sm md:text-base py-2 md:py-3 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                                            className="flex-1 text-base h-14 bg-gradient-to-r from-[#114A65] via-[#0f4560] to-[#B8400E] hover:from-[#0d3a4f] hover:via-[#0c3345] hover:to-[#A3390D] text-white rounded-xl font-semibold shadow-lg hover:shadow-2xl hover:shadow-[#114A65]/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative overflow-hidden group"
                                         >
-                                            {loading ? 'Отправка...' : 'Отправить запрос'}
+                                            <span className="relative z-10">{loading ? 'Отправка...' : 'Отправить запрос'}</span>
+                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
                                         </Button>
                                     </div>
                                 </>
                             )}
 
-                            <Link href="/login">
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    className="w-full text-sm md:text-base py-2 md:py-3"
-                                >
-                                    <ArrowLeft className="w-4 h-4 mr-2" />
-                                    Вернуться к входу
-                                </Button>
-                            </Link>
+                            <div className="pt-3 border-t border-gray-100">
+                                <Link href="/login">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="w-full text-base h-12 text-gray-700 hover:text-gray-900 hover:bg-gray-100 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        <ArrowLeft className="w-5 h-5 mr-2" />
+                                        Вернуться к входу
+                                    </Button>
+                                </Link>
+                            </div>
                         </form>
                     </CardContent>
                 </Card>
-
-                <div className="mt-8 grid grid-cols-2 gap-4">
-                    <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
-                        <CardContent className="p-4 text-center">
-                            <Building2 className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-sm">2 офиса</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-white">
-                        <CardContent className="p-4 text-center">
-                            <Users className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-sm">5 ролей</p>
-                        </CardContent>
-                    </Card>
-                </div>
             </div>
         </div>
     );

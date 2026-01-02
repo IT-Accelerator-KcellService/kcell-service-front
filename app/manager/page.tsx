@@ -2199,7 +2199,6 @@ export default function ManagerDashboard() {
           handleLogout={handleLogout}
           notificationCount={notifications.length}
           role="Руководитель"
-          onRefresh={handleRefresh}
         />
 
     <PullToRefresh onRefresh={handleRefresh}>
@@ -2343,10 +2342,6 @@ export default function ManagerDashboard() {
                   </TabsTrigger>
                   <TabsTrigger value="registration-requests" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0">
                     Регистрации
-                  </TabsTrigger>
-                  <TabsTrigger value="statistics" className="text-xs px-2 py-2 whitespace-nowrap flex-shrink-0 flex items-center gap-1">
-                    <BarChart3 className="h-3.5 w-3.5" />
-                    Статистика
                   </TabsTrigger>
                 </TabsList>
               </div>

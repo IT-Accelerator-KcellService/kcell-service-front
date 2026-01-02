@@ -1176,7 +1176,6 @@ export default function ClientDashboard() {
             handleLogout={handleLogout}
             notificationCount={notifications.length}
             role="Клиент"
-            onRefresh={handleRefresh}
         />
       <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-[#F3F3F3]">
@@ -1440,45 +1439,57 @@ export default function ClientDashboard() {
 
             {/* Главная секция для мобильных */}
             {!isDesktop && (
-              <div className="mb-6 space-y-4">
-                {/* Две большие кнопки */}
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
+              <div className="mb-6 space-y-5">
+                {/* Две большие карточки действий */}
+                <div className="grid grid-cols-2 gap-4">
+                  <Card
                     onClick={() => {
                       setActiveTab("meeting-rooms");
                       setMeetingRoomsTab("book");
                     }}
-                    className="h-24 bg-gradient-to-br from-[#B8400E] to-[#114A65] hover:from-[#9a360c] hover:to-[#0d3a4f] text-white rounded-xl flex flex-col items-center justify-center gap-1 px-2 shadow-lg backdrop-blur-sm transition-all duration-300"
+                    className="relative overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-0 shadow-xl bg-gradient-to-br from-[#114A65] via-[#0d3a4f] to-[#B8400E] group"
                   >
-                    <Building2 className="h-8 w-8" />
-                    <div className="flex flex-col items-center text-center">
-                      <span className="text-xs font-medium leading-tight">Бронирование</span>
-                      <span className="text-xs font-medium leading-tight">комнат</span>
-                    </div>
-                  </Button>
-                  <Button
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
+                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-12 -mb-12"></div>
+                    <CardContent className="p-5 relative z-10 flex flex-col items-center justify-center h-28">
+                      <div className="mb-2 transform group-hover:scale-110 transition-transform duration-300">
+                        <Building2 className="h-10 w-10 text-white drop-shadow-lg" />
+                      </div>
+                      <div className="flex flex-col items-center text-center">
+                        <span className="text-sm font-bold text-white leading-tight drop-shadow-md">Бронирование</span>
+                        <span className="text-sm font-bold text-white leading-tight drop-shadow-md">комнат</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card
                     onClick={() => setActiveTab("requests")}
-                    className="h-24 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-xl flex flex-col items-center justify-center gap-1 px-2"
+                    className="relative overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-2 border-gray-200 shadow-lg bg-gradient-to-br from-white to-gray-50 group hover:border-[#114A65]/30"
                   >
-                    <Wrench className="h-8 w-8" />
-                    <div className="flex flex-col items-center text-center">
-                      <span className="text-xs font-medium leading-tight">Сервисные</span>
-                      <span className="text-xs font-medium leading-tight">заявки</span>
-                    </div>
-                  </Button>
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#114A65]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <CardContent className="p-5 relative z-10 flex flex-col items-center justify-center h-28">
+                      <div className="mb-2 transform group-hover:scale-110 transition-transform duration-300">
+                        <Wrench className="h-10 w-10 text-[#114A65]" />
+                      </div>
+                      <div className="flex flex-col items-center text-center">
+                        <span className="text-sm font-bold text-gray-900 leading-tight">Сервисные</span>
+                        <span className="text-sm font-bold text-gray-900 leading-tight">заявки</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
-                {/* Три меньшие кнопки - показываются только для meeting-rooms */}
+                {/* Три кнопки переключения - показываются только для meeting-rooms */}
                 {activeTab === "meeting-rooms" && (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-3">
                     <Button
                       onClick={() => {
                         setMeetingRoomsTab("book");
                       }}
-                      className={`h-10 text-xs px-2 rounded-lg font-medium transition-all duration-300 ${
+                      className={`h-12 text-xs px-2 rounded-xl font-semibold transition-all duration-300 shadow-md ${
                         meetingRoomsTab === "book"
-                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
-                          : "bg-[#C4C4CE] hover:bg-[#B0B0BC] text-[#040404]"
+                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white shadow-lg scale-105"
+                          : "bg-white border-2 border-gray-200 hover:border-[#114A65]/30 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
                       Бронировать
@@ -1487,10 +1498,10 @@ export default function ClientDashboard() {
                       onClick={() => {
                         setMeetingRoomsTab("my-bookings");
                       }}
-                      className={`h-10 text-xs px-2 rounded-lg font-medium ${
+                      className={`h-12 text-xs px-2 rounded-xl font-semibold transition-all duration-300 shadow-md ${
                         meetingRoomsTab === "my-bookings"
-                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
-                          : "bg-[#C4C4CE] hover:bg-[#B0B0BC] text-[#040404]"
+                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white shadow-lg scale-105"
+                          : "bg-white border-2 border-gray-200 hover:border-[#114A65]/30 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
                       Мои бронирования
@@ -1499,10 +1510,10 @@ export default function ClientDashboard() {
                       onClick={() => {
                         setMeetingRoomsTab("smart-home");
                       }}
-                      className={`h-10 text-xs px-2 rounded-lg font-medium ${
+                      className={`h-12 text-xs px-2 rounded-xl font-semibold transition-all duration-300 shadow-md ${
                         meetingRoomsTab === "smart-home"
-                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
-                          : "bg-[#C4C4CE] hover:bg-[#B0B0BC] text-[#040404]"
+                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white shadow-lg scale-105"
+                          : "bg-white border-2 border-gray-200 hover:border-[#114A65]/30 text-gray-700 hover:bg-gray-50"
                       }`}
                     >
                       Умный дом
@@ -1514,16 +1525,19 @@ export default function ClientDashboard() {
                 {activeTab === "meeting-rooms" && meetingRoomsTab === "book" && (
                   <>
                     {/* Кнопка калькулятора */}
-                    <Button
+                    <Card
                       onClick={() => {
                         setShowDeskCalculator(!showDeskCalculator);
                       }}
-                      variant="outline"
-                      className="w-full h-12 bg-[#F3F3F3] border-[#C4C4CE] hover:bg-[#E8E8E8] rounded-lg flex items-center justify-center gap-2"
+                      className="cursor-pointer transition-all duration-300 hover:shadow-lg active:scale-[0.98] border-2 border-gray-200 bg-gradient-to-br from-white to-gray-50/50 hover:border-[#114A65]/40"
                     >
-                      <Ruler className="h-5 w-5 text-gray-700" />
-                      <span className="font-medium text-gray-900">Калькулятор высоты стола</span>
-                    </Button>
+                      <CardContent className="p-4 flex items-center justify-center gap-3">
+                        <div className="p-2 bg-gradient-to-br from-[#114A65]/10 to-[#B8400E]/10 rounded-lg">
+                          <Ruler className="h-6 w-6 text-[#114A65]" />
+                        </div>
+                        <span className="font-semibold text-gray-900">Калькулятор высоты стола</span>
+                      </CardContent>
+                    </Card>
 
                     {/* Калькулятор высоты стола */}
                     <DeskHeightCalculator
@@ -1532,49 +1546,60 @@ export default function ClientDashboard() {
                     />
 
                     {/* Секция выбора офиса */}
-                    <div className="space-y-3">
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">Выбрать офис</h2>
-                      <p className="text-sm text-gray-500">Выберите офис для бронирования переговорной комнаты</p>
-                    </div>
-                    <div className="overflow-x-auto -mx-2 px-2">
-                      <div className="flex gap-3 pb-2" style={{ scrollbarWidth: 'thin' }}>
-                        {offices.map((office: any) => (
-                          <Card
-                            key={office.id}
-                            className="min-w-[280px] cursor-pointer transition-all hover:shadow-md active:scale-95 flex-shrink-0"
-                            onClick={() => {
-                              setSelectedOffice(office);
-                              setActiveTab("meeting-rooms");
-                            }}
-                          >
-                            <CardContent className="p-0">
-                              <div className="relative aspect-[4/3] bg-gradient-to-br from-[#114A65]/10 to-[#114A65]/5 overflow-hidden rounded-t-lg">
-                                {office.photo ? (
-                                  <Image
-                                    src={office.photo}
-                                    alt={office.name}
-                                    fill
-                                    sizes="280px"
-                                    className="object-cover"
-                                  />
-                                ) : (
-                                  <div className="absolute inset-0 flex items-center justify-center">
-                                    <Building2 className="w-16 h-16 text-[#114A65]" />
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-r from-[#114A65]/5 to-[#B8400E]/5 rounded-xl p-4 border border-[#114A65]/10">
+                        <h2 className="text-xl font-bold text-gray-900 mb-1">Выбрать офис</h2>
+                        <p className="text-sm text-gray-600">Выберите офис для бронирования переговорной комнаты</p>
+                      </div>
+                      <div className="overflow-x-auto -mx-2 px-2">
+                        <div className="flex gap-4 pb-3" style={{ scrollbarWidth: 'thin' }}>
+                          {offices.map((office: any) => (
+                            <Card
+                              key={office.id}
+                              className="min-w-[300px] cursor-pointer transition-all duration-300 hover:shadow-xl active:scale-[0.97] flex-shrink-0 border-2 border-gray-200 hover:border-[#114A65]/40 overflow-hidden group"
+                              onClick={() => {
+                                setSelectedOffice(office);
+                                setActiveTab("meeting-rooms");
+                              }}
+                            >
+                              <CardContent className="p-0">
+                                <div className="relative aspect-[4/3] bg-gradient-to-br from-[#114A65]/10 to-[#114A65]/5 overflow-hidden">
+                                  {office.photo ? (
+                                    <>
+                                      <Image
+                                        src={office.photo}
+                                        alt={office.name}
+                                        fill
+                                        sizes="300px"
+                                        className="object-cover transition-transform duration-300 group-hover:scale-110"
+                                      />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    </>
+                                  ) : (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#114A65]/10 to-[#B8400E]/10">
+                                      <Building2 className="w-20 h-20 text-[#114A65] opacity-50" />
+                                    </div>
+                                  )}
+                                  <div className="absolute top-3 right-3">
+                                    <div className="bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 shadow-md">
+                                      <span className="text-xs font-semibold text-[#114A65]">Выбрать</span>
+                                    </div>
                                   </div>
-                                )}
-                              </div>
-                              <div className="p-4">
-                                <h3 className="font-semibold text-gray-900">{office.name}</h3>
-                                <p className="text-sm text-gray-600 mt-1">{office.city}</p>
-                                <p className="text-sm text-gray-500">{office.address}</p>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                                </div>
+                                <div className="p-5 bg-white">
+                                  <h3 className="font-bold text-lg text-gray-900 mb-1 group-hover:text-[#114A65] transition-colors">{office.name}</h3>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <MapPin className="w-4 h-4 text-[#114A65]" />
+                                    <p className="text-sm font-medium text-[#114A65]">{office.city}</p>
+                                  </div>
+                                  <p className="text-sm text-gray-600 leading-relaxed">{office.address}</p>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
                   </>
                 )}
               </div>

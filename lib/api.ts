@@ -535,6 +535,12 @@ export interface DailyCalendarData {
             is_available?: boolean;
             booking_id?: number | null;
             booking_status?: string | null;
+            booking_user?: {
+                id: number;
+                full_name: string;
+                phone?: string;
+            } | null;
+            company_name?: string | null;
         }>;
     }>;
 }
@@ -553,6 +559,18 @@ export interface WeeklyCalendarData {
         days: Array<{
             date: string;
             occupancy_percentage: number;
+            bookings?: Array<{
+                id: number;
+                start_time: string;
+                end_time: string;
+                status: string;
+                company_name?: string | null;
+                user: {
+                    id: number;
+                    full_name: string;
+                    phone?: string;
+                } | null;
+            }>;
         }>;
     }>;
 }

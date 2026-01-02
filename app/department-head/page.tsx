@@ -112,6 +112,7 @@ export default function DepartmentHeadDashboard() {
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("meeting-rooms")
+  const [meetingRoomsTab, setMeetingRoomsTab] = useState<"book" | "my-bookings">("book")
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
   const [showNotFoundModal, setShowNotFoundModal] = useState(false)
@@ -1652,7 +1653,6 @@ export default function DepartmentHeadDashboard() {
             handleLogout={handleLogout}
             notificationCount={3}
             role="Руководитель направления"
-            onRefresh={handleRefresh}
         />
         <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">
@@ -1898,57 +1898,102 @@ export default function DepartmentHeadDashboard() {
 
 
                 <TabsContent value="meeting-rooms" className="pt-2 sm:pt-0">
-                  {!selectedOffice ? (
-                    <>
-                      {/* Секция выбора офиса */}
-                      <div className="space-y-3">
-                        <div>
-                          <h2 className="text-lg font-semibold text-gray-900">Выбрать офис</h2>
-                          <p className="text-sm text-gray-500">Выберите офис для бронирования переговорной комнаты</p>
-                        </div>
-                        <div className="overflow-x-auto -mx-2 px-2">
-                          <div className="flex gap-3 pb-2" style={{ scrollbarWidth: 'thin' }}>
-                            {offices.map((office: any) => (
-                              <Card
-                                key={office.id}
-                                className="min-w-[280px] cursor-pointer transition-all hover:shadow-md active:scale-95 flex-shrink-0"
-                                onClick={() => {
-                                  setSelectedOffice(office);
-                                }}
-                              >
-                                <CardContent className="p-0">
-                                  <div className="relative aspect-[4/3] bg-gradient-to-br from-[#114A65]/10 to-[#114A65]/5 overflow-hidden rounded-t-lg">
-                                    {office.photo ? (
-                                      <Image
-                                        src={office.photo}
-                                        alt={office.name}
-                                        fill
-                                        sizes="280px"
-                                        className="object-cover"
-                                      />
-                                    ) : (
-                                      <div className="absolute inset-0 flex items-center justify-center">
-                                        <Building2 className="w-16 h-16 text-[#114A65]" />
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="p-4">
-                                    <h3 className="font-semibold text-gray-900">{office.name}</h3>
-                                    <p className="text-sm text-gray-600 mt-1">{office.city}</p>
-                                    <p className="text-sm text-gray-500">{office.address}</p>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
+                  {/* Кнопки переключения между бронированием и моими бронированиями - всегда видны */}
+                  <div className="mb-4 flex gap-2">
+                    <Button
+                      onClick={() => {
+                        setMeetingRoomsTab("book");
+                        // Если переключаемся на бронирование и офис не выбран, сбрасываем офис
+                        if (!selectedOffice && meetingRoomsTab === "my-bookings") {
+                          setSelectedOffice(null);
+                        }
+                      }}
+                      className={`flex-1 h-10 rounded-lg font-medium transition-all duration-300 ${
+                        meetingRoomsTab === "book"
+                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white"
+                          : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                      }`}
+                    >
+                      Бронировать
+                    </Button>
+                    <Button
+                      onClick={() => setMeetingRoomsTab("my-bookings")}
+                      className={`flex-1 h-10 rounded-lg font-medium ${
+                        meetingRoomsTab === "my-bookings"
+                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white"
+                          : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                      }`}
+                    >
+                      Мои бронирования
+                    </Button>
+                  </div>
+
+                  {meetingRoomsTab === "my-bookings" ? (
+                    // Показываем мои бронирования без выбора офиса
                     <MeetingRoomsCatalog 
-                      initialOffice={selectedOffice}
+                      initialOffice={null}
                       onOfficeChange={(office) => setSelectedOffice(office)}
+                      initialTab="my-bookings"
+                      onTabChange={(tab) => setMeetingRoomsTab(tab === "book" ? "book" : "my-bookings")}
                     />
+                  ) : (
+                    // Для бронирования нужен выбор офиса
+                    <>
+                      {!selectedOffice ? (
+                        <>
+                          {/* Секция выбора офиса */}
+                          <div className="space-y-3">
+                            <div>
+                              <h2 className="text-lg font-semibold text-gray-900">Выбрать офис</h2>
+                              <p className="text-sm text-gray-500">Выберите офис для бронирования переговорной комнаты</p>
+                            </div>
+                            <div className="overflow-x-auto -mx-2 px-2">
+                              <div className="flex gap-3 pb-2" style={{ scrollbarWidth: 'thin' }}>
+                                {offices.map((office: any) => (
+                                  <Card
+                                    key={office.id}
+                                    className="min-w-[280px] cursor-pointer transition-all hover:shadow-md active:scale-95 flex-shrink-0"
+                                    onClick={() => {
+                                      setSelectedOffice(office);
+                                    }}
+                                  >
+                                    <CardContent className="p-0">
+                                      <div className="relative aspect-[4/3] bg-gradient-to-br from-[#114A65]/10 to-[#114A65]/5 overflow-hidden rounded-t-lg">
+                                        {office.photo ? (
+                                          <Image
+                                            src={office.photo}
+                                            alt={office.name}
+                                            fill
+                                            sizes="280px"
+                                            className="object-cover"
+                                          />
+                                        ) : (
+                                          <div className="absolute inset-0 flex items-center justify-center">
+                                            <Building2 className="w-16 h-16 text-[#114A65]" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="p-4">
+                                        <h3 className="font-semibold text-gray-900">{office.name}</h3>
+                                        <p className="text-sm text-gray-600 mt-1">{office.city}</p>
+                                        <p className="text-sm text-gray-500">{office.address}</p>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <MeetingRoomsCatalog 
+                          initialOffice={selectedOffice}
+                          onOfficeChange={(office) => setSelectedOffice(office)}
+                          initialTab="book"
+                          onTabChange={(tab) => setMeetingRoomsTab(tab === "book" ? "book" : "my-bookings")}
+                        />
+                      )}
+                    </>
                   )}
                 </TabsContent>
 

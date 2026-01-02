@@ -135,17 +135,46 @@ export function MeetingRoomCalendar() {
                     </div>
                     <div className="grid grid-cols-12 gap-1">
                       {Array.from({ length: 24 }, (_, i) => {
-                        const slot = room.slots.find((s) => s.hour === i);
+                        const slot = room.slots.find((s) => {
+                          if (s.hour !== undefined) return s.hour === i;
+                          // Если hour нет, вычисляем из start_time
+                          if (s.start_time) {
+                            const slotDate = new Date(s.start_time);
+                            return slotDate.getHours() === i;
+                          }
+                          return false;
+                        });
                         const isBooked = slot?.isBooked || slot?.is_available === false;
+                        const userInfo = slot?.booking_user;
+                        const companyName = slot?.company_name;
+                        
+                        let tooltipText = `${i}:00 - ${isBooked ? "Занято" : "Свободно"}`;
+                        if (isBooked && userInfo) {
+                          tooltipText += `\nЗабронировал: ${userInfo.full_name}`;
+                          if (userInfo.phone) {
+                            tooltipText += `\nТелефон: ${userInfo.phone}`;
+                          }
+                          if (companyName) {
+                            tooltipText += `\nКомпания: ${companyName}`;
+                          }
+                        }
+                        
                         return (
                           <div
                             key={i}
-                            className={`h-8 rounded text-xs flex items-center justify-center ${
+                            className={`h-8 rounded text-xs flex flex-col items-center justify-center relative group ${
                               isBooked ? "bg-primary text-white" : "bg-muted"
                             }`}
-                            title={`${i}:00 - ${isBooked ? "Занято" : "Свободно"}`}
+                            title={tooltipText}
                           >
-                            {i}
+                            <span>{i}</span>
+                            {isBooked && userInfo && (
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+                                <div className="font-semibold">{userInfo.full_name}</div>
+                                {companyName && <div className="text-xs opacity-90">{companyName}</div>}
+                                {userInfo.phone && <div className="text-xs opacity-75">{userInfo.phone}</div>}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -183,8 +212,24 @@ export function MeetingRoomCalendar() {
                     <div className="grid grid-cols-7 gap-2">
                       {room.days.map((day, index) => {
                         const date = parseISO(day.date);
+                        const bookings = day.bookings || [];
+                        const hasBookings = bookings.length > 0;
+                        
+                        let tooltipText = `${format(date, "d MMMM", { locale: ru })} - ${day.occupancy_percentage}%`;
+                        if (hasBookings) {
+                          tooltipText += `\nБронирований: ${bookings.length}`;
+                          bookings.forEach((booking, idx) => {
+                            if (booking.user) {
+                              tooltipText += `\n${idx + 1}. ${booking.user.full_name}`;
+                              if (booking.company_name) {
+                                tooltipText += ` (${booking.company_name})`;
+                              }
+                            }
+                          });
+                        }
+                        
                         return (
-                          <div key={index} className="space-y-2">
+                          <div key={index} className="space-y-2 relative group">
                             <p className="text-xs font-medium text-center">
                               {format(date, "EEE", { locale: ru })}
                             </p>
@@ -192,10 +237,52 @@ export function MeetingRoomCalendar() {
                               {format(date, "d")}
                             </p>
                             <div
-                              className={`h-12 rounded flex items-center justify-center text-white text-xs font-semibold ${getOccupancyColor(day.occupancy_percentage)}`}
+                              className={`h-12 rounded flex flex-col items-center justify-center text-white text-xs font-semibold cursor-pointer ${getOccupancyColor(day.occupancy_percentage)}`}
+                              title={tooltipText}
                             >
-                              {day.occupancy_percentage}%
+                              <span>{day.occupancy_percentage}%</span>
+                              {hasBookings && (
+                                <span className="text-[10px] opacity-90">{bookings.length}</span>
+                              )}
                             </div>
+                            {hasBookings && (
+                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10 bg-gray-900 text-white text-xs rounded px-3 py-2 min-w-[200px] max-w-[300px]">
+                                <div className="font-semibold mb-2">{format(date, "d MMMM", { locale: ru })}</div>
+                                {bookings.map((booking, idx) => (
+                                  <div key={booking.id} className="mb-1 pb-1 border-b border-gray-700 last:border-0">
+                                    {booking.user && (
+                                      <>
+                                        <div className="font-medium">{booking.user.full_name}</div>
+                                        {booking.company_name && (
+                                          <div className="text-xs opacity-90">{booking.company_name}</div>
+                                        )}
+                                        {booking.user.phone && (
+                                          <div className="text-xs opacity-75">{booking.user.phone}</div>
+                                        )}
+                                        <div className="text-xs opacity-60">
+                                          {(() => {
+                                            // Конвертируем время в местное время Алматы
+                                            let startTime = new Date(booking.start_time);
+                                            let endTime = new Date(booking.end_time);
+                                            
+                                            // Если время приходит в UTC (с Z), конвертируем в местное время
+                                            if (booking.start_time.endsWith('Z')) {
+                                              // Время приходит как UTC, но на самом деле это время Алматы
+                                              // Вычитаем 5 часов для правильного отображения
+                                              const ALMATY_OFFSET_MS = 5 * 60 * 60 * 1000;
+                                              startTime = new Date(startTime.getTime() - ALMATY_OFFSET_MS);
+                                              endTime = new Date(endTime.getTime() - ALMATY_OFFSET_MS);
+                                            }
+                                            
+                                            return `${format(startTime, "HH:mm")} - ${format(endTime, "HH:mm")}`;
+                                          })()}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
