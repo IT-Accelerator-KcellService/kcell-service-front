@@ -215,6 +215,14 @@ export default function LoginPage() {
                     Запросить регистрацию
                   </Button>
                 </Link>
+                <Link href="/privacy-policy" className="block mt-4">
+                  <Button
+                    variant="link"
+                    className="text-violet-400 hover:text-violet-500 text-xs"
+                  >
+                    Политика конфиденциальности
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
