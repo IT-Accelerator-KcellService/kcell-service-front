@@ -202,8 +202,22 @@ export default function ExecutorDashboard() {
           setSelectedRequestForRedirect(null);
           setRedirectError(null);
           break;
+        case 'completeTaskModal':
+          setShowCompleteTaskModal(false);
+          setSelectedTaskForComplete(null);
+          break;
+        case 'rejectSubRequestModal':
+          setShowRejectSubRequestModal(false);
+          setSelectedSubRequestForReject(null);
+          break;
         case 'deleteRequestModal':
           setShowDeleteRequestModal(false);
+          break;
+        case 'actionMenu':
+          // Закрытие обрабатывается внутри компонента RoleBasedActionMenu
+          break;
+        case 'commentsModal':
+          setShowComments(null);
           break;
         default:
           break;
@@ -578,43 +592,66 @@ export default function ExecutorDashboard() {
         return;
       }
 
-      if (modalStack.length > 0) {
-        e.preventDefault();
-        const lastModal = modalStack[modalStack.length - 1];
+      // Используем функциональное обновление для получения актуального значения стека
+      setModalStack(prev => {
+        if (prev.length > 0) {
+          const lastModal = prev[prev.length - 1];
 
-        switch (lastModal) {
-          case 'createRequest':
-            setShowCreateRequestModal(false);
-            break;
-          case 'taskComplete':
-          case 'requestDetails':
-            setSelectedRequest(null);
-            break;
-          case 'mapModal':
-            setShowMapModal(false);
-            break;
-          case 'photoPreview':
-            setSelectedPhoto(null);
-            break;
-          case 'notification':
-            setIsModalOpen(false);
-            break;
-          case 'rejectModal':
-            handleCloseRejectModal();
-            break;
-          case 'redirectModal':
-            handleCloseRedirectModal();
-            break;
-          case 'deleteRequestModal':
-            setShowDeleteRequestModal(false);
-            break;
-          default:
-            break;
+          // Закрываем соответствующую модалку
+          switch (lastModal) {
+            case 'createRequest':
+              setShowCreateRequestModal(false);
+              break;
+            case 'taskComplete':
+            case 'requestDetails':
+              setSelectedRequest(null);
+              break;
+            case 'mapModal':
+              setShowMapModal(false);
+              break;
+            case 'photoPreview':
+              setSelectedPhoto(null);
+              break;
+            case 'notification':
+              setIsModalOpen(false);
+              break;
+            case 'rejectModal':
+              setShowRejectModal(false);
+              setSelectedRequestForReject(null);
+              setRejectError(null);
+              break;
+            case 'redirectModal':
+              setShowRedirectModal(false);
+              setSelectedRequestForRedirect(null);
+              setRedirectError(null);
+              break;
+            case 'completeTaskModal':
+              setShowCompleteTaskModal(false);
+              setSelectedTaskForComplete(null);
+              break;
+            case 'rejectSubRequestModal':
+              setShowRejectSubRequestModal(false);
+              setSelectedSubRequestForReject(null);
+              break;
+            case 'deleteRequestModal':
+              setShowDeleteRequestModal(false);
+              break;
+            case 'commentsModal':
+              setShowComments(null);
+              break;
+            case 'actionMenu':
+              // Закрываем все открытые меню через событие
+              window.dispatchEvent(new CustomEvent('closeActionMenu'));
+              break;
+            default:
+              break;
+          }
+
+          // Возвращаем новый стек без последнего элемента
+          return prev.slice(0, -1);
         }
-
-        // Удаляем текущую модалку из стека
-        setModalStack(prev => prev.slice(0, -1));
-      }
+        return prev;
+      });
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -1266,11 +1303,13 @@ export default function ExecutorDashboard() {
   const handleCompleteTask = async (task: any) => {
     setSelectedTaskForComplete(task);
     setShowCompleteTaskModal(true);
+    openModal('completeTaskModal');
   };
 
   const handleRejectSubRequest = async (subRequest: any) => {
     setSelectedSubRequestForReject(subRequest);
     setShowRejectSubRequestModal(true);
+    openModal('rejectSubRequestModal');
   };
 
   const handleCompleteTaskSubmit = async (comment: string, photos: File[]) => {
@@ -1425,6 +1464,7 @@ export default function ExecutorDashboard() {
       setShowCompleteTaskModal(false);
       setSelectedTaskForComplete(null);
       setIsSubmitting(false);
+      closeModalWithHistory();
     } catch (error) {
       // В случае ошибки откатываем изменения
       if (requestGroup && originalSubRequest) {
@@ -1660,6 +1700,9 @@ export default function ExecutorDashboard() {
               {renderStatusWithTooltip(requestGroup.status)}
               {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
+              openModal={openModal}
+              closeModalWithHistory={closeModalWithHistory}
+              closeModal={closeModal}
                   request={requestGroup}
                   requestGroup={requestGroup}
               isDesktop={isDesktop}
@@ -2168,8 +2211,11 @@ export default function ExecutorDashboard() {
                                         onClick={() => {
                                           if (hasComments) {
                                             setShowComments(null);
+                                            // Удаляем из стека если закрываем
+                                            setModalStack(prev => prev.filter(m => m !== 'commentsModal'));
                                           } else {
                                             setShowComments(subRequest.id);
+                                            openModal('commentsModal');
                                           }
                                         }}
                                     >
@@ -2177,6 +2223,9 @@ export default function ExecutorDashboard() {
                     </Button>
 
                                     <RoleBasedActionMenu
+              openModal={openModal}
+              closeModalWithHistory={closeModalWithHistory}
+              closeModal={closeModal}
                                         request={subRequest}
                                         requestGroup={selectedRequest}
                                         isDesktop={isDesktop}
@@ -2426,13 +2475,14 @@ export default function ExecutorDashboard() {
 
         {/* Comments Modal */}
         <CommentsModal
-            isOpen={!!showComments}
-            onClose={() => {
-              setShowComments(null);
-            }}
-            requestId={showComments}
-            currentUserId={currentUserId}
-            isDesktop={isDesktop}
+          isOpen={!!showComments}
+          onClose={() => {
+            setShowComments(null);
+            closeModalWithHistory();
+          }}
+          requestId={showComments}
+          currentUserId={currentUserId}
+          isDesktop={isDesktop}
         />
 
         {/* Complete Task Modal */}
@@ -2441,6 +2491,7 @@ export default function ExecutorDashboard() {
             onClose={() => {
               setShowCompleteTaskModal(false);
               setSelectedTaskForComplete(null);
+              closeModalWithHistory();
             }}
             onComplete={handleCompleteTaskSubmit}
             task={selectedTaskForComplete}
@@ -2471,6 +2522,7 @@ export default function ExecutorDashboard() {
             onClose={() => {
               setShowRejectSubRequestModal(false);
               setSelectedSubRequestForReject(null);
+              closeModalWithHistory();
             }}
             onReject={handleRejectSubRequestSubmit}
             request={selectedSubRequestForReject}

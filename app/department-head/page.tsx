@@ -221,13 +221,21 @@ export default function DepartmentHeadDashboard() {
         case 'executorDelete':
           setExecutorToDelete(null);
           break;
-        case 'redirectModal':
-          setShowRedirectModal(false);
-          setSelectedRequestForRedirect(null);
-          setSelectedCategoryId(null);
-          setRedirectError(null);
-          break;
-        case 'recurringTaskDetails':
+          case 'redirectModal':
+            setShowRedirectModal(false);
+            setSelectedRequestForRedirect(null);
+            setSelectedCategoryId(null);
+            setRedirectError(null);
+            break;
+          case 'assignExecutorsModal':
+            setShowAssignExecutorsModal(false);
+            setSelectedSubRequestForAssignment(null);
+            break;
+          case 'changeExecutorsModal':
+            setShowChangeExecutorsModal(false);
+            setSelectedSubRequestForChange(null);
+            break;
+          case 'recurringTaskDetails':
           // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
           break;
         case 'taskHistory':
@@ -235,6 +243,13 @@ export default function DepartmentHeadDashboard() {
           break;
         case 'deleteRequestModal':
           setShowDeleteRequestModal(false);
+          break;
+          case 'actionMenu':
+            // Закрываем все открытые меню через событие
+            window.dispatchEvent(new CustomEvent('closeActionMenu'));
+            break;
+          case 'commentsModal':
+          setShowComments(null);
           break;
         default:
           break;
@@ -287,54 +302,76 @@ export default function DepartmentHeadDashboard() {
         return;
       }
 
-      if (modalStack.length > 0) {
-        e.preventDefault();
-        const lastModal = modalStack[modalStack.length - 1];
+      // Используем функциональное обновление для получения актуального значения стека
+      setModalStack(prev => {
+        if (prev.length > 0) {
+          const lastModal = prev[prev.length - 1];
 
-        switch (lastModal) {
-          case 'createRequest':
-            setShowCreateRequestModal(false);
-            break;
-          case 'requestDetails':
-            setSelectedRequest(null);
-            break;
-          case 'ratingModal':
-            setShowRatingModal(false);
-            setRatingValue(0);
-            setRequestToRate(null);
-            setRatingComment("");
-            break;
-          case 'mapModal':
-            setShowMapModal(false);
-            break;
-          case 'photoPreview':
-            setSelectedPhoto(null);
-            break;
-          case 'notification':
-            setIsModalOpen(false);
-            break;
-          case 'executorDelete':
-            setExecutorToDelete(null);
-            break;
-          case 'redirectModal':
-            handleCloseRedirectModal();
-            break;
-          case 'recurringTaskDetails':
-            // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
-            break;
-          case 'taskHistory':
-            // Закрытие модального окна истории задач обрабатывается в RecurringTasksList
-            break;
-          case 'deleteRequestModal':
-            setShowDeleteRequestModal(false);
-            break;
-          default:
-            break;
+          // Закрываем соответствующую модалку
+          switch (lastModal) {
+            case 'createRequest':
+              setShowCreateRequestModal(false);
+              break;
+            case 'requestDetails':
+              setSelectedRequest(null);
+              break;
+            case 'ratingModal':
+              setShowRatingModal(false);
+              setRatingValue(0);
+              setRequestToRate(null);
+              setRatingComment("");
+              break;
+            case 'mapModal':
+              setShowMapModal(false);
+              break;
+            case 'photoPreview':
+              setSelectedPhoto(null);
+              break;
+            case 'notification':
+              setIsModalOpen(false);
+              break;
+            case 'executorDelete':
+              setExecutorToDelete(null);
+              break;
+            case 'redirectModal':
+              setShowRedirectModal(false);
+              setSelectedRequestForRedirect(null);
+              setSelectedCategoryId(null);
+              setRedirectError(null);
+              break;
+            case 'assignExecutorsModal':
+              setShowAssignExecutorsModal(false);
+              setSelectedSubRequestForAssignment(null);
+              break;
+            case 'changeExecutorsModal':
+              setShowChangeExecutorsModal(false);
+              setSelectedSubRequestForChange(null);
+              break;
+            case 'recurringTaskDetails':
+              // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
+              break;
+            case 'taskHistory':
+              // Закрытие модального окна истории задач обрабатывается в RecurringTasksList
+              break;
+            case 'deleteRequestModal':
+              setShowDeleteRequestModal(false);
+              break;
+            case 'commentsModal':
+              setShowComments(null);
+              break;
+            case 'actionMenu':
+              // Закрываем все открытые меню через событие
+              window.dispatchEvent(new CustomEvent('closeActionMenu'));
+              break;
+            default:
+              break;
+          }
+
+          // Возвращаем новый стек без последнего элемента
+          return prev.slice(0, -1);
         }
-
-        // Просто обновляем стек модальных окон без вызова closeModalWithHistory
-        setModalStack(prev => prev.slice(0, -1));
-      }
+        return prev;
+      });
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -1464,6 +1501,9 @@ export default function DepartmentHeadDashboard() {
               {renderStatusWithTooltip(requestGroup.status)}
               {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
             <RoleBasedActionMenu
+              openModal={openModal}
+              closeModalWithHistory={closeModalWithHistory}
+              closeModal={closeModal}
                   request={requestGroup}
                   isDesktop={isDesktop}
                   userRole="department-head"
@@ -1594,8 +1634,10 @@ export default function DepartmentHeadDashboard() {
   const handleCloseAssignExecutorsModal = () => {
     setShowAssignExecutorsModal(false);
     setSelectedSubRequestForAssignment(null);
-    closeModalWithHistory();
-    setSelectedRequest(null);
+    // Если открыта модалка деталей заявки, закрываем её тоже
+    if (selectedRequest) {
+      setSelectedRequest(null);
+    }
     closeModalWithHistory();
   };
 
@@ -2189,15 +2231,21 @@ export default function DepartmentHeadDashboard() {
                           onClick={() => {
                                           if (hasComments) {
                                             setShowComments(null);
-                            } else {
+                                            // Удаляем из стека если закрываем
+                                            setModalStack(prev => prev.filter(m => m !== 'commentsModal'));
+                                          } else {
                                             setShowComments(subRequest.id);
-                            }
+                                            openModal('commentsModal');
+                                          }
                           }}
                       >
                                       <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
                       </Button>
 
                                     <RoleBasedActionMenu
+              openModal={openModal}
+              closeModalWithHistory={closeModalWithHistory}
+              closeModal={closeModal}
                                         request={subRequest}
                                         requestGroup={selectedRequest}
                                         isDesktop={isDesktop}
@@ -2404,13 +2452,14 @@ export default function DepartmentHeadDashboard() {
 
         {/* Comments Modal */}
         <CommentsModal
-            isOpen={!!showComments}
-            onClose={() => {
+          isOpen={!!showComments}
+          onClose={() => {
               setShowComments(null);
-            }}
-            requestId={showComments}
-            currentUserId={currentUserId}
-            isDesktop={isDesktop}
+              closeModalWithHistory();
+          }}
+          requestId={showComments}
+          currentUserId={currentUserId}
+          isDesktop={isDesktop}
         />
 
         {/* Модальное окно фото */}

@@ -241,6 +241,13 @@ export default function ClientDashboard() {
         case 'notification':
           setIsModalOpen(false);
           break;
+          case 'actionMenu':
+            // Закрываем все открытые меню через событие
+            window.dispatchEvent(new CustomEvent('closeActionMenu'));
+            break;
+          case 'commentsModal':
+          setShowComments(null);
+          break;
         default:
           break;
       }
@@ -319,7 +326,13 @@ export default function ClientDashboard() {
           case 'notification':
             setIsModalOpen(false);
             break;
-
+          case 'commentsModal':
+            setShowComments(null);
+            break;
+          case 'actionMenu':
+            // Закрываем все открытые меню через событие
+            window.dispatchEvent(new CustomEvent('closeActionMenu'));
+            break;
           default:
             break;
         }
@@ -1086,6 +1099,9 @@ export default function ClientDashboard() {
               {renderStatusWithTooltip(requestGroup.status)}
               {isLongTerm && renderLongTermWithTooltip(true)}
               <RoleBasedActionMenu
+              openModal={openModal}
+              closeModalWithHistory={closeModalWithHistory}
+              closeModal={closeModal}
                   request={requestGroup}
                   isDesktop={isDesktop}
                   userRole="client"
@@ -1427,8 +1443,11 @@ export default function ClientDashboard() {
                                         onClick={() => {
                                           if (hasComments) {
                                             setShowComments(null);
+                                            // Удаляем из стека если закрываем
+                                            setModalStack(prev => prev.filter(m => m !== 'commentsModal'));
                                           } else {
                                             setShowComments(subRequest.id);
+                                            openModal('commentsModal');
                                           }
                                         }}
                                     >
@@ -1436,6 +1455,9 @@ export default function ClientDashboard() {
                                     </Button>
 
                                     <RoleBasedActionMenu
+              openModal={openModal}
+              closeModalWithHistory={closeModalWithHistory}
+              closeModal={closeModal}
                                         request={subRequest}
                                         requestGroup={selectedRequest}
                                         isDesktop={isDesktop}
@@ -1822,6 +1844,7 @@ export default function ClientDashboard() {
           isOpen={!!showComments}
           onClose={() => {
             setShowComments(null);
+            closeModalWithHistory();
           }}
           requestId={showComments}
           currentUserId={currentUserId}

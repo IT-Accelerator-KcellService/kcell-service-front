@@ -59,6 +59,11 @@ interface RoleBasedActionMenuProps {
   onViewAnalytics?: (request: any) => void
   onManageSettings?: (request: any) => void
   onRedirectToOtherDepartment?: (request: any) => void
+  openModal?: (name: string) => void
+  closeModalWithHistory?: () => void
+  closeModal?: () => void
+  isOpen?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function RoleBasedActionMenu({
@@ -81,9 +86,18 @@ export function RoleBasedActionMenu({
   onAddComment,
   onRedirectToOtherDepartment,
   onShareRequest,
+  openModal,
+  closeModalWithHistory,
+  closeModal,
+  isOpen: externalIsOpen,
+  onOpenChange: externalOnOpenChange,
 }: RoleBasedActionMenuProps) {
   const {user} = useAuthStore()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  
+  // Используем внешнее состояние, если оно предоставлено, иначе внутреннее
+  const open = externalIsOpen !== undefined ? externalIsOpen : internalOpen
+  const setOpen = externalOnOpenChange || setInternalOpen
   const [isDragging, setIsDragging] = useState(false)
   const [startY, setStartY] = useState(0)
   const [currentY, setCurrentY] = useState(0)
@@ -152,7 +166,7 @@ export function RoleBasedActionMenu({
       onShareRequest(request);
     }
     
-    setOpen(false);
+    handleCloseWithHistory();
   };
 
   // Для Portal
@@ -160,9 +174,40 @@ export function RoleBasedActionMenu({
     setMounted(true)
   }, []);
 
+  // Слушаем событие для закрытия меню при нажатии "назад"
+  useEffect(() => {
+    const handleCloseEvent = () => {
+      if (open) {
+        setOpen(false)
+        // Стек уже обновлен в handlePopState, просто закрываем меню
+      }
+    };
+    
+    window.addEventListener('closeActionMenu', handleCloseEvent);
+    return () => {
+      window.removeEventListener('closeActionMenu', handleCloseEvent);
+    };
+  }, [open, setOpen]);
+
   const isExecutorLeader = request?.executors?.find((executor: any) => {
     return executor?.user?.id === user?.id && executor?.RequestExecutor?.role === 'leader'
   })
+
+  // Функция для закрытия меню без history.back (при клике вне модалки)
+  const handleClose = () => {
+    setOpen(false)
+    if (closeModal) {
+      closeModal()
+    }
+  }
+
+  // Функция для закрытия меню с управлением историей (при программном закрытии через действие)
+  const handleCloseWithHistory = () => {
+    setOpen(false)
+    if (closeModalWithHistory) {
+      closeModalWithHistory()
+    }
+  }
 
   // Определяем действия в зависимости от роли
   const getActionsByRole = (): ActionItem[] => {
@@ -172,7 +217,7 @@ export function RoleBasedActionMenu({
         label: "Посмотреть детали",
         onClick: () => {
           onViewDetails?.(request)
-          setOpen(false)
+          handleCloseWithHistory()
         },
         variant: "default" as const,
         showForRoles: ["executor", "manager", "department-head", "admin-worker","client"],
@@ -207,7 +252,7 @@ export function RoleBasedActionMenu({
                     label: "Удалить заявку",
                     onClick: () => {
                       onDelete(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "destructive" as const,
                     showForRoles: ["executor"],
@@ -225,7 +270,7 @@ export function RoleBasedActionMenu({
                     label: "Начать задачу",
                     onClick: () => {
                       onStartTask?.(request.id)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "default" as const,
                     primary: true,
@@ -240,7 +285,7 @@ export function RoleBasedActionMenu({
                     label: "Завершить задачу",
                     onClick: () => {
                       onCompleteTask?.(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "default" as const,
                     primary: true,
@@ -255,7 +300,7 @@ export function RoleBasedActionMenu({
                     label: "Отклонить",
                     onClick: () => {
                       onReject(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "destructive" as const,
                     showForRoles: ["executor"],
@@ -269,7 +314,7 @@ export function RoleBasedActionMenu({
                     label: "Перенаправить к другой категории",
                     onClick: () => {
                       onRedirectToOtherDepartment?.(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "default" as const,
                     showForRoles: ["executor"],
@@ -284,7 +329,7 @@ export function RoleBasedActionMenu({
                     label: "Оценить клиента",
                     onClick: () => {
                       onRateClient?.(requestGroup)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "default" as const,
                     showForRoles: ["executor"],
@@ -302,7 +347,7 @@ export function RoleBasedActionMenu({
                     label: "Удалить заявку",
                     onClick: () => {
                       onDelete(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "destructive" as const,
                     showForRoles: ["executor"],
@@ -414,8 +459,11 @@ export function RoleBasedActionMenu({
                     icon: UserPlus,
                     label: "Назначить исполнителей",
                     onClick: () => {
-                      onAssignExecutor(request)
                       setOpen(false)
+                      if (closeModal) {
+                        closeModal()
+                      }
+                      onAssignExecutor(request)
                     },
                     variant: "default" as const,
                     primary: true,
@@ -430,8 +478,11 @@ export function RoleBasedActionMenu({
                     icon: UserPlus,
                     label: "Изменить исполнителей",
                     onClick: () => {
-                      onChangeExecutors(request)
                       setOpen(false)
+                      if (closeModal) {
+                        closeModal()
+                      }
+                      onChangeExecutors(request)
                     },
                     variant: "default" as const,
                     primary: true,
@@ -445,8 +496,11 @@ export function RoleBasedActionMenu({
                     icon: ArrowRight,
                     label: "Перенаправить к другой категории",
                     onClick: () => {
-                      onRedirectToOtherDepartment?.(request)
                       setOpen(false)
+                      if (closeModal) {
+                        closeModal()
+                      }
+                      onRedirectToOtherDepartment?.(request)
                     },
                     variant: "default" as const,
                     showForRoles: ["department-head"],
@@ -460,7 +514,7 @@ export function RoleBasedActionMenu({
                     label: request?.rating ? "Изменить оценку" : "Оценить работу",
                     onClick: () => {
                       onRateRequest?.(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "default" as const,
                     primary: true,
@@ -475,7 +529,7 @@ export function RoleBasedActionMenu({
                     label: "Удалить заявку",
                     onClick: () => {
                       onDelete(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "destructive" as const,
                     showForRoles: ["department-head"],
@@ -492,7 +546,7 @@ export function RoleBasedActionMenu({
                     label: "Удалить",
                     onClick: () => {
                       onDelete(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "destructive" as const,
                     showForRoles: ["department-head"],
@@ -514,7 +568,7 @@ export function RoleBasedActionMenu({
                     label: request?.rating ? "Изменить оценку" : "Оценить работу",
                     onClick: () => {
                       onRateRequest?.(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "default" as const,
                     primary: true,
@@ -529,7 +583,7 @@ export function RoleBasedActionMenu({
                     label: request.is_long_term ? "Снять с долгосрочных" : "Пометить как долгосрочную",
                     onClick: () => {
                       onToggleLongTerm(request.id, requestGroup.id, request.is_long_term || false)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "default" as const,
                     longTerm: true,
@@ -544,7 +598,7 @@ export function RoleBasedActionMenu({
                     label: "Удалить заявку",
                     onClick: () => {
                       onDelete(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "destructive" as const,
                     showForRoles: ["admin-worker"],
@@ -561,7 +615,7 @@ export function RoleBasedActionMenu({
                     label: "Удалить",
                     onClick: () => {
                       onDelete(request)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "destructive" as const,
                     showForRoles: ["admin-worker"],
@@ -576,7 +630,7 @@ export function RoleBasedActionMenu({
                     label: "Оценить клиента",
                     onClick: () => {
                       onRateClient?.(requestGroup)
-                      setOpen(false)
+                      handleCloseWithHistory()
                     },
                     variant: "default" as const,
                     showForRoles: ["executor", "admin-worker"],
@@ -620,7 +674,7 @@ export function RoleBasedActionMenu({
     const threshold = 100 // Минимальное расстояние для закрытия
 
     if (deltaY > threshold) {
-      setOpen(false)
+      handleClose() // При свайпе используем closeModal (без history.back)
     }
     
     setIsDragging(false)
@@ -630,7 +684,7 @@ export function RoleBasedActionMenu({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (sheetRef.current && !sheetRef.current.contains(event.target as Node)) {
-        setOpen(false)
+        handleClose()
       }
     }
 
@@ -647,7 +701,7 @@ export function RoleBasedActionMenu({
       onClick={(e) => {
         e.preventDefault()
         e.stopPropagation()
-        setOpen(false)
+        handleClose()
       }}
     >
       {/* Overlay */}
@@ -730,7 +784,17 @@ export function RoleBasedActionMenu({
   if (isDesktop) {
     return (
       <>
-        <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenu open={open} onOpenChange={(isOpen) => {
+          setOpen(isOpen)
+          if (isOpen && openModal) {
+            openModal('actionMenu')
+          } else if (!isOpen) {
+            // При закрытии через клик вне или ESC используем closeModal
+            if (closeModal) {
+              closeModal()
+            }
+          }
+        }}>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
@@ -792,6 +856,9 @@ export function RoleBasedActionMenu({
           e.preventDefault()
           e.stopPropagation()
           setOpen(true)
+          if (openModal) {
+            openModal('actionMenu')
+          }
         }}
       >
         <MoreHorizontal className="h-4 w-4 text-purple-600" />

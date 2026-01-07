@@ -410,6 +410,13 @@ export default function ManagerDashboard() {
         case 'categoryDelete':
           setCategoryToDelete(null);
           break;
+          case 'actionMenu':
+            // Закрываем все открытые меню через событие
+            window.dispatchEvent(new CustomEvent('closeActionMenu'));
+            break;
+          case 'commentsModal':
+          setShowComments(null);
+          break;
         default:
           break;
       }
@@ -770,6 +777,13 @@ export default function ManagerDashboard() {
             setRequestToRate(null);
             setRatingValue(0);
             setRatingComment("");
+            break;
+          case 'commentsModal':
+            setShowComments(null);
+            break;
+          case 'actionMenu':
+            // Закрываем все открытые меню через событие
+            window.dispatchEvent(new CustomEvent('closeActionMenu'));
             break;
           default:
             break;
@@ -1998,6 +2012,9 @@ export default function ManagerDashboard() {
               {renderStatusWithTooltip(requestGroup.status)}
               {isLongTerm && requestGroup.request_type !== 'recurring' && renderLongTermWithTooltip(true)}
               <RoleBasedActionMenu
+              openModal={openModal}
+              closeModalWithHistory={closeModalWithHistory}
+              closeModal={closeModal}
                   request={requestGroup}
                   isDesktop={isDesktop}
                   userRole="manager"
@@ -3185,8 +3202,11 @@ export default function ManagerDashboard() {
                                       onClick={() => {
                                         if (hasComments) {
                                           setShowComments(null);
+                                          // Удаляем из стека если закрываем
+                                          setModalStack(prev => prev.filter(m => m !== 'commentsModal'));
                                         } else {
                                           setShowComments(subRequest.id);
+                                          openModal('commentsModal');
                                         }
                                       }}
                                   >
@@ -3194,6 +3214,9 @@ export default function ManagerDashboard() {
                             </Button>
 
                                   <RoleBasedActionMenu
+              openModal={openModal}
+              closeModalWithHistory={closeModalWithHistory}
+              closeModal={closeModal}
                                       request={subRequest}
                                       requestGroup={selectedRequest}
                                       isDesktop={isDesktop}
@@ -3544,6 +3567,7 @@ export default function ManagerDashboard() {
           isOpen={!!showComments}
           onClose={() => {
             setShowComments(null);
+            closeModalWithHistory();
           }}
           requestId={showComments}
           currentUserId={currentUserId}

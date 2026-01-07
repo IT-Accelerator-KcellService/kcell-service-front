@@ -362,8 +362,25 @@ export default function AdminWorkerDashboard() {
         case 'notification':
           setIsModalOpen(false);
           break;
+        case 'redirectModal':
+          setShowRedirectModal(false);
+          setSelectedRequestForRedirect(null);
+          setSelectedCategoryId(null);
+          setRedirectError(null);
+          break;
+        case 'assignExecutorsModal':
+          setShowAssignExecutorsModal(false);
+          setSelectedSubRequestForAssignment(null);
+          break;
         case 'deleteRequestModal':
           setShowDeleteRequestModal(false);
+          break;
+        case 'actionMenu':
+          // Закрываем все открытые меню через событие
+          window.dispatchEvent(new CustomEvent('closeActionMenu'));
+          break;
+        case 'commentsModal':
+          setShowComments(null);
           break;
         case 'recurringTaskDetails':
           // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
@@ -422,55 +439,75 @@ export default function AdminWorkerDashboard() {
         return;
       }
 
-      if (modalStack.length > 0) {
-        e.preventDefault();
-        const lastModal = modalStack[modalStack.length - 1];
+      // Используем функциональное обновление для получения актуального значения стека
+      setModalStack(prev => {
+        if (prev.length > 0) {
+          const lastModal = prev[prev.length - 1];
 
-        switch (lastModal) {
-          case 'createRequest':
-            setShowCreateRequestModal(false);
-            break;
-          case 'requestDetails':
-            setSelectedRequest(null);
-            break;
-          case 'ratingModal':
-            setShowRatingModal(false);
-            setRatingValue(0);
-            setRequestToRate(null);
-            setRatingComment("");
-            break;
-          case 'clientRatingModal':
-            setShowClientRatingModal(false);
-            setClientRatingValue(0);
-            setClientRatingComment("");
-            setRequestGroupToRate(null);
-            break;
-          case 'mapModal':
-            setShowMapModal(false);
-            break;
-          case 'photoPreview':
-            setSelectedPhoto(null);
-            break;
-          case 'notification':
-            setIsModalOpen(false);
-            break;
+          // Закрываем соответствующую модалку
+          switch (lastModal) {
+            case 'createRequest':
+              setShowCreateRequestModal(false);
+              break;
+            case 'requestDetails':
+              setSelectedRequest(null);
+              break;
+            case 'ratingModal':
+              setShowRatingModal(false);
+              setRatingValue(0);
+              setRequestToRate(null);
+              setRatingComment("");
+              break;
+            case 'clientRatingModal':
+              setShowClientRatingModal(false);
+              setClientRatingValue(0);
+              setClientRatingComment("");
+              setRequestGroupToRate(null);
+              break;
+            case 'mapModal':
+              setShowMapModal(false);
+              break;
+            case 'photoPreview':
+              setSelectedPhoto(null);
+              break;
+            case 'notification':
+              setIsModalOpen(false);
+              break;
+            case 'redirectModal':
+              setShowRedirectModal(false);
+              setSelectedRequestForRedirect(null);
+              setSelectedCategoryId(null);
+              setRedirectError(null);
+              break;
+            case 'assignExecutorsModal':
+              setShowAssignExecutorsModal(false);
+              setSelectedSubRequestForAssignment(null);
+              break;
+            case 'deleteRequestModal':
+              setShowDeleteRequestModal(false);
+              break;
+            case 'actionMenu':
+              // Закрываем все открытые меню через событие
+              window.dispatchEvent(new CustomEvent('closeActionMenu'));
+              break;
+            case 'commentsModal':
+              setShowComments(null);
+              break;
+            case 'recurringTaskDetails':
+              // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
+              break;
+            case 'taskHistory':
+              // Закрытие модального окна истории задач обрабатывается в RecurringTasksList
+              break;
+            default:
+              break;
+          }
 
-          case 'deleteRequestModal':
-            setShowDeleteRequestModal(false);
-            break;
-          case 'recurringTaskDetails':
-            // Закрытие модального окна повторяющихся задач обрабатывается в RecurringTasksList
-            break;
-          case 'taskHistory':
-            // Закрытие модального окна истории задач обрабатывается в RecurringTasksList
-            break;
-          default:
-            break;
+          // Возвращаем новый стек без последнего элемента
+          return prev.slice(0, -1);
         }
-
-        // Просто обновляем стек модальных окон без вызова closeModalWithHistory
-        setModalStack(prev => prev.slice(0, -1));
-      }
+        return prev;
+      });
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -2331,6 +2368,9 @@ export default function AdminWorkerDashboard() {
               isDesktop={isDesktop}
               userRole="admin-worker"
               isSubRequest={false}
+              openModal={openModal}
+              closeModalWithHistory={closeModalWithHistory}
+              closeModal={closeModal}
               onViewDetails={(request) => {
                 setSelectedRequest(request);
                 openModal('requestDetails');
@@ -3631,8 +3671,11 @@ export default function AdminWorkerDashboard() {
                                         onClick={() => {
                                           if (hasComments) {
                                             setShowComments(null);
+                                            // Удаляем из стека если закрываем
+                                            setModalStack(prev => prev.filter(m => m !== 'commentsModal'));
                                           } else {
                                             setShowComments(subRequest.id);
+                                            openModal('commentsModal');
                                           }
                                         }}
                                     >
@@ -3645,6 +3688,9 @@ export default function AdminWorkerDashboard() {
                                         isDesktop={isDesktop}
                                         userRole="admin-worker"
                                         isSubRequest={true}
+                                        openModal={openModal}
+                                        closeModalWithHistory={closeModalWithHistory}
+                                        closeModal={closeModal}
                                         onRateRequest={(subReq) => {
                                           setRequestToRate(subReq)
                                           // Устанавливаем текущий рейтинг как начальное значение, если он существует
@@ -4168,6 +4214,7 @@ export default function AdminWorkerDashboard() {
           isOpen={!!showComments}
           onClose={() => {
             setShowComments(null);
+            closeModalWithHistory();
           }}
           requestId={showComments}
           currentUserId={currentUserId}
