@@ -1108,15 +1108,15 @@ export function ActivityTracker() {
                     <SelectValue placeholder="Выберите интервал" />
                   </SelectTrigger>
                   <SelectContent>
-                    {[15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180].map((minutes) => (
+                    {[2, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180].map((minutes) => (
                       <SelectItem key={minutes} value={minutes.toString()}>
-                        {minutes} {minutes === 60 ? 'минута' : minutes < 60 ? 'минут' : 'минут'}
+                        {minutes} {minutes === 60 ? 'минута' : minutes < 60 ? 'минут' : 'минут'} {minutes === 2 ? '(тест)' : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500">
-                  Напоминание появится после указанного времени непрерывного сидения (от 15 до 180 минут)
+                  Напоминание появится после указанного времени непрерывного сидения (2 минуты - для тестирования, от 15 до 180 минут)
                 </p>
               </div>
 

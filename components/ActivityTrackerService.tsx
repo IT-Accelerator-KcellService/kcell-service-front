@@ -162,9 +162,18 @@ export function ActivityTrackerService() {
     return currentTime >= startTime && currentTime <= endTime
   }
 
-  // Отправка Health уведомления через Android
+  // Отправка Health уведомления через Android и сохранение в базу данных
   const sendHealthNotification = async (message: string) => {
     try {
+      // Сначала сохраняем уведомление в базу данных
+      try {
+        await api.post('/notifications/health', { message })
+        console.log('✅ [Health] Уведомление сохранено в базу данных:', message)
+      } catch (error) {
+        console.error('❌ [Health] Ошибка сохранения уведомления в БД:', error)
+        // Продолжаем выполнение, даже если сохранение не удалось
+      }
+
       // Проверяем Android WebView
       if (typeof (window as any).androidApp?.showHealthNotification !== 'undefined') {
         (window as any).androidApp.showHealthNotification(message)
