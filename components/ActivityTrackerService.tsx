@@ -157,7 +157,8 @@ export function ActivityTrackerService() {
     const currentHours = now.getHours()
     const currentMinutes = now.getMinutes()
     const currentSeconds = now.getSeconds()
-    const currentTimeMinutes = currentHours * 60 + currentMinutes + currentSeconds / 60
+    // Округляем до минут для более точного сравнения
+    const currentTimeMinutes = currentHours * 60 + currentMinutes + Math.floor(currentSeconds / 60)
     
     const startTimeStr = officeInfoRef.current.working_hours_start || '08:00:00'
     const endTimeStr = officeInfoRef.current.working_hours_end || '18:00:00'
@@ -165,10 +166,23 @@ export function ActivityTrackerService() {
     // Парсим время начала и конца
     const [startH, startM, startS] = startTimeStr.split(':').map(Number)
     const [endH, endM, endS] = endTimeStr.split(':').map(Number)
-    const startTimeMinutes = startH * 60 + startM + (startS || 0) / 60
-    const endTimeMinutes = endH * 60 + endM + (endS || 0) / 60
+    const startTimeMinutes = startH * 60 + startM + Math.floor((startS || 0) / 60)
+    // Для конца рабочих часов считаем, что включен весь последний час (до конца 59-й минуты)
+    const endTimeMinutes = endH * 60 + endM + Math.floor((endS || 0) / 60)
     
-    return currentTimeMinutes >= startTimeMinutes && currentTimeMinutes <= endTimeMinutes
+    const result = currentTimeMinutes >= startTimeMinutes && currentTimeMinutes <= endTimeMinutes
+    
+    // Логируем только при изменении состояния или каждые 10 проверок для отладки
+    if (Math.random() < 0.1) { // ~10% проверок
+      console.log('🕐 [Service] Проверка рабочих часов:', {
+        currentTime: `${currentHours}:${currentMinutes.toString().padStart(2, '0')}`,
+        startTime: startTimeStr,
+        endTime: endTimeStr,
+        withinHours: result
+      })
+    }
+    
+    return result
   }
 
   // Отправка Health уведомления через Android
@@ -874,10 +888,11 @@ export function ActivityTrackerService() {
       
       if (!withinHours) {
         // Рабочие часы закончились - останавливаем трекер, если он запущен
-        if (currentIsTracking) {
+        // Но только если он был запущен автоматически (не вручную)
+        if (currentIsTracking && !currentManualStart) {
           console.log('⏰ [Service] Рабочие часы закончились, останавливаю трекер и сбрасываю статистику...')
           // Используем ref для проверки, чтобы избежать двойной остановки
-          if (isTrackingRef.current) {
+          if (isTrackingRef.current && !isStoppingRef.current) {
             await stopTracking()
             // Сбрасываем статистику после окончания рабочих часов
             resetStatistics()

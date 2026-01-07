@@ -102,7 +102,6 @@ export function ActivityTracker() {
   const [officeInfo, setOfficeInfo] = useState<{ working_hours_start?: string, working_hours_end?: string, auto_track_enabled?: boolean } | null>(null)
   const { user } = useAuthStore()
   const router = useRouter()
-  const autoStartCheckRef = useRef<number | null>(null)
   const isStartingRef = useRef<boolean>(false) // Защита от множественных запусков
   const isStoppingRef = useRef<boolean>(false) // Защита от множественных остановок
   const isTrackingRef = useRef<boolean>(false) // Ref для отслеживания состояния
@@ -586,7 +585,8 @@ export function ActivityTracker() {
     const currentHours = now.getHours()
     const currentMinutes = now.getMinutes()
     const currentSeconds = now.getSeconds()
-    const currentTimeMinutes = currentHours * 60 + currentMinutes + currentSeconds / 60
+    // Округляем до минут для более точного сравнения
+    const currentTimeMinutes = currentHours * 60 + currentMinutes + Math.floor(currentSeconds / 60)
     
     const startTimeStr = officeInfoRef.current.working_hours_start || '08:00:00'
     const endTimeStr = officeInfoRef.current.working_hours_end || '18:00:00'
@@ -594,8 +594,9 @@ export function ActivityTracker() {
     // Парсим время начала и конца
     const [startH, startM, startS] = startTimeStr.split(':').map(Number)
     const [endH, endM, endS] = endTimeStr.split(':').map(Number)
-    const startTimeMinutes = startH * 60 + startM + (startS || 0) / 60
-    const endTimeMinutes = endH * 60 + endM + (endS || 0) / 60
+    const startTimeMinutes = startH * 60 + startM + Math.floor((startS || 0) / 60)
+    // Для конца рабочих часов считаем, что включен весь последний час (до конца 59-й минуты)
+    const endTimeMinutes = endH * 60 + endM + Math.floor((endS || 0) / 60)
     
     return currentTimeMinutes >= startTimeMinutes && currentTimeMinutes <= endTimeMinutes
   }
@@ -733,115 +734,8 @@ export function ActivityTracker() {
     }
   }, [user])
 
-  // Автоматический запуск трекера в рабочие часы И если в офисе
-  useEffect(() => {
-    if (!isMounted) return // Ждем монтирования компонента
-    if (!user || user.role !== 'executor') return
-
-    let componentMounted = true
-    let isChecking = false // Защита от одновременных проверок
-
-    const checkAndAutoStart = async () => {
-      if (!componentMounted || isChecking) return
-      isChecking = true
-      
-      try {
-        await loadOfficeInfo()
-      } catch (error) {
-        console.error('Ошибка загрузки информации об офисе:', error)
-        isChecking = false
-        return
-      }
-      
-      // Проверяем рабочие часы
-      if (!isWithinWorkingHours()) {
-        console.log('⏰ Не рабочие часы, автозапуск не выполняется')
-        // Останавливаем трекер, если он был запущен автоматически
-        const wasManualStart = manualStartFromStore
-        const currentTracking = isTracking
-        if (currentTracking && !wasManualStart && componentMounted) {
-          console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер и сбрасываю статистику...')
-          await stopTracking(false)
-          resetStatisticsLocal()
-          console.log('✅ Статистика сброшена после окончания рабочих часов')
-        }
-        isChecking = false
-        return
-      }
-
-      // Если рабочие часы - запускаем трекер независимо от местоположения
-      const wasManualStart = manualStartFromStore
-      const currentTracking = isTracking
-      
-      if (!currentTracking && !wasManualStart && componentMounted) {
-        console.log('✅ Автозапуск: Рабочие часы, автоматически запускаю трекер (независимо от местоположения)...')
-        await startTracking(false) // Автоматический запуск
-        isChecking = false
-        return
-      }
-      
-      // Если трекер уже запущен, просто логируем
-      if (currentTracking) {
-        console.log('✅ Трекер уже работает в рабочие часы')
-      } else if (wasManualStart) {
-        console.log('⏸️ Трекер был запущен вручную - автозапуск не выполняется')
-      }
-      
-      isChecking = false
-    }
-
-    // Небольшая задержка перед первой проверкой, чтобы компонент успел загрузиться
-    // И чтобы не конфликтовать с ручным запуском
-    const initialTimeout = setTimeout(() => {
-      if (componentMounted && !manualStartFromStore && !isTracking) {
-        checkAndAutoStart()
-      } else if (componentMounted && manualStartFromStore) {
-        console.log('⏸️ Пропускаю автозапуск - трекер запущен вручную')
-      }
-    }, 3000) // Увеличиваем задержку до 3 секунд
-
-    // Проверяем каждые 30 секунд (быстрее для более оперативного автозапуска)
-    autoStartCheckRef.current = window.setInterval(async () => {
-      if (!componentMounted || isChecking) return
-      
-      // Проверяем рабочие часы
-      if (!isWithinWorkingHours()) {
-        const currentTracking = isTracking
-        if (currentTracking && componentMounted) {
-          console.log('⏰ Рабочие часы закончились, автоматически останавливаю трекер и сбрасываю статистику...')
-          await stopTracking(false) // Автоматическая остановка
-          // Сбрасываем статистику после окончания рабочих часов
-          resetStatisticsLocal()
-          console.log('✅ Статистика сброшена после окончания рабочих часов')
-        }
-        return
-      }
-
-      // Если рабочие часы - запускаем трекер независимо от местоположения
-      const wasManualStart = manualStartFromStore
-      const currentTracking = isTracking
-      
-      if (!currentTracking && !wasManualStart && componentMounted) {
-        console.log('✅ Автозапуск (периодическая проверка): Рабочие часы, автоматически запускаю трекер (независимо от местоположения)...')
-        await startTracking(false) // Автоматический запуск
-      } else if (currentTracking) {
-        console.log('✅ Трекер уже работает в рабочие часы (периодическая проверка)')
-      }
-    }, 30000) // Каждые 30 секунд для более быстрого автозапуска
-
-    return () => {
-      componentMounted = false
-      isChecking = false
-      if (autoStartCheckRef.current) {
-        clearInterval(autoStartCheckRef.current)
-        autoStartCheckRef.current = null
-      }
-      if (initialTimeout) {
-        clearTimeout(initialTimeout)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMounted, user?.id, user?.role, startTracking, stopTracking]) // Добавляем startTracking и stopTracking в зависимости
+  // Примечание: Автозапуск/остановка трекера в рабочие часы управляется через ActivityTrackerService
+  // Этот компонент только отображает UI и обрабатывает ручные действия пользователя
 
   // Обработчики событий теперь в ActivityTrackerService
   // Этот компонент только отображает UI и управляет через store
