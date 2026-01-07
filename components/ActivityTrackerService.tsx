@@ -685,22 +685,11 @@ export function ActivityTrackerService() {
     }
   }
 
-  // Флаг для отслеживания инициализации
-  const isInitializedRef = useRef(false)
-
   // Реакция на изменения isTracking из store (запросы на запуск/остановку)
   useEffect(() => {
     if (!user || user.role !== 'executor') return // Только для executor
-    
-    // При первом монтировании - используем восстановление
-    if (!isInitializedRef.current) {
-      isInitializedRef.current = true
-      // Не запускаем сразу - дадим восстановлению обработать состояние
-      return
-    }
-    
     if (isTracking && !intervalRef.current && !isStartingRef.current) {
-      // Запускаем трекер, если он был запрошен (но не при первой инициализации)
+      // Запускаем трекер, если он был запрошен
       console.log('🔄 [Service] Tracking requested, starting...')
       startTracking()
     } else if (!isTracking && intervalRef.current && !isStoppingRef.current) {
@@ -713,13 +702,8 @@ export function ActivityTrackerService() {
   // Восстановление трекера при монтировании (если был запущен)
   useEffect(() => {
     if (!user || user.role !== 'executor') return // Только для executor
-    
-    // Восстанавливаем только при первой инициализации и если трекер уже запущен
-    if (isTracking && !intervalRef.current && !isStartingRef.current) {
+    if (isTracking && !intervalRef.current) {
       console.log('🔄 [Service] Restoring tracking state...')
-      
-      // Устанавливаем флаг, чтобы предотвратить повторный запуск
-      isStartingRef.current = true
       // Восстанавливаем обработчики событий
       if (!isAndroidWebView.current) {
         window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
@@ -767,61 +751,48 @@ export function ActivityTrackerService() {
         )
       }
       
-      // Восстанавливаем Android датчики (только если они еще не запущены)
+      // Восстанавливаем Android датчики
       if (isAndroidWebView.current && typeof (window as any).AndroidSensors !== 'undefined') {
-        // Проверяем, не запущены ли датчики уже (через проверку наличия callback)
-        const existingCallback = (window as any).handleAndroidSensorData
-        if (!existingCallback) {
-          // Датчики не запущены - запускаем их
-          const sensorCallback = (data: any) => {
-            if (!isTrackingRef.current) return
-            
-            try {
-              const sensorData = typeof data === 'string' ? JSON.parse(data) : data
-              const acceleration = sensorData.acceleration || { x: 0, y: 0, z: 0 }
-              const rotationRate = sensorData.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
-              const orientation = sensorData.orientation || { beta: 0, gamma: 0 }
-              
-              orientationRef.current = {
-                beta: orientation.beta || 0,
-                gamma: orientation.gamma || 0
-              }
-              
-              const event = {
-                accelerationIncludingGravity: acceleration,
-                rotationRate: rotationRate
-              } as DeviceMotionEvent
-              
-              handleDeviceMotion(event)
-            } catch (err) {
-              console.error('❌ [Service] Error processing Android sensor data:', err)
-            }
-          }
-          
-          androidSensorCallbackRef.current = sensorCallback
-          ;(window as any).handleAndroidSensorData = sensorCallback
-          
+        const sensorCallback = (data: any) => {
+          if (!isTrackingRef.current) return
+
           try {
-            (window as any).AndroidSensors.startListening('handleAndroidSensorData')
-            console.log('✅ [Service] Android sensors restored')
+            const sensorData = typeof data === 'string' ? JSON.parse(data) : data
+            const acceleration = sensorData.acceleration || { x: 0, y: 0, z: 0 }
+            const rotationRate = sensorData.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
+            const orientation = sensorData.orientation || { beta: 0, gamma: 0 }
+
+            orientationRef.current = {
+              beta: orientation.beta || 0,
+              gamma: orientation.gamma || 0
+            }
+
+            const event = {
+              accelerationIncludingGravity: acceleration,
+              rotationRate: rotationRate
+            } as DeviceMotionEvent
+
+            handleDeviceMotion(event)
           } catch (err) {
-            console.error('❌ [Service] Failed to restore Android sensors:', err)
+            console.error('❌ [Service] Error processing Android sensor data:', err)
           }
-        } else {
-          // Датчики уже запущены - просто обновляем callback
-          androidSensorCallbackRef.current = existingCallback
-          console.log('✅ [Service] Android sensors already running, callback updated')
+        }
+
+        androidSensorCallbackRef.current = sensorCallback
+        ;(window as any).handleAndroidSensorData = sensorCallback
+
+        try {
+          (window as any).AndroidSensors.startListening('handleAndroidSensorData')
+        } catch (err) {
+          console.error('❌ [Service] Failed to restore Android sensors:', err)
         }
       }
-      
-      // Сбрасываем флаг после восстановления
-      isStartingRef.current = false
     }
     
     return () => {
       // Не очищаем при размонтировании - сервис должен работать в фоне
     }
-  }, []) // Запускаем только один раз при монтировании
+  }, [isTracking, postureStartTime, lastPosture])
 
   // Автозапуск в рабочие часы
   useEffect(() => {
@@ -848,8 +819,7 @@ export function ActivityTrackerService() {
       }
 
       // Если рабочие часы - запускаем трекер
-      // Проверяем что трекер не запущен и не запускается
-      if (!isTrackingRef.current && !manualStart && !isStartingRef.current && !intervalRef.current) {
+      if (!isTrackingRef.current && !manualStart) {
         console.log('✅ [Service] Автозапуск: Рабочие часы, запускаю трекер...')
         await startTracking()
       }
@@ -877,8 +847,7 @@ export function ActivityTrackerService() {
         return
       }
 
-      // Проверяем что трекер не запущен и не запускается
-      if (!isTrackingRef.current && !manualStart && !isStartingRef.current && !intervalRef.current) {
+      if (!isTrackingRef.current && !manualStart) {
         console.log('✅ [Service] Автозапуск (периодическая проверка): Рабочие часы, запускаю трекер...')
         await startTracking()
       }
