@@ -154,26 +154,26 @@ export function ActivityTrackerService() {
     }
 
     const now = new Date()
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`
+    const currentHours = now.getHours()
+    const currentMinutes = now.getMinutes()
+    const currentSeconds = now.getSeconds()
+    const currentTimeMinutes = currentHours * 60 + currentMinutes + currentSeconds / 60
     
-    const startTime = officeInfoRef.current.working_hours_start || '08:00:00'
-    const endTime = officeInfoRef.current.working_hours_end || '18:00:00'
+    const startTimeStr = officeInfoRef.current.working_hours_start || '08:00:00'
+    const endTimeStr = officeInfoRef.current.working_hours_end || '18:00:00'
     
-    return currentTime >= startTime && currentTime <= endTime
+    // Парсим время начала и конца
+    const [startH, startM, startS] = startTimeStr.split(':').map(Number)
+    const [endH, endM, endS] = endTimeStr.split(':').map(Number)
+    const startTimeMinutes = startH * 60 + startM + (startS || 0) / 60
+    const endTimeMinutes = endH * 60 + endM + (endS || 0) / 60
+    
+    return currentTimeMinutes >= startTimeMinutes && currentTimeMinutes <= endTimeMinutes
   }
 
-  // Отправка Health уведомления через Android и сохранение в базу данных
+  // Отправка Health уведомления через Android
   const sendHealthNotification = async (message: string) => {
     try {
-      // Сначала сохраняем уведомление в базу данных
-      try {
-        await api.post('/notifications/health', { message })
-        console.log('✅ [Health] Уведомление сохранено в базу данных:', message)
-      } catch (error) {
-        console.error('❌ [Health] Ошибка сохранения уведомления в БД:', error)
-        // Продолжаем выполнение, даже если сохранение не удалось
-      }
-
       // Проверяем Android WebView
       if (typeof (window as any).androidApp?.showHealthNotification !== 'undefined') {
         (window as any).androidApp.showHealthNotification(message)
@@ -755,32 +755,32 @@ export function ActivityTrackerService() {
       if (isAndroidWebView.current && typeof (window as any).AndroidSensors !== 'undefined') {
         const sensorCallback = (data: any) => {
           if (!isTrackingRef.current) return
-
+          
           try {
             const sensorData = typeof data === 'string' ? JSON.parse(data) : data
             const acceleration = sensorData.acceleration || { x: 0, y: 0, z: 0 }
             const rotationRate = sensorData.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
             const orientation = sensorData.orientation || { beta: 0, gamma: 0 }
-
+            
             orientationRef.current = {
               beta: orientation.beta || 0,
               gamma: orientation.gamma || 0
             }
-
+            
             const event = {
               accelerationIncludingGravity: acceleration,
               rotationRate: rotationRate
             } as DeviceMotionEvent
-
+            
             handleDeviceMotion(event)
           } catch (err) {
             console.error('❌ [Service] Error processing Android sensor data:', err)
           }
         }
-
+        
         androidSensorCallbackRef.current = sensorCallback
         ;(window as any).handleAndroidSensorData = sensorCallback
-
+        
         try {
           (window as any).AndroidSensors.startListening('handleAndroidSensorData')
         } catch (err) {
@@ -802,7 +802,15 @@ export function ActivityTrackerService() {
     let isChecking = false
 
     const checkAndAutoStart = async () => {
-      if (!componentMounted || isChecking || isTrackingRef.current) return
+      if (!componentMounted || isChecking) return
+      
+      // Получаем актуальное состояние из store
+      const storeState = useActivityTrackerStore.getState()
+      if (storeState.isTracking || isStartingRef.current) {
+        isChecking = false
+        return
+      }
+      
       isChecking = true
       
       try {
@@ -819,7 +827,8 @@ export function ActivityTrackerService() {
       }
 
       // Если рабочие часы - запускаем трекер
-      if (!isTrackingRef.current && !manualStart) {
+      const currentManualStart = useActivityTrackerStore.getState().manualStart
+      if (!currentManualStart) {
         console.log('✅ [Service] Автозапуск: Рабочие часы, запускаю трекер...')
         await startTracking()
       }
@@ -828,26 +837,49 @@ export function ActivityTrackerService() {
     }
 
     const initialTimeout = setTimeout(() => {
-      if (componentMounted && !manualStart && !isTrackingRef.current) {
-        checkAndAutoStart()
+      if (componentMounted) {
+        const storeState = useActivityTrackerStore.getState()
+        if (!storeState.manualStart && !storeState.isTracking && !isStartingRef.current) {
+          checkAndAutoStart()
+        }
       }
     }, 3000)
 
     autoStartCheckRef.current = window.setInterval(async () => {
       if (!componentMounted || isChecking) return
       
-      if (!isWithinWorkingHours()) {
-        if (isTrackingRef.current) {
+      // Получаем актуальное состояние из store вместо ref
+      const storeState = useActivityTrackerStore.getState()
+      const currentIsTracking = storeState.isTracking
+      const currentManualStart = storeState.manualStart
+      
+      // Загружаем актуальную информацию об офисе
+      try {
+        await loadOfficeInfo()
+      } catch (error) {
+        console.error('❌ [Service] Ошибка загрузки информации об офисе:', error)
+        return
+      }
+      
+      const withinHours = isWithinWorkingHours()
+      
+      if (!withinHours) {
+        // Рабочие часы закончились - останавливаем трекер, если он запущен
+        if (currentIsTracking) {
           console.log('⏰ [Service] Рабочие часы закончились, останавливаю трекер и сбрасываю статистику...')
-          await stopTracking()
-          // Сбрасываем статистику после окончания рабочих часов
-          resetStatistics()
-          console.log('✅ [Service] Статистика сброшена после окончания рабочих часов')
+          // Используем ref для проверки, чтобы избежать двойной остановки
+          if (isTrackingRef.current) {
+            await stopTracking()
+            // Сбрасываем статистику после окончания рабочих часов
+            resetStatistics()
+            console.log('✅ [Service] Статистика сброшена после окончания рабочих часов')
+          }
         }
         return
       }
 
-      if (!isTrackingRef.current && !manualStart) {
+      // Рабочие часы активны - запускаем трекер, если он не запущен и не был запущен вручную
+      if (!currentIsTracking && !currentManualStart && !isStartingRef.current) {
         console.log('✅ [Service] Автозапуск (периодическая проверка): Рабочие часы, запускаю трекер...')
         await startTracking()
       }

@@ -583,12 +583,21 @@ export function ActivityTracker() {
     }
 
     const now = new Date()
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:00`
+    const currentHours = now.getHours()
+    const currentMinutes = now.getMinutes()
+    const currentSeconds = now.getSeconds()
+    const currentTimeMinutes = currentHours * 60 + currentMinutes + currentSeconds / 60
     
-    const startTime = officeInfoRef.current.working_hours_start || '08:00:00'
-    const endTime = officeInfoRef.current.working_hours_end || '18:00:00'
+    const startTimeStr = officeInfoRef.current.working_hours_start || '08:00:00'
+    const endTimeStr = officeInfoRef.current.working_hours_end || '18:00:00'
     
-    return currentTime >= startTime && currentTime <= endTime
+    // Парсим время начала и конца
+    const [startH, startM, startS] = startTimeStr.split(':').map(Number)
+    const [endH, endM, endS] = endTimeStr.split(':').map(Number)
+    const startTimeMinutes = startH * 60 + startM + (startS || 0) / 60
+    const endTimeMinutes = endH * 60 + endM + (endS || 0) / 60
+    
+    return currentTimeMinutes >= startTimeMinutes && currentTimeMinutes <= endTimeMinutes
   }
 
   // Загрузка информации об офисе с рабочими часами
