@@ -7,6 +7,7 @@ import axios, { AxiosError } from "axios";
 import api from "@/lib/api";
 import ReactMarkdown from 'react-markdown';
 import {useAuthStore} from "@/stores/useAuthStore";
+import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
 
 type Message = {
     from: "user" | "bot";
@@ -25,6 +26,7 @@ export default function ChatPage() {
     const [isSending, setIsSending] = useState(false);
     const [isBotTyping, setIsBotTyping] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showClearModal, setShowClearModal] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -114,10 +116,13 @@ export default function ChatPage() {
     };
 
     const handleClearChat = () => {
-        if (confirm('Очистить историю чата?')) {
-            setMessages([{ from: "bot", text: "Чат очищен. Чем могу помочь?" }]);
-            localStorage.removeItem(getChatStorageKey());
-        }
+        setShowClearModal(true);
+    };
+
+    const confirmClearChat = () => {
+        setMessages([{ from: "bot", text: "Чат очищен. Чем могу помочь?" }]);
+        localStorage.removeItem(getChatStorageKey());
+        setShowClearModal(false);
     };
 
     const handleCopyMessage = (text: string) => {
@@ -267,6 +272,17 @@ export default function ChatPage() {
 
             {/* Navigation */}
             <BottomNav activeTab="chat" />
+
+            {/* Modal для очистки чата */}
+            <DeleteConfirmationModal
+                isOpen={showClearModal}
+                onClose={() => setShowClearModal(false)}
+                onConfirm={confirmClearChat}
+                title="Очистить историю чата?"
+                description="Вы уверены, что хотите очистить всю историю переписки? Это действие нельзя отменить."
+                confirmText="Очистить"
+                cancelText="Отмена"
+            />
         </div>
     );
 }
