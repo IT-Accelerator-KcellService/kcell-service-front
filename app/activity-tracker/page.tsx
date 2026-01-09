@@ -22,8 +22,8 @@ export default function ActivityTrackerPage() {
       return
     }
 
-    // Трекер активности доступен только для исполнителей
-    if (user.role !== 'executor') {
+    // Трекер активности доступен для исполнителей и клиентов
+    if (user.role !== 'executor' && user.role !== 'client') {
       router.push('/')
     }
   }, [hydrated, user, router])

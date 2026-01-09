@@ -74,9 +74,9 @@ export function ActivityTrackerService() {
   const isAndroidWebView = useRef<boolean>(false)
   const healthReminderIntervalRef = useRef<number | null>(null)
 
-  // Ранний выход, если пользователь не executor - сервис не должен работать для других ролей
+  // Ранний выход, если пользователь не executor или client - сервис не должен работать для других ролей
   useEffect(() => {
-    if (user && user.role !== 'executor') {
+    if (user && (user.role !== 'executor' && user.role !== 'client')) {
       // Останавливаем все процессы, если они были запущены
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
@@ -102,7 +102,7 @@ export function ActivityTrackerService() {
 
   // Синхронизация ref с store
   useEffect(() => {
-    if (!user || user.role !== 'executor') return // Не обновляем ref для не-executor
+    if (!user || (user.role !== 'executor' && user.role !== 'client')) return // Не обновляем ref для не-executor
     isTrackingRef.current = isTracking
   }, [isTracking, user])
 
@@ -223,27 +223,66 @@ export function ActivityTrackerService() {
     }
   }
 
+  // Кэш для информации об офисе (чтобы не запрашивать слишком часто)
+  const lastOfficeInfoLoadRef = useRef<number>(0)
+  const OFFICE_INFO_CACHE_DURATION = 5 * 60 * 1000 // 5 минут кэш
+
   // Загрузка информации об офисе
-  const loadOfficeInfo = async () => {
+  const loadOfficeInfo = async (force = false) => {
     if (!user?.office_id) return
     
+    // Проверяем кэш - если недавно загружали, используем кэш
+    const now = Date.now()
+    const timeSinceLastLoad = now - lastOfficeInfoLoadRef.current
+    if (!force && timeSinceLastLoad < OFFICE_INFO_CACHE_DURATION && officeInfoRef.current) {
+      return // Используем кэшированную информацию
+    }
+    
     try {
-      const response = await api.get(`/offices/${user.office_id}`)
+      const response = await api.get(`/offices/${user.office_id}`, {
+        timeout: 5000 // 5 секунд таймаут
+      })
       const info = {
-        working_hours_start: response.data.working_hours_start,
-        working_hours_end: response.data.working_hours_end,
-        auto_track_enabled: response.data.auto_track_enabled
+        working_hours_start: response.data.working_hours_start || '08:00:00',
+        working_hours_end: response.data.working_hours_end || '18:00:00',
+        auto_track_enabled: response.data.auto_track_enabled ?? false
       }
       officeInfoRef.current = info
-    } catch (error) {
-      console.error('❌ [Service] Ошибка загрузки информации об офисе:', error)
+      lastOfficeInfoLoadRef.current = now // Обновляем время последней загрузки
+      console.log('✅ [Service] Информация об офисе загружена:', info)
+    } catch (error: any) {
+      // Если уже есть кэшированная информация, используем её
+      if (officeInfoRef.current) {
+        console.log('⚠️ [Service] Используем кэшированную информацию об офисе из-за ошибки сети')
+        return
+      }
+      
+      // Только если нет кэша - устанавливаем значения по умолчанию
+      officeInfoRef.current = {
+        working_hours_start: '08:00:00',
+        working_hours_end: '18:00:00',
+        auto_track_enabled: false
+      }
+      
+      // Логируем только краткую информацию об ошибке, без полного стека
+      const errorMessage = error?.message || 'Неизвестная ошибка'
+      const errorCode = error?.code || error?.response?.status || 'N/A'
+      
+      // Не логируем ошибку, если это просто проблема с сетью - это не критично
+      if (errorCode !== 'ERR_CONNECTION_CLOSED' && errorCode !== 'ERR_NETWORK' && errorCode !== 'ECONNABORTED') {
+        console.warn('⚠️ [Service] Не удалось загрузить информацию об офисе:', {
+          code: errorCode,
+          message: errorMessage,
+          office_id: user.office_id
+        })
+      }
     }
   }
 
   // Сохранение статистики на сервер
   const saveStatisticsToServer = async () => {
     // Проверка роли - только executor может сохранять статистику
-    if (!user || user.role !== 'executor') {
+    if (!user || (user.role !== 'executor' && user.role !== 'client')) {
       console.log('⏭️ [Service] Пропуск сохранения: пользователь не executor')
       return
     }
@@ -473,7 +512,7 @@ export function ActivityTrackerService() {
   // Запуск трекера
   const startTracking = async () => {
     // Дополнительная проверка роли для безопасности
-    if (!user || user.role !== 'executor') {
+    if (!user || (user.role !== 'executor' && user.role !== 'client')) {
       console.warn('⚠️ [Service] Попытка запуска трекера для пользователя без роли executor')
       return
     }
@@ -710,7 +749,7 @@ export function ActivityTrackerService() {
 
   // Реакция на изменения isTracking из store (запросы на запуск/остановку)
   useEffect(() => {
-    if (!user || user.role !== 'executor') return // Только для executor
+    if (!user || (user.role !== 'executor' && user.role !== 'client')) return // Для executor и client
     if (isTracking && !intervalRef.current && !isStartingRef.current) {
       // Запускаем трекер, если он был запрошен
       console.log('🔄 [Service] Tracking requested, starting...')
@@ -724,7 +763,7 @@ export function ActivityTrackerService() {
 
   // Восстановление трекера при монтировании (если был запущен)
   useEffect(() => {
-    if (!user || user.role !== 'executor') return // Только для executor
+    if (!user || (user.role !== 'executor' && user.role !== 'client')) return // Для executor и client
     if (isTracking && !intervalRef.current) {
       console.log('🔄 [Service] Restoring tracking state...')
       // Восстанавливаем обработчики событий
@@ -819,7 +858,7 @@ export function ActivityTrackerService() {
 
   // Автозапуск в рабочие часы
   useEffect(() => {
-    if (!user || user.role !== 'executor') return
+    if (!user || (user.role !== 'executor' && user.role !== 'client')) return
 
     let componentMounted = true
     let isChecking = false
@@ -836,13 +875,8 @@ export function ActivityTrackerService() {
       
       isChecking = true
       
-      try {
-        await loadOfficeInfo()
-      } catch (error) {
-        console.error('❌ [Service] Ошибка загрузки информации об офисе:', error)
-        isChecking = false
-        return
-      }
+      // Загружаем информацию об офисе (с кэшированием)
+      await loadOfficeInfo()
       
       if (!isWithinWorkingHours()) {
         isChecking = false
@@ -876,13 +910,8 @@ export function ActivityTrackerService() {
       const currentIsTracking = storeState.isTracking
       const currentManualStart = storeState.manualStart
       
-      // Загружаем актуальную информацию об офисе
-      try {
-        await loadOfficeInfo()
-      } catch (error) {
-        console.error('❌ [Service] Ошибка загрузки информации об офисе:', error)
-        return
-      }
+      // Загружаем актуальную информацию об офисе (с кэшированием)
+      await loadOfficeInfo()
       
       const withinHours = isWithinWorkingHours()
       
@@ -924,7 +953,7 @@ export function ActivityTrackerService() {
 
   // Обработчики событий для стандартных Web API
   useEffect(() => {
-    if (!user || user.role !== 'executor') {
+    if (!user || (user.role !== 'executor' && user.role !== 'client')) {
       // Удаляем обработчики, если пользователь не executor
       window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
       window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
@@ -962,7 +991,7 @@ export function ActivityTrackerService() {
 
   // Health напоминания - проверка времени сидения
   useEffect(() => {
-    if (!user || user.role !== 'executor') {
+    if (!user || (user.role !== 'executor' && user.role !== 'client')) {
       // Очищаем интервал для не-executor
       if (healthReminderIntervalRef.current) {
         clearInterval(healthReminderIntervalRef.current)

@@ -391,7 +391,7 @@ export function ActivityTracker() {
     lastLocationRef.current = locationData
     
     // Если трекер не запущен, проверяем автозапуск при изменении геолокации (только в рабочие часы)
-    if (!isTracking && user?.role === 'executor' && !manualStartFromStore && isWithinWorkingHours()) {
+    if (!isTracking && (user?.role === 'executor' || user?.role === 'client') && !manualStartFromStore && isWithinWorkingHours()) {
       console.log('📍 Геолокация изменилась: рабочие часы, проверяю автозапуск...')
       // Небольшая задержка, чтобы не конфликтовать с основной проверкой
       setTimeout(async () => {
@@ -464,9 +464,9 @@ export function ActivityTracker() {
 
   // Запрос разрешения и начало отслеживания
   const startTracking = useCallback(async (isManual = false) => {
-    // Проверка роли - трекер доступен только для executor
-    if (!user || user.role !== 'executor') {
-      setError('Трекер активности доступен только для исполнителей')
+    // Проверка роли - трекер доступен для executor и client
+    if (!user || (user.role !== 'executor' && user.role !== 'client')) {
+      setError('Трекер активности доступен только для исполнителей и клиентов')
       return
     }
     
@@ -728,8 +728,8 @@ export function ActivityTracker() {
   // Проверка, что пользователь имеет право использовать трекер
   useEffect(() => {
     if (!user) return
-    if (user.role !== 'executor') {
-      setError('Трекер активности доступен только для исполнителей')
+    if (user.role !== 'executor' && user.role !== 'client') {
+      setError('Трекер активности доступен только для исполнителей и клиентов')
       setIsTracking(false)
     }
   }, [user])
@@ -741,7 +741,7 @@ export function ActivityTracker() {
   // Этот компонент только отображает UI и управляет через store
 
   // Проверка роли перед рендерингом (после всех хуков)
-  if (user && user.role !== 'executor') {
+  if (user && (user.role !== 'executor' && user.role !== 'client')) {
     return (
       <div className="space-y-4 sm:space-y-6">
         <Button
@@ -755,7 +755,7 @@ export function ActivityTracker() {
         <Card>
           <CardContent className="p-4 sm:p-6">
             <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs sm:text-sm text-center">
-              Трекер активности доступен только для исполнителей
+              Трекер активности доступен только для исполнителей и клиентов
             </div>
           </CardContent>
         </Card>

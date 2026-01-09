@@ -36,6 +36,7 @@ import {
   Wrench,
   Bell,
   Ruler,
+  Activity,
 } from "lucide-react"
 import Header from "@/app/header/Header";
 import api, { getOffices } from "@/lib/api";
@@ -1322,6 +1323,19 @@ export default function ClientDashboard() {
                       </div>
                     </CardContent>
                   </Card>
+                  <Card
+                    className="cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] border-2 hover:border-[#B8400E] bg-gradient-to-br from-white via-[#F3F3F3] to-white backdrop-blur-sm"
+                    onClick={() => router.push('/activity-stats')}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex flex-col items-center justify-center text-center h-full min-h-[200px]">
+                        <div className="mb-4 w-full h-32 bg-gradient-to-br from-[#114A65]/20 via-[#B8400E]/10 to-[#114A65]/20 rounded-lg flex items-center justify-center backdrop-blur-md border border-[#114A65]/20 shadow-lg">
+                          <Activity className="w-16 h-16 text-[#114A65]" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-[#040404]">Статистика активности</h3>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
                 {/* Кнопки и элементы для meeting-rooms на десктопе */}
@@ -1440,8 +1454,8 @@ export default function ClientDashboard() {
             {/* Главная секция для мобильных */}
             {!isDesktop && (
               <div className="mb-6 space-y-5">
-                {/* Две большие карточки действий */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Три карточки действий в одном ряду */}
+                <div className="grid grid-cols-3 gap-2">
                   <Card
                     onClick={() => {
                       setActiveTab("meeting-rooms");
@@ -1450,15 +1464,15 @@ export default function ClientDashboard() {
                     className="relative overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-0 shadow-xl bg-gradient-to-br from-[#114A65] via-[#0d3a4f] to-[#B8400E] group"
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16"></div>
-                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-12 -mb-12"></div>
-                    <CardContent className="p-5 relative z-10 flex flex-col items-center justify-center h-28">
-                      <div className="mb-2 transform group-hover:scale-110 transition-transform duration-300">
-                        <Building2 className="h-10 w-10 text-white drop-shadow-lg" />
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-white/5 rounded-full -mr-10 -mt-10"></div>
+                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-8 -mb-8"></div>
+                    <CardContent className="p-3 relative z-10 flex flex-col items-center justify-center h-28">
+                      <div className="mb-1 transform group-hover:scale-110 transition-transform duration-300">
+                        <Building2 className="h-8 w-8 text-white drop-shadow-lg" />
                       </div>
                       <div className="flex flex-col items-center text-center">
-                        <span className="text-sm font-bold text-white leading-tight drop-shadow-md">Бронирование</span>
-                        <span className="text-sm font-bold text-white leading-tight drop-shadow-md">комнат</span>
+                        <span className="text-[10px] font-bold text-white leading-tight drop-shadow-md">Бронирование</span>
+                        <span className="text-[10px] font-bold text-white leading-tight drop-shadow-md">комнат</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -1467,13 +1481,28 @@ export default function ClientDashboard() {
                     className="relative overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-2 border-gray-200 shadow-lg bg-gradient-to-br from-white to-gray-50 group hover:border-[#114A65]/30"
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-[#114A65]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    <CardContent className="p-5 relative z-10 flex flex-col items-center justify-center h-28">
-                      <div className="mb-2 transform group-hover:scale-110 transition-transform duration-300">
-                        <Wrench className="h-10 w-10 text-[#114A65]" />
+                    <CardContent className="p-3 relative z-10 flex flex-col items-center justify-center h-28">
+                      <div className="mb-1 transform group-hover:scale-110 transition-transform duration-300">
+                        <Wrench className="h-8 w-8 text-[#114A65]" />
                       </div>
                       <div className="flex flex-col items-center text-center">
-                        <span className="text-sm font-bold text-gray-900 leading-tight">Сервисные</span>
-                        <span className="text-sm font-bold text-gray-900 leading-tight">заявки</span>
+                        <span className="text-[10px] font-bold text-gray-900 leading-tight">Сервисные</span>
+                        <span className="text-[10px] font-bold text-gray-900 leading-tight">заявки</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card
+                    onClick={() => router.push('/activity-stats')}
+                    className="relative overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-2 border-gray-200 shadow-lg bg-gradient-to-br from-white to-gray-50 group hover:border-[#114A65]/30"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#114A65]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <CardContent className="p-3 relative z-10 flex flex-col items-center justify-center h-28">
+                      <div className="mb-1 transform group-hover:scale-110 transition-transform duration-300">
+                        <Activity className="h-8 w-8 text-[#114A65]" />
+                      </div>
+                      <div className="flex flex-col items-center text-center">
+                        <span className="text-[10px] font-bold text-gray-900 leading-tight">Статистика</span>
+                        <span className="text-[10px] font-bold text-gray-900 leading-tight">активности</span>
                       </div>
                     </CardContent>
                   </Card>

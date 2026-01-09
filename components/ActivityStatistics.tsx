@@ -307,8 +307,8 @@ export function ActivityStatistics({ userId, isAdmin = false }: ActivityStatisti
     )
   }
 
-  // Для executor показываем трекер + статистику
-  if (user?.role === 'executor') {
+  // Для executor и client показываем трекер + статистику
+  if (user?.role === 'executor' || user?.role === 'client') {
     return (
       <div className="space-y-4">
         {/* Трекер активности */}

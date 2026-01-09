@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, FormEvent, KeyboardEvent } from "react";
-import { Send, ArrowLeft, Trash2, Copy } from "lucide-react";
+import { Send, ArrowLeft, Trash2, Copy, Building2, Wrench, Ruler, Bell, Home, BarChart3, AlertTriangle, User, Menu } from "lucide-react";
 import Link from "next/link";
 import { BottomNav } from "@/components/BottomNav";
 import axios, { AxiosError } from "axios";
@@ -17,16 +17,133 @@ type ApiError = {
     error?: string;
 }
 
+type Topic = {
+    id: string;
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    questions: string[];
+}
+
+const topics: Topic[] = [
+    {
+        id: "booking",
+        title: "Бронирование комнат",
+        description: "Найти и забронировать переговорную или кабинет",
+        icon: <Building2 className="w-5 h-5" />,
+        questions: [
+            "Как забронировать комнату?",
+            "Как изменить или отменить бронь?",
+            "Почему комната недоступна?",
+            "Где посмотреть мои бронирования?",
+            "Что происходит, если я опоздал?"
+        ]
+    },
+    {
+        id: "requests",
+        title: "Сервисные заявки",
+        description: "Клининг, КТО, административные заявки",
+        icon: <Wrench className="w-5 h-5" />,
+        questions: [
+            "Как создать заявку?",
+            "Какие типы заявок доступны?",
+            "Как прикрепить фото?",
+            "Как посмотреть статус?",
+            "Кто обрабатывает заявку?"
+        ]
+    },
+    {
+        id: "calculator",
+        title: "Калькулятор высоты стола",
+        description: "Подобрать комфортную высоту стола под себя",
+        icon: <Ruler className="w-5 h-5" />,
+        questions: [
+            "Как работает калькулятор?",
+            "Нужно ли вводить вес?",
+            "В чём разница «сидя» / «стоя»?",
+            "Насколько точны рекомендации?"
+        ]
+    },
+    {
+        id: "health",
+        title: "Хелси-уведомления",
+        description: "Напоминания встать, пройтись и сделать перерыв",
+        icon: <Bell className="w-5 h-5" />,
+        questions: [
+            "Почему пришло уведомление «пора встать»?",
+            "Как выбрать тайминг?",
+            "Как включить / выключить уведомления?",
+            "Работают ли уведомления во время встреч?",
+            "Где посмотреть историю уведомлений?"
+        ]
+    },
+    {
+        id: "smart-home",
+        title: "Умный дом",
+        description: "Управление светом, климатом и устройствами офиса",
+        icon: <Home className="w-5 h-5" />,
+        questions: [
+            "Что такое «умный дом» в WorkFlow?",
+            "Какие устройства я могу управлять?",
+            "Почему у меня есть / нет доступа?",
+            "В каких кабинетах мне доступно управление?",
+            "Можно ли управлять несколькими кабинетами?",
+            "Когда доступ активен, а когда блокируется?",
+            "Кто выдаёт и забирает доступ?",
+            "Что делать, если устройство не отвечает?"
+        ]
+    },
+    {
+        id: "statistics",
+        title: "Статистика",
+        description: "Загрузка комнат, активность, отчёты",
+        icon: <BarChart3 className="w-5 h-5" />,
+        questions: [
+            "Какие данные доступны?",
+            "За какой период?",
+            "Что означают показатели?",
+            "Можно ли выгрузить отчёт?"
+        ]
+    },
+    {
+        id: "errors",
+        title: "Ошибки и поддержка",
+        description: "Ошибки, инструкции, вопросы по работе системы",
+        icon: <AlertTriangle className="w-5 h-5" />,
+        questions: [
+            "Ошибка сервера — что делать?",
+            "Не работает бронирование",
+            "Нет доступа к умному дому",
+            "Не приходят уведомления",
+            "Куда обратиться за помощью?"
+        ]
+    },
+    {
+        id: "profile",
+        title: "Профиль и доступы",
+        description: "Настройки, роли, доступы к офисам",
+        icon: <User className="w-5 h-5" />,
+        questions: [
+            "Где изменить данные профиля?",
+            "Как работают мои доступы?",
+            "Почему у меня ограниченные права?",
+            "Кто может изменить мои доступы?"
+        ]
+    }
+];
+
 export default function ChatPage() {
     const {token} = useAuthStore()
     const [messages, setMessages] = useState<Message[]>([
-        { from: "bot", text: "Привет! Чем могу помочь по проекту?" },
+        { from: "bot", text: "Выберите, с чем хотите работать 👉" },
     ]);
     const [inputValue, setInputValue] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [isBotTyping, setIsBotTyping] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showClearModal, setShowClearModal] = useState(false);
+    const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+    const [showTopics, setShowTopics] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -38,8 +155,9 @@ export default function ChatPage() {
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) {
+                if (Array.isArray(parsed) && parsed.length > 1) {
                     setMessages(parsed);
+                    setShowTopics(false);
                 }
             } catch (e) {
                 localStorage.removeItem(getChatStorageKey());
@@ -80,6 +198,8 @@ export default function ChatPage() {
 
         setMessages((prev) => [...prev, { from: "user", text: trimmed }]);
         setInputValue("");
+        setShowTopics(false);
+        setSelectedTopic(null);
         setIsSending(true);
         setIsBotTyping(true);
         setError(null);
@@ -120,9 +240,70 @@ export default function ChatPage() {
     };
 
     const confirmClearChat = () => {
-        setMessages([{ from: "bot", text: "Чат очищен. Чем могу помочь?" }]);
+        setMessages([{ from: "bot", text: "Выберите, с чем хотите работать 👉" }]);
         localStorage.removeItem(getChatStorageKey());
         setShowClearModal(false);
+        setSelectedTopic(null);
+        setShowTopics(true);
+    };
+
+    const handleTopicSelect = (topicId: string) => {
+        setSelectedTopic(topicId);
+        setShowTopics(false);
+    };
+
+    const handleQuestionSelect = async (question: string) => {
+        setSelectedTopic(null);
+        setShowTopics(false);
+        setInputValue("");
+        
+        // Добавляем вопрос как сообщение пользователя
+        setMessages((prev) => [...prev, { from: "user", text: question }]);
+        
+        // Отправляем вопрос на сервер
+        setIsSending(true);
+        setIsBotTyping(true);
+        setError(null);
+
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+
+        try {
+            const response = await api.post("/chat", {
+                message: question,
+            }, {
+                signal: abortController.signal
+            });
+
+            const botText = response.data?.answer ?? "Не получилось обработать ответ.";
+            setMessages((prev) => [...prev, { from: "bot", text: botText }]);
+        } catch (err) {
+            if (axios.isCancel(err)) {
+                return;
+            }
+
+            const error = err as AxiosError<ApiError>;
+            const errorMessage = error.response?.data?.error || "Ошибка сервера. Попробуйте позже.";
+            setError(errorMessage);
+            setMessages((prev) => [...prev, { from: "bot", text: errorMessage }]);
+        } finally {
+            setIsSending(false);
+            setIsBotTyping(false);
+        }
+    };
+
+    const handleBackToTopics = () => {
+        setSelectedTopic(null);
+        setShowTopics(true);
+    };
+
+    const handleShowTopicsMenu = () => {
+        setSelectedTopic(null);
+        setShowTopics(true);
     };
 
     const handleCopyMessage = (text: string) => {
@@ -159,6 +340,13 @@ export default function ChatPage() {
                     <div className="flex items-center gap-3">
                         <h1 className="font-medium text-gray-900 text-sm">Чат поддержки</h1>
                         <button
+                            onClick={handleShowTopicsMenu}
+                            className="text-gray-500 hover:text-gray-700 transition-colors"
+                            title="Показать меню тем"
+                        >
+                            <Menu className="w-4 h-4" />
+                        </button>
+                        <button
                             onClick={handleClearChat}
                             className="text-gray-500 hover:text-gray-700 transition-colors"
                             title="Очистить чат"
@@ -171,7 +359,60 @@ export default function ChatPage() {
             </header>
 
             {/* Messages */}
-            <main className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full pb-32">
+            <main className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full pb-40">
+                {/* Topics Menu */}
+                {showTopics && (
+                    <div className="space-y-3 mb-4">
+                        {topics.map((topic) => (
+                            <button
+                                key={topic.id}
+                                onClick={() => handleTopicSelect(topic.id)}
+                                className="w-full bg-white rounded-xl p-4 border border-[#C4C4CE] hover:border-[#114A65] hover:shadow-md transition-all text-left flex items-start gap-3 group"
+                            >
+                                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-r from-[#114A65]/10 to-[#B8400E]/10 flex items-center justify-center text-[#114A65] group-hover:from-[#114A65]/20 group-hover:to-[#B8400E]/20 transition-colors">
+                                    {topic.icon}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-semibold text-gray-900 text-sm mb-1">{topic.title}</h3>
+                                    <p className="text-xs text-gray-600">{topic.description}</p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Questions for selected topic */}
+                {selectedTopic && !showTopics && (
+                    <div className="space-y-3 mb-4">
+                        <button
+                            onClick={handleBackToTopics}
+                            className="text-sm text-[#114A65] hover:underline mb-2 flex items-center gap-1"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Назад к темам
+                        </button>
+                        <div className="bg-white rounded-xl p-4 border border-[#C4C4CE] mb-3">
+                            <h3 className="font-semibold text-gray-900 text-base mb-2">
+                                {topics.find(t => t.id === selectedTopic)?.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-3">
+                                Выберите вопрос или напишите свой:
+                            </p>
+                            <div className="space-y-2">
+                                {topics.find(t => t.id === selectedTopic)?.questions.map((question, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleQuestionSelect(question)}
+                                        className="w-full text-left p-3 rounded-lg bg-[#F3F3F3] hover:bg-[#114A65]/10 hover:border hover:border-[#114A65]/20 transition-all text-sm text-gray-700"
+                                    >
+                                        {question}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {messages.map((msg, idx) => (
                     <div key={idx} className={`flex ${msg.from === "bot" ? "justify-start" : "justify-end"} items-start gap-2`}>
                         {msg.from === "bot" && (
