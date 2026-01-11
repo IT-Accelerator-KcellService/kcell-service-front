@@ -13,7 +13,11 @@ export function NotificationPermissionRequest() {
   useEffect(() => {
     setMounted(true)
     if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPermission(Notification.permission)
+      const currentPermission = Notification.permission
+      setPermission(currentPermission)
+      console.log('🔔 [NotificationPermissionRequest] Mounted, permission:', currentPermission)
+    } else {
+      console.log('⚠️ [NotificationPermissionRequest] Notifications not supported')
     }
   }, [])
 
@@ -49,23 +53,27 @@ export function NotificationPermissionRequest() {
 
   // Не показываем во время SSR
   if (!mounted) {
+    console.log('🔔 [NotificationPermissionRequest] Not mounted yet')
     return null
   }
 
   // Не показываем, если не поддерживается
   if (typeof window === 'undefined' || !('Notification' in window)) {
+    console.log('🔔 [NotificationPermissionRequest] Notifications not supported in this browser')
     return null
   }
 
   // Не показываем, если разрешение уже получено
   if (permission === 'granted') {
+    console.log('🔔 [NotificationPermissionRequest] Permission already granted, hiding component')
     return null
   }
 
   // Показываем только если разрешение еще не запрашивалось или было отклонено
   if (permission === 'default' || permission === 'denied') {
+    console.log('🔔 [NotificationPermissionRequest] Showing component, permission:', permission)
     return (
-      <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-sm z-50">
+      <div className="fixed bottom-20 right-4 sm:bottom-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-sm z-[100]">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
             {permission === 'denied' ? (
