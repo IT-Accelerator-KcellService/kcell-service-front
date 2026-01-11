@@ -5,6 +5,7 @@ import { useActivityTrackerStore } from "@/stores/useActivityTrackerStore"
 import { useAuthStore } from "@/stores/useAuthStore"
 import api, { getOffices } from "@/lib/api"
 import { findNearestOffice } from "@/lib/utils"
+import { toast } from "@/hooks/use-toast"
 
 interface LocationData {
   latitude: number
@@ -216,20 +217,19 @@ export function ActivityTrackerService() {
         }
       }
 
-      // Проверяем Android WebView
+      // Показываем toast-уведомление (работает на всех устройствах, включая мобильные)
+      toast({
+        title: 'Хелси - Напоминание',
+        description: message,
+        variant: 'default',
+        duration: 5000,
+      })
+      console.log('✅ [Health] Toast уведомление показано:', message)
+
+      // Проверяем Android WebView (для нативных Android приложений)
       if (typeof (window as any).androidApp?.showHealthNotification !== 'undefined') {
         (window as any).androidApp.showHealthNotification(message)
         console.log('✅ [Health] Уведомление отправлено через Android:', message)
-      } else if ('Notification' in window && Notification.permission === 'granted') {
-        // Локальное уведомление для браузера (когда сайт открыт)
-        new Notification('Хелси - Напоминание', {
-          body: message,
-          icon: '/icon-192x192.png',
-          badge: '/icon-192x192.png',
-          tag: 'health-reminder',
-          requireInteraction: false
-        })
-        console.log('✅ [Health] Локальное уведомление показано:', message)
       }
       
       // Обновляем время последнего напоминания
