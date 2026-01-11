@@ -23,16 +23,19 @@ export function NotificationPermissionRequest() {
       return
     }
 
-    if (Notification.permission === 'granted') {
+    const initialPermission = Notification.permission
+    if (initialPermission === 'granted') {
       return
     }
 
     setIsRequesting(true)
     try {
-      const newPermission = await fcmService.requestPermissionAndGetToken()
-      setPermission(Notification.permission)
+      await fcmService.requestPermissionAndGetToken()
+      // Получаем актуальное значение после запроса разрешения
+      const currentPermission: NotificationPermission = Notification.permission
+      setPermission(currentPermission)
       
-      if (Notification.permission === 'granted') {
+      if (currentPermission === 'granted') {
         console.log('✅ Разрешение на уведомления получено')
       } else {
         console.warn('⚠️ Разрешение на уведомления отклонено')
@@ -49,8 +52,13 @@ export function NotificationPermissionRequest() {
     return null
   }
 
-  // Не показываем, если разрешение уже получено или не поддерживается
-  if (permission === 'granted' || typeof window === 'undefined' || !('Notification' in window)) {
+  // Не показываем, если не поддерживается
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return null
+  }
+
+  // Не показываем, если разрешение уже получено
+  if (permission === 'granted') {
     return null
   }
 
