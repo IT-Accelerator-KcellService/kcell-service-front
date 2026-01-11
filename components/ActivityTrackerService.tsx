@@ -185,7 +185,7 @@ export function ActivityTrackerService() {
     return result
   }
 
-  // Отправка Health уведомления через Android
+  // Отправка Health уведомления через Android, Web Push и локальные уведомления
   const sendHealthNotification = async (message: string) => {
     try {
       // Сначала сохраняем уведомление в базу данных
@@ -197,15 +197,31 @@ export function ActivityTrackerService() {
         // Продолжаем выполнение, даже если сохранение не удалось
       }
 
+      // Отправляем через Web Push API на сервер (чтобы пришло даже когда сайт закрыт)
+      if (user?.id) {
+        try {
+          await api.post('/fcm/send/user', {
+            userId: user.id,
+            title: 'Хелси - Напоминание',
+            body: message,
+            data: {
+              type: 'health_reminder',
+              timestamp: new Date().toISOString()
+            }
+          })
+          console.log('✅ [Health] Уведомление отправлено через Web Push:', message)
+        } catch (error) {
+          console.warn('⚠️ [Health] Не удалось отправить через Web Push:', error)
+          // Продолжаем выполнение, даже если Web Push не удался
+        }
+      }
+
       // Проверяем Android WebView
       if (typeof (window as any).androidApp?.showHealthNotification !== 'undefined') {
         (window as any).androidApp.showHealthNotification(message)
         console.log('✅ [Health] Уведомление отправлено через Android:', message)
-        
-        // Обновляем время последнего напоминания
-        setHealthReminders({ lastReminderTime: Date.now() })
       } else if ('Notification' in window && Notification.permission === 'granted') {
-        // Fallback для веб-браузера
+        // Локальное уведомление для браузера (когда сайт открыт)
         new Notification('Хелси - Напоминание', {
           body: message,
           icon: '/icon-192x192.png',
@@ -213,11 +229,11 @@ export function ActivityTrackerService() {
           tag: 'health-reminder',
           requireInteraction: false
         })
-        console.log('✅ [Health] Уведомление отправлено через Web API:', message)
-        setHealthReminders({ lastReminderTime: Date.now() })
-      } else {
-        console.warn('⚠️ [Health] Невозможно отправить уведомление: нет доступа')
+        console.log('✅ [Health] Локальное уведомление показано:', message)
       }
+      
+      // Обновляем время последнего напоминания
+      setHealthReminders({ lastReminderTime: Date.now() })
     } catch (error) {
       console.error('❌ [Health] Ошибка отправки уведомления:', error)
     }

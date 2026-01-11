@@ -30,12 +30,119 @@ class FCMService {
         // Check if we're in Android WebView
         if (this.isAndroidWebView()) {
             this.setupAndroidInterface();
+        } else if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+            // For web browsers - setup Web Push
+            await this.setupWebPush();
         } else {
-            // For web browsers, we might implement web push notifications later
-            console.log('FCM: Running in web browser - push notifications not available');
+            console.log('FCM: Service Worker not supported - push notifications not available');
         }
 
         this.isInitialized = true;
+    }
+
+    /**
+     * Setup Web Push for browsers
+     */
+    private async setupWebPush(): Promise<void> {
+        try {
+            // Регистрируем Service Worker
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+                scope: '/'
+            });
+            console.log('✅ [FCM] Service Worker registered:', registration.scope);
+
+            // Ждем активации Service Worker
+            await navigator.serviceWorker.ready;
+            console.log('✅ [FCM] Service Worker ready');
+
+            // Инициализируем Firebase для веба (если используется)
+            // Пока используем нативный Web Push API
+            await this.requestNotificationPermission();
+            
+        } catch (error) {
+            console.error('❌ [FCM] Error setting up Web Push:', error);
+        }
+    }
+
+    /**
+     * Request notification permission
+     */
+    async requestNotificationPermission(): Promise<NotificationPermission> {
+        if (!('Notification' in window)) {
+            console.warn('⚠️ [FCM] This browser does not support notifications');
+            return 'denied';
+        }
+
+        let permission = Notification.permission;
+
+        if (permission === 'default') {
+            permission = await Notification.requestPermission();
+        }
+
+        if (permission === 'granted') {
+            console.log('✅ [FCM] Notification permission granted');
+            // После получения разрешения, запрашиваем токен
+            await this.getWebPushToken();
+        } else {
+            console.warn('⚠️ [FCM] Notification permission denied');
+        }
+
+        return permission;
+    }
+
+    /**
+     * Get Web Push subscription token
+     */
+    private async getWebPushToken(): Promise<string | null> {
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            
+            // Используем VAPID ключ (нужно получить с сервера или из env)
+            // Пока создаем базовую подписку
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: await this.getVAPIDPublicKey()
+            });
+
+            // Преобразуем subscription в строку для отправки на сервер
+            const subscriptionJson = subscription.toJSON();
+            const token = JSON.stringify(subscriptionJson);
+            
+            this.currentToken = token;
+            await this.sendTokenToBackend(token);
+            
+            console.log('✅ [FCM] Web Push token obtained and sent to server');
+            return token;
+        } catch (error) {
+            console.error('❌ [FCM] Error getting Web Push token:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Get VAPID public key from server or environment
+     */
+    private async getVAPIDPublicKey(): Promise<Uint8Array> {
+        // Сначала пытаемся получить с сервера
+        try {
+            const apiModule = await import('./api');
+            const { api } = apiModule;
+            
+            const response = await api.get('/fcm/vapid-key');
+            if (response.data?.key) {
+                const base64 = response.data.key;
+                const rawData = Uint8Array.from(atob(base64.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+                return rawData;
+            }
+        } catch (error) {
+            console.warn('⚠️ [FCM] Could not fetch VAPID key from server:', error);
+        }
+        
+        // Fallback: можно использовать из env переменных (если настроены)
+        // Для Web Push нужен VAPID ключ - его нужно настроить на сервере
+        // Пока выбрасываем ошибку, чтобы показать, что требуется настройка
+        console.error('❌ [FCM] VAPID public key not configured. Web Push requires VAPID keys.');
+        throw new Error('VAPID public key not configured. Please configure VAPID keys on the server.');
     }
 
     /**
@@ -90,9 +197,12 @@ class FCMService {
         try {
             const authToken = await this.getAuthToken();
             
+            // Определяем платформу
+            const platform = this.isAndroidWebView() ? 'android' : 'web';
+            
             const tokenData: FCMTokenData = {
                 token,
-                platform: 'android',
+                platform,
                 deviceId: this.getDeviceId(),
             };
 
@@ -110,20 +220,40 @@ class FCMService {
                 headers['Authorization'] = `Bearer ${authToken}`;
             }
 
-            const response = await fetch('/api/fcm/token', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(tokenData),
-            });
+            // Используем api из lib/api.ts для корректной работы с базовым URL
+            try {
+                const apiModule = await import('./api');
+                const { api } = apiModule;
+                
+                await api.post('/fcm/token', tokenData);
+                console.log('✅ [FCM] Token successfully sent to backend');
+            } catch (apiError: any) {
+                // Fallback на fetch если api не работает
+                const authToken = await this.getAuthToken();
+                const headers: Record<string, string> = {
+                    'Content-Type': 'application/json',
+                };
+                
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
 
-            if (response.ok) {
-                console.log('FCM: Token successfully sent to backend');
-            } else {
-                const errorText = await response.text().catch(() => 'Unknown error');
-                console.error('FCM: Failed to send token to backend:', response.status, errorText);
+                const response = await fetch('/api/fcm/token', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(tokenData),
+                });
+
+                if (response.ok) {
+                    console.log('✅ [FCM] Token successfully sent to backend (via fetch)');
+                } else {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    console.error('❌ [FCM] Failed to send token:', response.status, errorText);
+                }
             }
+
         } catch (error) {
-            console.error('FCM: Error sending token to backend:', error);
+            console.error('❌ [FCM] Error sending token to backend:', error);
         }
     }
 
@@ -237,6 +367,17 @@ class FCMService {
      */
     getCurrentToken(): string | null {
         return this.currentToken;
+    }
+
+    /**
+     * Request notification permission and get token (public method)
+     */
+    async requestPermissionAndGetToken(): Promise<string | null> {
+        const permission = await this.requestNotificationPermission();
+        if (permission === 'granted') {
+            return this.currentToken;
+        }
+        return null;
     }
 
     /**
