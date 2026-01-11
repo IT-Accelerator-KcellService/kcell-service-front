@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Bell, BellOff } from "lucide-react"
 import { fcmService } from "@/lib/fcm"
@@ -9,17 +9,34 @@ export function NotificationPermissionRequest() {
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isRequesting, setIsRequesting] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const permissionRef = useRef<NotificationPermission>('default')
 
   useEffect(() => {
     setMounted(true)
     if (typeof window !== 'undefined' && 'Notification' in window) {
       const currentPermission = Notification.permission
       setPermission(currentPermission)
+      permissionRef.current = currentPermission
       console.log('🔔 [NotificationPermissionRequest] Mounted, permission:', currentPermission)
+      
+      // Периодически проверяем изменение разрешения (для случаев, когда разрешение дается автоматически)
+      // Это особенно важно для Android и ноутбуков, где разрешение может быть дано автоматически
+      const checkPermissionInterval = setInterval(() => {
+        const newPermission = Notification.permission
+        if (newPermission !== permissionRef.current) {
+          console.log('🔔 [NotificationPermissionRequest] Permission changed:', permissionRef.current, '->', newPermission)
+          permissionRef.current = newPermission
+          setPermission(newPermission)
+        }
+      }, 1000) // Проверяем каждую секунду
+      
+      return () => {
+        clearInterval(checkPermissionInterval)
+      }
     } else {
       console.log('⚠️ [NotificationPermissionRequest] Notifications not supported')
     }
-  }, [])
+  }, []) // Убрали зависимость permission, чтобы избежать бесконечного цикла
 
   const handleRequestPermission = async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -46,6 +63,9 @@ export function NotificationPermissionRequest() {
       }
     } catch (error) {
       console.error('❌ Ошибка при запросе разрешения:', error)
+      // Обновляем статус разрешения даже при ошибке (на случай, если разрешение было дано автоматически)
+      const currentPermission: NotificationPermission = Notification.permission
+      setPermission(currentPermission)
     } finally {
       setIsRequesting(false)
     }
