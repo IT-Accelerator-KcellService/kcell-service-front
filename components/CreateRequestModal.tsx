@@ -914,7 +914,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               <div
                 key={block}
                 onClick={() => setSelectedBlock(block)}
-                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
+                className={`px-2.5 py-2 sm:px-3 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[16px] border-2 inline-flex items-center justify-center ${
                   selectedBlock === block
                     ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
                     : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
@@ -938,7 +938,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <div
                   key={location}
                   onClick={() => setSelectedLocation(location)}
-                  className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
+                  className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
                     selectedLocation === location
                       ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
                       : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
@@ -949,7 +949,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               ))}
               <div
                 onClick={() => setSelectedLocation("Другое")}
-                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
+                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
                   selectedLocation === "Другое"
                     ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
                     : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
@@ -988,18 +988,18 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     <div
                       key={room}
                       onClick={() => setSelectedRoom(room)}
-                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
+                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
                         selectedRoom === room
                           ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
                           : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
                       }`}
                     >
-                      {room}
+                            {room}
                     </div>
                   ))}
                   <div
                     onClick={() => setSelectedRoom("Другое")}
-                    className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
+                    className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
                       selectedRoom === "Другое"
                         ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
                         : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
@@ -1074,7 +1074,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   setRequestType(type.value);
                   setIsRecurringTask(type.value === 'recurring');
                 }}
-                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
+                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
                   requestType === type.value
                     ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
                     : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
@@ -1215,7 +1215,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   };
                   setSubRequests(newSubRequests);
                 }}
-                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
+                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
                   subRequest.category_id === category.id
                     ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
                     : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
@@ -1247,7 +1247,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     };
                     setSubRequests(newSubRequests);
                   }}
-                  className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
+                  className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
                     subRequest.title === subcategory.name
                       ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
                       : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
@@ -1797,7 +1797,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                >
                  <ArrowLeft className="w-3.5 h-3.5" style={{ color: '#6E6E6E' }} />
                  <span>Назад</span>
-               </Button>
+            </Button>
             <Button
               variant="outline"
               onClick={(e) => {
