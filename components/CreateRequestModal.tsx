@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Camera, MapPin, Plus, Trash2, ChevronUp, ChevronDown, Loader2, Calendar as CalendarLucid, CheckCircle, AlertTriangle, ArrowLeft, FileSpreadsheet } from "lucide-react";
+import { Camera, MapPin, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, Loader2, Calendar as CalendarLucid, CheckCircle, AlertTriangle, ArrowLeft, ArrowRight, FileSpreadsheet } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ImportExcelModal } from "./ImportExcelModal";
@@ -127,6 +127,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [customLocation, setCustomLocation] = useState<string>("");
   const [customRoom, setCustomRoom] = useState<string>("");
 
+  // Состояние для управления шагами
+  const [currentStep, setCurrentStep] = useState(1);
+
   // Состояния для повторяющихся задач
   const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
@@ -139,6 +142,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasTriedLocationRef = useRef(false);
 
   // Сброс формы при закрытии
   useEffect(() => {
@@ -216,6 +220,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setRecurrenceInterval(1);
     setRecurrenceStartDate(new Date());
     setIsGettingLocation(false);
+    setCurrentStep(1);
   };
 
   const handleButtonClick = () => {
@@ -403,8 +408,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   }, [requestType, selectedBlock, selectedLocation, selectedRoom, customLocation, customRoom, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit, offices]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !hasTriedLocationRef.current) {
+      hasTriedLocationRef.current = true;
       handleGetLocation();
+    }
+    if (!isOpen) {
+      hasTriedLocationRef.current = false;
     }
   }, [isOpen]);
 
@@ -711,345 +720,376 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     await onSubmit(formData);
   };
 
-  if (!isOpen) return null;
+  // Функции для валидации шагов
+  const validateStep1 = (): boolean => {
+    return selectedOfficeId !== null;
+  };
+
+  const validateStep2 = (): boolean => {
+    if (!selectedBlock) return false;
+    const currentOffice = offices.find(o => o.id === selectedOfficeId);
+    if (!currentOffice) return false;
+    
+    const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
+    if (hasLocations) {
+      if (!selectedLocation || selectedLocation === "") return false;
+      if (selectedLocation === "Другое" && !customLocation.trim()) return false;
+    }
+    
+    const hasRooms = hasRoomsForLocation(
+      currentOffice.name,
+      selectedBlock,
+      selectedLocation === "Другое" ? "" : selectedLocation
+    );
+    if (hasRooms) {
+      if (!selectedRoom || selectedRoom === "") return false;
+      if (selectedRoom === "Другое" && !customRoom.trim()) return false;
+    } else if (selectedLocation !== "Другое" && selectedLocation !== "") {
+      if (!customRoom.trim()) return false;
+    }
+    
+    return true;
+  };
+
+  const validateStep3 = (): boolean => {
+    if (!requestType) return false;
+    const subRequest = subRequests[0];
+    if (!subRequest.title.trim() || !subRequest.category_id || subRequest.category_id === 0) {
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep4 = (): boolean => {
+    if (photos.length === 0) return false;
+    const subRequest = subRequests[0];
+    if (!subRequest.description.trim()) return false;
+    return true;
+  };
+
+  // Функции для навигации
+  const handleNext = () => {
+    if (currentStep === 1 && !validateStep1()) {
+      setHasAttemptedSubmit(true);
+      return;
+    }
+    if (currentStep === 2 && !validateStep2()) {
+      setHasAttemptedSubmit(true);
+      return;
+    }
+    if (currentStep === 3 && !validateStep3()) {
+      setHasAttemptedSubmit(true);
+      return;
+    }
+    if (currentStep < 4) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Рендер шага 1: Выбор офиса
+  const renderStep1 = () => {
+    const currentOffice = offices.find(o => o.id === selectedOfficeId);
 
   return (
-    <div
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${
-        isFullScreen ? 'p-0' : 'p-4'
-      }`}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
-        resetForm();
-      }}
-    >
-      <Card className={`w-full overflow-y-auto ${
-        isFullScreen 
-          ? 'max-w-none max-h-none h-full rounded-none' 
-          : 'max-w-4xl max-h-[90vh]'
-      }`} onClick={(e) => e.stopPropagation()}>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {isFullScreen && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onClose();
-                    resetForm();
-                  }}
-                  className="p-2 hover:bg-gray-100"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </Button>
-              )}
-              <div>
-                <CardTitle>Создать заявку</CardTitle>
-                <CardDescription>Заполните форму для подачи новой заявки</CardDescription>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5 pb-16 px-6">
-          {/* Выбор режима создания для executor */}
-          {userRole === 'executor' && onModeChange && (
-            <div>
-              <Label className="flex items-center gap-1 mb-3">
-                Режим создания
-              </Label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  type="button"
-                  variant={createMode === 'create' ? 'default' : 'outline'}
-                  onClick={() => onModeChange('create')}
-                  className="flex-1 text-sm sm:text-base"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Создать заявку</span>
-                  <span className="sm:hidden">Обычная</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant={createMode === 'createAndComplete' ? 'default' : 'outline'}
-                  onClick={() => onModeChange('createAndComplete')}
-                  className="flex-1 text-sm sm:text-base"
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Создать с завершением</span>
-                  <span className="sm:hidden">С завершением</span>
-                </Button>
-              </div>
-              {createMode === 'createAndComplete' && (
-                <p className="text-xs text-gray-600 mt-2">
-                  Создайте заявку для уже выполненной работы с отчетом и фотографиями результата
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Выбор офиса для всех ролей */}
-          {offices.length > 0 && (
-            <div>
-              <Label className="flex items-center gap-1 mb-2">
-                Офис
-              </Label>
-              <Select
-                value={selectedOfficeId?.toString() || ""}
-                onValueChange={(value) => setSelectedOfficeId(parseInt(value))}
+      <div className="space-y-4 sm:space-y-6">
+        <div>
+          <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Выбрать офис</Label>
+          
+          {/* Маленькие кнопки-теги для быстрого выбора */}
+          <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4 sm:mb-5">
+            {offices.map((office) => (
+              <button
+                key={office.id}
+                type="button"
+                onClick={() => setSelectedOfficeId(office.id)}
+                className={`px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                  selectedOfficeId === office.id
+                    ? 'bg-[#F35713] text-white shadow-md'
+                    : 'bg-[#1E1E1E] text-white hover:bg-[#2A2A2A]'
+                }`}
               >
-                <SelectTrigger className={hasAttemptedSubmit && !selectedOfficeId ? 'border-red-300 focus:border-red-500' : ''}>
-                  <SelectValue placeholder="Выберите офис" />
-                </SelectTrigger>
-                <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                  {offices.map((office) => (
-                    <SelectItem key={office.id} value={office.id.toString()}>
-                      {office.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {hasAttemptedSubmit && !selectedOfficeId && (
-                <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-              )}
+                {office.name}
+              </button>
+            ))}
+          </div>
 
-                             <Button
-                   variant="outline"
-                   className="whitespace-nowrap mt-4"
-                   onClick={handleGetLocation}
-                   disabled={isGettingLocation}
-               >
-                 {isGettingLocation ? (
-                     <>
-                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#114A65] mr-2"></div>
-                       Определение...
-                     </>
-                 ) : (
-                     <>
-                       <MapPin className="w-4 h-4 mr-2" />
-                       Определить ближайший офис
-                     </>
-                 )}
-               </Button>
+          {/* Большие карточки офисов с изображениями */}
+          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 sm:gap-2">
+            {offices.map((office) => (
+              <div
+                key={office.id}
+                onClick={() => setSelectedOfficeId(office.id)}
+                className={`relative flex flex-col rounded-[10px] cursor-pointer transition-all overflow-hidden ${
+                  selectedOfficeId === office.id
+                    ? 'bg-[#212121] shadow-[0px_4px_4px_0px_rgba(243,87,19,0.25),inset_0px_2px_4px_0px_rgba(243,87,19,1),inset_0px_-2px_4px_0px_rgba(243,87,19,0.2)]'
+                    : 'bg-[#212121] shadow-[0px_4px_4px_0px_rgba(0,0,0,0.25),inset_0px_2px_4px_0px_rgba(255,255,255,0.4),inset_0px_-2px_4px_0px_rgba(0,0,0,0.2)] hover:shadow-lg'
+                }`}
+                style={{ aspectRatio: '108/134' }}
+              >
+                {/* Изображение офиса */}
+                <div className="w-full flex-[3] bg-gray-700 rounded-t-[10px] overflow-hidden flex-shrink-0">
+                  {office.photo ? (
+                    <img
+                      src={office.photo}
+                      alt={office.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#114A65] to-[#B8400E] flex items-center justify-center">
+                      <MapPin className="w-6 h-6 sm:w-8 sm:h-8 text-white opacity-50" />
+                    </div>
+                  )}
+              </div>
+                
+                {/* Информация об офисе */}
+                <div className="flex flex-col items-center p-2 sm:p-2.5 gap-1 flex-[1] flex-shrink-0">
+                  <div className={`text-[8px] sm:text-[10px] font-medium text-center ${
+                    selectedOfficeId === office.id ? 'text-white' : 'text-white'
+                  }`}>
+                    {office.name}
+            </div>
+                  <div className="flex flex-col items-center gap-0.5 w-full">
+                    {office.city && (
+                      <div className="text-[8px] sm:text-[10px] text-[#737373] text-center">
+                        {office.city}
+          </div>
+                    )}
+                    {office.address && (
+                      <div className="text-[8px] sm:text-[10px] text-[#737373] text-center line-clamp-2">
+                        {office.address}
             </div>
           )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
-          {/* Блок, Местонахождение, Помещение */}
-          <div className="space-y-4">
+              {hasAttemptedSubmit && !selectedOfficeId && (
+            <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите офис</p>
+          )}
+          {isGettingLocation && (
+            <div className="flex items-center justify-center mt-4 text-sm text-gray-600">
+                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#114A65] mr-2"></div>
+              Определение ближайшего офиса...
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Рендер шага 2: Блок, местонахождение, помещение
+  const renderStep2 = () => {
+    const currentOffice = offices.find(o => o.id === selectedOfficeId);
+    if (!currentOffice) return null;
+    
+    const blocks = getBlocksForOffice(currentOffice.name);
+    const hasLocations = selectedBlock ? hasLocationsForBlock(currentOffice.name, selectedBlock) : false;
+    const locations = hasLocations && selectedBlock ? getLocationsForBlock(currentOffice.name, selectedBlock) : [];
+    const hasRooms = selectedBlock && selectedLocation ? hasRoomsForLocation(
+      currentOffice.name,
+      selectedBlock,
+      selectedLocation === "Другое" ? "" : selectedLocation
+    ) : false;
+    const rooms = hasRooms && selectedBlock && selectedLocation ? getRoomsForLocation(
+      currentOffice.name,
+      selectedBlock,
+      selectedLocation === "Другое" ? "" : selectedLocation
+    ) : [];
+
+    return (
+      <div className="space-y-6">
             {/* Блок */}
             <div>
-              <Label className="flex items-center gap-1 mb-2">
-                Блок
-              </Label>
-              <Select
-                value={selectedBlock}
-                onValueChange={(value) => setSelectedBlock(value)}
-                disabled={!selectedOfficeId}
+          <Label className="text-lg font-semibold mb-4 block">Выбрать блок</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {blocks.map((block) => (
+              <div
+                key={block}
+                onClick={() => setSelectedBlock(block)}
+                className={`p-4 border-2 rounded-lg cursor-pointer transition-all text-center font-semibold ${
+                  selectedBlock === block
+                    ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
+                    : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                }`}
               >
-                <SelectTrigger 
-                  className={hasAttemptedSubmit && basicFieldErrors.has('block') ? 'border-red-300 focus:border-red-500' : ''}
-                >
-                  <SelectValue placeholder={selectedOfficeId ? "Выберите блок" : "Сначала выберите офис"} />
-                </SelectTrigger>
-                <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                  {selectedOfficeId && (() => {
-                    const currentOffice = offices.find(o => o.id === selectedOfficeId);
-                    if (currentOffice) {
-                      const blocks = getBlocksForOffice(currentOffice.name);
-                      return blocks.map((block) => (
-                        <SelectItem key={block} value={block}>
                           {block}
-                        </SelectItem>
-                      ));
-                    }
-                    return null;
-                  })()}
-                </SelectContent>
-              </Select>
-              {hasAttemptedSubmit && basicFieldErrors.has('block') && (
-                <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+              </div>
+            ))}
+          </div>
+          {hasAttemptedSubmit && !selectedBlock && (
+            <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите блок</p>
               )}
             </div>
 
             {/* Местонахождение */}
-            {selectedBlock && (() => {
-              const currentOffice = offices.find(o => o.id === selectedOfficeId);
-              if (!currentOffice) return null;
-              
-              const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
-              const locations = hasLocations ? getLocationsForBlock(currentOffice.name, selectedBlock) : [];
-              
-              if (hasLocations && locations.length > 0) {
-                // Показываем селект если есть местонахождения в справочнике
-                return (
+        {selectedBlock && hasLocations && locations.length > 0 && (
                   <div>
-                    <Label className="flex items-center gap-1 mb-2">
-                      Местонахождение
-                    </Label>
-                    <Select
-                      value={selectedLocation}
-                      onValueChange={(value) => setSelectedLocation(value)}
-                    >
-                      <SelectTrigger 
-                        className={hasAttemptedSubmit && basicFieldErrors.has('location') ? 'border-red-300 focus:border-red-500' : ''}
-                      >
-                        <SelectValue placeholder="Выберите местонахождение" />
-                      </SelectTrigger>
-                      <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
+            <Label className="text-lg font-semibold mb-4 block">Местонахождение</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {locations.map((location) => (
-                          <SelectItem key={location} value={location}>
+                <div
+                  key={location}
+                  onClick={() => setSelectedLocation(location)}
+                  className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    selectedLocation === location
+                      ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
+                      : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                  }`}
+                >
                             {location}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="Другое">Другое</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {hasAttemptedSubmit && basicFieldErrors.has('location') && (
-                      <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                    )}
-                    
+                </div>
+              ))}
+              <div
+                onClick={() => setSelectedLocation("Другое")}
+                className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                  selectedLocation === "Другое"
+                    ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
+                    : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                }`}
+              >
+                Другое
+              </div>
+            </div>
                     {selectedLocation === "Другое" && (
-                      <div className="mt-2">
+              <div className="mt-3">
                         <Input
                           placeholder="Введите местонахождение"
                           value={customLocation}
                           onChange={(e) => setCustomLocation(e.target.value)}
-                          className={hasAttemptedSubmit && basicFieldErrors.has('customLocation') ? 'border-red-300 focus:border-red-500' : ''}
+                  className={hasAttemptedSubmit && !customLocation.trim() ? 'border-red-300 focus:border-red-500' : ''}
                         />
-                        {hasAttemptedSubmit && basicFieldErrors.has('customLocation') && (
+                {hasAttemptedSubmit && !customLocation.trim() && (
                           <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
                         )}
                       </div>
                     )}
+            {hasAttemptedSubmit && (!selectedLocation || selectedLocation === "") && (
+              <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите местонахождение</p>
+                    )}
                   </div>
-                );
-              } else {
-                // Если местонахождений нет в справочнике, сразу переходим к помещению
-                return null;
-              }
-            })()}
+        )}
 
             {/* Помещение */}
-            {selectedBlock && (() => {
-              const currentOffice = offices.find(o => o.id === selectedOfficeId);
-              if (!currentOffice) return null;
-              
-              // Проверяем, нужно ли показывать поле помещения
-              const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
-              const shouldShowRoom = !hasLocations || (hasLocations && selectedLocation !== "");
-              
-              if (!shouldShowRoom) return null;
-
-              const hasRooms = hasRoomsForLocation(
-                currentOffice.name,
-                selectedBlock, 
-                selectedLocation === "Другое" ? "" : selectedLocation
-              );
-
-              if (hasRooms) {
-                const rooms = getRoomsForLocation(
-                  currentOffice.name,
-                  selectedBlock, 
-                  selectedLocation === "Другое" ? "" : selectedLocation
-                );
-
-                return (
+        {selectedBlock && (hasLocations ? selectedLocation : true) && (
                   <div>
-                    <Label className="flex items-center gap-1 mb-2">
-                      Помещение
-                    </Label>
-                    <Select
-                      value={selectedRoom}
-                      onValueChange={(value) => setSelectedRoom(value)}
-                    >
-                      <SelectTrigger 
-                        className={hasAttemptedSubmit && basicFieldErrors.has('room') ? 'border-red-300 focus:border-red-500' : ''}
-                      >
-                        <SelectValue placeholder="Выберите помещение" />
-                      </SelectTrigger>
-                      <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
+            <Label className="text-lg font-semibold mb-4 block">Помещение</Label>
+            {hasRooms && rooms.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {rooms.map((room) => (
-                          <SelectItem key={room} value={room}>
+                    <div
+                      key={room}
+                      onClick={() => setSelectedRoom(room)}
+                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                        selectedRoom === room
+                          ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
+                          : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                      }`}
+                    >
                             {room}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="Другое">Другое</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {hasAttemptedSubmit && basicFieldErrors.has('room') && (
-                      <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                    )}
-                    
+                    </div>
+                  ))}
+                  <div
+                    onClick={() => setSelectedRoom("Другое")}
+                    className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                      selectedRoom === "Другое"
+                        ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
+                        : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                    }`}
+                  >
+                    Другое
+                  </div>
+                </div>
                     {selectedRoom === "Другое" && (
-                      <div className="mt-2">
+                  <div className="mt-3">
                         <Input
                           placeholder="Введите помещение"
                           value={customRoom}
                           onChange={(e) => setCustomRoom(e.target.value)}
-                          className={hasAttemptedSubmit && basicFieldErrors.has('customRoom') ? 'border-red-300 focus:border-red-500' : ''}
+                      className={hasAttemptedSubmit && !customRoom.trim() ? 'border-red-300 focus:border-red-500' : ''}
                         />
-                        {hasAttemptedSubmit && basicFieldErrors.has('customRoom') && (
+                    {hasAttemptedSubmit && !customRoom.trim() && (
                           <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
                         )}
                       </div>
                     )}
-                  </div>
-                );
-              } else if (selectedLocation !== "Другое") {
-                // Если местонахождение выбрано (не "Другое"), но помещений нет в справочнике
-                return (
+              </>
+            ) : (
                   <div>
-                    <Label className="flex items-center gap-1 mb-2">
-                      Помещение *
-                    </Label>
                     <Input
                       placeholder="Введите помещение"
                       value={customRoom}
                       onChange={(e) => setCustomRoom(e.target.value)}
-                      className={hasAttemptedSubmit && basicFieldErrors.has('customRoom') ? 'border-red-300 focus:border-red-500' : ''}
+                  className={hasAttemptedSubmit && !customRoom.trim() ? 'border-red-300 focus:border-red-500' : ''}
                     />
-                    {hasAttemptedSubmit && basicFieldErrors.has('customRoom') && (
+                {hasAttemptedSubmit && !customRoom.trim() && (
                       <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                )}
+              </div>
+            )}
+            {hasAttemptedSubmit && hasRooms && (!selectedRoom || selectedRoom === "") && (
+              <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите помещение</p>
+            )}
+          </div>
                     )}
                   </div>
                 );
-              }
-              
-              return null;
-            })()}
-          </div>
+  };
 
+  // Рендер шага 3: Тип заявки, категория, название
+  const renderStep3 = () => {
+    const subRequest = subRequests[0];
+    const selectedCategory = categories.find(c => c.id === subRequest.category_id);
+    
+    const requestTypes = [
+      { value: "normal", label: "Обычная" },
+      { value: "urgent", label: "Экстренная" },
+    ];
+    
+    if (userRole === 'admin-worker' || userRole === 'department-head') {
+      requestTypes.push({ value: "planned", label: "Плановая" });
+    }
+    if (userRole === 'admin-worker') {
+      requestTypes.push({ value: "recurring", label: "Повторяющаяся задача" });
+    }
+
+    return (
+      <div className="space-y-6">
+        {/* Тип заявки */}
           <div>
-            <Label className="flex items-center gap-1 mb-2">
-              Тип заявки
-            </Label>
-            <Select value={requestType} onValueChange={(value) => {
-              setRequestType(value);
-              setIsRecurringTask(value === 'recurring');
-            }}>
-              <SelectTrigger className={hasAttemptedSubmit && basicFieldErrors.has('requestType') ? 'border-red-300 focus:border-red-500' : ''}>
-                <SelectValue placeholder="Выберите тип заявки" />
-              </SelectTrigger>
-              <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                <SelectItem value="normal">Обычная</SelectItem>
-                <SelectItem value="urgent">Экстренная</SelectItem>
-                {(userRole === 'admin-worker' || userRole === 'department-head') && (
-                  <SelectItem value="planned">Плановая</SelectItem>
-                )}
-                {(userRole === 'admin-worker') && (
-                  <SelectItem value="recurring">Повторяющаяся задача</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-            {hasAttemptedSubmit && basicFieldErrors.has('requestType') && (
-              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+          <Label className="text-lg font-semibold mb-4 block">Тип заявки</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {requestTypes.map((type) => (
+              <div
+                key={type.value}
+                onClick={() => {
+                  setRequestType(type.value);
+                  setIsRecurringTask(type.value === 'recurring');
+                }}
+                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  requestType === type.value
+                    ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
+                    : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                }`}
+              >
+                <div className="font-semibold">{type.label}</div>
+              </div>
+            ))}
+          </div>
+          {hasAttemptedSubmit && !requestType && (
+            <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите тип заявки</p>
             )}
           </div>
 
+        {/* Планируемая дата для плановых заявок */}
           {requestType === "planned" && (userRole === 'admin-worker' || userRole === 'department-head') && (
               <div>
                 <Label className="mb-2">Планируемая дата</Label>
@@ -1155,29 +1195,100 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   </PopoverContent>
                 </Popover>
               </div>
+          </div>
+        )}
 
-              <div className="text-sm text-blue-700 bg-blue-100 p-3 rounded-md">
-                <p><strong>Пример:</strong></p>
-                {recurrenceType === 'daily' && (
-                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'день' : 'дней'}</p>
-                )}
-                {recurrenceType === 'weekly' && (
-                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'неделю' : 'недель'}</p>
-                )}
-                {recurrenceType === 'monthly' && (
-                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'месяц' : 'месяцев'}</p>
-                )}
-                {recurrenceType === 'yearly' && (
-                  <p>Задача будет выполняться каждые {recurrenceInterval} {recurrenceInterval === 1 ? 'год' : 'лет'}</p>
+        {/* Категория */}
+        <div>
+          <Label className="text-lg font-semibold mb-4 block">Категория заявки</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {categories.map((category) => (
+              <div
+                key={category.id}
+                onClick={() => {
+                  const newSubRequests = [...subRequests];
+                  newSubRequests[0] = {
+                    ...newSubRequests[0],
+                    category_id: category.id,
+                    subcategory_id: 0,
+                    title: ''
+                  };
+                  setSubRequests(newSubRequests);
+                }}
+                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  subRequest.category_id === category.id
+                    ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
+                    : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                }`}
+              >
+                <div className="font-semibold">{category.name}</div>
+              </div>
+            ))}
+          </div>
+          {hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) && (
+            <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите категорию</p>
+          )}
+        </div>
+
+        {/* Название заявки (подкатегория) */}
+        {subRequest.category_id > 0 && selectedCategory?.subcategories && selectedCategory.subcategories.length > 0 && (
+          <div>
+            <Label className="text-lg font-semibold mb-4 block">Название заявки</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {selectedCategory.subcategories.map((subcategory) => (
+                <div
+                  key={subcategory.id}
+                  onClick={() => {
+                    const newSubRequests = [...subRequests];
+                    newSubRequests[0] = {
+                      ...newSubRequests[0],
+                      title: subcategory.name,
+                      subcategory_id: subcategory.id
+                    };
+                    setSubRequests(newSubRequests);
+                  }}
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    subRequest.title === subcategory.name
+                      ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
+                      : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="font-semibold">{subcategory.name}</div>
+                </div>
+              ))}
+            </div>
+            {hasAttemptedSubmit && !subRequest.title.trim() && (
+              <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите название заявки</p>
+            )}
+          </div>
                 )}
               </div>
-            </div>
-          )}
+    );
+  };
 
+  // Рендер шага 4: Описание и фото
+  const renderStep4 = () => {
+    const subRequest = subRequests[0];
+    
+    return (
+      <div className="space-y-6">
+        {/* Описание */}
+        <div>
+          <Label className="text-lg font-semibold mb-4 block">Описание заявки</Label>
+          <Textarea
+            placeholder="Опишите заявку подробно..."
+            className={`min-h-[150px] ${hasAttemptedSubmit && !subRequest.description.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+            value={subRequest.description}
+            onChange={(e) => updateSubRequest(0, 'description', e.target.value)}
+          />
+          {hasAttemptedSubmit && !subRequest.description.trim() && (
+            <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+          )}
+        </div>
+
+        {/* Фотографии */}
           <div>
-            <Label className="flex items-center gap-1 mb-2">
-              Фотографии (до 3 шт.)
-            </Label>
+          <Label className="text-lg font-semibold mb-4 block">Фотографии (до 3 шт.)</Label>
             <div className={`flex flex-wrap gap-4 ${
               hasAttemptedSubmit && basicFieldErrors.has('photos') ? 'border-2 border-red-300 border-dashed rounded-lg p-4' : ''
             }`}>
@@ -1316,140 +1427,72 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </>
           )}
 
-            {/* Под заявки - теперь только один */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              {/* Кнопка добавления подзаявки отключена - теперь только один подзаявка */}
-              {/* Кнопка импорта Excel для admin-worker и department-head */}
+        {/* Дополнительные поля для admin-worker и department-head */}
               {(userRole === 'admin-worker' || userRole === 'department-head') && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsImportModalOpen(true)}
-                  className="flex items-center gap-2"
-                >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  <span className="hidden sm:inline">Импорт Excel</span>
-                  <span className="sm:hidden">Excel</span>
-                </Button>
-              )}
-            </div>
-
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              {subRequests.map((subRequest, index) => (
-                <div key={index}>
-                                        {/* Содержимое подзаявки */}
-                    <div>
-                      <div className="space-y-5">
-
-                        <div>
-                          <Label htmlFor={`subRequestCategory-${index}`} className="flex items-center gap-1 mb-2">
-                            Категория заявки
+                <Label htmlFor="subRequestComplexity-0" className="flex items-center gap-1 mb-2">
+                  Сложность
                           </Label>
                           <Select
-                              value={categories.find(c => c.id === subRequest.category_id)?.name || ''}
-                              onValueChange={(value) => {
-                                const category = categories.find(c => c.name === value);
-
-                                // Обновляем все поля за один раз
-                                const newSubRequests = [...subRequests];
-                                newSubRequests[index] = {
-                                  ...newSubRequests[index],
-                                  category_id: category?.id || 0,
-                                  subcategory_id: 0,
-                                  title: ''
-                                };
-                                setSubRequests(newSubRequests);
-                              }}
+                  value={subRequest.complexity || ''}
+                  onValueChange={(value: 'simple' | 'medium' | 'complex') =>
+                    updateSubRequest(0, 'complexity', value)
+                  }
                           >
                             <SelectTrigger
-                                id={`subRequestCategory-${index}`}
-                                className={hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) ? 'border-red-300 focus:border-red-500' : ''}
+                    id="subRequestComplexity-0"
+                    className={hasAttemptedSubmit && !subRequest.complexity ? 'border-red-300 focus:border-red-500' : ''}
                             >
-                              <SelectValue placeholder="Выберите категорию" />
+                    <SelectValue placeholder="Выберите сложность" />
                             </SelectTrigger>
                             <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                              {categories.map(category => (
-                                  <SelectItem key={category.id} value={category.name}>
-                                    {category.name}
-                                  </SelectItem>
-                              ))}
+                    <SelectItem value="simple">Простая</SelectItem>
+                    <SelectItem value="medium">Средняя</SelectItem>
+                    <SelectItem value="complex">Сложная</SelectItem>
                             </SelectContent>
                           </Select>
-                          {hasAttemptedSubmit && (!subRequest.category_id || subRequest.category_id === 0) && (
-                              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                          )}
-                        </div>
-
-
-                        <div>
-                          <Label htmlFor={`subRequestTitle-${index}`} className="flex items-center gap-1 mb-2">
-                            Название заявки
-                          </Label>
-                          <Select
-                              value={(() => {
-                                const category = categories.find(c => c.id === subRequest.category_id);
-                                const subcategory = category?.subcategories?.find(s => s.name === subRequest.title);
-                                return subcategory?.name || subRequest.title || '';
-                              })()}
-                              onValueChange={(value) => {
-                                // Обновляем все поля за один раз
-                                const category = categories.find(c => c.id === subRequest.category_id);
-                                const subcategory = category?.subcategories?.find(s => s.name === value);
-
-                                const newSubRequests = [...subRequests];
-                                newSubRequests[index] = {
-                                  ...newSubRequests[index],
-                                  title: value,
-                                  subcategory_id: subcategory?.id || 0
-                                };
-                                setSubRequests(newSubRequests);
-                              }}
-                          >
-                            <SelectTrigger
-                                id={`subRequestTitle-${index}`}
-                                className={hasAttemptedSubmit && !subRequest.title.trim() ? 'border-red-300 focus:border-red-500' : ''}
-                            >
-                              <SelectValue placeholder="Выберите название заявки" />
-                            </SelectTrigger>
-                            <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                              {(() => {
-                                const category = categories.find(c => c.id === subRequest.category_id);
-                                return category?.subcategories?.map(subcategory => (
-                                    <SelectItem key={subcategory.id} value={subcategory.name}>
-                                      {subcategory.name}
-                                    </SelectItem>
-                                )) || [];
-                              })()}
-                            </SelectContent>
-                          </Select>
-                          {hasAttemptedSubmit && !subRequest.title.trim() && (
+                {hasAttemptedSubmit && !subRequest.complexity && (
                               <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
                           )}
                         </div>
 
                         <div>
-                          <Label htmlFor={`subRequestDescription-${index}`} className="flex items-center gap-1 mb-2">
-                            Описание заявки
+                <Label htmlFor="subRequestSLA-0" className="flex items-center gap-1 mb-2">
+                  Время выполнения
                           </Label>
-                          <Textarea
-                            id={`subRequestDescription-${index}`}
-                            placeholder="Опишите заявку подробно..."
-                            className={`min-h-[100px] ${hasAttemptedSubmit && !subRequest.description.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
-                            value={subRequest.description}
-                            onChange={(e) => updateSubRequest(index, 'description', e.target.value)}
-                          />
-                          {hasAttemptedSubmit && !subRequest.description.trim() && (
-                            <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
+                          <Select
+                  value={subRequest.sla || ''}
+                  onValueChange={(value: string) => updateSubRequest(0, 'sla', value)}
+                          >
+                            <SelectTrigger
+                    id="subRequestSLA-0"
+                    className={hasAttemptedSubmit && !subRequest.sla ? 'border-red-300 focus:border-red-500' : ''}
+                            >
+                    <SelectValue placeholder="Выберите время выполнения" />
+                            </SelectTrigger>
+                            <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                    <SelectItem value="1h">1 час</SelectItem>
+                    <SelectItem value="4h">4 часа</SelectItem>
+                    <SelectItem value="8h">8 часов</SelectItem>
+                    <SelectItem value="1d">1 день</SelectItem>
+                    <SelectItem value="3d">3 дня</SelectItem>
+                    <SelectItem value="1w">1 неделя</SelectItem>
+                            </SelectContent>
+                          </Select>
+                {hasAttemptedSubmit && !subRequest.sla && (
+                              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
                           )}
                         </div>
+                        </div>
+          </div>
+        )}
 
                         {/* Выбор исполнителей для department-head */}
                         {userRole === 'department-head' && userServiceCategoryId &&
                          subRequest.category_id === userServiceCategoryId && executors.length > 0 && (
                           <div className="space-y-4">
-                            {/* Выбор исполнителей через Select */}
                             <div className="space-y-3">
                               <div>
                                 <Label className="text-sm font-medium mb-2">Добавить исполнителя (необязательно)</Label>
@@ -1462,9 +1505,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                       const executor = executors.find(e => e.id === executorId);
 
                                       if (executor && !currentExecutors.some(e => e.id === executorId)) {
-                                        // Добавляем исполнителя как обычного исполнителя
                                         const newExecutors = [...currentExecutors, { id: executorId, role: 'executor' as const }];
-                                        updateSubRequestExecutors(index, newExecutors);
+                        updateSubRequestExecutors(0, newExecutors);
                                       }
                                     }
                                   }}
@@ -1489,7 +1531,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                 </Select>
                               </div>
 
-                              {/* Список выбранных исполнителей */}
                               {subRequest.executors && subRequest.executors.length > 0 && (
                                 <div className="space-y-2">
                                   <Label className="text-sm font-medium mb-2">Выбранные исполнители:</Label>
@@ -1533,7 +1574,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                                   ? { ...e, role }
                                                   : e
                                               );
-                                              updateSubRequestExecutors(index, updatedExecutors);
+                              updateSubRequestExecutors(0, updatedExecutors);
                                             }}
                                           >
                                             <SelectTrigger className="w-28 h-8 text-xs">
@@ -1552,7 +1593,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                             onClick={() => {
                                               const currentExecutors = subRequest.executors || [];
                                               updateSubRequestExecutors(
-                                                index,
+                                0,
                                                 currentExecutors.filter(e => e.id !== executorData.id)
                                               );
                                             }}
@@ -1567,134 +1608,171 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                 </div>
                               )}
                             </div>
-
-                            {/* Индикатор статуса */}
-                            {subRequest.executors && subRequest.executors.length > 0 && (
-                              <div className={`p-3 rounded-lg border ${
-                                subRequest.executors.some(e => e.role === 'leader')
-                                  ? 'bg-green-50 border-green-200' 
-                                  : 'bg-yellow-50 border-yellow-200'
-                              }`}>
-                                <div className="flex items-center gap-2 text-sm">
-                                  {subRequest.executors.some(e => e.role === 'leader') ? (
-                                    <>
-                                      <CheckCircle className="w-4 h-4 text-green-600" />
-                                      <span className="text-green-800">
-                                        Выбрано исполнителей: {subRequest.executors.length} (включая лидера)
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                                      <span className="text-yellow-800">
-                                        Выбрано исполнителей: {subRequest.executors.length}. Назначьте лидера!
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Дополнительные поля только для admin-worker and department-head */}
-                        {(userRole === 'admin-worker' || userRole === 'department-head') && (
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <Label htmlFor={`subRequestComplexity-${index}`} className="flex items-center gap-1 mb-2">
-                                  Сложность
-                                </Label>
-                                <Select
-                                  value={subRequest.complexity || ''}
-                                  onValueChange={(value: 'simple' | 'medium' | 'complex') =>
-                                    updateSubRequest(index, 'complexity', value)
-                                  }
-                                >
-                                  <SelectTrigger
-                                    id={`subRequestComplexity-${index}`}
-                                    className={hasAttemptedSubmit && !subRequest.complexity ? 'border-red-300 focus:border-red-500' : ''}
-                                  >
-                                    <SelectValue placeholder="Выберите сложность" />
-                                  </SelectTrigger>
-                                  <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                                    <SelectItem value="simple">Простая</SelectItem>
-                                    <SelectItem value="medium">Средняя</SelectItem>
-                                    <SelectItem value="complex">Сложная</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                {hasAttemptedSubmit && !subRequest.complexity && (
-                                  <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                                )}
-                              </div>
-
-                              <div>
-                                <Label htmlFor={`subRequestSLA-${index}`} className="flex items-center gap-1 mb-2">
-                                  Время выполнения
-                                </Label>
-                                <Select
-                                  value={subRequest.sla || ''}
-                                  onValueChange={(value: string) => updateSubRequest(index, 'sla', value)}
-                                >
-                                  <SelectTrigger
-                                    id={`subRequestSLA-${index}`}
-                                    className={hasAttemptedSubmit && !subRequest.sla ? 'border-red-300 focus:border-red-500' : ''}
-                                  >
-                                    <SelectValue placeholder="Выберите время выполнения" />
-                                  </SelectTrigger>
-                                  <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                                    <SelectItem value="1h">1 час</SelectItem>
-                                    <SelectItem value="4h">4 часа</SelectItem>
-                                    <SelectItem value="8h">8 часов</SelectItem>
-                                    <SelectItem value="1d">1 день</SelectItem>
-                                    <SelectItem value="3d">3 дня</SelectItem>
-                                    <SelectItem value="1w">1 неделя</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                {hasAttemptedSubmit && !subRequest.sla && (
-                                  <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Индикатор заполненности обязательных полей */}
-                            {hasAttemptedSubmit && (
-                              <div className={`p-3 rounded-lg border ${
-                                subRequest.complexity && subRequest.sla 
-                                  ? 'bg-green-50 border-green-200' 
-                                  : 'bg-yellow-50 border-yellow-200'
-                              }`}>
-                                <div className="flex items-center gap-2 text-sm">
-                                  {subRequest.complexity && subRequest.sla ? (
-                                    <>
-                                      <CheckCircle className="w-4 h-4 text-green-600" />
-                                      <span className="text-green-800">
-                                        Все обязательные поля заполнены
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                                      <span className="text-yellow-800">
-                                        Заполните сложность и время выполнения для заявки
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                </div>
-              ))}
-            </div>
           </div>
+        )}
+      </div>
+    );
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${
+        isFullScreen ? 'p-0' : 'p-4'
+      }`}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+        resetForm();
+      }}
+    >
+      <Card className={`w-full overflow-y-auto bg-[#040404] border-[#040404] ${
+        isFullScreen 
+          ? 'max-w-none max-h-none h-full rounded-none' 
+          : 'max-w-4xl max-h-[90vh]'
+      }`} onClick={(e) => e.stopPropagation()}>
+        <CardHeader className="bg-[#040404] flex items-center justify-center" style={{ paddingTop: 'clamp(38px, 1.48vh, 44px)', paddingBottom: 'clamp(12px, 1.48vh, 16px)', paddingLeft: 'clamp(24px, 4.27vw, 30px)', paddingRight: 'clamp(24px, 4.27vw, 30px)' }}>
+          <div className="flex items-center justify-center relative w-full" style={{ minHeight: 'clamp(44px, 5.4vh, 52px)' }}>
+            {/* Кнопка назад слева */}
+            {isFullScreen && (
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                  resetForm();
+                }}
+                className="absolute left-0 hover:bg-transparent text-white !p-0"
+                style={{ padding: 'clamp(4px, 0.5vh, 6px)' }}
+              >
+                <ChevronLeft className="!w-6 !h-6 sm:!w-8 sm:!h-8" style={{ width: 'clamp(24px, 4vw, 30px)', height: 'clamp(24px, 4vw, 30px)' }} />
+              </Button>
+            )}
+            
+            {/* Заголовок по центру */}
+            <div className="flex-1 flex justify-center items-center" style={{ paddingLeft: 'clamp(36px, 9.6vw, 48px)', paddingRight: 'clamp(36px, 9.6vw, 48px)' }}>
+              <CardTitle className="text-white text-center text-xl sm:text-2xl font-medium leading-[1.6em]">
+                Создать заявку
+              </CardTitle>
+                                </div>
+            
+            {/* Описание под заголовком (для шага 2) */}
+            {currentStep === 2 && selectedOfficeId && (
+              <div className="absolute -bottom-5 sm:-bottom-6 left-0 right-0">
+                <CardDescription className="text-gray-400 text-center text-xs sm:text-sm">
+                  Выбрано офис: {offices.find(o => o.id === selectedOfficeId)?.name || ''}
+                </CardDescription>
+                              </div>
+                            )}
+                          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 sm:space-y-6 pb-16 sm:pb-20 bg-[#040404] text-white" style={{ paddingLeft: 'clamp(20px, 5.33vw, 24px)', paddingRight: 'clamp(20px, 5.33vw, 24px)', paddingTop: 'clamp(12px, 12.8vh, 16px)' }}>
+          {/* Выбор режима создания для executor */}
+          {userRole === 'executor' && onModeChange && currentStep === 1 && (
+                              <div>
+              <Label className="flex items-center gap-1 mb-3">
+                Режим создания
+                                </Label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  type="button"
+                  variant={createMode === 'create' ? 'default' : 'outline'}
+                  onClick={() => onModeChange('create')}
+                  className="flex-1 text-sm sm:text-base"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Создать заявку</span>
+                  <span className="sm:hidden">Обычная</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={createMode === 'createAndComplete' ? 'default' : 'outline'}
+                  onClick={() => onModeChange('createAndComplete')}
+                  className="flex-1 text-sm sm:text-base"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Создать с завершением</span>
+                  <span className="sm:hidden">С завершением</span>
+                </Button>
+              </div>
+              {createMode === 'createAndComplete' && (
+                <p className="text-xs text-gray-600 mt-2">
+                  Создайте заявку для уже выполненной работы с отчетом и фотографиями результата
+                </p>
+                                )}
+                              </div>
+          )}
+
+          {/* Рендер текущего шага */}
+          {currentStep === 1 && renderStep1()}
+          {currentStep === 2 && renderStep2()}
+          {currentStep === 3 && renderStep3()}
+          {currentStep === 4 && renderStep4()}
 
           {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+          {/* Выбор режима создания для executor */}
+          {userRole === 'executor' && onModeChange && (
+                              <div>
+              <Label className="flex items-center gap-1 mb-3 text-white">
+                Режим создания
+                                </Label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  type="button"
+                  variant={createMode === 'create' ? 'default' : 'outline'}
+                  onClick={() => onModeChange('create')}
+                  className="flex-1 text-sm sm:text-base"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Создать заявку</span>
+                  <span className="sm:hidden">Обычная</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={createMode === 'createAndComplete' ? 'default' : 'outline'}
+                  onClick={() => onModeChange('createAndComplete')}
+                  className="flex-1 text-sm sm:text-base"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Создать с завершением</span>
+                  <span className="sm:hidden">С завершением</span>
+                </Button>
+              </div>
+              {createMode === 'createAndComplete' && (
+                <p className="text-xs text-gray-400 mt-2">
+                  Создайте заявку для уже выполненной работы с отчетом и фотографиями результата
+                </p>
+                                )}
+                              </div>
+          )}
 
-          <div className="flex space-x-4">
+          {/* Навигационные кнопки */}
+          <div className={`flex gap-3 mt-6 ${currentStep === 1 ? 'justify-end' : ''}`}>
+            {currentStep < 4 ? (
+              <>
+                {currentStep > 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={handleBack}
+                    className="flex-1"
+                  >
+                    Назад
+                  </Button>
+                )}
+                <Button
+                  onClick={handleNext}
+                  className={`${currentStep === 1 ? 'w-[160px]' : 'flex-1'} h-[42px] bg-[#F35713] hover:bg-[#E04F0F] text-white rounded-lg px-2.5 py-2.5 flex items-center justify-center gap-1.5`}
+                >
+                  <span className="text-xs font-medium">Дальше</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+                                    </>
+                                  ) : (
+                                    <>
             <Button
               onClick={handleSubmit}
               className="flex-1 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]"
@@ -1708,8 +1786,15 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 </>
               ) : (
                 userRole === 'executor' && createMode === 'createAndComplete' ? 'Создать с завершением' :
-                ['client', 'executor'].includes(userRole) ? 'Отправить заявку' : 'Создать заявку'
+                    ['client', 'executor'].includes(userRole) ? 'Отправить заявку' : 'Отправить заявку'
               )}
+            </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleBack}
+                  className="flex-1"
+                >
+                  Назад
             </Button>
             <Button
               variant="outline"
@@ -1723,6 +1808,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             >
               Отмена
             </Button>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

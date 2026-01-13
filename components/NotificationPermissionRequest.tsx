@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Bell, BellOff } from "lucide-react"
+import { Bell, BellOff, X } from "lucide-react"
 import { fcmService } from "@/lib/fcm"
 
 export function NotificationPermissionRequest() {
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isRequesting, setIsRequesting] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isDismissed, setIsDismissed] = useState(false)
   const permissionRef = useRef<NotificationPermission>('default')
 
   useEffect(() => {
@@ -89,11 +90,23 @@ export function NotificationPermissionRequest() {
     return null
   }
 
+  // Не показываем, если компонент был закрыт пользователем
+  if (isDismissed) {
+    return null
+  }
+
   // Показываем только если разрешение еще не запрашивалось или было отклонено
   if (permission === 'default' || permission === 'denied') {
     console.log('🔔 [NotificationPermissionRequest] Showing component, permission:', permission)
     return (
-      <div className="fixed bottom-20 right-4 sm:bottom-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-sm z-[100]">
+      <div className="fixed bottom-20 right-4 sm:bottom-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-sm z-[100] relative">
+        <button
+          onClick={() => setIsDismissed(true)}
+          className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          aria-label="Закрыть"
+        >
+          <X className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+        </button>
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
             {permission === 'denied' ? (
