@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.tmk.kcell",
+      "sha256_cert_fingerprints": [
+        "37:07:F7:9F:6D:21:EA:F7:A4:E9:40:FE:25:82:F2:49:39:8F:FA:E3:40:17:C1:3E:2A:AC:29:60:27:D8:73:88"
+      ]
+    }
+  }
+]
+
