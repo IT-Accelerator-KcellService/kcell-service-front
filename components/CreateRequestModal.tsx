@@ -1665,7 +1665,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         <CardContent className="space-y-10 sm:space-y-6 pb-16 sm:pb-20 bg-[#040404] text-white" style={{ paddingLeft: 'clamp(20px, 5.33vw, 24px)', paddingRight: 'clamp(20px, 5.33vw, 24px)', paddingTop: 'clamp(12px, 12.8vh, 16px)' }}>
           {/* Описание выбранного офиса (для шага 2) */}
           {currentStep === 2 && selectedOfficeId && (
-            <CardDescription className="text-left text-xs sm:text-sm -mb-4 sm:-mb-3" style={{ color: '#6E6E6E' }}>
+            <CardDescription className="text-left text-xs sm:text-sm -mb-8 sm:-mb-3" style={{ color: '#6E6E6E' }}>
               Выбрано офис: {offices.find(o => o.id === selectedOfficeId)?.name || ''}
             </CardDescription>
           )}
