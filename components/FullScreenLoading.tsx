@@ -10,7 +10,7 @@ export default function FullScreenLoading() {
             className="w-full h-full object-cover"
           />
         </div>
-        <span className="text-white font-bold text-4xl tracking-tight drop-shadow-lg animate-fade-in-up">
+        <span className="text-white font-semibold text-4xl tracking-tight drop-shadow-lg animate-fade-in-up">
           WORKFLOW
         </span>
       </div>

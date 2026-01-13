@@ -1092,96 +1092,93 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         {/* Планируемая дата для плановых заявок */}
           {requestType === "planned" && (userRole === 'admin-worker' || userRole === 'department-head') && (
               <div>
-                <Label className="mb-2">Планируемая дата</Label>
+                <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Планируемая дата</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                                         <Button
-                         variant={"outline"}
-                         className={`w-full justify-start text-left font-normal ${!date && "text-muted-foreground"}`}
-                     >
-                       <CalendarLucid className="mr-2 h-4 w-4" />
-                       {date ? format(date, "PPP", { locale: ru }) : <span>Выберите дату</span>}
-                     </Button>
+                    <div
+                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]`}
+                    >
+                      <CalendarLucid className="mr-2 h-4 w-4" />
+                      {date ? format(date, "PPP", { locale: ru }) : <span>Выберите дату</span>}
+                    </div>
                   </PopoverTrigger>
-                                     <PopoverContent className="w-auto p-0">
-                     <Calendar
-                         mode="single"
-                         selected={date}
-                         onSelect={(newDate) => {
-                           setDate(newDate);
-                           if (newDate) {
-                             setPlannedDate(format(newDate, 'yyyy-MM-dd'));
-                           }
-                         }}
-                         disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                         initialFocus
-                     />
-                   </PopoverContent>
+                  <PopoverContent className="w-auto p-0 bg-[#040404] border-[#1E1E1E]">
+                    <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(newDate) => {
+                          setDate(newDate);
+                          if (newDate) {
+                            setPlannedDate(format(newDate, 'yyyy-MM-dd'));
+                          }
+                        }}
+                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                        initialFocus
+                        className="bg-[#040404] text-white"
+                    />
+                  </PopoverContent>
                 </Popover>
               </div>
           )}
 
           {/* Поля для повторяющихся задач */}
           {isRecurringTask && (
-            <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2">
-                <CalendarLucid className="w-5 h-5 text-blue-600" />
-                <h3 className="font-semibold text-blue-800">Настройки повторения</h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="recurrence_type" className="mb-2">Тип повторения</Label>
-                  <Select
-                    value={recurrenceType}
-                    onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'yearly') => setRecurrenceType(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                      <SelectItem value="daily">Ежедневно</SelectItem>
-                      <SelectItem value="weekly">Еженедельно</SelectItem>
-                      <SelectItem value="monthly">Ежемесячно</SelectItem>
-                      <SelectItem value="yearly">Ежегодно</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="recurrence_interval" className="mb-2">Интервал</Label>
-                  <Select
-                    value={String(recurrenceInterval)}
-                    onValueChange={(value) => setRecurrenceInterval(parseInt(value))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                      <SelectItem value="1">Каждые 1</SelectItem>
-                      <SelectItem value="2">Каждые 2</SelectItem>
-                      <SelectItem value="3">Каждые 3</SelectItem>
-                      <SelectItem value="4">Каждые 4</SelectItem>
-                      <SelectItem value="6">Каждые 6</SelectItem>
-                      <SelectItem value="12">Каждые 12</SelectItem>
-                    </SelectContent>
-                  </Select>
+            <div className="space-y-4 sm:space-y-6">
+              <div>
+                <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Тип повторения</Label>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  {[
+                    { value: 'daily', label: 'Ежедневно' },
+                    { value: 'weekly', label: 'Еженедельно' },
+                    { value: 'monthly', label: 'Ежемесячно' },
+                    { value: 'yearly', label: 'Ежегодно' }
+                  ].map((type) => (
+                    <div
+                      key={type.value}
+                      onClick={() => setRecurrenceType(type.value as 'daily' | 'weekly' | 'monthly' | 'yearly')}
+                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
+                        recurrenceType === type.value
+                          ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                          : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
+                      }`}
+                    >
+                      {type.label}
+                    </div>
+                  ))}
                 </div>
               </div>
 
               <div>
-                <Label className="mb-2">Дата начала повторения</Label>
+                <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Интервал</Label>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  {[1, 2, 3, 4, 6, 12].map((interval) => (
+                    <div
+                      key={interval}
+                      onClick={() => setRecurrenceInterval(interval)}
+                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
+                        recurrenceInterval === interval
+                          ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                          : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
+                      }`}
+                    >
+                      Каждые {interval}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Дата начала повторения</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
+                    <div
+                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]`}
                     >
                       <CalendarLucid className="mr-2 h-4 w-4" />
                       {format(recurrenceStartDate, "PPP", { locale: ru })}
-                    </Button>
+                    </div>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
+                  <PopoverContent className="w-auto p-0 bg-[#040404] border-[#1E1E1E]">
                     <Calendar
                       mode="single"
                       selected={recurrenceStartDate}
@@ -1191,6 +1188,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         }
                       }}
                       initialFocus
+                      className="bg-[#040404] text-white"
                     />
                   </PopoverContent>
                 </Popover>
@@ -1429,63 +1427,61 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
         {/* Дополнительные поля для admin-worker и department-head */}
               {(userRole === 'admin-worker' || userRole === 'department-head') && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4 sm:space-y-6">
             <div>
-                <Label htmlFor="subRequestComplexity-0" className="flex items-center gap-1 mb-2">
-                  Сложность
-                          </Label>
-                          <Select
-                  value={subRequest.complexity || ''}
-                  onValueChange={(value: 'simple' | 'medium' | 'complex') =>
-                    updateSubRequest(0, 'complexity', value)
-                  }
-                          >
-                            <SelectTrigger
-                    id="subRequestComplexity-0"
-                    className={hasAttemptedSubmit && !subRequest.complexity ? 'border-red-300 focus:border-red-500' : ''}
-                            >
-                    <SelectValue placeholder="Выберите сложность" />
-                            </SelectTrigger>
-                            <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                    <SelectItem value="simple">Простая</SelectItem>
-                    <SelectItem value="medium">Средняя</SelectItem>
-                    <SelectItem value="complex">Сложная</SelectItem>
-                            </SelectContent>
-                          </Select>
-                {hasAttemptedSubmit && !subRequest.complexity && (
-                              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                          )}
-                        </div>
+              <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Сложность</Label>
+              <div className="flex flex-wrap gap-2 sm:gap-3">
+                {[
+                  { value: 'simple', label: 'Простая' },
+                  { value: 'medium', label: 'Средняя' },
+                  { value: 'complex', label: 'Сложная' }
+                ].map((complexity) => (
+                  <div
+                    key={complexity.value}
+                    onClick={() => updateSubRequest(0, 'complexity', complexity.value as 'simple' | 'medium' | 'complex')}
+                    className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
+                      subRequest.complexity === complexity.value
+                        ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                        : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
+                    }`}
+                  >
+                    {complexity.label}
+                  </div>
+                ))}
+              </div>
+              {hasAttemptedSubmit && !subRequest.complexity && (
+                <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите сложность</p>
+              )}
+            </div>
 
-                        <div>
-                <Label htmlFor="subRequestSLA-0" className="flex items-center gap-1 mb-2">
-                  Время выполнения
-                          </Label>
-                          <Select
-                  value={subRequest.sla || ''}
-                  onValueChange={(value: string) => updateSubRequest(0, 'sla', value)}
-                          >
-                            <SelectTrigger
-                    id="subRequestSLA-0"
-                    className={hasAttemptedSubmit && !subRequest.sla ? 'border-red-300 focus:border-red-500' : ''}
-                            >
-                    <SelectValue placeholder="Выберите время выполнения" />
-                            </SelectTrigger>
-                            <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                    <SelectItem value="1h">1 час</SelectItem>
-                    <SelectItem value="4h">4 часа</SelectItem>
-                    <SelectItem value="8h">8 часов</SelectItem>
-                    <SelectItem value="1d">1 день</SelectItem>
-                    <SelectItem value="3d">3 дня</SelectItem>
-                    <SelectItem value="1w">1 неделя</SelectItem>
-                            </SelectContent>
-                          </Select>
-                {hasAttemptedSubmit && !subRequest.sla && (
-                              <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
-                          )}
-                        </div>
-                        </div>
+            <div>
+              <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Время выполнения</Label>
+              <div className="flex flex-wrap gap-2 sm:gap-3">
+                {[
+                  { value: '1h', label: '1 час' },
+                  { value: '4h', label: '4 часа' },
+                  { value: '8h', label: '8 часов' },
+                  { value: '1d', label: '1 день' },
+                  { value: '3d', label: '3 дня' },
+                  { value: '1w', label: '1 неделя' }
+                ].map((sla) => (
+                  <div
+                    key={sla.value}
+                    onClick={() => updateSubRequest(0, 'sla', sla.value)}
+                    className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center ${
+                      subRequest.sla === sla.value
+                        ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                        : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
+                    }`}
+                  >
+                    {sla.label}
+                  </div>
+                ))}
+              </div>
+              {hasAttemptedSubmit && !subRequest.sla && (
+                <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите время выполнения</p>
+              )}
+            </div>
           </div>
         )}
 
