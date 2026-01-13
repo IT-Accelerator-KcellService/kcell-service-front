@@ -905,19 +905,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     ) : [];
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
             {/* Блок */}
             <div>
-          <Label className="text-lg font-semibold mb-4 block">Выбрать блок</Label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Выбрать блок</Label>
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {blocks.map((block) => (
               <div
                 key={block}
                 onClick={() => setSelectedBlock(block)}
-                className={`p-4 border-2 rounded-lg cursor-pointer transition-all text-center font-semibold ${
+                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
                   selectedBlock === block
-                    ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
-                    : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                    ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                    : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
                 }`}
               >
                           {block}
@@ -932,16 +932,16 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             {/* Местонахождение */}
         {selectedBlock && hasLocations && locations.length > 0 && (
                   <div>
-            <Label className="text-lg font-semibold mb-4 block">Местонахождение</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Местонахождение</Label>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
                         {locations.map((location) => (
                 <div
                   key={location}
                   onClick={() => setSelectedLocation(location)}
-                  className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                  className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
                     selectedLocation === location
-                      ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
-                      : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                      ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                      : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
                   }`}
                 >
                             {location}
@@ -949,10 +949,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               ))}
               <div
                 onClick={() => setSelectedLocation("Другое")}
-                className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
                   selectedLocation === "Другое"
-                    ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
-                    : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                    ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                    : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
                 }`}
               >
                 Другое
@@ -964,7 +964,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                           placeholder="Введите местонахождение"
                           value={customLocation}
                           onChange={(e) => setCustomLocation(e.target.value)}
-                  className={hasAttemptedSubmit && !customLocation.trim() ? 'border-red-300 focus:border-red-500' : ''}
+                  className={`h-[42px] w-full max-w-xs bg-[#040404] border-2 rounded-lg text-white placeholder:text-[#6E6E6E] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ${hasAttemptedSubmit && !customLocation.trim() ? 'border-red-500' : 'border-[#1E1E1E]'}`}
                         />
                 {hasAttemptedSubmit && !customLocation.trim() && (
                           <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
@@ -980,29 +980,29 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             {/* Помещение */}
         {selectedBlock && (hasLocations ? selectedLocation : true) && (
                   <div>
-            <Label className="text-lg font-semibold mb-4 block">Помещение</Label>
+            <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Помещение</Label>
             {hasRooms && rooms.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                         {rooms.map((room) => (
                     <div
                       key={room}
                       onClick={() => setSelectedRoom(room)}
-                      className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
                         selectedRoom === room
-                          ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
-                          : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                          ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                          : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
                       }`}
                     >
-                            {room}
+                      {room}
                     </div>
                   ))}
                   <div
                     onClick={() => setSelectedRoom("Другое")}
-                    className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
                       selectedRoom === "Другое"
-                        ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
-                        : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                        ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                        : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
                     }`}
                   >
                     Другое
@@ -1014,7 +1014,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                           placeholder="Введите помещение"
                           value={customRoom}
                           onChange={(e) => setCustomRoom(e.target.value)}
-                      className={hasAttemptedSubmit && !customRoom.trim() ? 'border-red-300 focus:border-red-500' : ''}
+                      className={`h-[42px] w-full max-w-xs bg-[#040404] border-2 rounded-lg text-white placeholder:text-[#6E6E6E] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ${hasAttemptedSubmit && !customRoom.trim() ? 'border-red-500' : 'border-[#1E1E1E]'}`}
                         />
                     {hasAttemptedSubmit && !customRoom.trim() && (
                           <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
@@ -1028,7 +1028,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                       placeholder="Введите помещение"
                       value={customRoom}
                       onChange={(e) => setCustomRoom(e.target.value)}
-                  className={hasAttemptedSubmit && !customRoom.trim() ? 'border-red-300 focus:border-red-500' : ''}
+                  className={`h-[42px] w-full max-w-xs bg-[#040404] border-2 rounded-lg text-white placeholder:text-[#6E6E6E] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ${hasAttemptedSubmit && !customRoom.trim() ? 'border-red-500' : 'border-[#1E1E1E]'}`}
                     />
                 {hasAttemptedSubmit && !customRoom.trim() && (
                       <p className="text-xs text-red-500 mt-1">Обязательное поле</p>
@@ -1606,11 +1606,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                     );
                                   })}
                                 </div>
-                              )}
-                            </div>
-          </div>
-        )}
-      </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
     );
   };
 
@@ -1660,17 +1660,15 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </CardTitle>
                                 </div>
             
-            {/* Описание под заголовком (для шага 2) */}
-            {currentStep === 2 && selectedOfficeId && (
-              <div className="absolute -bottom-5 sm:-bottom-6 left-0 right-0">
-                <CardDescription className="text-gray-400 text-center text-xs sm:text-sm">
-                  Выбрано офис: {offices.find(o => o.id === selectedOfficeId)?.name || ''}
-                </CardDescription>
-                              </div>
-                            )}
-                          </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4 sm:space-y-6 pb-16 sm:pb-20 bg-[#040404] text-white" style={{ paddingLeft: 'clamp(20px, 5.33vw, 24px)', paddingRight: 'clamp(20px, 5.33vw, 24px)', paddingTop: 'clamp(12px, 12.8vh, 16px)' }}>
+          {/* Описание выбранного офиса (для шага 2) */}
+          {currentStep === 2 && selectedOfficeId && (
+            <CardDescription className="text-left text-xs sm:text-sm -mb-4 sm:-mb-3" style={{ color: '#6E6E6E' }}>
+              Выбрано офис: {offices.find(o => o.id === selectedOfficeId)?.name || ''}
+            </CardDescription>
+          )}
           {/* Выбор режима создания для executor */}
           {userRole === 'executor' && onModeChange && currentStep === 1 && (
                               <div>
@@ -1758,9 +1756,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   <Button
                     variant="outline"
                     onClick={handleBack}
-                    className="flex-1"
+                    className="flex-1 h-[42px] bg-[#1E1E1E] border-2 border-[#1E1E1E] hover:bg-[#2A2A2A] hover:border-[#F35713]/50 rounded-lg flex items-center justify-center gap-1.5"
+                    style={{ color: '#6E6E6E' }}
                   >
-                    Назад
+                    <ArrowLeft className="w-3.5 h-3.5" style={{ color: '#6E6E6E' }} />
+                    <span>Назад</span>
                   </Button>
                 )}
                 <Button
@@ -1768,7 +1768,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   className={`${currentStep === 1 ? 'w-[160px]' : 'flex-1'} h-[42px] bg-[#F35713] hover:bg-[#E04F0F] text-white rounded-lg px-2.5 py-2.5 flex items-center justify-center gap-1.5`}
                 >
                   <span className="text-xs font-medium">Дальше</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
                                     </>
                                   ) : (
