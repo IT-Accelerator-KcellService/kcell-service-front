@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { BookingModal } from "@/components/meeting-rooms/BookingModal"
 import { getMeetingRoomById, type MeetingRoom as ApiMeetingRoom } from "@/lib/api"
 import { MeetingRoom } from "@/stores/meetingRoomsStore"
-import { Loader2 } from "lucide-react"
+import FullScreenLoading from "@/components/FullScreenLoading"
 
 const convertApiRoomToStoreRoom = (apiRoom: ApiMeetingRoom): MeetingRoom => ({
   id: apiRoom.id,
@@ -55,12 +55,7 @@ export default function BookingPage() {
   }
 
   if (loading) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm animate-fade-in">
-        <Loader2 className="h-12 w-12 animate-spin text-[#114A65]" />
-        <span className="sr-only">Загрузка...</span>
-      </div>
-    )
+    return <FullScreenLoading />
   }
 
   if (!room) {

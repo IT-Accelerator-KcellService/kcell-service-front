@@ -9,7 +9,7 @@ import { useRequestStore } from "@/stores/useRequestStore";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import FullScreenLoading from "@/components/FullScreenLoading";
 
 interface ServiceCategory {
   id: number;
@@ -293,12 +293,7 @@ export default function CreateRequestPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm animate-fade-in">
-        <Loader2 className="h-12 w-12 animate-spin text-[#114A65]" />
-        <span className="sr-only">Загрузка...</span>
-      </div>
-    );
+    return <FullScreenLoading />;
   }
 
   return (
