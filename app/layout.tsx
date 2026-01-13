@@ -1,13 +1,10 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
 import "../lib/fcm"
 import { ActivityTrackerService } from "@/components/ActivityTrackerService"
 import { NotificationPermissionRequest } from "@/components/NotificationPermissionRequest"
 import { Toaster } from "@/components/ui/toaster"
-
-const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "WorkFlow App - Internal Service Request Management",
@@ -27,7 +24,7 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
       </head>
-      <body className={inter.className}>
+      <body className="font-sf-pro">
         {children}
         <ActivityTrackerService />
         <NotificationPermissionRequest />

@@ -1271,13 +1271,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     const subRequest = subRequests[0];
     
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Описание */}
         <div>
-          <Label className="text-lg font-semibold mb-4 block">Описание заявки</Label>
+          <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Описание заявки</Label>
           <Textarea
             placeholder="Опишите заявку подробно..."
-            className={`min-h-[150px] ${hasAttemptedSubmit && !subRequest.description.trim() ? 'border-red-300 focus:border-red-500' : ''}`}
+            className={`min-h-[100px] bg-[#040404] border-2 rounded-lg text-white placeholder:text-[#6E6E6E] border-[#1E1E1E] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ${hasAttemptedSubmit && !subRequest.description.trim() ? 'border-red-500' : ''}`}
             value={subRequest.description}
             onChange={(e) => updateSubRequest(0, 'description', e.target.value)}
           />
@@ -1286,11 +1286,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           )}
         </div>
 
-        {/* Фотографии */}
+          {/* Фотографии */}
           <div>
-          <Label className="text-lg font-semibold mb-4 block">Фотографии (до 3 шт.)</Label>
+          <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Фотографии (до 3 шт.)</Label>
             <div className={`flex flex-wrap gap-4 ${
-              hasAttemptedSubmit && basicFieldErrors.has('photos') ? 'border-2 border-red-300 border-dashed rounded-lg p-4' : ''
+              hasAttemptedSubmit && basicFieldErrors.has('photos') ? 'border-2 border-red-500 border-dashed rounded-lg p-4' : ''
             }`}>
               {photoPreviews.map((photo, index) => (
                 <div key={index} className="relative">
@@ -1301,7 +1301,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   />
                   <button
                     onClick={() => removePhoto(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
                   >
                     ×
                   </button>
@@ -1311,7 +1311,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <button
                   type="button"
                   onClick={handleButtonClick}
-                  className="w-20 h-20 border-2 border-dashed border-[#C4C4CE] rounded-lg flex items-center justify-center hover:border-[#114A65] transition-colors"
+                  className="w-20 h-20 border-2 border-dashed border-[#1E1E1E] rounded-lg flex items-center justify-center hover:border-[#F35713]/50 transition-colors bg-[#040404]"
                 >
                   <input
                     type="file"
@@ -1321,7 +1321,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     onChange={handleFileChange}
                     className="hidden"
                   />
-                  <Camera className="w-6 h-6 text-gray-400" />
+                  <Camera className="w-6 h-6 text-[#6E6E6E]" />
                 </button>
               )}
             </div>
@@ -1334,16 +1334,16 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           {userRole === 'executor' && createMode === 'createAndComplete' && (
             <>
               <div>
-                <Label className="flex items-center gap-1">
+                <Label className="flex items-center gap-1 text-white">
                   Дата выполнения
                 </Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
-                      className={`w-full justify-start text-left font-normal ${!completionDate && "text-muted-foreground"}`}
+                      className={`w-full max-w-xs justify-start text-left font-normal h-[42px] bg-[#1E1E1E] border-2 border-[#1E1E1E] text-white hover:bg-[#2A2A2A] hover:border-[#F35713]/50 rounded-lg ${!completionDate && "text-[#6E6E6E]"}`}
                     >
-                      <CalendarLucid className="mr-2 h-4 w-4" />
+                      <CalendarLucid className="mr-2 h-4 w-4" style={{ color: '#6E6E6E' }} />
                       {completionDate ? format(completionDate, "PPP", { locale: ru }) : <span>Выберите дату</span>}
                     </Button>
                   </PopoverTrigger>
@@ -1364,15 +1364,15 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
 
               <div>
-                <Label className="flex items-center gap-1">
+                <Label className="flex items-center gap-1 text-white">
                   Комментарий о выполненной работе *
                 </Label>
                 <Textarea
                   placeholder="Опишите выполненную работу, использованные материалы, время выполнения и т.д."
                   value={completionComment}
                   onChange={(e) => setCompletionComment(e.target.value)}
-                  className={`min-h-[100px] resize-none ${
-                    hasAttemptedSubmit && !completionComment.trim() ? 'border-red-300 focus:border-red-500' : ''
+                  className={`min-h-[100px] resize-none bg-[#040404] border-2 rounded-lg text-white placeholder:text-[#6E6E6E] border-[#1E1E1E] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 ${
+                    hasAttemptedSubmit && !completionComment.trim() ? 'border-red-500' : ''
                   }`}
                 />
                 {hasAttemptedSubmit && !completionComment.trim() && (
@@ -1381,22 +1381,22 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
               </div>
 
               <div>
-                <Label className="flex items-center gap-1">
+                <Label className="flex items-center gap-1 text-white">
                   Фотографии результата (до 3 шт.) *
                 </Label>
-                <div className={`flex flex-wrap gap-4 mt-2 ${
-                  hasAttemptedSubmit && basicFieldErrors.has('фотографии результата') ? 'border-2 border-red-300 border-dashed rounded-lg p-4' : ''
+                <div className={`grid grid-cols-2 gap-3 sm:gap-4 mt-2 ${
+                  hasAttemptedSubmit && basicFieldErrors.has('фотографии результата') ? 'border-2 border-red-500 border-dashed rounded-lg p-4' : ''
                 }`}>
                   {afterPhotoPreviews.map((photo, index) => (
                     <div key={index} className="relative">
                       <img
                         src={photo || "/placeholder.svg"}
                         alt={`After Photo ${index + 1}`}
-                        className="w-20 h-20 object-cover rounded-lg"
+                        className="w-full h-32 sm:h-40 object-cover rounded-lg"
                       />
                       <button
                         onClick={() => removeAfterPhoto(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
                       >
                         ×
                       </button>
@@ -1406,7 +1406,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     <button
                       type="button"
                       onClick={() => document.getElementById('after-photo-input')?.click()}
-                      className="w-20 h-20 border-2 border-dashed border-[#C4C4CE] rounded-lg flex items-center justify-center hover:border-[#114A65] transition-colors"
+                      className="w-full h-32 sm:h-40 border-2 border-dashed border-[#1E1E1E] rounded-lg flex items-center justify-center hover:border-[#F35713]/50 transition-colors bg-[#040404]"
                     >
                       <input
                         id="after-photo-input"
@@ -1416,7 +1416,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         onChange={handleAfterPhotoUpload}
                         className="hidden"
                       />
-                      <Camera className="w-6 h-6 text-gray-400" />
+                      <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-[#6E6E6E]" />
                     </button>
                   )}
                 </div>
@@ -1662,7 +1662,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 sm:space-y-6 pb-16 sm:pb-20 bg-[#040404] text-white" style={{ paddingLeft: 'clamp(20px, 5.33vw, 24px)', paddingRight: 'clamp(20px, 5.33vw, 24px)', paddingTop: 'clamp(12px, 12.8vh, 16px)' }}>
+        <CardContent className="space-y-10 sm:space-y-6 pb-16 sm:pb-20 bg-[#040404] text-white" style={{ paddingLeft: 'clamp(20px, 5.33vw, 24px)', paddingRight: 'clamp(20px, 5.33vw, 24px)', paddingTop: 'clamp(12px, 12.8vh, 16px)' }}>
           {/* Описание выбранного офиса (для шага 2) */}
           {currentStep === 2 && selectedOfficeId && (
             <CardDescription className="text-left text-xs sm:text-sm -mb-4 sm:-mb-3" style={{ color: '#6E6E6E' }}>
@@ -1772,10 +1772,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 </Button>
                                     </>
                                   ) : (
-                                    <>
+                                    <div className="grid grid-cols-2 gap-3 w-full">
             <Button
               onClick={handleSubmit}
-              className="flex-1 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]"
+              className="col-span-2 h-[42px] bg-[#F35713] hover:bg-[#E04F0F]"
               disabled={isSubmitting}
             >
               {isSubmitting ? (
@@ -1789,13 +1789,15 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     ['client', 'executor'].includes(userRole) ? 'Отправить заявку' : 'Отправить заявку'
               )}
             </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleBack}
-                  className="flex-1"
-                >
-                  Назад
-            </Button>
+             <Button
+                 variant="outline"
+                 onClick={handleBack}
+                 className="h-[42px] bg-[#1E1E1E] border-2 border-[#1E1E1E] hover:bg-[#2A2A2A] hover:border-[#F35713]/50 rounded-lg flex items-center justify-center gap-1.5"
+                 style={{ color: '#6E6E6E' }}
+               >
+                 <ArrowLeft className="w-3.5 h-3.5" style={{ color: '#6E6E6E' }} />
+                 <span>Назад</span>
+               </Button>
             <Button
               variant="outline"
               onClick={(e) => {
@@ -1804,11 +1806,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 onClose();
                 resetForm();
               }}
-              className="flex-1"
+              className="h-[42px] bg-[#1E1E1E] border-2 border-[#1E1E1E] hover:bg-[#2A2A2A] hover:border-[#F35713]/50 rounded-lg flex items-center justify-center gap-1.5"
+                 style={{ color: '#6E6E6E' }}
             >
               Отмена
             </Button>
-              </>
+              </div>
             )}
           </div>
         </CardContent>

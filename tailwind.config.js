@@ -26,6 +26,9 @@ module.exports = {
       '2xl': '1536px',
     },
     extend: {
+      fontFamily: {
+        'sf-pro': ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
