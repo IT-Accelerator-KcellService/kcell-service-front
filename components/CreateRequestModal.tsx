@@ -1062,11 +1062,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Тип заявки */}
           <div>
-          <Label className="text-lg font-semibold mb-4 block">Тип заявки</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Тип заявки</Label>
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {requestTypes.map((type) => (
               <div
                 key={type.value}
@@ -1074,13 +1074,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   setRequestType(type.value);
                   setIsRecurringTask(type.value === 'recurring');
                 }}
-                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
                   requestType === type.value
-                    ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
-                    : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                    ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                    : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
                 }`}
               >
-                <div className="font-semibold">{type.label}</div>
+                {type.label}
               </div>
             ))}
           </div>
@@ -1200,8 +1200,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
         {/* Категория */}
         <div>
-          <Label className="text-lg font-semibold mb-4 block">Категория заявки</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Категория заявки</Label>
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {categories.map((category) => (
               <div
                 key={category.id}
@@ -1215,13 +1215,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   };
                   setSubRequests(newSubRequests);
                 }}
-                className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
                   subRequest.category_id === category.id
-                    ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
-                    : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                    ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                    : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
                 }`}
               >
-                <div className="font-semibold">{category.name}</div>
+                {category.name}
               </div>
             ))}
           </div>
@@ -1233,8 +1233,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
         {/* Название заявки (подкатегория) */}
         {subRequest.category_id > 0 && selectedCategory?.subcategories && selectedCategory.subcategories.length > 0 && (
           <div>
-            <Label className="text-lg font-semibold mb-4 block">Название заявки</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Название заявки</Label>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {selectedCategory.subcategories.map((subcategory) => (
                 <div
                   key={subcategory.id}
@@ -1247,13 +1247,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     };
                     setSubRequests(newSubRequests);
                   }}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium sm:font-semibold text-sm sm:text-base border-2 inline-flex items-center justify-center ${
                     subRequest.title === subcategory.name
-                      ? 'border-[#114A65] bg-[#114A65]/5 shadow-md'
-                      : 'border-gray-200 hover:border-[#114A65]/50 hover:shadow-sm'
+                      ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                      : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
                   }`}
                 >
-                  <div className="font-semibold">{subcategory.name}</div>
+                  {subcategory.name}
                 </div>
               ))}
             </div>
