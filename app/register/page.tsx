@@ -1,21 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { api } from '@/lib/api';
-import { useToast } from '@/hooks/use-toast';
+import { SuccessModal } from '@/components/success-model';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import {useSuccessModal} from "@/hooks/use-success-modal";
+import { sendVerificationCode, verifyCode } from '@/lib/mobizon';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 interface Office {
     id: number;
     name: string;
-    photo?: string | null;
 }
 
 interface Role {
@@ -50,14 +52,28 @@ export default function RegisterPage() {
     const [step, setStep] = useState(1);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const { toast } = useToast();
+    const successModal = useSuccessModal()
     const [formErrors, setFormErrors] = useState<string | null>(null);
 
-    // Загружаем список офисов и категорий при загрузке страницы
-    React.useEffect(() => {
+    // SMS верификация
+    const [verificationCode, setVerificationCode] = useState('');
+    const [isSendingCode, setIsSendingCode] = useState(false);
+    const [codeSent, setCodeSent] = useState(false);
+    const [countdown, setCountdown] = useState(0);
+
+    // Загружаем список офисов и категорий при монтировании компонента
+    useEffect(() => {
         loadOffices();
         loadCategories();
     }, []);
+
+    // Таймер обратного отсчета для повторной отправки кода
+    useEffect(() => {
+        if (countdown > 0) {
+            const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [countdown]);
 
     const loadOffices = async () => {
         try {
@@ -107,11 +123,73 @@ export default function RegisterPage() {
         const value = e.target.value;
         const formatted = formatPhone(value);
         setFormData(prev => ({ ...prev, phone: formatted }));
+        // Сбрасываем верификацию при изменении номера
+        if (codeSent) {
+            setCodeSent(false);
+            setVerificationCode('');
+        }
+    };
+
+    // Отправка кода верификации
+    const handleSendVerificationCode = async () => {
+        if (!formData.phone) {
+            setFormErrors('Введите номер телефона');
+            return;
+        }
+
+        const phoneRegex = /^\+7 \d{3} \d{3} \d{2} \d{2}$/;
+        if (!phoneRegex.test(formData.phone)) {
+            setFormErrors('Введите корректный номер телефона');
+            return;
+        }
+
+        setIsSendingCode(true);
+        setFormErrors(null);
+
+        try {
+            // Код теперь генерируется на сервере
+            const result = await sendVerificationCode(formData.phone, 'registration');
+
+            if (result.success) {
+                setCodeSent(true);
+                setCountdown(60); // 60 секунд до возможности повторной отправки
+            } else {
+                setFormErrors(result.message || 'Ошибка при отправке SMS. Попробуйте позже.');
+            }
+        } catch (error: any) {
+            console.error('Ошибка отправки кода:', error);
+            setFormErrors('Ошибка при отправке SMS. Попробуйте позже.');
+        } finally {
+            setIsSendingCode(false);
+        }
+    };
+
+    // Проверка кода верификации
+    const handleVerifyCode = async () => {
+        if (!verificationCode || verificationCode.length !== 6) {
+            setFormErrors('Введите код из 6 цифр');
+            return;
+        }
+
+        setFormErrors(null);
+
+        try {
+            const result = await verifyCode(formData.phone, verificationCode, 'registration');
+
+            if (result.success) {
+                setStep(3); // Переход к шагу с паролем
+            } else {
+                setFormErrors(result.message || 'Неверный код верификации');
+            }
+        } catch (error: any) {
+            console.error('Ошибка проверки кода:', error);
+            setFormErrors('Ошибка при проверке кода. Попробуйте позже.');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setFormErrors("");
+        setFormErrors("")
 
         if (formData.password !== formData.confirm_password) {
             setFormErrors("Пароли не совпадают");
@@ -119,7 +197,7 @@ export default function RegisterPage() {
         }
 
         if (formData.password.length < 6) {
-            setFormErrors("Пароль должен содержать минимум 6 символов");
+            setFormErrors("Пароль должен содержать минимум 6 символов")
             return;
         }
 
@@ -141,21 +219,32 @@ export default function RegisterPage() {
 
             await api.post('/registration-requests', requestData);
 
-            toast({
-              title: "Успешно",
-              description: "Заявка на регистрацию отправлена"
-            });
+            successModal.showSuccess();
 
-            // Перенаправляем на страницу логина после успешной регистрации
-            setTimeout(() => {
-                router.push('/login');
-            }, 1500);
+            setFormData({
+                phone: '',
+                full_name: '',
+                office_id: '',
+                role: '',
+                service_category_id: '',
+                password: '',
+                confirm_password: ''
+            });
+            setStep(1);
+            setVerificationCode('');
+            setCodeSent(false);
+            setCountdown(0);
         } catch (error: any) {
             console.error(error);
-            setFormErrors(error.response?.data?.error || 'Произошла ошибка при отправке запроса');
+            setFormErrors(error.response?.data?.error || 'Произошла ошибка при отправке запроса')
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSuccessClose = () => {
+        successModal.hideSuccess();
+        router.push('/login');
     };
 
     return (
@@ -174,220 +263,304 @@ export default function RegisterPage() {
                     </div>
                 </div>
 
-                <Card className="border border-gray-800 shadow-2xl max-h-[90vh] overflow-y-auto bg-black relative">
+                <Card className="border border-gray-800 shadow-2xl bg-black relative overflow-hidden">
                     <CardHeader className="text-center pb-6 pt-8">
-                        {/* Индикатор шагов */}
-                        <div className="flex items-center justify-end gap-2 mb-6">
-                            <div className={`flex items-center ${step === 1 ? 'text-[#F35713]' : 'text-gray-600'}`}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all duration-300 ${step === 1 ? 'bg-[#F35713] text-white' : 'bg-gray-700 text-gray-400'}`}>
-                                    1
-                                </div>
-                            </div>
-                            <div className={`h-0.5 w-12 ${step === 2 ? 'bg-[#F35713]' : 'bg-gray-700'} transition-all duration-300`}></div>
-                            <div className={`flex items-center ${step === 2 ? 'text-[#F35713]' : 'text-gray-600'}`}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold transition-all duration-300 ${step === 2 ? 'bg-[#F35713] text-white' : 'bg-gray-700 text-gray-400'}`}>
-                                    2
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <CardTitle className="text-center text-xl md:text-2xl font-bold text-white mb-2">
-                            {step === 1 ? 'Запрос на регистрацию' : 'Придумать пароль'}
+                        <CardTitle className="text-2xl md:text-3xl font-bold text-white mb-2">
+                            {step === 1 && 'Запрос на регистрацию'}
+                            {step === 2 && 'Верификация номера телефона'}
+                            {step === 3 && 'Придумать пароль'}
                         </CardTitle>
+                        <CardDescription className="text-gray-400 text-base font-medium">
+                            {step === 1 && 'Заполните форму для создания запроса на регистрацию'}
+                            {step === 2 && 'Введите код из SMS для подтверждения номера телефона'}
+                            {step === 3 && 'Придумайте пароль для вашего аккаунта'}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-8">
-                        <form onSubmit={handleSubmit} className="space-y-5">
+                        <form onSubmit={handleSubmit} className="space-y-4">
                             {step === 1 ? (
                                 <>
-                                    <div className="space-y-2.5">
-                                        <Label htmlFor="phone" className="text-sm font-semibold text-white">Номер телефона</Label>
-                                        <Input
-                                            id="phone"
-                                            type="tel"
-                                            value={formData.phone}
-                                            onChange={handlePhoneChange}
-                                            placeholder="+7 XXX XXX XX XX"
-                                            required
-                                            maxLength={19}
-                                            className="text-base h-12 bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500"
-                                        />
-                                    </div>
+                                    <div className="space-y-5">
+                                        <div className="space-y-2.5">
+                                            <Label htmlFor="phone" className="text-sm font-semibold text-white">Номер телефона *</Label>
+                                            <Input
+                                                id="phone"
+                                                type="tel"
+                                                value={formData.phone}
+                                                onChange={handlePhoneChange}
+                                                placeholder="+7 XXX XXX XX XX"
+                                                required
+                                                maxLength={19}
+                                                className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500"
+                                            />
+                                        </div>
 
-                                    <div className="space-y-2.5">
-                                        <Label htmlFor="full_name" className="text-sm font-semibold text-white">ФИО</Label>
-                                        <Input
-                                            id="full_name"
-                                            value={formData.full_name}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                                            placeholder="Введите полное имя"
-                                            required
-                                            className="text-base h-12 bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500"
-                                        />
-                                    </div>
+                                        <div className="space-y-2.5">
+                                            <Label htmlFor="full_name" className="text-sm font-semibold text-white">ФИО *</Label>
+                                            <Input
+                                                id="full_name"
+                                                value={formData.full_name}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                                                placeholder="Введите полное имя"
+                                                required
+                                                className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500"
+                                            />
+                                        </div>
 
-                                    <div className="space-y-2.5">
-                                        <Label htmlFor="office" className="text-sm font-semibold text-white">Офис</Label>
-                                        <Select
-                                            value={formData.office_id}
-                                            onValueChange={(value) => setFormData(prev => ({ ...prev, office_id: value }))}
-                                            required
-                                        >
-                                            <SelectTrigger className="text-base h-12 bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600">
-                                                <SelectValue placeholder="Выберите офис" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                                                {offices.map((office) => (
-                                                    <SelectItem key={office.id} value={office.id.toString()} className="hover:bg-gray-800">
-                                                        {office.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="space-y-2.5">
-                                        <Label htmlFor="role" className="text-sm font-semibold text-white">Роль</Label>
-                                        <Select
-                                            value={formData.role}
-                                            onValueChange={(value) => setFormData(prev => ({ ...prev, role: value, service_category_id: '' }))}
-                                            required
-                                        >
-                                            <SelectTrigger className="text-base h-12 bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600">
-                                                <SelectValue placeholder="Выберите роль" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                                                {ROLES.map((role) => (
-                                                    <SelectItem key={role.value} value={role.value} className="hover:bg-gray-800">
-                                                        {role.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    {formData.role === 'executor' && (
-                                        <div className="space-y-2.5 animate-in slide-in-from-top-2 duration-300">
-                                            <Label htmlFor="service_category" className="text-sm font-semibold text-white">Категория услуг</Label>
+                                        <div className="space-y-2.5">
+                                            <Label htmlFor="office" className="text-sm font-semibold text-white">Офис *</Label>
                                             <Select
-                                                value={formData.service_category_id}
-                                                onValueChange={(value) => setFormData(prev => ({ ...prev, service_category_id: value }))}
+                                                value={formData.office_id}
+                                                onValueChange={(value) => setFormData(prev => ({ ...prev, office_id: value }))}
                                                 required
                                             >
-                                                <SelectTrigger className="text-base h-12 bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600">
-                                                    <SelectValue placeholder="Выберите категорию услуг" />
+                                                <SelectTrigger className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 focus:ring-offset-0 rounded-xl">
+                                                    <SelectValue placeholder="Выберите офис" />
                                                 </SelectTrigger>
-                                                <SelectContent className="bg-gray-900 border-gray-700 text-white">
-                                                    {categories.map((category) => (
-                                                        <SelectItem key={category.id} value={category.id.toString()} className="hover:bg-gray-800">
-                                                            {category.name}
+                                                <SelectContent className="bg-gray-900 border-2 border-gray-700">
+                                                    {offices.map((office) => (
+                                                        <SelectItem key={office.id} value={office.id.toString()} className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white [&>span>svg]:text-white">
+                                                            {office.name}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
                                         </div>
-                                    )}
 
-                                    {formErrors && (
-                                        <div className="bg-gray-900 border-2 border-gray-700 rounded-xl p-4 animate-in slide-in-from-top-2 duration-300">
-                                            <p className="text-sm text-[#F35713] font-medium">{formErrors}</p>
-                                        </div>
-                                    )}
-
-                                    <Button
-                                        type="button"
-                                        onClick={() => {
-                                            setStep(2);
-                                            setFormErrors("");
-                                        }}
-                                        disabled={
-                                            !formData.phone ||
-                                            !formData.full_name ||
-                                            !formData.office_id ||
-                                            !formData.role ||
-                                            (formData.role === 'executor' && !formData.service_category_id)
-                                        }
-                                        className="w-full text-base h-14 bg-[#F35713] hover:bg-[#F35713]/90 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:shadow-[#F35713]/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                    >
-                                        Далее
-                                    </Button>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="space-y-2.5 relative">
-                                        <Label htmlFor="password" className="text-sm font-semibold text-white">Пароль</Label>
-                                        <div className="relative">
-                                            <Input
-                                                id="password"
-                                                type={showPassword ? "text" : "password"}
-                                                value={formData.password}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                                                placeholder="Минимум 6 символов"
+                                        <div className="space-y-2.5">
+                                            <Label htmlFor="role" className="text-sm font-semibold text-white">Роль *</Label>
+                                            <Select
+                                                value={formData.role}
+                                                onValueChange={(value) => setFormData(prev => ({ ...prev, role: value, service_category_id: '' }))}
                                                 required
-                                                minLength={6}
-                                                className="text-base h-12 bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 rounded-xl transition-all duration-200 hover:border-gray-600 pr-12 placeholder:text-gray-500"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-300 transition-colors"
                                             >
-                                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                            </button>
+                                                <SelectTrigger className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 focus:ring-offset-0 rounded-xl">
+                                                    <SelectValue placeholder="Выберите роль" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-gray-900 border-2 border-gray-700">
+                                                    {ROLES.map((role) => (
+                                                        <SelectItem key={role.value} value={role.value} className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white [&>span>svg]:text-white">
+                                                            {role.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
-                                    </div>
 
-                                    <div className="space-y-2.5 relative">
-                                        <Label htmlFor="confirm_password" className="text-sm font-semibold text-white">Подтвердите пароль</Label>
-                                        <div className="relative">
-                                            <Input
-                                                id="confirm_password"
-                                                type={showConfirmPassword ? "text" : "password"}
-                                                value={formData.confirm_password}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, confirm_password: e.target.value }))}
-                                                placeholder="Повторите пароль"
-                                                required
-                                                className="text-base h-12 bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 rounded-xl transition-all duration-200 hover:border-gray-600 pr-12 placeholder:text-gray-500"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-300 transition-colors"
-                                            >
-                                                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                            </button>
-                                        </div>
-                                    </div>
+                                        {formData.role === 'executor' && (
+                                            <div className="space-y-2.5">
+                                                <Label htmlFor="service_category" className="text-sm font-semibold text-white">Категория услуг *</Label>
+                                                <Select
+                                                    value={formData.service_category_id}
+                                                    onValueChange={(value) => setFormData(prev => ({ ...prev, service_category_id: value }))}
+                                                    required
+                                                >
+                                                    <SelectTrigger className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 focus:ring-offset-0 rounded-xl">
+                                                        <SelectValue placeholder="Выберите категорию услуг" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-gray-900 border-2 border-gray-700">
+                                                        {categories.map((category) => (
+                                                            <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white [&>span>svg]:text-white">
+                                                                {category.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
 
-                                    {formErrors && (
-                                        <div className="bg-gray-900 border-2 border-gray-700 rounded-xl p-4 animate-in slide-in-from-top-2 duration-300">
-                                            <p className="text-sm text-[#F35713] font-medium">{formErrors}</p>
-                                        </div>
-                                    )}
+                                        {formErrors && <p className="text-[#F35713] text-sm mt-1.5 font-medium animate-in fade-in flex items-center gap-1.5">{formErrors}</p>}
 
-                                    <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                                         <Button
                                             type="button"
                                             onClick={() => {
-                                                setStep(1);
+                                                setStep(2);
                                                 setFormErrors("");
+                                                // Автоматически отправляем код при переходе к шагу верификации
+                                                if (!codeSent) {
+                                                    handleSendVerificationCode();
+                                                }
                                             }}
-                                            variant="outline"
-                                            className="flex-1 text-base h-13 border-2 border-gray-700 text-gray-300 hover:bg-gray-900 hover:border-gray-600 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98]"
+                                            disabled={
+                                                !formData.phone ||
+                                                !formData.full_name ||
+                                                !formData.office_id ||
+                                                !formData.role ||
+                                                (formData.role === 'executor' && !formData.service_category_id)
+                                            }
+                                            className="w-full bg-[#F35713] hover:bg-[#F35713]/90 text-white py-3 h-14 rounded-xl text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-[#F35713]/30 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                                         >
-                                            Назад
+                                            Далее
                                         </Button>
-                                        <Button
-                                            type="submit"
-                                            disabled={loading}
-                                            className="flex-1 text-base h-14 bg-[#F35713] hover:bg-[#F35713]/90 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:shadow-[#F35713]/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                        >
-                                            {loading ? 'Отправка...' : 'Отправить запрос'}
-                                        </Button>
+                                    </div>
+                                </>
+                            ) : step === 2 ? (
+                                <>
+                                    <div className="space-y-4">
+                                        <p className="text-sm text-gray-400 text-center">
+                                            Мы отправили SMS с кодом верификации на номер {formData.phone}
+                                        </p>
+
+                                        <div className="space-y-2.5">
+                                            <Label htmlFor="verification-code" className="text-sm font-semibold text-white text-center block">
+                                                Введите код из SMS
+                                            </Label>
+                                            <div className="flex justify-center">
+                                                <InputOTP
+                                                    maxLength={6}
+                                                    value={verificationCode}
+                                                    onChange={(value) => {
+                                                        setVerificationCode(value);
+                                                        setFormErrors(null);
+                                                    }}
+                                                    containerClassName="gap-2"
+                                                >
+                                                    <InputOTPGroup>
+                                                        <InputOTPSlot 
+                                                            index={0} 
+                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
+                                                        />
+                                                        <InputOTPSlot 
+                                                            index={1} 
+                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
+                                                        />
+                                                        <InputOTPSlot 
+                                                            index={2} 
+                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
+                                                        />
+                                                        <InputOTPSlot 
+                                                            index={3} 
+                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
+                                                        />
+                                                        <InputOTPSlot 
+                                                            index={4} 
+                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
+                                                        />
+                                                        <InputOTPSlot 
+                                                            index={5} 
+                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
+                                                        />
+                                                    </InputOTPGroup>
+                                                </InputOTP>
+                                            </div>
+                                        </div>
+
+                                        {formErrors && <p className="text-[#F35713] text-sm mt-1.5 font-medium animate-in fade-in flex items-center gap-1.5 text-center justify-center">{formErrors}</p>}
+
+                                        <div className="flex flex-col space-y-2">
+                                            <Button
+                                                type="button"
+                                                onClick={handleVerifyCode}
+                                                disabled={verificationCode.length !== 6}
+                                                className="w-full bg-[#F35713] hover:bg-[#F35713]/90 text-white py-3 h-14 rounded-xl text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-[#F35713]/30 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                            >
+                                                Подтвердить
+                                            </Button>
+
+                                            <Button
+                                                type="button"
+                                                onClick={handleSendVerificationCode}
+                                                disabled={isSendingCode || countdown > 0}
+                                                variant="outline"
+                                                className="w-full text-base h-12 text-gray-400 border-gray-700 hover:text-gray-300 hover:bg-gray-900 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                            >
+                                                {isSendingCode
+                                                    ? 'Отправка...'
+                                                    : countdown > 0
+                                                    ? `Отправить повторно (${countdown}с)`
+                                                    : 'Отправить код повторно'}
+                                            </Button>
+
+                                            <Button
+                                                type="button"
+                                                onClick={() => {
+                                                    setStep(1);
+                                                    setFormErrors("");
+                                                    setVerificationCode('');
+                                                }}
+                                                variant="ghost"
+                                                className="w-full text-base h-12 text-gray-400 hover:text-gray-300 hover:bg-gray-900 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98]"
+                                            >
+                                                Назад
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="space-y-5">
+                                        <div className="space-y-2.5 relative">
+                                            <Label htmlFor="password" className="text-sm font-semibold text-white">Пароль *</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    id="password"
+                                                    type={showPassword ? "text" : "password"}
+                                                    value={formData.password}
+                                                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                                                    placeholder="Минимум 6 символов"
+                                                    required
+                                                    minLength={6}
+                                                    className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500 pr-12"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-300 transition-colors"
+                                                >
+                                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2.5 relative">
+                                            <Label htmlFor="confirm_password" className="text-sm font-semibold text-white">Подтвердите пароль *</Label>
+                                            <div className="relative">
+                                                <Input
+                                                    id="confirm_password"
+                                                    type={showConfirmPassword ? "text" : "password"}
+                                                    value={formData.confirm_password}
+                                                    onChange={(e) => setFormData(prev => ({ ...prev, confirm_password: e.target.value }))}
+                                                    placeholder="Повторите пароль"
+                                                    required
+                                                    className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500 pr-12"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-300 transition-colors"
+                                                >
+                                                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {formErrors && <p className="text-[#F35713] text-sm mt-1.5 font-medium animate-in fade-in flex items-center gap-1.5">{formErrors}</p>}
+
+                                        <div className="flex flex-col space-y-2">
+                                            <Button
+                                                type="submit"
+                                                disabled={loading}
+                                                className="w-full bg-[#F35713] hover:bg-[#F35713]/90 text-white py-3 h-14 rounded-xl text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-[#F35713]/30 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                            >
+                                                {loading ? 'Отправка...' : 'Отправить запрос'}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                onClick={() => {
+                                                    setStep(2);
+                                                    setFormErrors("");
+                                                }}
+                                                variant="ghost"
+                                                className="w-full text-base h-12 text-gray-400 hover:text-gray-300 hover:bg-gray-900 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98]"
+                                            >
+                                                Назад
+                                            </Button>
+                                        </div>
                                     </div>
                                 </>
                             )}
 
-                            <div className="pt-3 border-t border-gray-800">
+                            <div className="pt-2 border-t border-gray-800">
                                 <Link href="/login">
                                     <Button
                                         type="button"
@@ -403,6 +576,13 @@ export default function RegisterPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <SuccessModal
+                isOpen={successModal.isOpen}
+                onClose={handleSuccessClose}
+                title="Успешно"
+                message="Запрос на регистрацию отправлен. Ожидайте одобрения администратора."
+            />
         </div>
     );
 }

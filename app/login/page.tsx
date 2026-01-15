@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { UserPlus, Eye, EyeOff } from "lucide-react"
 import {useRouter} from "next/navigation";
+import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import api from "@/lib/api";
@@ -197,13 +198,14 @@ export default function LoginPage() {
                     </button>
                   </div>
                   {passwordError && <p className="text-[#F35713] text-sm mt-1.5 font-medium animate-in fade-in flex items-center gap-1.5">{passwordError}</p>}
-                  <button
-                    type="button"
-                    onClick={() => {}}
-                    className="text-sm text-gray-400 hover:text-gray-300 transition-colors"
-                  >
-                    Забыли пароль
-                  </button>
+                  <Link href="/reset-password">
+                    <button
+                      type="button"
+                      className="text-sm text-gray-400 hover:text-gray-300 transition-colors"
+                    >
+                      Забыли пароль
+                    </button>
+                  </Link>
                 </div>
               </div>
 
