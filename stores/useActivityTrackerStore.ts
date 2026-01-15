@@ -30,6 +30,7 @@ interface ActivityTrackerState {
   lastPosture: 'sitting' | 'standing' | 'unknown'
   manualStart: boolean
   healthReminders: HealthReminderSettings
+  autoStartInWorkingHours: boolean // Автоматически включать трекер в рабочее время
   
   // Actions
   setIsTracking: (isTracking: boolean) => void
@@ -41,6 +42,7 @@ interface ActivityTrackerState {
   resetStatistics: () => void
   updateStatistics: (updater: (prev: Statistics) => Statistics) => void
   setHealthReminders: (settings: Partial<HealthReminderSettings>) => void
+  setAutoStartInWorkingHours: (enabled: boolean) => void
   
   // Методы управления трекером (будут вызываться из компонентов)
   requestStartTracking: (isManual: boolean) => void
@@ -73,6 +75,7 @@ export const useActivityTrackerStore = create<ActivityTrackerState>()(
       lastPosture: 'unknown',
       manualStart: false,
       healthReminders: initialHealthReminders,
+      autoStartInWorkingHours: true, // По умолчанию включено
       
       setIsTracking: (isTracking) => set({ isTracking }),
       
@@ -106,6 +109,8 @@ export const useActivityTrackerStore = create<ActivityTrackerState>()(
         }
       })),
       
+      setAutoStartInWorkingHours: (enabled) => set({ autoStartInWorkingHours: enabled }),
+      
       // Методы управления трекером (сигналы для сервиса)
       requestStartTracking: (isManual) => {
         set({ 
@@ -134,7 +139,8 @@ export const useActivityTrackerStore = create<ActivityTrackerState>()(
         postureStartTime: state.postureStartTime,
         lastPosture: state.lastPosture,
         manualStart: state.manualStart,
-        healthReminders: state.healthReminders
+        healthReminders: state.healthReminders,
+        autoStartInWorkingHours: state.autoStartInWorkingHours
       })
     }
   )

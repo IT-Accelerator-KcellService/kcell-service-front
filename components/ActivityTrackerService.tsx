@@ -46,6 +46,7 @@ export function ActivityTrackerService() {
     lastPosture,
     manualStart,
     healthReminders,
+    autoStartInWorkingHours,
     setIsTracking,
     setStatistics,
     setStartTime,
@@ -889,6 +890,13 @@ export function ActivityTrackerService() {
         return
       }
       
+      // Проверяем настройку пользователя для автозапуска
+      if (!storeState.autoStartInWorkingHours) {
+        console.log('⏭️ [Service] Автозапуск отключен пользователем')
+        isChecking = false
+        return
+      }
+      
       isChecking = true
       
       // Загружаем информацию об офисе (с кэшированием)
@@ -948,7 +956,9 @@ export function ActivityTrackerService() {
       }
 
       // Рабочие часы активны - запускаем трекер, если он не запущен и не был запущен вручную
-      if (!currentIsTracking && !currentManualStart && !isStartingRef.current) {
+      // Проверяем настройку пользователя для автозапуска
+      const currentAutoStartEnabled = storeState.autoStartInWorkingHours
+      if (!currentIsTracking && !currentManualStart && !isStartingRef.current && currentAutoStartEnabled) {
         console.log('✅ [Service] Автозапуск (периодическая проверка): Рабочие часы, запускаю трекер...')
         await startTracking()
       }
@@ -965,7 +975,7 @@ export function ActivityTrackerService() {
         clearTimeout(initialTimeout)
       }
     }
-  }, [user?.id, user?.role, isTracking, manualStart])
+  }, [user?.id, user?.role, isTracking, manualStart, autoStartInWorkingHours])
 
   // Обработчики событий для стандартных Web API
   useEffect(() => {

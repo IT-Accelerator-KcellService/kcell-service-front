@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Play, Pause, Square, TrendingUp, Clock, Activity, ArrowLeft, Settings, Bell } from "lucide-react"
+import { Play, Pause, Square, TrendingUp, Clock, Activity, ArrowLeft, Settings, Bell, Timer } from "lucide-react"
 import { useAuthStore } from "@/stores/useAuthStore"
 import { useActivityTrackerStore } from "@/stores/useActivityTrackerStore"
 import { useRouter } from "next/navigation"
@@ -63,6 +63,7 @@ export function ActivityTracker() {
     lastPosture: lastPostureFromStore,
     manualStart: manualStartFromStore,
     healthReminders,
+    autoStartInWorkingHours,
     setIsTracking,
     setStatistics,
     setStartTime,
@@ -71,7 +72,8 @@ export function ActivityTracker() {
     setManualStart,
     resetStatistics,
     updateStatistics,
-    setHealthReminders
+    setHealthReminders,
+    setAutoStartInWorkingHours
   } = useActivityTrackerStore()
   
   const [currentData, setCurrentData] = useState<ActivityData | null>(null)
@@ -1029,6 +1031,41 @@ export function ActivityTracker() {
                   <p className="text-xs sm:text-sm text-blue-800">
                     <Clock className="h-3 w-3 inline mr-1" />
                     Последнее напоминание: {new Date(healthReminders.lastReminderTime).toLocaleString('ru-RU')}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Timer className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span>Настройки автозапуска</span>
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Управление автоматическим включением трекера в рабочее время
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 p-4 sm:p-6">
+              {/* Автоматический запуск в рабочее время */}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="auto-start-enabled" className="text-sm font-medium">
+                  Автозапуск в рабочее время
+                </Label>
+                <Switch
+                  id="auto-start-enabled"
+                  checked={autoStartInWorkingHours}
+                  onCheckedChange={(checked) => setAutoStartInWorkingHours(checked)}
+                />
+              </div>
+
+              {/* Информация о рабочих часах */}
+              {officeInfo && officeInfo.auto_track_enabled && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs sm:text-sm text-blue-800">
+                    <Clock className="h-3 w-3 inline mr-1" />
+                    Рабочие часы офиса: {formatTimeDisplay(officeInfo.working_hours_start)} - {formatTimeDisplay(officeInfo.working_hours_end)}
                   </p>
                 </div>
               )}
