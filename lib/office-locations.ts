@@ -90,7 +90,11 @@ export const officeLocationsData: OfficeLocation[] = [
   { address: "Teniz Towers", block: "Г", location: "2 этаж", room: "" },
   { address: "Teniz Towers", block: "Г", location: "3 этаж", room: "" },
   { address: "Teniz Towers", block: "Г", location: "4 этаж", room: "" },
-  { address: "Teniz Towers", block: "Г", location: "Лестница", room: "" }
+  { address: "Teniz Towers", block: "Г", location: "Лестница", room: "" },
+  { address: "Nurlytau", block: "Н", location: "", room: "" },
+  { address: "Koktem Tower", block: "К", location: "", room: "" },
+  { address: "Venus", block: "В", location: "", room: "" },
+  { address: "Koktem Grand", block: "К", location: "", room: "" },
 ];
 
 // Утилиты для работы с данными офисов
