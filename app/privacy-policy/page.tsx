@@ -12,7 +12,7 @@ export default function PrivacyPolicyPage() {
   const privacyPolicyRU = {
     title: "ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ",
     appName: "Kcell Service",
-    lastUpdated: "Дата последнего обновления: 05 января 2026 года",
+    lastUpdated: "Дата последнего обновления: 20 января 2026 года",
     sections: [
       {
         title: "1. Общие положения",
@@ -28,15 +28,19 @@ export default function PrivacyPolicyPage() {
 
 Данные учетной записи и авторизации: служебный логин, служебный идентификатор пользователя, иные идентификаторы, необходимые для предоставления доступа в Приложение.
 
+Контактные данные: электронный адрес и/или номер телефона пользователя (при наличии), используемые для связи и обеспечения доступа.
+
+Номер телефона и SMS: номер телефона может обрабатываться для связи и восстановления доступа к учетной записи. Для подтверждения личности и восстановления доступа могут использоваться одноразовые коды, отправляемые по SMS. Приложение не получает доступ к содержимому SMS-сообщений пользователя и не считывает их.
+
 Данные сервисных заявок: содержание заявок, комментарии, статусы, служебные отметки и иные сведения, связанные с обработкой внутренних обращений.
 
-Вложения: фотографии, прикрепляемые пользователями к заявкам в целях подтверждения/описания проблемы или запроса.
+Вложения: фотографии и/или иные материалы, которые пользователи прикрепляют к заявкам по собственной инициативе в целях подтверждения/описания проблемы или запроса. Такие вложения используются только для обработки соответствующей заявки и доступны уполномоченным сотрудникам в рамках их ролей.
 
 Информация об офисе: сведения об офисе компании, к которому относится пользователь и/или создаваемая заявка (например, для определения, в каком офисе работает сотрудник и в какой офис направляется заявка).
 
-Технические данные: сведения, необходимые для корректной работы Приложения, включая тип устройства, версию операционной системы, технические журналы событий (при наличии), а также данные, необходимые для доставки push-уведомлений.
+Приблизительное местоположение (Location): Приложение может запрашивать приблизительное местоположение пользователя в момент создания заявки. Эти данные используются исключительно для определения офиса компании, к которому относится пользователь и/или создаваемая заявка, и для корректной маршрутизации обращений. Приложение не осуществляет сбор точного местоположения и не предоставляет информацию о местоположении другим пользователям.
 
-Приложение не осуществляет отслеживание точного местоположения пользователя, не использует GPS-данные устройства и не передает информацию о местоположении другим пользователям.
+Технические данные: сведения, необходимые для корректной работы Приложения, включая тип устройства, версию операционной системы, технические журналы событий (при наличии), а также данные, необходимые для доставки push-уведомлений.
 
 Приложение не обрабатывает платежную информацию и не использует данные пользователей для рекламных или маркетинговых целей.`
       },
@@ -49,6 +53,8 @@ export default function PrivacyPolicyPage() {
 создание, обработка и управление внутренними сервисными заявками;
 
 маршрутизация и распределение заявок по офисам и ответственным подразделениям;
+
+определение офиса пользователя/заявки с использованием приблизительного местоположения (при необходимости);
 
 отправка пользователям push-уведомлений о статусе заявок и изменениях по ним;
 
@@ -66,7 +72,7 @@ export default function PrivacyPolicyPage() {
       },
       {
         title: "5. Передача данных третьим лицам",
-        content: `Данные пользователей не передаются третьим лицам и не используются в коммерческих целях.
+        content: `Данные пользователей не передаются третьим лицам и не используются в коммерческих целях, включая данные о приблизительном местоположении.
 
 Использование облачной платформы Render осуществляется исключительно как технологической инфраструктуры для хранения и обработки данных. Передача данных возможна только в случаях, предусмотренных действующим законодательством.`
       },
@@ -104,87 +110,93 @@ export default function PrivacyPolicyPage() {
   const privacyPolicyEN = {
     title: "PRIVACY POLICY",
     appName: "Kcell Service",
-    lastUpdated: "Last updated: 05 January 2026",
+    lastUpdated: "Last updated: 20 January 2026",
     sections: [
       {
         title: "1. General Provisions",
-        content: `This Privacy Policy describes how information is collected, used, stored, and protected in the corporate mobile application Kcell Service (the "App").
+        content: `This Privacy Policy defines the procedure for collecting, using, storing, and protecting information of users of the corporate mobile application Kcell Service (the "App").
 
 The App is intended exclusively for internal use by employees and is not a public service.
 
-The App is operated by TMK TechnoHorizon Ltd., a private company.`
+The App operator is the private company TMK TechnoHorizon Ltd.`
       },
       {
-        title: "2. What Data We Process",
-        content: `In connection with the operation of the App, the following categories of data may be processed:
+        title: "2. Data We Process",
+        content: `In the course of operating the App, the following categories of data may be processed:
 
-Account and authentication data: corporate login, corporate user identifier, and other identifiers required to grant access to the App.
+Account and authentication data: corporate login, corporate user ID, and other identifiers required to provide access to the App.
 
-Service request data: service request content, comments, statuses, internal tags/notes, and other information related to processing internal requests.
+Contact data: the user's email address and/or phone number (if available), used for communication and providing access.
 
-Attachments: photos uploaded by users and attached to service requests to describe or confirm the issue/request.
+Phone number and SMS: a phone number may be processed for communication and account access recovery. For identity verification and access recovery, one-time codes sent via SMS may be used. The App does not access, read, or collect the content of the user's SMS messages.
 
-Office information: information about the company office associated with the user and/or the created request (for example, to determine which office an employee is located in and which office should receive the request).
+Service request data: the content of requests, comments, statuses, internal notes, and other information related to processing internal requests.
 
-Technical data: information required for the proper functioning of the App, including device type, operating system version, technical event logs (if applicable), and data required to deliver push notifications.
+Attachments: photos and/or other materials that users attach to requests on their own initiative to confirm/describe an issue or request. Such attachments are used only to process the relevant request and are available to authorized employees according to their roles.
 
-The App does not track a user's precise location, does not use the device's GPS data, and does not share location information with other users.
+Office information: information about the company office related to the user and/or the created request (for example, to determine in which office the employee works and to which office the request is addressed).
+
+Approximate location (Location): the App may request the user's approximate location at the time a request is created. This data is used solely to determine the company office related to the user and/or the request and to route requests correctly. The App does not collect precise location and does not provide location information to other users.
+
+Technical data: information required for proper operation of the App, including device type, operating system version, technical event logs (if applicable), and data necessary for delivering push notifications.
 
 The App does not process payment information and does not use user data for advertising or marketing purposes.`
       },
       {
         title: "3. Purposes of Data Processing",
-        content: `Data is processed solely for the following purposes:
+        content: `Data is processed exclusively for the following purposes:
 
-providing access to the App functionality and supporting user accounts;
+providing access to the App's functionality and maintaining user accounts;
 
 creating, processing, and managing internal service requests;
 
-routing and assigning requests by office and responsible departments;
+routing and distributing requests by offices and responsible departments;
 
-sending push notifications about request status updates and changes;
+determining the user/request office using approximate location (when necessary);
 
-preparing internal reporting and analytics on requests, and monitoring quality and processing timelines;
+sending users push notifications about request status and updates;
 
-ensuring the security, stability, and proper operation of the App.`
+generating internal reporting and analytics related to requests, as well as monitoring quality and processing times;
+
+ensuring the security, stability, and proper functioning of the App.`
       },
       {
         title: "4. Data Storage and Infrastructure",
-        content: `App data is stored and processed in cloud infrastructure provided by Render. The backend and database are hosted in the cloud and are not located within Kcell's internal infrastructure.
+        content: `App data is stored and processed in cloud infrastructure provided by the Render platform. The server-side components and database are hosted in the cloud and are not located within Kcell's internal infrastructure.
 
-Access to data is provided via secure communication channels. Data transmission between the App and the backend is performed over HTTPS.
+Access to data is provided via secure communication channels. Data transmission between the App and the server-side components uses the HTTPS protocol.
 
-The operator applies organizational and technical measures aimed at protecting data, including access controls and authentication mechanisms.`
+The operator applies organizational and technical measures to protect data, including access control and authentication mechanisms.`
       },
       {
-        title: "5. Data Sharing with Third Parties",
-        content: `User data is not shared with third parties and is not used for commercial purposes.
+        title: "5. Sharing Data with Third Parties",
+        content: `User data is not shared with third parties and is not used for commercial purposes, including approximate location data.
 
-Render is used solely as the technological infrastructure for storing and processing data. Data may be disclosed only where required by applicable law.`
+Use of the Render cloud platform is solely as a technological infrastructure for data storage and processing. Data may be disclosed only in cases required by applicable law.`
       },
       {
         title: "6. Access to the App",
-        content: `Access to the App is available only to authorized users. User self-registration within the App is not provided. Accounts are created and managed in accordance with internal corporate procedures.
+        content: `Access to the App is granted only to authorized users. User registration within the App is not available. Accounts are created and managed under internal corporate procedures.
 
-Access for external parties and contractors is not предусмотрен. (i.e., not provided)`
+Access for external persons and contractors is not provided.`
       },
       {
         title: "7. Administrative Access and Data Management",
-        content: `Access to App data is granted only to authorized users within the scope of their job responsibilities, including the Administrator and Manager roles.
+        content: `Access to App data is granted only to authorized users within their job responsibilities, including the roles of Administrator and Manager (Supervisor).
 
-Administrators and Managers may view and process service requests, including related data and attachments, solely to perform job functions and manage internal processes.`
+Administrators and Managers may view and process service requests, including related data and attachments, solely to perform work duties and manage processes.`
       },
       {
         title: "8. Retention, Deletion, and Archiving",
-        content: `Data, including service requests and attachments, may be retained, archived, or deleted in accordance with internal company policies and operational requirements.`
+        content: `Data, including service requests and attached materials, may be stored, archived, or deleted in accordance with internal company policies and operational requirements.`
       },
       {
         title: "9. User Rights and Requests",
-        content: `Users may request information about the data processed in the App and may contact the responsible person regarding data processing and protection (see contact details below).`
+        content: `Users have the right to obtain information about the data processed within the App and may contact the responsible person regarding data processing and protection (contact details below).`
       },
       {
         title: "10. Changes to This Policy",
-        content: `The operator may update this Privacy Policy. The current version of the Policy is published at the applicable URL.`
+        content: `The operator may amend this Privacy Policy. The current version of the Policy is published at the relevant URL.`
       },
       {
         title: "11. Contact Information",
