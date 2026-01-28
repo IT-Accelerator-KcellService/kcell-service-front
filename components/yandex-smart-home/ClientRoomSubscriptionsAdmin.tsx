@@ -39,7 +39,7 @@ export function ClientRoomSubscriptionsAdmin() {
     const [error, setError] = useState<string | null>(null)
     const [subscriptions, setSubscriptions] = useState<ClientRoomSubscription[]>([])
     const [meetingRooms, setMeetingRooms] = useState<MeetingRoom[]>([])
-    const [clients, setClients] = useState<User[]>([])
+    const [users, setUsers] = useState<User[]>([])
     const [selectedRoom, setSelectedRoom] = useState<number | "">("")
     const [selectedClient, setSelectedClient] = useState<number | "">("")
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -92,10 +92,8 @@ export function ClientRoomSubscriptionsAdmin() {
         try {
             const response = await getAllUsers()
             // API возвращает { success: true, users: [...] }
-            const users = response.data?.users || response.data || []
-            // Фильтруем только клиентов
-            const clientsList = users.filter((user: User) => user.role === 'client')
-            setClients(clientsList)
+            const allUsers = response.data?.users || response.data || []
+            setUsers(allUsers)
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || "Ошибка при загрузке клиентов")
         }
@@ -160,13 +158,21 @@ export function ClientRoomSubscriptionsAdmin() {
         }
     }
 
-    // Получаем доступных клиентов (те, которые еще не подписаны на выбранную комнату)
+    // Получаем доступных пользователей (те, которые еще не подписаны на выбранную комнату)
+    // Для переговорных комнат показываем только клиентов, для кабинетов — только сотрудников (не клиентов)
     const getAvailableClients = () => {
-        if (!selectedRoom) return clients
+        if (!selectedRoom) return users
+
+        const selectedRoomData = meetingRooms.find((room) => room.id === selectedRoom)
         const subscribedClientIds = subscriptions
             .filter(sub => sub.meeting_room_id === selectedRoom)
             .map(sub => sub.client_id)
-        return clients.filter(client => !subscribedClientIds.includes(client.id))
+
+        const baseList = selectedRoomData?.room_type === 'cabinet'
+            ? users.filter((user: User) => user.role !== 'client')
+            : users.filter((user: User) => user.role === 'client')
+
+        return baseList.filter(client => !subscribedClientIds.includes(client.id))
     }
 
     // Пагинация для списка подписок

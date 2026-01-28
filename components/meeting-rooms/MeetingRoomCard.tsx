@@ -122,10 +122,12 @@ export function MeetingRoomCard({
             <Building2 className="h-4 w-4 text-primary" />
             {room.floor} этаж
           </span>
-          <span className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            до {room.capacity} человек
-          </span>
+          {room.room_type !== "cabinet" && (
+            <span className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              до {room.capacity} человек
+            </span>
+          )}
           {showOffice && room.office && (
             <span className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-primary" />

@@ -341,6 +341,7 @@ export interface MeetingRoom {
     name: string;
     floor: number;
     capacity: number;
+    room_type?: 'meeting' | 'cabinet'; // optional for backward compatibility
     photos: string[];
     status: 'available' | 'booked';
     isActive: boolean;

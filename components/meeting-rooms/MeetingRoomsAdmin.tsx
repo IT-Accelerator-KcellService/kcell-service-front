@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
 import {
   MeetingRoom,
   MeetingRoomStatus,
+  MeetingRoomType,
   useMeetingRoomsStore,
 } from "@/stores/meetingRoomsStore";
 import { MeetingRoomCard } from "@/components/meeting-rooms/MeetingRoomCard";
@@ -48,6 +49,7 @@ interface RoomFormState {
   name: string;
   floor: number | "";
   capacity: number | "";
+  room_type: MeetingRoomType;
   status: MeetingRoomStatus;
   isActive: boolean;
   photos: string[];
@@ -58,6 +60,7 @@ const EMPTY_FORM: RoomFormState = {
   name: "",
   floor: "",
   capacity: "",
+  room_type: "meeting",
   status: "available",
   isActive: true,
   photos: [],
@@ -69,6 +72,7 @@ const toFormState = (room: MeetingRoom): RoomFormState => ({
   name: room.name,
   floor: room.floor,
   capacity: room.capacity,
+  room_type: room.room_type,
   status: room.status,
   isActive: room.isActive,
   photos: [...(room.photos ?? [])],
@@ -105,6 +109,7 @@ export function MeetingRoomsAdmin() {
   const [touched, setTouched] = useState(false);
   const [offices, setOffices] = useState<Office[]>([]);
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | "all">("all");
+  const [roomTypeFilter, setRoomTypeFilter] = useState<MeetingRoomType | "all">("all");
 
   useEffect(() => {
     fetchRooms();
@@ -317,18 +322,28 @@ export function MeetingRoomsAdmin() {
   };
 
   const filteredRooms = useMemo(() => {
-    if (selectedOfficeId === "all") {
-      return rooms;
+    let result = rooms;
+
+    if (selectedOfficeId !== "all") {
+      result = result.filter((room) => room.office_id === selectedOfficeId);
     }
-    return rooms.filter((room) => room.office_id === selectedOfficeId);
-  }, [rooms, selectedOfficeId]);
+
+    if (roomTypeFilter !== "all") {
+      result = result.filter((room) => room.room_type === roomTypeFilter);
+    }
+
+    return result;
+  }, [rooms, selectedOfficeId, roomTypeFilter]);
 
   const validateForm = (): boolean => {
     const next: typeof errors = {};
     if (!formState.name.trim()) next.name = "Введите название комнаты";
     if (!formState.floor || Number(formState.floor) < 1) next.floor = "Выберите этаж";
     if (!formState.capacity || Number(formState.capacity) < 1) next.capacity = "Укажите вместимость";
-    if (!formState.photos.length) next.photos = "Добавьте минимум одно фото";
+    // Для переговорных фото обязательно, для кабинетов можно без фото
+    if (formState.room_type === "meeting" && !formState.photos.length) {
+      next.photos = "Добавьте минимум одно фото для переговорной";
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -344,6 +359,7 @@ export function MeetingRoomsAdmin() {
       name: formState.name.trim(),
       floor: Number(formState.floor),
       capacity: Number(formState.capacity),
+      room_type: formState.room_type,
       status: formState.status,
       isActive: formState.isActive,
       photos: formState.photos,
@@ -383,26 +399,45 @@ export function MeetingRoomsAdmin() {
             Добавить комнату
           </Button>
         </div>
-        {offices.length > 0 && (
-          <div className="w-full md:w-auto">
+        <div className="flex flex-row flex-wrap gap-2 w-full items-center">
+          {offices.length > 0 && (
+            <div className="flex-1 min-w-[160px]">
+              <Select
+                value={selectedOfficeId === "all" ? "all" : selectedOfficeId.toString()}
+                onValueChange={(value) => setSelectedOfficeId(value === "all" ? "all" : Number(value))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Фильтр по офису" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все офисы</SelectItem>
+                  {offices.map((office) => (
+                    <SelectItem key={office.id} value={office.id.toString()}>
+                      {office.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="flex-1 min-w-[160px]">
             <Select
-              value={selectedOfficeId === "all" ? "all" : selectedOfficeId.toString()}
-              onValueChange={(value) => setSelectedOfficeId(value === "all" ? "all" : Number(value))}
+              value={roomTypeFilter}
+              onValueChange={(value) =>
+                setRoomTypeFilter(value as MeetingRoomType | "all")
+              }
             >
-              <SelectTrigger className="w-full md:w-[200px]">
-                <SelectValue placeholder="Фильтр по офису" />
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Тип комнаты" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Все офисы</SelectItem>
-                {offices.map((office) => (
-                  <SelectItem key={office.id} value={office.id.toString()}>
-                    {office.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">Все типы</SelectItem>
+                <SelectItem value="meeting">Переговорные</SelectItem>
+                <SelectItem value="cabinet">Кабинеты</SelectItem>
               </SelectContent>
             </Select>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Форма создания/редактирования комнаты */}
@@ -432,7 +467,7 @@ export function MeetingRoomsAdmin() {
                       ) : null}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="meeting-room-floor">Этаж</Label>
                         <Select
@@ -475,6 +510,32 @@ export function MeetingRoomsAdmin() {
                         {touched && errors.capacity ? (
                           <p className="text-xs text-red-500">{errors.capacity}</p>
                         ) : null}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Тип комнаты</Label>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                          type="button"
+                          variant={formState.room_type === "meeting" ? "default" : "outline"}
+                          className="rounded-full"
+                          onClick={() =>
+                            setFormState((prev) => ({ ...prev, room_type: "meeting" }))
+                          }
+                        >
+                          Переговорная
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={formState.room_type === "cabinet" ? "default" : "outline"}
+                          className="rounded-full"
+                          onClick={() =>
+                            setFormState((prev) => ({ ...prev, room_type: "cabinet" }))
+                          }
+                        >
+                          Кабинет (без бронирования)
+                        </Button>
                       </div>
                     </div>
 

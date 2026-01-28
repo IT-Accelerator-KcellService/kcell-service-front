@@ -13,11 +13,14 @@ import { useAuthStore } from "@/stores/useAuthStore";
 
 export type MeetingRoomStatus = "available" | "booked";
 
+export type MeetingRoomType = "meeting" | "cabinet";
+
 export interface MeetingRoom {
   id: number;
   name: string;
   floor: number;
   capacity: number;
+  room_type: MeetingRoomType;
   photos: string[];
   status: MeetingRoomStatus;
   isActive: boolean;
@@ -43,6 +46,7 @@ const convertApiRoomToStoreRoom = (apiRoom: ApiMeetingRoom): MeetingRoom => ({
   name: apiRoom.name,
   floor: apiRoom.floor,
   capacity: apiRoom.capacity,
+  room_type: (apiRoom.room_type as MeetingRoomType) || "meeting",
   photos: apiRoom.photos || [],
   status: apiRoom.status as MeetingRoomStatus,
   isActive: apiRoom.isActive,

@@ -97,7 +97,13 @@ export function MeetingRoomsCatalog({
   }, [selectedOffice, fetchRooms]);
 
   const visibleRooms = useMemo(
-    () => rooms.filter((room) => room.isActive),
+    () =>
+      rooms.filter(
+        (room) =>
+          room.isActive &&
+          // Only show meeting rooms in booking catalog; cabinets are not bookable
+          (room.room_type === "meeting" || room.room_type === undefined)
+      ),
     [rooms],
   );
 
