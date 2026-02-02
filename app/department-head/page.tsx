@@ -1652,7 +1652,7 @@ export default function DepartmentHeadDashboard() {
         <Header
             handleLogout={handleLogout}
             notificationCount={3}
-            role="Руководитель направления"
+            role="Офис менеджер"
         />
         <PullToRefresh onRefresh={handleRefresh}>
       <div className="min-h-screen bg-gray-50">

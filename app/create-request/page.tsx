@@ -147,7 +147,7 @@ export default function CreateRequestPage() {
           break;
 
         case 'department-head':
-          // Руководитель направления: создание с возможностью назначения исполнителей
+          // Офис менеджер: создание с возможностью назначения исполнителей
           // Получаем данные из FormData
           const requestType = formData.get('request_type') as string;
           const location = formData.get('location') as string;

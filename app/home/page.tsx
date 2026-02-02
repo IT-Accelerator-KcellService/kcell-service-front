@@ -399,7 +399,7 @@ export default function HomePage() {
     const roleTranslations: Record<string, string> = {
         client: "Клиент",
         "admin-worker": "Администратор офиса",
-        "department-head": "Руководитель направления",
+        "department-head": "Офис менеджер",
         executor: "Испольнитель",
         manager: "Руководитель"
     };

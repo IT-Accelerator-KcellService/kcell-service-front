@@ -404,7 +404,7 @@ export function RoleBasedActionMenu({
       )
     }
 
-    // Действия для руководителя направления
+    // Действия для офис менеджера
     if (userRole === "department-head") {
       if (isSubRequest && request?.category?.id === user?.service_category_id) {
         roleSpecificActions.push(
@@ -678,7 +678,7 @@ export function RoleBasedActionMenu({
             {userRole === "client" && "Клиент"}
             {userRole === "executor" && "Исполнитель"}
             {userRole === "manager" && "Руководитель"}
-            {userRole === "department-head" && "Руководитель направления"}
+            {userRole === "department-head" && "Офис менеджер"}
             {userRole === "admin-worker" && "Администратор офиса"}
           </p>
         </div>

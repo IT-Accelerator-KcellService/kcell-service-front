@@ -91,7 +91,7 @@ import { getPreviewUrl } from "@/lib/imageOptimization";
 const roleTranslations: Record<string, string> = {
   client: "Клиент",
   "admin-worker": "Администратор офиса",
-  "department-head": "Руководитель направления",
+  "department-head": "Офис менеджер",
   executor: "Испольнитель",
   manager: "Руководитель"
 };
@@ -3081,7 +3081,7 @@ export default function ManagerDashboard() {
                           <SelectItem value="all">Все роли</SelectItem>
                           <SelectItem value="client">Клиент</SelectItem>
                           <SelectItem value="admin-worker">Администратор офиса</SelectItem>
-                          <SelectItem value="department-head">Руководитель направления</SelectItem>
+                          <SelectItem value="department-head">Офис менеджер</SelectItem>
                           <SelectItem value="executor">Исполнитель</SelectItem>
                           <SelectItem value="manager">Руководитель</SelectItem>
                         </SelectContent>

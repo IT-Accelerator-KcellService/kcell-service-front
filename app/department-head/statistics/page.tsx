@@ -99,7 +99,7 @@ export default function DepartmentHeadStatisticsPage() {
       <Header
         handleLogout={handleLogout}
         notificationCount={0}
-        role="Руководитель направления"
+        role="Офис менеджер"
         onRefresh={handleRefresh}
       />
       <PullToRefresh onRefresh={handleRefresh}>

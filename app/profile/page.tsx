@@ -28,7 +28,7 @@ import Header from "@/app/header/Header"
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
     "admin-worker": "Администратор офиса",
-    "department-head": "Руководитель направления",
+    "department-head": "Офис менеджер",
     executor: "Исполнитель",
     manager: "Руководитель",
 }
