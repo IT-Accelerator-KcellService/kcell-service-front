@@ -369,18 +369,18 @@ export function ActivityTrackerService() {
     let vote: 'sitting' | 'standing' | null = null
     
     // Определяем позу на основе угла наклона устройства
-    // beta ~90° = устройство вертикально (сидим)
-    // beta ~0° или ~180° = устройство горизонтально (стоим)
-    if (normalizedBeta >= 60 && normalizedBeta <= 120) {
+    // Телефон лежит горизонтально (beta ~0° или ~180°) → сидит
+    // Телефон стоит вертикально (beta ~90°) → стоит
+    if (normalizedBeta <= 30 || normalizedBeta >= 150) {
       vote = 'sitting'
-    } else if (normalizedBeta <= 30 || normalizedBeta >= 150) {
+    } else if (normalizedBeta >= 60 && normalizedBeta <= 120) {
       vote = 'standing'
     }
     
     // Если не удалось определить по углу, используем ускорение
+    // Телефон лежит (Z ≈ гравитация) → сидит; телефон вертикально (Z ≠ гравитация) → стоит
     if (!vote) {
       const absZ = Math.abs(acceleration.z || 0)
-      // Если Z близко к гравитации (9.8) - вероятно сидим
       if (absZ >= 8.5 && absZ <= 10.5) {
         vote = 'sitting'
       } else if (absZ < 5 || absZ > 12) {

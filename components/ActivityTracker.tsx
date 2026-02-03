@@ -235,32 +235,27 @@ export function ActivityTracker() {
     let vote: 'sitting' | 'standing' | null = null
     
     // Метод 1: Анализ угла наклона (beta)
-    // beta ~ 90° = устройство лежит горизонтально (сидя)
-    // beta ~ 0° или 180° = устройство вертикально (стоя)
-    if (normalizedBeta >= 70 && normalizedBeta <= 110) {
-      // Устройство лежит горизонтально или почти горизонтально
+    // Телефон лежит горизонтально (beta ~0° или ~180°) → сидит
+    // Телефон стоит вертикально (beta ~90°) → стоит
+    if (normalizedBeta <= 30 || normalizedBeta >= 150) {
+      // Устройство лежит горизонтально
       vote = 'sitting'
-    } else if (normalizedBeta <= 20 || normalizedBeta >= 160) {
-      // Устройство вертикально
+    } else if (normalizedBeta >= 60 && normalizedBeta <= 120) {
+      // Устройство стоит вертикально
       vote = 'standing'
     }
     
     // Метод 2: Анализ вертикального ускорения
-    // Когда сидим: устройство неподвижно, Z ≈ 9.8 м/с² (гравитация)
-    // Когда стоим: устройство может двигаться, Z варьируется
+    // Телефон лежит (Z ≈ гравитация) → сидим; телефон вертикально → стоим
     if (verticalAcceleration >= 8.5 && verticalAcceleration <= 11.5) {
-      // Устройство неподвижно, вероятно лежит (сидя)
       if (!vote) vote = 'sitting'
     } else if (verticalAcceleration < 7 || verticalAcceleration > 12) {
-      // Устройство движется или в необычном положении
       if (!vote) vote = 'standing'
     }
     
     // Метод 3: Анализ угла gamma (боковой наклон)
-    // Когда сидим: gamma обычно близок к 0 (устройство ровно лежит)
-    // Когда стоим: gamma может варьироваться
-    if (normalizedGamma < 15 && normalizedBeta >= 70 && normalizedBeta <= 110) {
-      // Устройство ровно лежит горизонтально
+    // Устройство ровно лежит горизонтально (gamma ≈ 0, beta горизонтальный)
+    if (normalizedGamma < 15 && (normalizedBeta <= 30 || normalizedBeta >= 150)) {
       if (!vote) vote = 'sitting'
     }
     
