@@ -156,10 +156,12 @@ class IOSBridge {
         mimeTypeFallback = 'application/octet-stream',
         headers?: Record<string, string>
     ): Promise<void> {
-        // В iOS WebView blob URL не открывается — используем только нативный saveFile
+        // В iOS WebView blob URL не открывается — используем нативный saveFile или ReactNativeWebView.postMessage
         if (this.isIOSWebView()) {
-            if (!window.webkit?.messageHandlers?.saveFile) {
-                console.warn('[iOSBridge] saveFile handler not available in iOS WebView');
+            const useNativeSave =
+                !!(window as any).webkit?.messageHandlers?.saveFile ||
+                !!(window as any).ReactNativeWebView?.postMessage;
+            if (!useNativeSave) {
                 if (typeof window !== 'undefined' && window.alert) {
                     window.alert('Скачивание файла в приложении недоступно. Обратитесь к разработчику.');
                 }
@@ -192,11 +194,22 @@ class IOSBridge {
                         const base64data = result.split(',')[1] || '';
                         const mimeType = blob.type || mimeTypeFallback;
 
-                        window.webkit?.messageHandlers?.saveFile?.postMessage({
-                            filename,
-                            base64Data: base64data,
-                            mimeType,
-                        });
+                        if ((window as any).webkit?.messageHandlers?.saveFile) {
+                            (window as any).webkit.messageHandlers.saveFile.postMessage({
+                                filename,
+                                base64Data: base64data,
+                                mimeType,
+                            });
+                        } else if ((window as any).ReactNativeWebView?.postMessage) {
+                            (window as any).ReactNativeWebView.postMessage(
+                                JSON.stringify({
+                                    type: 'saveFile',
+                                    filename,
+                                    base64Data: base64data,
+                                    mimeType,
+                                })
+                            );
+                        }
                         resolve();
                     } catch (e) {
                         reject(e);
@@ -220,15 +233,24 @@ class IOSBridge {
         filename: string,
         mimeType = 'application/octet-stream'
     ): void {
-        if (!this.isIOSWebView() || !window.webkit?.messageHandlers?.saveFile) {
-            return;
-        }
+        if (!this.isIOSWebView()) return;
         try {
-            window.webkit.messageHandlers.saveFile.postMessage({
-                filename,
-                base64Data: base64Data,
-                mimeType,
-            });
+            if ((window as any).webkit?.messageHandlers?.saveFile) {
+                (window as any).webkit.messageHandlers.saveFile.postMessage({
+                    filename,
+                    base64Data: base64Data,
+                    mimeType,
+                });
+            } else if ((window as any).ReactNativeWebView?.postMessage) {
+                (window as any).ReactNativeWebView.postMessage(
+                    JSON.stringify({
+                        type: 'saveFile',
+                        filename,
+                        base64Data: base64Data,
+                        mimeType,
+                    })
+                );
+            }
         } catch (e) {
             console.error('[iOSBridge] saveFileFromBase64 error:', e);
         }

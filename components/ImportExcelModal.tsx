@@ -182,10 +182,10 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
     const filename = 'шаблон_повторяющихся_задач.xlsx';
     const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-    // В iOS WebView blob URL не открывается — сохраняем через нативный saveFile
+    // В iOS WebView blob URL не открывается — сохраняем через нативный saveFile или ReactNativeWebView
     if (typeof window !== 'undefined') {
       const { iosBridge } = await import('@/lib/ios-bridge');
-      if (iosBridge.isIOSWebView() && (window as any).webkit?.messageHandlers?.saveFile) {
+      if (iosBridge.isIOSWebView()) {
         const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
         iosBridge.saveFileFromBase64(base64, filename, mimeType);
         return;
