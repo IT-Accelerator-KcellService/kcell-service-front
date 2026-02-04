@@ -144,7 +144,7 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
     }
   };
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
     // Создаем шаблон Excel файла с реальными данными
     const templateData = [
       ['Название', 'Описание', 'Локация', 'Категория', 'Тип_повторения', 'Интервал', 'Дата_начала'],
@@ -179,8 +179,20 @@ export const ImportExcelModal: React.FC<ImportExcelModalProps> = ({
     // Добавляем лист в книгу
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Повторяющиеся задачи');
 
-    // Создаем файл и скачиваем
-    XLSX.writeFile(workbook, 'шаблон_повторяющихся_задач.xlsx');
+    const filename = 'шаблон_повторяющихся_задач.xlsx';
+    const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    // В iOS WebView blob URL не открывается — сохраняем через нативный saveFile
+    if (typeof window !== 'undefined') {
+      const { iosBridge } = await import('@/lib/ios-bridge');
+      if (iosBridge.isIOSWebView() && (window as any).webkit?.messageHandlers?.saveFile) {
+        const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+        iosBridge.saveFileFromBase64(base64, filename, mimeType);
+        return;
+      }
+    }
+
+    XLSX.writeFile(workbook, filename);
   };
 
   const resetForm = () => {

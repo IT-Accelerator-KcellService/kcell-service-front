@@ -895,15 +895,18 @@ export default function ManagerDashboard() {
           window.androidApp?.saveFileBase64(`analytics.${format}`, base64data, mimeType);
         };
         reader.readAsDataURL(blob);
+      } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
+        await iosBridge.downloadFileViaNative(
+          `https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`,
+          `analytics.${format}`,
+          format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/octet-stream',
+          { Authorization: `Bearer ${token}` }
+        );
       } else {
-        // Оригинальный код для веб-браузеров
         const res = await axios.get(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
           responseType: "blob",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-
         const url = window.URL.createObjectURL(res.data);
         const a = document.createElement("a");
         a.href = url;

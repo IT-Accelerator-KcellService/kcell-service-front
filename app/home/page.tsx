@@ -729,14 +729,18 @@ export default function HomePage() {
                     window.androidApp?.saveFileBase64(`analytics.${format}`, base64data, mimeType);
                 };
                 reader.readAsDataURL(blob);
+            } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
+                // iOS (в т.ч. RN WebView): blob URL не открывается — только нативное скачивание
+                await iosBridge.downloadFileViaNative(
+                    `https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`,
+                    `analytics.${format}`,
+                    format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/octet-stream',
+                    { Authorization: `Bearer ${token}` }
+                );
             } else {
-                // Оригинальный код для веб-браузеров
                 const res = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                    headers: { Authorization: `Bearer ${token}` },
                 });
-
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement("a");

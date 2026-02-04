@@ -210,6 +210,29 @@ class IOSBridge {
             throw error;
         }
     }
+
+    /**
+     * Сохранение уже сгенерированных данных (base64) через нативный saveFile.
+     * Для клиентских файлов (например XLSX.write в память), чтобы не использовать blob URL.
+     */
+    public saveFileFromBase64(
+        base64Data: string,
+        filename: string,
+        mimeType = 'application/octet-stream'
+    ): void {
+        if (!this.isIOSWebView() || !window.webkit?.messageHandlers?.saveFile) {
+            return;
+        }
+        try {
+            window.webkit.messageHandlers.saveFile.postMessage({
+                filename,
+                base64Data: base64Data,
+                mimeType,
+            });
+        } catch (e) {
+            console.error('[iOSBridge] saveFileFromBase64 error:', e);
+        }
+    }
 }
 
 export const iosBridge = IOSBridge.getInstance();
