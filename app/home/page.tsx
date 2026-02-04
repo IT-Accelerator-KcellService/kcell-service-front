@@ -729,30 +729,18 @@ export default function HomePage() {
 
                 reader.readAsDataURL(blob);
             } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.saveFile) {
-                // Для iOS WebView используем специальный обработчик
-                const response = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
+                // Для iOS WebView используем iosBridge.downloadFileViaNative
+                const { iosBridge } = await import('@/lib/ios-bridge');
+                await iosBridge.downloadFileViaNative(
+                    `https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`,
+                    `analytics.${format}`,
+                    format === 'xlsx'
+                        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        : 'application/octet-stream',
+                    {
+                        Authorization: `Bearer ${token}`,
                     }
-                });
-
-                const blob = await response.blob();
-                const reader = new FileReader();
-
-                reader.onloadend = function() {
-                    const base64data = reader.result?.toString().split(',')[1] || '';
-                    const mimeType = blob.type ||
-                        (format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
-                            'application/octet-stream');
-
-                    window.webkit?.messageHandlers?.saveFile?.postMessage({
-                        filename: `analytics.${format}`,
-                        base64Data: base64data,
-                        mimeType: mimeType
-                    });
-                };
-
-                reader.readAsDataURL(blob);
+                );
             } else {
                 // Оригинальный код для веб-браузеров
                 const res = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {

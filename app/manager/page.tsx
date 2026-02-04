@@ -894,6 +894,19 @@ export default function ManagerDashboard() {
         };
 
         reader.readAsDataURL(blob);
+      } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.saveFile) {
+        // Для iOS WebView используем iosBridge.downloadFileViaNative
+        const { iosBridge } = await import('@/lib/ios-bridge');
+        await iosBridge.downloadFileViaNative(
+          `https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`,
+          `analytics.${format}`,
+          format === 'xlsx'
+              ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+              : 'application/octet-stream',
+          {
+            Authorization: `Bearer ${token}`,
+          }
+        );
       } else {
         // Оригинальный код для веб-браузеров
         const res = await axios.get(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {

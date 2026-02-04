@@ -1,5 +1,7 @@
 // FCM Token Management for Kcell Service Frontend
 
+import { iosBridge } from './ios-bridge';
+
 interface FCMTokenData {
     token: string;
     platform: 'android' | 'ios' | 'web';
@@ -27,8 +29,8 @@ class FCMService {
     async initialize(): Promise<void> {
         if (this.isInitialized) return;
 
-        // Check if we're in Android WebView
-        if (this.isAndroidWebView()) {
+        // Check if we're in native WebView (Android or iOS)
+        if (this.isAndroidWebView() || iosBridge.isIOSWebView()) {
             this.setupAndroidInterface();
         } else {
             // For web browsers, we might implement web push notifications later
@@ -84,15 +86,29 @@ class FCMService {
     }
 
     /**
+     * Determine current platform for FCM token
+     */
+    private getPlatform(): 'android' | 'ios' | 'web' {
+        if (iosBridge.isIOSWebView()) {
+            return 'ios';
+        }
+        if (this.isAndroidWebView()) {
+            return 'android';
+        }
+        return 'web';
+    }
+
+    /**
      * Send FCM token to backend
      */
     private async sendTokenToBackend(token: string): Promise<void> {
         try {
             const authToken = await this.getAuthToken();
-            
+            const platform = this.getPlatform();
+
             const tokenData: FCMTokenData = {
                 token,
-                platform: 'android',
+                platform,
                 deviceId: this.getDeviceId(),
             };
 

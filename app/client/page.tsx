@@ -749,9 +749,28 @@ export default function ClientDashboard() {
     }
   };
 
-  const handleOpenCreateRequest = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
+  const handleOpenCreateRequest = async () => {
+    try {
+      // Сначала проверяем/запрашиваем разрешение на локацию через бриджи (iOS/Android)
+      const { ensureLocationPermission } = await import('@/lib/ios-bridge');
+      const { androidBridge } = await import('@/lib/android-bridge');
+
+      let hasPermission = true;
+
+      // iOS WebView
+      if (ensureLocationPermission && (window as any).webkit) {
+        hasPermission = await ensureLocationPermission();
+      }
+
+      // Android WebView
+      if (hasPermission && androidBridge.isAndroidWebView()) {
+        hasPermission = await androidBridge.requestPermission('location');
+      }
+
+      if (!hasPermission) {
+        setRequestLocation("Доступ к геолокации запрещён");
+      } else if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
           (position) => {
             const { latitude, longitude, accuracy } = position.coords;
             setRequestLocation(`Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`);
@@ -775,16 +794,18 @@ export default function ClientDashboard() {
               default:
                 setRequestLocation("Не удалось определить местоположение");
             }
-          }
-          ,
+          },
           {
             enableHighAccuracy: true,
             timeout: 10000,
             maximumAge: 0
           }
-      );
-    } else {
-      setRequestLocation("Ваш браузер не поддерживает геолокации");
+        );
+      } else {
+        setRequestLocation("Ваш браузер не поддерживает геолокации");
+      }
+    } catch (e) {
+      console.error('Ошибка при запросе разрешения на локацию:', e);
     }
 
     setShowCreateRequest(true);

@@ -1074,9 +1074,27 @@ export default function ExecutorDashboard() {
     }
   }
 
-  const handleOpenCreateRequest = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
+  const handleOpenCreateRequest = async () => {
+    try {
+      const { ensureLocationPermission } = await import('@/lib/ios-bridge');
+      const { androidBridge } = await import('@/lib/android-bridge');
+
+      let hasPermission = true;
+
+      // iOS WebView
+      if (ensureLocationPermission && (window as any).webkit) {
+        hasPermission = await ensureLocationPermission();
+      }
+
+      // Android WebView
+      if (hasPermission && androidBridge.isAndroidWebView()) {
+        hasPermission = await androidBridge.requestPermission('location');
+      }
+
+      if (!hasPermission) {
+        setRequestLocation("Доступ к геолокации запрещён");
+      } else if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
           (position) => {
             const { latitude, longitude, accuracy } = position.coords;
             setRequestLocation(`Широта: ${latitude.toFixed(5)}, Долгота: ${longitude.toFixed(5)} (±${Math.round(accuracy)} м)`);
@@ -1090,10 +1108,14 @@ export default function ExecutorDashboard() {
             timeout: 10000,
             maximumAge: 0
           }
-      );
-    } else {
-      setRequestLocation("Ваш браузер не поддерживает геолокацию");
+        );
+      } else {
+        setRequestLocation("Ваш браузер не поддерживает геолокацию");
+      }
+    } catch (e) {
+      console.error('Ошибка при запросе разрешения на локацию:', e);
     }
+
     setShowCreateRequestModal(true);
     openModal('createRequest');
   };
