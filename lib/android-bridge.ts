@@ -10,7 +10,7 @@ declare global {
             forceGetToken: () => string;
             checkTokenAfterPermission: () => string;
             notifyReady: () => void;
-            checkPermissionStatus: (permission: string) => string;
+            checkPermissionStatus: (permission: string, callback?: string) => string | void;
             requestPermission: (permission: string) => void;
             isLocationEnabled: () => boolean;
             getAuthToken: (callback: string) => void;
@@ -137,13 +137,48 @@ class AndroidBridge {
     }
     
     /**
+     * Проверяет, работает ли приложение в iOS WebView
+     */
+    public isIOSWebView(): boolean {
+        return typeof window !== 'undefined' &&
+            (window.FCM !== undefined ||
+                navigator.userAgent.includes('iPhone') ||
+                navigator.userAgent.includes('iPad') ||
+                navigator.userAgent.includes('iOS') ||
+                !!(window.webkit && (window.webkit as any).messageHandlers));
+    }
+    
+    /**
+     * Проверяет, работает ли приложение в мобильном WebView (Android или iOS)
+     */
+    public isMobileWebView(): boolean {
+        return this.isAndroidWebView() || this.isIOSWebView();
+    }
+    
+    /**
      * Проверка статуса разрешения
      * @param permission - тип разрешения: "camera", "location", "notifications"
      * @returns Promise с статусом: "granted", "denied", или "unknown"
      */
     public async checkPermission(permission: 'camera' | 'location' | 'notifications'): Promise<string> {
-        if (this.isAndroidWebView() && window.FCM?.checkPermissionStatus) {
-            return window.FCM.checkPermissionStatus(permission);
+        if (this.isMobileWebView() && window.FCM?.checkPermissionStatus) {
+            return new Promise((resolve) => {
+                const callback = `__checkPermissionCallback_${Date.now()}`;
+                (window as any)[callback] = (status: string) => {
+                    delete (window as any)[callback];
+                    resolve(status);
+                };
+                
+                window.FCM!.checkPermissionStatus(permission, callback);
+                
+                // Таймаут на случай если callback не вызовется
+                setTimeout(() => {
+                    if ((window as any)[callback]) {
+                        delete (window as any)[callback];
+                        resolve('unknown');
+                    }
+                }, 3000);
+            });
         }
         
         // Для веба используем стандартные API
@@ -161,14 +196,37 @@ class AndroidBridge {
      * @returns Promise с результатом (true если разрешено)
      */
     public async requestPermission(permission: 'camera' | 'location' | 'notifications'): Promise<boolean> {
-        if (this.isAndroidWebView() && window.FCM?.requestPermission) {
+        if (this.isMobileWebView() && window.FCM?.requestPermission) {
             window.FCM.requestPermission(permission);
             
             // Ждем результат через событие или проверяем статус
             return new Promise((resolve) => {
+                // Слушаем событие от нативного кода
+                const eventHandler = (event: string, data: any) => {
+                    try {
+                        const eventData = typeof data === 'string' ? JSON.parse(data) : data;
+                        if (event === 'permission' && eventData.type === permission) {
+                            window.onAndroidEvent = undefined; // Удаляем временный обработчик
+                            resolve(eventData.granted);
+                        }
+                    } catch (e) {
+                        // Игнорируем ошибки парсинга
+                    }
+                };
+                
+                // Сохраняем оригинальный обработчик
+                const originalHandler = window.onAndroidEvent;
+                
+                // Устанавливаем временный обработчик
+                window.onAndroidEvent = eventHandler;
+                
+                // Также проверяем статус через опрос
                 const checkStatus = async () => {
                     const status = await this.checkPermission(permission);
                     if (status === 'granted' || status === 'denied') {
+                        if (window.onAndroidEvent === eventHandler) {
+                            window.onAndroidEvent = originalHandler; // Восстанавливаем оригинальный
+                        }
                         resolve(status === 'granted');
                     } else {
                         // Повторяем проверку через 500ms
@@ -178,6 +236,14 @@ class AndroidBridge {
                 
                 // Начинаем проверку через небольшую задержку
                 setTimeout(checkStatus, 300);
+                
+                // Таймаут на случай если ничего не произошло
+                setTimeout(() => {
+                    if (window.onAndroidEvent === eventHandler) {
+                        window.onAndroidEvent = originalHandler; // Восстанавливаем оригинальный
+                        resolve(false);
+                    }
+                }, 10000);
             });
         }
         
@@ -194,7 +260,7 @@ class AndroidBridge {
      * Проверка включенности GPS
      */
     public isLocationEnabled(): boolean {
-        if (this.isAndroidWebView() && window.FCM?.isLocationEnabled) {
+        if (this.isMobileWebView() && window.FCM?.isLocationEnabled) {
             return window.FCM.isLocationEnabled();
         }
         return false;
@@ -204,7 +270,7 @@ class AndroidBridge {
      * Получение auth токена
      */
     public async getAuthToken(): Promise<string | null> {
-        if (this.isAndroidWebView() && window.FCM?.getAuthToken) {
+        if (this.isMobileWebView() && window.FCM?.getAuthToken) {
             return new Promise((resolve) => {
                 window.FCM!.getAuthToken('__androidBridgeAuthTokenCallback');
                 
@@ -245,7 +311,7 @@ class AndroidBridge {
      * Получение FCM токена
      */
     public async getFCMToken(): Promise<string | null> {
-        if (this.isAndroidWebView() && window.FCM?.getFCMTokenWithCallback) {
+        if (this.isMobileWebView() && window.FCM?.getFCMTokenWithCallback) {
             return new Promise((resolve) => {
                 window.FCM!.getFCMTokenWithCallback('__androidBridgeFCMTokenCallback');
                 
@@ -266,7 +332,7 @@ class AndroidBridge {
         }
         
         // Fallback
-        if (this.isAndroidWebView() && window.FCM?.getFCMToken) {
+        if (this.isMobileWebView() && window.FCM?.getFCMToken) {
             return window.FCM.getFCMToken();
         }
         
@@ -351,8 +417,9 @@ if (typeof window !== 'undefined') {
     
     // Даем время на загрузку страницы
     setTimeout(() => {
-        if (androidBridge.isAndroidWebView()) {
-            console.log('🤖 Android WebView detected, bridge initialized');
+        if (androidBridge.isMobileWebView()) {
+            const platform = androidBridge.isAndroidWebView() ? 'Android' : 'iOS';
+            console.log(`🤖 ${platform} WebView detected, bridge initialized`);
 
             // Уведомляем Android о готовности страницы
             if (window.androidApp?.notifyReady) {
