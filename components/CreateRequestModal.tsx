@@ -115,6 +115,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [basicFieldErrors, setBasicFieldErrors] = useState<Set<string>>(new Set());
   const [isRecurringTask, setIsRecurringTask] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [submitNetworkError, setSubmitNetworkError] = useState(false);
   const [afterPhotos, setAfterPhotos] = useState<File[]>([]);
   const [afterPhotoPreviews, setAfterPhotoPreviews] = useState<string[]>([]);
   const [completionComment, setCompletionComment] = useState("");
@@ -226,6 +227,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setValidationErrors(new Set());
     setBasicFieldErrors(new Set());
     setHasAttemptedSubmit(false);
+    setSubmitNetworkError(false);
     setIsRecurringTask(false);
     setRecurrenceType('weekly');
     setRecurrenceInterval(1);
@@ -737,7 +739,22 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       }
     }
 
-    await onSubmit(formData);
+    try {
+      setSubmitNetworkError(false);
+      await onSubmit(formData);
+    } catch (error: unknown) {
+      const err = error as Error & { code?: string; isAxiosError?: boolean; request?: unknown };
+      const isNetworkError =
+        (error instanceof TypeError && (error.message === 'Failed to fetch' || String(error.message || '').includes('fetch'))) ||
+        String(err?.message || '').toLowerCase().includes('network') ||
+        err?.code === 'ERR_NETWORK' ||
+        (err?.isAxiosError && err?.request === undefined);
+      if (isNetworkError) {
+        setSubmitNetworkError(true);
+      } else {
+        throw error;
+      }
+    }
   };
 
   if (!isOpen) return null;
@@ -1714,6 +1731,26 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           </div>
 
           {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
+
+          {submitNetworkError && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                Нет подключения к интернету. Проверьте соединение и попробуйте снова.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/50"
+                onClick={() => {
+                  setSubmitNetworkError(false);
+                  handleSubmit();
+                }}
+              >
+                Повторить попытку
+              </Button>
+            </div>
+          )}
 
           <div className="flex space-x-4">
             <Button
