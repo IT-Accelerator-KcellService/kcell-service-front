@@ -751,19 +751,13 @@ export default function ClientDashboard() {
 
   const handleOpenCreateRequest = async () => {
     try {
-      // Сначала проверяем/запрашиваем разрешение на локацию через бриджи (iOS/Android)
-      const { ensureLocationPermission } = await import('@/lib/ios-bridge');
+      const { ensureLocationPermission, iosBridge } = await import('@/lib/ios-bridge');
       const { androidBridge } = await import('@/lib/android-bridge');
 
       let hasPermission = true;
-
-      // iOS WebView
-      if (ensureLocationPermission && (window as any).webkit) {
+      if (iosBridge.isIOSWebView()) {
         hasPermission = await ensureLocationPermission();
-      }
-
-      // Android WebView
-      if (hasPermission && androidBridge.isAndroidWebView()) {
+      } else if (androidBridge.isAndroidWebView()) {
         hasPermission = await androidBridge.requestPermission('location');
       }
 

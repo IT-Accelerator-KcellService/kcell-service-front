@@ -29,11 +29,13 @@ class FCMService {
     async initialize(): Promise<void> {
         if (this.isInitialized) return;
 
-        // Check if we're in native WebView (Android or iOS)
-        if (this.isAndroidWebView() || iosBridge.isIOSWebView()) {
+        if (this.isAndroidWebView()) {
             this.setupAndroidInterface();
+        } else if (iosBridge.isIOSWebView()) {
+            // iOS: FCM токен получает и отправляет на бэкенд нативный слой (AppDelegate),
+            // при логине фронт уведомляет через iosBridge.notifyTokenSaved → native saveAuthToken → sendFCMTokenToServer
+            console.log('FCM: iOS WebView — токен обрабатывается нативно');
         } else {
-            // For web browsers, we might implement web push notifications later
             console.log('FCM: Running in web browser - push notifications not available');
         }
 
@@ -41,12 +43,13 @@ class FCMService {
     }
 
     /**
-     * Check if running in Android WebView
+     * Проверка именно Android WebView (не iOS: на iOS тоже есть window.FCM от PermissionBridge).
      */
     private isAndroidWebView(): boolean {
-        return typeof window !== 'undefined' &&
-            'FCM' in window &&
-            typeof (window as any).FCM === 'object';
+        if (typeof window === 'undefined') return false;
+        const w = window as any;
+        // На Android есть androidApp или FCM с sendTokenToServer; на iOS FCM только с checkPermissionStatus/requestPermission
+        return !!(w.androidApp || (w.FCM && typeof w.FCM.sendTokenToServer === 'function'));
     }
 
     /**
@@ -164,13 +167,11 @@ class FCMService {
     private async getAuthToken(): Promise<string | null> {
         if (typeof window === 'undefined') return null;
 
-        // Используем Android bridge если доступен
         if (this.isAndroidWebView()) {
-            const androidBridge = (await import('./android-bridge')).androidBridge;
+            const { androidBridge } = await import('./android-bridge');
             return await androidBridge.getAuthToken();
         }
-
-        // Fallback для веба
+        // iOS и веб: читаем из localStorage (на iOS нативный слой сам отправляет FCM токен)
         try {
             const authStorage = localStorage.getItem('auth-storage');
             if (authStorage) {

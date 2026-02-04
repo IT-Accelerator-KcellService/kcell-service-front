@@ -126,14 +126,18 @@ class AndroidBridge {
     }
 
     /**
-     * Проверяет, работает ли приложение в Android WebView
+     * Проверяет, работает ли приложение в Android WebView.
+     * На iOS тоже есть window.FCM (PermissionBridge) — не считаем iOS за Android.
      */
     public isAndroidWebView(): boolean {
-        return typeof window !== 'undefined' &&
-            (window.FCM !== undefined ||
-                window.androidApp !== undefined ||
-                navigator.userAgent.includes('wv') ||
-                navigator.userAgent.includes('Android'));
+        if (typeof window === 'undefined') return false;
+        const ua = navigator.userAgent || navigator.vendor;
+        if (/iPhone|iPad|iPod/i.test(ua)) return false;
+        return !!(
+            window.androidApp !== undefined ||
+            (window.FCM !== undefined && typeof (window.FCM as any).sendTokenToServer === 'function') ||
+            (ua.includes('wv') || ua.includes('Android'))
+        );
     }
 
     /**

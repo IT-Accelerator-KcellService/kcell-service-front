@@ -26,29 +26,43 @@ class IOSBridge {
     }
 
     /**
-     * Проверяет, работает ли приложение в iOS WebView
+     * Проверяет, работает ли приложение в iOS WebView.
+     * На Android не возвращаем true (даже если есть webkit.messageHandlers).
      */
     public isIOSWebView(): boolean {
         if (typeof window === 'undefined') return false;
 
         const ua = navigator.userAgent || navigator.vendor;
+        if (/Android/i.test(ua)) return false;
         const isIOS = /iPhone|iPad|iPod/i.test(ua);
         const hasWebkitBridge =
-            !!window.webkit && !!window.webkit.messageHandlers;
+            !!(window as any).webkit?.messageHandlers;
 
         return isIOS || hasWebkitBridge;
     }
 
     /**
-     * Проверка статуса разрешения через iOS PermissionBridge (window.FCM)
+     * Проверка статуса разрешения через iOS PermissionBridge (window.FCM).
+     * Нативный слой возвращает результат через callback: window.FCM[callbackName](status).
      */
     public async checkPermission(permission: PermissionType): Promise<string> {
         if (this.isIOSWebView() && window.FCM?.checkPermissionStatus) {
             try {
-                const status = window.FCM.checkPermissionStatus(permission);
-                if (status === 'granted' || status === 'denied' || status === 'notDetermined') {
-                    return status;
-                }
+                return await new Promise<string>((resolve) => {
+                    const cb = '__iosBridgePermissionCallback_' + Date.now();
+                    (window as any).FCM = (window as any).FCM || {};
+                    (window as any).FCM[cb] = (status: string) => {
+                        delete (window as any).FCM[cb];
+                        resolve(status || 'unknown');
+                    };
+                    (window as any).FCM.checkPermissionStatus(permission, cb);
+                    setTimeout(() => {
+                        if ((window as any).FCM?.[cb]) {
+                            delete (window as any).FCM[cb];
+                            resolve('unknown');
+                        }
+                    }, 3000);
+                });
             } catch (e) {
                 console.error('[iOSBridge] checkPermission error:', e);
             }
@@ -142,9 +156,17 @@ class IOSBridge {
         mimeTypeFallback = 'application/octet-stream',
         headers?: Record<string, string>
     ): Promise<void> {
-        if (!this.isIOSWebView() || !window.webkit?.messageHandlers?.saveFile) {
-            // В браузере или без бриджа — должен использоваться обычный download
-            console.warn('[iOSBridge] saveFile handler not available, fallback to browser download');
+        // В iOS WebView blob URL не открывается — используем только нативный saveFile
+        if (this.isIOSWebView()) {
+            if (!window.webkit?.messageHandlers?.saveFile) {
+                console.warn('[iOSBridge] saveFile handler not available in iOS WebView');
+                if (typeof window !== 'undefined' && window.alert) {
+                    window.alert('Скачивание файла в приложении недоступно. Обратитесь к разработчику.');
+                }
+                return;
+            }
+        } else {
+            // Обычный браузер — скачивание через blob
             const res = await fetch(url, { headers });
             const blob = await res.blob();
             const objectUrl = window.URL.createObjectURL(blob);

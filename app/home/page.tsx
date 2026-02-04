@@ -703,44 +703,32 @@ export default function HomePage() {
             if (endDate) params.append("to", endDate.toISOString().split('T')[0]);
             params.append("format", format);
 
-            // Для Android WebView используем специальный обработчик
-            if (window.androidApp) {
-                const response = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
+            const { iosBridge } = await import('@/lib/ios-bridge');
+            const { androidBridge } = await import('@/lib/android-bridge');
 
-                const blob = await response.blob();
-                const reader = new FileReader();
-
-                reader.onloadend = function() {
-                    const base64data = reader.result?.toString().split(',')[1] || '';
-                    const mimeType = blob.type ||
-                        (format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
-                            'application/octet-stream');
-
-                    window.androidApp?.saveFileBase64(
-                        `analytics.${format}`,
-                        base64data,
-                        mimeType
-                    );
-                };
-
-                reader.readAsDataURL(blob);
-            } else if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.saveFile) {
-                // Для iOS WebView используем iosBridge.downloadFileViaNative
-                const { iosBridge } = await import('@/lib/ios-bridge');
+            // iOS WebView: только нативное скачивание (blob URL в приложении не открывается)
+            if (iosBridge.isIOSWebView()) {
                 await iosBridge.downloadFileViaNative(
                     `https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`,
                     `analytics.${format}`,
                     format === 'xlsx'
                         ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                         : 'application/octet-stream',
-                    {
-                        Authorization: `Bearer ${token}`,
-                    }
+                    { Authorization: `Bearer ${token}` }
                 );
+            } else if (androidBridge.isAndroidWebView() && window.androidApp) {
+                const response = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const blob = await response.blob();
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    const base64data = reader.result?.toString().split(',')[1] || '';
+                    const mimeType = blob.type ||
+                        (format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/octet-stream');
+                    window.androidApp?.saveFileBase64(`analytics.${format}`, base64data, mimeType);
+                };
+                reader.readAsDataURL(blob);
             } else {
                 // Оригинальный код для веб-браузеров
                 const res = await fetch(`https://kcell-service.onrender.com/api/analytics/export?${params.toString()}`, {

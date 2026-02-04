@@ -423,10 +423,21 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   }, [isOpen]);
 
   const handleGetLocation = async () => {
-    // Показываем индикатор загрузки
     setIsGettingLocation(true);
 
-    // Сначала пробуем геолокацию браузера
+    try {
+      // В приложении (iOS/Android) сначала запрашиваем разрешение через бриджи
+      const { ensureLocationPermission, iosBridge } = await import('@/lib/ios-bridge');
+      const { androidBridge } = await import('@/lib/android-bridge');
+      if (iosBridge.isIOSWebView()) {
+        await ensureLocationPermission();
+      } else if (androidBridge.isAndroidWebView()) {
+        await androidBridge.requestPermission('location');
+      }
+    } catch (e) {
+      console.error('Ошибка при запросе разрешения на локацию:', e);
+    }
+
     if (navigator.geolocation) {
       const options = {
         enableHighAccuracy: true,
@@ -465,6 +476,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       } finally {
         setIsGettingLocation(false);
       }
+    } else {
+      setIsGettingLocation(false);
     }
   };
 
