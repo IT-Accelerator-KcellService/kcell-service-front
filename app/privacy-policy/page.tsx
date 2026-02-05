@@ -11,12 +11,12 @@ export default function PrivacyPolicyPage() {
 
   const privacyPolicyRU = {
     title: "ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ",
-    appName: "Kcell Service",
+    appName: "Work Flow Pulse",
     lastUpdated: "Дата последнего обновления: 20 января 2026 года",
     sections: [
       {
         title: "1. Общие положения",
-        content: `Настоящая Политика конфиденциальности определяет порядок сбора, использования, хранения и защиты информации пользователей корпоративного мобильного приложения Kcell Service (далее — «Приложение»).
+        content: `Настоящая Политика конфиденциальности определяет порядок сбора, использования, хранения и защиты информации пользователей корпоративного мобильного приложения Work Flow Pulse (далее — «Приложение»).
 
 Приложение предназначено исключительно для внутреннего использования сотрудниками и не является публичным сервисом.
 
@@ -64,7 +64,7 @@ export default function PrivacyPolicyPage() {
       },
       {
         title: "4. Хранение данных и инфраструктура",
-        content: `Данные Приложения хранятся и обрабатываются в облачной инфраструктуре, предоставляемой платформой Render. Серверная часть Приложения и база данных размещены в облаке и не находятся во внутренней инфраструктуре Kcell.
+        content: `Данные Приложения хранятся и обрабатываются в облачной инфраструктуре, предоставляемой платформой Render. Серверная часть Приложения и база данных размещены в облаке и не находятся во внутренней инфраструктуре компании.
 
 Доступ к данным осуществляется по защищенным каналам связи. Передача данных между Приложением и серверной частью осуществляется по протоколу HTTPS.
 
@@ -109,12 +109,12 @@ export default function PrivacyPolicyPage() {
 
   const privacyPolicyEN = {
     title: "PRIVACY POLICY",
-    appName: "Kcell Service",
+    appName: "Work Flow Pulse",
     lastUpdated: "Last updated: 20 January 2026",
     sections: [
       {
         title: "1. General Provisions",
-        content: `This Privacy Policy defines the procedure for collecting, using, storing, and protecting information of users of the corporate mobile application Kcell Service (the "App").
+        content: `This Privacy Policy defines the procedure for collecting, using, storing, and protecting information of users of the corporate mobile application Work Flow Pulse (the "App").
 
 The App is intended exclusively for internal use by employees and is not a public service.
 
@@ -162,7 +162,7 @@ ensuring the security, stability, and proper functioning of the App.`
       },
       {
         title: "4. Data Storage and Infrastructure",
-        content: `App data is stored and processed in cloud infrastructure provided by the Render platform. The server-side components and database are hosted in the cloud and are not located within Kcell's internal infrastructure.
+        content: `App data is stored and processed in cloud infrastructure provided by the Render platform. The server-side components and database are hosted in the cloud and are not located within the company's internal infrastructure.
 
 Access to data is provided via secure communication channels. Data transmission between the App and the server-side components uses the HTTPS protocol.
 

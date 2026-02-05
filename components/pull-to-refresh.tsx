@@ -251,7 +251,7 @@ function KcellMark({ size = 40, color = "#7B28CC" }) {
             }}
             aria-hidden="true"
         >
-            {"K"}
+            {"W"}
         </div>
     )
 }

@@ -1,4 +1,4 @@
-// FCM Token Management for Kcell Service Frontend
+// FCM Token Management for Work Flow Pulse Frontend
 
 import { iosBridge } from './ios-bridge';
 

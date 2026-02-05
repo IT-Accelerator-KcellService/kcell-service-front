@@ -162,9 +162,9 @@ export default function ResetPasswordPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-              <span className="text-violet-600 font-bold text-2xl">K</span>
+              <span className="text-violet-600 font-bold text-2xl">W</span>
             </div>
-            <span className="text-white font-bold text-2xl">Kcell Service</span>
+            <span className="text-white font-bold text-2xl">Work Flow Pulse</span>
           </div>
           <p className="text-violet-100">Восстановление пароля</p>
         </div>

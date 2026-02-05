@@ -47,9 +47,9 @@ const Header: React.FC<HeaderProps> = ({
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-                                <span className="text-white font-bold">K</span>
+                                <span className="text-white font-bold">W</span>
                             </div>
-                            <span className="font-bold text-xl text-gray-900">Kcell Service</span>
+                            <span className="font-bold text-xl text-gray-900">Work Flow Pulse</span>
                         </div>
                         {/* DESKTOP */}
                         <div className="hidden md:flex flex-row space-x-4 items-center">

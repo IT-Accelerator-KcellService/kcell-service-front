@@ -25,7 +25,7 @@ class MobizonService {
   constructor(config: MobizonConfig) {
     this.apiKey = config.apiKey;
     this.apiUrl = config.apiUrl || 'https://api.mobizon.kz/service';
-    this.from = config.from || 'Kcell Service';
+    this.from = config.from || 'Work Flow Pulse';
   }
 
   /**
@@ -110,7 +110,7 @@ export function getMobizonService(): MobizonService {
 
     mobizonService = new MobizonService({
       apiKey,
-      from: process.env.NEXT_PUBLIC_MOBIZON_FROM || 'Kcell Service',
+      from: process.env.NEXT_PUBLIC_MOBIZON_FROM || 'Work Flow Pulse',
     });
   }
   
