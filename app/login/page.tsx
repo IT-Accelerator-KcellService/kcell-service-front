@@ -1,21 +1,17 @@
 "use client"
 
 import {useEffect, useState} from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { UserPlus, Eye, EyeOff } from "lucide-react"
 import {useRouter} from "next/navigation";
 import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
-import api from "@/lib/api";
 import {useCategoryStore} from "@/stores/useCategoryStore";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 export default function LoginPage() {
   const router = useRouter()
-  const [isLogin, setIsLogin] = useState(true)
+  const isMobile = useMediaQuery("(max-width: 767px)")
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [phoneError, setPhoneError] = useState("")
@@ -27,9 +23,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (token && role) {
-      router.replace(`/${role?.toLowerCase().replace(" ", "-") || ""}`)
+      // Клиенты на мобильном переходят на личный кабинет
+      if (role.toLowerCase() === "client" && isMobile) {
+        router.replace('/cabinet')
+      } else {
+        router.replace(`/${role?.toLowerCase().replace(" ", "-") || ""}`)
+      }
     }
-  }, [token, role, router])
+  }, [token, role, router, isMobile])
 
   // Автоматическое форматирование телефона
   const formatPhone = (value: string) => {
@@ -128,7 +129,13 @@ export default function LoginPage() {
       useAuthStore.getState().setAuth(data.token, role, userData)
       useStatsStore.getState().fetchStats(data.role)
       useCategoryStore.getState().fetchCategories(data.token)
-      router.push(`/${role.toLowerCase().replace(" ", "-")}`)
+      
+      // Клиенты на мобильном переходят на личный кабинет
+      if (role.toLowerCase() === "client" && isMobile) {
+        router.push('/cabinet')
+      } else {
+        router.push(`/${role.toLowerCase().replace(" ", "-")}`)
+      }
     } catch (err) {
       setLoading(false)
       console.error("Ошибка логина:", err)
@@ -139,103 +146,241 @@ export default function LoginPage() {
   }
 
   return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-10">
-            <div className="flex items-center justify-center space-x-3 mb-5">
-              <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center overflow-hidden">
-                <img 
-                  src="/app-icon.png" 
-                  alt="App Icon" 
-                  className="w-full h-full object-cover"
+    <div 
+      className="min-h-screen flex flex-col"
+      style={{ background: "#040404" }}
+    >
+      {/* Main Content */}
+      <div 
+        className="flex flex-col px-5 pt-[124px]"
+        style={{ gap: "48px" }}
+      >
+        {/* Header */}
+        <div className="flex flex-col" style={{ gap: "12px" }}>
+          <h1 
+            className="text-white"
+            style={{
+              fontFamily: "'SF Pro Text', sans-serif",
+              fontWeight: 600,
+              fontSize: "28px",
+              lineHeight: "40px"
+            }}
+          >
+            Вход
+          </h1>
+          <p 
+            style={{
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 400,
+              fontSize: "18px",
+              lineHeight: "26px",
+              color: "#7F7F7F"
+            }}
+          >
+            Войдите в свою учетную запись
+          </p>
+        </div>
+
+        {/* Input Section */}
+        <div className="flex flex-col items-center" style={{ gap: "16px" }}>
+          {/* Form Fields */}
+          <div className="flex flex-col w-full" style={{ gap: "24px" }}>
+            {/* Inputs */}
+            <div className="flex flex-col w-full" style={{ gap: "16px" }}>
+              {/* Phone Input */}
+              <div className="flex flex-col" style={{ gap: "8px" }}>
+                <label 
+                  htmlFor="phone"
+                  style={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 500,
+                    fontSize: "16px",
+                    lineHeight: "24px",
+                    color: "#FFFFFF"
+                  }}
+                >
+                  Номер телефона
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  placeholder="+7 XXX XXX XX XX"
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  maxLength={19}
+                  className="w-full outline-none"
+                  style={{
+                    height: "48px",
+                    padding: "12px 16px",
+                    border: "1px solid #212121",
+                    borderRadius: "8px",
+                    background: "transparent",
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 400,
+                    fontSize: "16px",
+                    lineHeight: "22px",
+                    color: "#FFFFFF"
+                  }}
                 />
+                {phoneError && (
+                  <p style={{ color: "#F35713", fontSize: "12px", fontFamily: "'Inter', sans-serif" }}>
+                    {phoneError}
+                  </p>
+                )}
               </div>
-              <span className="text-white font-bold text-3xl tracking-tight">WORKFLOW</span>
+
+              {/* Password Input */}
+              <div className="flex flex-col" style={{ gap: "8px" }}>
+                <div className="flex justify-between items-center">
+                  <label 
+                    htmlFor="password"
+                    style={{
+                      fontFamily: "'Inter', sans-serif",
+                      fontWeight: 500,
+                      fontSize: "16px",
+                      lineHeight: "24px",
+                      color: "#FFFFFF"
+                    }}
+                  >
+                    Пароль
+                  </label>
+                  <Link href="/reset-password">
+                    <span
+                      style={{
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500,
+                        fontSize: "12px",
+                        lineHeight: "24px",
+                        color: "rgba(243, 87, 19, 0.91)"
+                      }}
+                    >
+                      Забыли пароль?
+                    </span>
+                  </Link>
+                </div>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full outline-none pr-12"
+                    style={{
+                      height: "48px",
+                      padding: "12px 16px",
+                      border: "1px solid #212121",
+                      borderRadius: "8px",
+                      background: "transparent",
+                      fontFamily: "'Inter', sans-serif",
+                      fontWeight: 400,
+                      fontSize: "16px",
+                      lineHeight: "24px",
+                      color: "#FFFFFF",
+                      letterSpacing: showPassword ? "normal" : "0.2em"
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-6 h-6" style={{ color: "#6E6E6E" }} />
+                    ) : (
+                      <Eye className="w-6 h-6" style={{ color: "#6E6E6E" }} />
+                    )}
+                  </button>
+                </div>
+                {passwordError && (
+                  <p style={{ color: "#F35713", fontSize: "12px", fontFamily: "'Inter', sans-serif" }}>
+                    {passwordError}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex flex-col w-full" style={{ gap: "16px" }}>
+              {/* Login Button */}
+              <button
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full flex justify-center items-center disabled:opacity-50"
+                style={{
+                  height: "48px",
+                  padding: "16px 12px",
+                  background: "#F35713",
+                  borderRadius: "8px"
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 500,
+                    fontSize: "16px",
+                    lineHeight: "16px",
+                    color: "#FFFFFF",
+                    textAlign: "center"
+                  }}
+                >
+                  {loading ? "Вход..." : "Войти"}
+                </span>
+              </button>
+
+              {/* Register Button */}
+              <button
+                onClick={() => router.push('/register')}
+                className="w-full flex justify-center items-center"
+                style={{
+                  height: "48px",
+                  padding: "12px 54px",
+                  gap: "16px",
+                  background: "#212121",
+                  borderRadius: "8px"
+                }}
+              >
+                <UserPlus className="w-6 h-6" style={{ color: "#6E6E6E" }} />
+                <span
+                  style={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 400,
+                    fontSize: "16px",
+                    lineHeight: "24px",
+                    color: "#6E6E6E",
+                    textAlign: "center"
+                  }}
+                >
+                  Запросить регистрацию
+                </span>
+              </button>
             </div>
           </div>
 
-          <Card className="border border-gray-800 shadow-2xl bg-black relative overflow-hidden">
-            <CardHeader className="text-center pb-6 pt-8">
-              <CardTitle className="text-2xl md:text-3xl font-bold text-white mb-2">
-                Вход в систему
-              </CardTitle>
-              <CardDescription className="text-gray-400 text-base font-medium">
-                Войдите в свою учетную запись.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 px-8 pb-8">
-              <div className="space-y-5">
-                <div className="space-y-2.5">
-                  <Label htmlFor="phone" className="text-sm font-semibold text-white">Номер телефона</Label>
-                  <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+7 XXX XXX XX XX"
-                      value={phone}
-                      onChange={handlePhoneChange}
-                      maxLength={19}
-                      className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500"
-                  />
-                  {phoneError && <p className="text-[#F35713] text-sm mt-1.5 font-medium animate-in fade-in flex items-center gap-1.5">{phoneError}</p>}
-                </div>
-                <div className="space-y-2.5">
-                  <Label htmlFor="password" className="text-sm font-semibold text-white">Пароль</Label>
-                  <div className="relative">
-                    <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Введите пароль"
-                        className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500 pr-12"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-300 transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                  {passwordError && <p className="text-[#F35713] text-sm mt-1.5 font-medium animate-in fade-in flex items-center gap-1.5">{passwordError}</p>}
-                  <Link href="/reset-password">
-                    <button
-                      type="button"
-                      className="text-sm text-gray-400 hover:text-gray-300 transition-colors"
-                    >
-                      Забыли пароль
-                    </button>
-                  </Link>
-                </div>
-              </div>
-
-              <Button
-                  onClick={handleLogin}
-                  className="w-full bg-[#F35713] hover:bg-[#F35713]/90 text-white py-3 h-14 rounded-xl text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-[#F35713]/30 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                  disabled={loading}
+          {/* Error Message */}
+          {formError && (
+            <div 
+              className="w-full p-4"
+              style={{
+                background: "#1a1a1a",
+                border: "1px solid #212121",
+                borderRadius: "8px"
+              }}
+            >
+              <p 
+                className="text-center"
+                style={{ 
+                  color: "#F35713", 
+                  fontSize: "14px", 
+                  fontFamily: "'Inter', sans-serif" 
+                }}
               >
-                {loading ? "Вход..." : "Войти"}
-              </Button>
-
-              {formError && (
-                  <div className="bg-gray-900 border-2 border-gray-700 rounded-xl p-4 animate-in slide-in-from-top-2 duration-300">
-                    <p className="text-[#F35713] text-sm text-center font-medium">{formError}</p>
-                  </div>
-              )}
-
-              <div className="pt-2 border-t border-gray-800">
-                <Button
-                  onClick={() => router.push('/register')}
-                  variant="ghost"
-                  className="w-full text-base h-12 text-gray-400 hover:text-gray-300 hover:bg-gray-900 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <UserPlus className="w-5 h-5 mr-2" />
-                  Запросить регистрацию
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                {formError}
+              </p>
+            </div>
+          )}
         </div>
       </div>
+    </div>
   )
 }

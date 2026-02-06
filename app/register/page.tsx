@@ -1,16 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { api } from '@/lib/api';
 import { SuccessModal } from '@/components/success-model';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
-import {useSuccessModal} from "@/hooks/use-success-modal";
+import { Eye, EyeOff, ArrowLeft, ChevronDown } from 'lucide-react';
+import { useSuccessModal } from "@/hooks/use-success-modal";
 import { sendVerificationCode, verifyCode } from '@/lib/mobizon';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -247,334 +242,648 @@ export default function RegisterPage() {
         router.push('/login');
     };
 
-    return (
-        <div className="min-h-screen bg-black flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                <div className="text-center mb-10">
-                    <div className="flex items-center justify-center space-x-3 mb-5">
-                        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center overflow-hidden">
-                            <img 
-                                src="/app-icon.png" 
-                                alt="App Icon" 
-                                className="w-full h-full object-cover"
-                            />
-                        </div>
-                        <span className="text-white font-bold text-3xl tracking-tight">WORKFLOW</span>
+    // Custom Select Component
+    const CustomSelect = ({ 
+        value, 
+        onChange, 
+        options, 
+        placeholder 
+    }: { 
+        value: string; 
+        onChange: (value: string) => void; 
+        options: { value: string; label: string }[];
+        placeholder: string;
+    }) => {
+        const [isOpen, setIsOpen] = useState(false);
+        const selectedOption = options.find(o => o.value === value);
+
+        return (
+            <div className="relative">
+                <button
+                    type="button"
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="w-full flex justify-between items-center outline-none"
+                    style={{
+                        height: "48px",
+                        padding: "12px 16px",
+                        border: "1px solid #212121",
+                        borderRadius: "8px",
+                        background: "transparent",
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 400,
+                        fontSize: "16px",
+                        lineHeight: "22px",
+                        color: selectedOption ? "#FFFFFF" : "#6E6E6E"
+                    }}
+                >
+                    <span>{selectedOption?.label || placeholder}</span>
+                    <ChevronDown className="w-5 h-5" style={{ color: "#6E6E6E" }} />
+                </button>
+                {isOpen && (
+                    <div 
+                        className="absolute top-full left-0 right-0 mt-1 z-50 max-h-48 overflow-auto"
+                        style={{
+                            background: "#1a1a1a",
+                            border: "1px solid #212121",
+                            borderRadius: "8px"
+                        }}
+                    >
+                        {options.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                    onChange(option.value);
+                                    setIsOpen(false);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-[#212121] transition-colors"
+                                style={{
+                                    fontFamily: "'Inter', sans-serif",
+                                    fontSize: "16px",
+                                    color: "#FFFFFF"
+                                }}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
                     </div>
+                )}
+            </div>
+        );
+    };
+
+    return (
+        <div 
+            className="min-h-screen flex flex-col overflow-auto"
+            style={{ background: "#040404" }}
+        >
+            {/* Main Content */}
+            <div 
+                className="flex flex-col px-5 py-8 md:py-16"
+                style={{ gap: "32px" }}
+            >
+                {/* Header */}
+                <div className="flex flex-col" style={{ gap: "12px" }}>
+                    <h1 
+                        className="text-white"
+                        style={{
+                            fontFamily: "'SF Pro Text', sans-serif",
+                            fontWeight: 600,
+                            fontSize: "28px",
+                            lineHeight: "40px"
+                        }}
+                    >
+                        {step === 1 && 'Регистрация'}
+                        {step === 2 && 'Верификация'}
+                        {step === 3 && 'Создание пароля'}
+                    </h1>
+                    <p 
+                        style={{
+                            fontFamily: "'Inter', sans-serif",
+                            fontWeight: 400,
+                            fontSize: "18px",
+                            lineHeight: "26px",
+                            color: "#7F7F7F"
+                        }}
+                    >
+                        {step === 1 && 'Заполните форму для регистрации'}
+                        {step === 2 && 'Введите код из SMS'}
+                        {step === 3 && 'Придумайте надёжный пароль'}
+                    </p>
                 </div>
 
-                <Card className="border border-gray-800 shadow-2xl bg-black relative overflow-hidden">
-                    <CardHeader className="text-center pb-6 pt-8">
-                        <CardTitle className="text-2xl md:text-3xl font-bold text-white mb-2">
-                            {step === 1 && 'Запрос на регистрацию'}
-                            {step === 2 && 'Верификация номера телефона'}
-                            {step === 3 && 'Придумать пароль'}
-                        </CardTitle>
-                        <CardDescription className="text-gray-400 text-base font-medium">
-                            {step === 1 && 'Заполните форму для создания запроса на регистрацию'}
-                            {step === 2 && 'Введите код из SMS для подтверждения номера телефона'}
-                            {step === 3 && 'Придумайте пароль для вашего аккаунта'}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="px-8 pb-8">
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            {step === 1 ? (
-                                <>
-                                    <div className="space-y-5">
-                                        <div className="space-y-2.5">
-                                            <Label htmlFor="phone" className="text-sm font-semibold text-white">Номер телефона *</Label>
-                                            <Input
-                                                id="phone"
-                                                type="tel"
-                                                value={formData.phone}
-                                                onChange={handlePhoneChange}
-                                                placeholder="+7 XXX XXX XX XX"
-                                                required
-                                                maxLength={19}
-                                                className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500"
-                                            />
-                                        </div>
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="flex flex-col" style={{ gap: "24px" }}>
+                    {step === 1 && (
+                        <>
+                            {/* Phone Input */}
+                            <div className="flex flex-col" style={{ gap: "8px" }}>
+                                <label 
+                                    htmlFor="phone"
+                                    style={{
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 500,
+                                        fontSize: "16px",
+                                        lineHeight: "24px",
+                                        color: "#FFFFFF"
+                                    }}
+                                >
+                                    Номер телефона
+                                </label>
+                                <input
+                                    id="phone"
+                                    type="tel"
+                                    placeholder="+7 XXX XXX XX XX"
+                                    value={formData.phone}
+                                    onChange={handlePhoneChange}
+                                    maxLength={19}
+                                    required
+                                    className="w-full outline-none"
+                                    style={{
+                                        height: "48px",
+                                        padding: "12px 16px",
+                                        border: "1px solid #212121",
+                                        borderRadius: "8px",
+                                        background: "transparent",
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 400,
+                                        fontSize: "16px",
+                                        lineHeight: "22px",
+                                        color: "#FFFFFF"
+                                    }}
+                                />
+                            </div>
 
-                                        <div className="space-y-2.5">
-                                            <Label htmlFor="full_name" className="text-sm font-semibold text-white">ФИО *</Label>
-                                            <Input
-                                                id="full_name"
-                                                value={formData.full_name}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                                                placeholder="Введите полное имя"
-                                                required
-                                                className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500"
-                                            />
-                                        </div>
+                            {/* Full Name Input */}
+                            <div className="flex flex-col" style={{ gap: "8px" }}>
+                                <label 
+                                    htmlFor="full_name"
+                                    style={{
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 500,
+                                        fontSize: "16px",
+                                        lineHeight: "24px",
+                                        color: "#FFFFFF"
+                                    }}
+                                >
+                                    ФИО
+                                </label>
+                                <input
+                                    id="full_name"
+                                    type="text"
+                                    placeholder="Введите полное имя"
+                                    value={formData.full_name}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                                    required
+                                    className="w-full outline-none"
+                                    style={{
+                                        height: "48px",
+                                        padding: "12px 16px",
+                                        border: "1px solid #212121",
+                                        borderRadius: "8px",
+                                        background: "transparent",
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 400,
+                                        fontSize: "16px",
+                                        lineHeight: "22px",
+                                        color: "#FFFFFF"
+                                    }}
+                                />
+                            </div>
 
-                                        <div className="space-y-2.5">
-                                            <Label htmlFor="office" className="text-sm font-semibold text-white">Офис *</Label>
-                                            <Select
-                                                value={formData.office_id}
-                                                onValueChange={(value) => setFormData(prev => ({ ...prev, office_id: value }))}
-                                                required
-                                            >
-                                                <SelectTrigger className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 focus:ring-offset-0 rounded-xl">
-                                                    <SelectValue placeholder="Выберите офис" />
-                                                </SelectTrigger>
-                                                <SelectContent className="bg-gray-900 border-2 border-gray-700">
-                                                    {offices.map((office) => (
-                                                        <SelectItem key={office.id} value={office.id.toString()} className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white [&>span>svg]:text-white">
-                                                            {office.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                            {/* Office Select */}
+                            <div className="flex flex-col" style={{ gap: "8px" }}>
+                                <label 
+                                    style={{
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 500,
+                                        fontSize: "16px",
+                                        lineHeight: "24px",
+                                        color: "#FFFFFF"
+                                    }}
+                                >
+                                    Офис
+                                </label>
+                                <CustomSelect
+                                    value={formData.office_id}
+                                    onChange={(value) => setFormData(prev => ({ ...prev, office_id: value }))}
+                                    options={offices.map(o => ({ value: o.id.toString(), label: o.name }))}
+                                    placeholder="Выберите офис"
+                                />
+                            </div>
 
-                                        <div className="space-y-2.5">
-                                            <Label htmlFor="role" className="text-sm font-semibold text-white">Роль *</Label>
-                                            <Select
-                                                value={formData.role}
-                                                onValueChange={(value) => setFormData(prev => ({ ...prev, role: value, service_category_id: '' }))}
-                                                required
-                                            >
-                                                <SelectTrigger className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 focus:ring-offset-0 rounded-xl">
-                                                    <SelectValue placeholder="Выберите роль" />
-                                                </SelectTrigger>
-                                                <SelectContent className="bg-gray-900 border-2 border-gray-700">
-                                                    {ROLES.map((role) => (
-                                                        <SelectItem key={role.value} value={role.value} className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white [&>span>svg]:text-white">
-                                                            {role.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                            {/* Role Select */}
+                            <div className="flex flex-col" style={{ gap: "8px" }}>
+                                <label 
+                                    style={{
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 500,
+                                        fontSize: "16px",
+                                        lineHeight: "24px",
+                                        color: "#FFFFFF"
+                                    }}
+                                >
+                                    Роль
+                                </label>
+                                <CustomSelect
+                                    value={formData.role}
+                                    onChange={(value) => setFormData(prev => ({ ...prev, role: value, service_category_id: '' }))}
+                                    options={ROLES.map(r => ({ value: r.value, label: r.label }))}
+                                    placeholder="Выберите роль"
+                                />
+                            </div>
 
-                                        {formData.role === 'executor' && (
-                                            <div className="space-y-2.5">
-                                                <Label htmlFor="service_category" className="text-sm font-semibold text-white">Категория услуг *</Label>
-                                                <Select
-                                                    value={formData.service_category_id}
-                                                    onValueChange={(value) => setFormData(prev => ({ ...prev, service_category_id: value }))}
-                                                    required
-                                                >
-                                                    <SelectTrigger className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 focus:ring-offset-0 rounded-xl">
-                                                        <SelectValue placeholder="Выберите категорию услуг" />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="bg-gray-900 border-2 border-gray-700">
-                                                        {categories.map((category) => (
-                                                            <SelectItem key={category.id} value={category.id.toString()} className="text-white hover:bg-gray-800 focus:bg-gray-800 focus:text-white data-[highlighted]:bg-gray-800 data-[highlighted]:text-white [&>span>svg]:text-white">
-                                                                {category.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        )}
-
-                                        {formErrors && <p className="text-[#F35713] text-sm mt-1.5 font-medium animate-in fade-in flex items-center gap-1.5">{formErrors}</p>}
-
-                                        <Button
-                                            type="button"
-                                            onClick={() => {
-                                                setStep(2);
-                                                setFormErrors("");
-                                                // Автоматически отправляем код при переходе к шагу верификации
-                                                if (!codeSent) {
-                                                    handleSendVerificationCode();
-                                                }
-                                            }}
-                                            disabled={
-                                                !formData.phone ||
-                                                !formData.full_name ||
-                                                !formData.office_id ||
-                                                !formData.role ||
-                                                (formData.role === 'executor' && !formData.service_category_id)
-                                            }
-                                            className="w-full bg-[#F35713] hover:bg-[#F35713]/90 text-white py-3 h-14 rounded-xl text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-[#F35713]/30 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                        >
-                                            Далее
-                                        </Button>
-                                    </div>
-                                </>
-                            ) : step === 2 ? (
-                                <>
-                                    <div className="space-y-4">
-                                        <p className="text-sm text-gray-400 text-center">
-                                            Мы отправили SMS с кодом верификации на номер {formData.phone}
-                                        </p>
-
-                                        <div className="space-y-2.5">
-                                            <Label htmlFor="verification-code" className="text-sm font-semibold text-white text-center block">
-                                                Введите код из SMS
-                                            </Label>
-                                            <div className="flex justify-center">
-                                                <InputOTP
-                                                    maxLength={6}
-                                                    value={verificationCode}
-                                                    onChange={(value) => {
-                                                        setVerificationCode(value);
-                                                        setFormErrors(null);
-                                                    }}
-                                                    containerClassName="gap-2"
-                                                >
-                                                    <InputOTPGroup>
-                                                        <InputOTPSlot 
-                                                            index={0} 
-                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
-                                                        />
-                                                        <InputOTPSlot 
-                                                            index={1} 
-                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
-                                                        />
-                                                        <InputOTPSlot 
-                                                            index={2} 
-                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
-                                                        />
-                                                        <InputOTPSlot 
-                                                            index={3} 
-                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
-                                                        />
-                                                        <InputOTPSlot 
-                                                            index={4} 
-                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
-                                                        />
-                                                        <InputOTPSlot 
-                                                            index={5} 
-                                                            className="h-12 w-12 bg-gray-900 border-2 border-gray-700 text-white text-lg font-semibold rounded-xl transition-all duration-200 hover:border-gray-600 focus:border-[#F35713] focus:ring-2 focus:ring-[#F35713]/20 first:rounded-l-xl first:border-l-2 last:rounded-r-xl" 
-                                                        />
-                                                    </InputOTPGroup>
-                                                </InputOTP>
-                                            </div>
-                                        </div>
-
-                                        {formErrors && <p className="text-[#F35713] text-sm mt-1.5 font-medium animate-in fade-in flex items-center gap-1.5 text-center justify-center">{formErrors}</p>}
-
-                                        <div className="flex flex-col space-y-2">
-                                            <Button
-                                                type="button"
-                                                onClick={handleVerifyCode}
-                                                disabled={verificationCode.length !== 6}
-                                                className="w-full bg-[#F35713] hover:bg-[#F35713]/90 text-white py-3 h-14 rounded-xl text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-[#F35713]/30 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                            >
-                                                Подтвердить
-                                            </Button>
-
-                                            <Button
-                                                type="button"
-                                                onClick={handleSendVerificationCode}
-                                                disabled={isSendingCode || countdown > 0}
-                                                variant="outline"
-                                                className="w-full text-base h-12 text-gray-400 border-gray-700 hover:text-gray-300 hover:bg-gray-900 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                            >
-                                                {isSendingCode
-                                                    ? 'Отправка...'
-                                                    : countdown > 0
-                                                    ? `Отправить повторно (${countdown}с)`
-                                                    : 'Отправить код повторно'}
-                                            </Button>
-
-                                            <Button
-                                                type="button"
-                                                onClick={() => {
-                                                    setStep(1);
-                                                    setFormErrors("");
-                                                    setVerificationCode('');
-                                                }}
-                                                variant="ghost"
-                                                className="w-full text-base h-12 text-gray-400 hover:text-gray-300 hover:bg-gray-900 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98]"
-                                            >
-                                                Назад
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="space-y-5">
-                                        <div className="space-y-2.5 relative">
-                                            <Label htmlFor="password" className="text-sm font-semibold text-white">Пароль *</Label>
-                                            <div className="relative">
-                                                <Input
-                                                    id="password"
-                                                    type={showPassword ? "text" : "password"}
-                                                    value={formData.password}
-                                                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                                                    placeholder="Минимум 6 символов"
-                                                    required
-                                                    minLength={6}
-                                                    className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500 pr-12"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-300 transition-colors"
-                                                >
-                                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2.5 relative">
-                                            <Label htmlFor="confirm_password" className="text-sm font-semibold text-white">Подтвердите пароль *</Label>
-                                            <div className="relative">
-                                                <Input
-                                                    id="confirm_password"
-                                                    type={showConfirmPassword ? "text" : "password"}
-                                                    value={formData.confirm_password}
-                                                    onChange={(e) => setFormData(prev => ({ ...prev, confirm_password: e.target.value }))}
-                                                    placeholder="Повторите пароль"
-                                                    required
-                                                    className="h-12 text-base bg-gray-900 border-2 border-gray-700 text-white focus:bg-gray-800 focus:border-[#F35713] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F35713]/20 focus-visible:ring-offset-0 rounded-xl transition-all duration-200 hover:border-gray-600 placeholder:text-gray-500 pr-12"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-300 transition-colors"
-                                                >
-                                                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {formErrors && <p className="text-[#F35713] text-sm mt-1.5 font-medium animate-in fade-in flex items-center gap-1.5">{formErrors}</p>}
-
-                                        <div className="flex flex-col space-y-2">
-                                            <Button
-                                                type="submit"
-                                                disabled={loading}
-                                                className="w-full bg-[#F35713] hover:bg-[#F35713]/90 text-white py-3 h-14 rounded-xl text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-[#F35713]/30 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                            >
-                                                {loading ? 'Отправка...' : 'Отправить запрос'}
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                onClick={() => {
-                                                    setStep(2);
-                                                    setFormErrors("");
-                                                }}
-                                                variant="ghost"
-                                                className="w-full text-base h-12 text-gray-400 hover:text-gray-300 hover:bg-gray-900 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98]"
-                                            >
-                                                Назад
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </>
+                            {/* Service Category Select (for executor) */}
+                            {formData.role === 'executor' && (
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
+                                    <label 
+                                        style={{
+                                            fontFamily: "'Inter', sans-serif",
+                                            fontWeight: 500,
+                                            fontSize: "16px",
+                                            lineHeight: "24px",
+                                            color: "#FFFFFF"
+                                        }}
+                                    >
+                                        Категория услуг
+                                    </label>
+                                    <CustomSelect
+                                        value={formData.service_category_id}
+                                        onChange={(value) => setFormData(prev => ({ ...prev, service_category_id: value }))}
+                                        options={categories.map(c => ({ value: c.id.toString(), label: c.name }))}
+                                        placeholder="Выберите категорию"
+                                    />
+                                </div>
                             )}
 
-                            <div className="pt-2 border-t border-gray-800">
-                                <Link href="/login">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        className="w-full text-base h-12 text-gray-400 hover:text-gray-300 hover:bg-gray-900 font-semibold transition-all duration-300 rounded-xl hover:scale-[1.02] active:scale-[0.98]"
-                                    >
-                                        <ArrowLeft className="w-5 h-5 mr-2" />
-                                        Вернуться к входу
-                                    </Button>
-                                </Link>
+                            {/* Error */}
+                            {formErrors && (
+                                <p style={{ color: "#F35713", fontSize: "12px", fontFamily: "'Inter', sans-serif" }}>
+                                    {formErrors}
+                                </p>
+                            )}
+
+                            {/* Next Button */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setStep(2);
+                                    setFormErrors("");
+                                    if (!codeSent) {
+                                        handleSendVerificationCode();
+                                    }
+                                }}
+                                disabled={
+                                    !formData.phone ||
+                                    !formData.full_name ||
+                                    !formData.office_id ||
+                                    !formData.role ||
+                                    (formData.role === 'executor' && !formData.service_category_id)
+                                }
+                                className="w-full flex justify-center items-center disabled:opacity-50"
+                                style={{
+                                    height: "48px",
+                                    padding: "16px 12px",
+                                    background: "#F35713",
+                                    borderRadius: "8px"
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 500,
+                                        fontSize: "16px",
+                                        lineHeight: "16px",
+                                        color: "#FFFFFF",
+                                        textAlign: "center"
+                                    }}
+                                >
+                                    Далее
+                                </span>
+                            </button>
+                        </>
+                    )}
+
+                    {step === 2 && (
+                        <>
+                            <p 
+                                className="text-center"
+                                style={{
+                                    fontFamily: "'Inter', sans-serif",
+                                    fontSize: "14px",
+                                    color: "#7F7F7F"
+                                }}
+                            >
+                                Мы отправили SMS с кодом на номер {formData.phone}
+                            </p>
+
+                            {/* OTP Input */}
+                            <div className="flex flex-col items-center" style={{ gap: "16px" }}>
+                                <label 
+                                    style={{
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 500,
+                                        fontSize: "16px",
+                                        lineHeight: "24px",
+                                        color: "#FFFFFF"
+                                    }}
+                                >
+                                    Введите код
+                                </label>
+                                <InputOTP
+                                    maxLength={6}
+                                    value={verificationCode}
+                                    onChange={(value) => {
+                                        setVerificationCode(value);
+                                        setFormErrors(null);
+                                    }}
+                                    containerClassName="gap-2"
+                                >
+                                    <InputOTPGroup>
+                                        {[0, 1, 2, 3, 4, 5].map((index) => (
+                                            <InputOTPSlot 
+                                                key={index}
+                                                index={index} 
+                                                className="h-12 w-12 text-white text-lg font-semibold transition-all duration-200"
+                                                style={{
+                                                    background: "transparent",
+                                                    border: "1px solid #212121",
+                                                    borderRadius: "8px"
+                                                }}
+                                            />
+                                        ))}
+                                    </InputOTPGroup>
+                                </InputOTP>
                             </div>
-                        </form>
-                    </CardContent>
-                </Card>
+
+                            {/* Error */}
+                            {formErrors && (
+                                <p className="text-center" style={{ color: "#F35713", fontSize: "12px", fontFamily: "'Inter', sans-serif" }}>
+                                    {formErrors}
+                                </p>
+                            )}
+
+                            {/* Buttons */}
+                            <div className="flex flex-col" style={{ gap: "16px" }}>
+                                <button
+                                    type="button"
+                                    onClick={handleVerifyCode}
+                                    disabled={verificationCode.length !== 6}
+                                    className="w-full flex justify-center items-center disabled:opacity-50"
+                                    style={{
+                                        height: "48px",
+                                        padding: "16px 12px",
+                                        background: "#F35713",
+                                        borderRadius: "8px"
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontFamily: "'Inter', sans-serif",
+                                            fontWeight: 500,
+                                            fontSize: "16px",
+                                            lineHeight: "16px",
+                                            color: "#FFFFFF"
+                                        }}
+                                    >
+                                        Подтвердить
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleSendVerificationCode}
+                                    disabled={isSendingCode || countdown > 0}
+                                    className="w-full flex justify-center items-center disabled:opacity-50"
+                                    style={{
+                                        height: "48px",
+                                        padding: "12px",
+                                        background: "#212121",
+                                        borderRadius: "8px"
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontFamily: "'Inter', sans-serif",
+                                            fontWeight: 400,
+                                            fontSize: "16px",
+                                            lineHeight: "24px",
+                                            color: "#6E6E6E"
+                                        }}
+                                    >
+                                        {isSendingCode
+                                            ? 'Отправка...'
+                                            : countdown > 0
+                                            ? `Отправить повторно (${countdown}с)`
+                                            : 'Отправить код повторно'}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStep(1);
+                                        setFormErrors("");
+                                        setVerificationCode('');
+                                    }}
+                                    className="w-full flex justify-center items-center"
+                                    style={{
+                                        height: "48px",
+                                        padding: "12px",
+                                        background: "transparent",
+                                        borderRadius: "8px"
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontFamily: "'Inter', sans-serif",
+                                            fontWeight: 400,
+                                            fontSize: "16px",
+                                            lineHeight: "24px",
+                                            color: "#6E6E6E"
+                                        }}
+                                    >
+                                        Назад
+                                    </span>
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {step === 3 && (
+                        <>
+                            {/* Password Input */}
+                            <div className="flex flex-col" style={{ gap: "8px" }}>
+                                <label 
+                                    htmlFor="password"
+                                    style={{
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 500,
+                                        fontSize: "16px",
+                                        lineHeight: "24px",
+                                        color: "#FFFFFF"
+                                    }}
+                                >
+                                    Пароль
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="Минимум 6 символов"
+                                        value={formData.password}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                                        required
+                                        minLength={6}
+                                        className="w-full outline-none pr-12"
+                                        style={{
+                                            height: "48px",
+                                            padding: "12px 16px",
+                                            border: "1px solid #212121",
+                                            borderRadius: "8px",
+                                            background: "transparent",
+                                            fontFamily: "'Inter', sans-serif",
+                                            fontWeight: 400,
+                                            fontSize: "16px",
+                                            lineHeight: "24px",
+                                            color: "#FFFFFF"
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2"
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="w-6 h-6" style={{ color: "#6E6E6E" }} />
+                                        ) : (
+                                            <Eye className="w-6 h-6" style={{ color: "#6E6E6E" }} />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Confirm Password Input */}
+                            <div className="flex flex-col" style={{ gap: "8px" }}>
+                                <label 
+                                    htmlFor="confirm_password"
+                                    style={{
+                                        fontFamily: "'Inter', sans-serif",
+                                        fontWeight: 500,
+                                        fontSize: "16px",
+                                        lineHeight: "24px",
+                                        color: "#FFFFFF"
+                                    }}
+                                >
+                                    Подтвердите пароль
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        id="confirm_password"
+                                        type={showConfirmPassword ? "text" : "password"}
+                                        placeholder="Повторите пароль"
+                                        value={formData.confirm_password}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, confirm_password: e.target.value }))}
+                                        required
+                                        className="w-full outline-none pr-12"
+                                        style={{
+                                            height: "48px",
+                                            padding: "12px 16px",
+                                            border: "1px solid #212121",
+                                            borderRadius: "8px",
+                                            background: "transparent",
+                                            fontFamily: "'Inter', sans-serif",
+                                            fontWeight: 400,
+                                            fontSize: "16px",
+                                            lineHeight: "24px",
+                                            color: "#FFFFFF"
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2"
+                                    >
+                                        {showConfirmPassword ? (
+                                            <EyeOff className="w-6 h-6" style={{ color: "#6E6E6E" }} />
+                                        ) : (
+                                            <Eye className="w-6 h-6" style={{ color: "#6E6E6E" }} />
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Error */}
+                            {formErrors && (
+                                <p style={{ color: "#F35713", fontSize: "12px", fontFamily: "'Inter', sans-serif" }}>
+                                    {formErrors}
+                                </p>
+                            )}
+
+                            {/* Buttons */}
+                            <div className="flex flex-col" style={{ gap: "16px" }}>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full flex justify-center items-center disabled:opacity-50"
+                                    style={{
+                                        height: "48px",
+                                        padding: "16px 12px",
+                                        background: "#F35713",
+                                        borderRadius: "8px"
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontFamily: "'Inter', sans-serif",
+                                            fontWeight: 500,
+                                            fontSize: "16px",
+                                            lineHeight: "16px",
+                                            color: "#FFFFFF"
+                                        }}
+                                    >
+                                        {loading ? 'Отправка...' : 'Отправить запрос'}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setStep(2);
+                                        setFormErrors("");
+                                    }}
+                                    className="w-full flex justify-center items-center"
+                                    style={{
+                                        height: "48px",
+                                        padding: "12px",
+                                        background: "transparent",
+                                        borderRadius: "8px"
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontFamily: "'Inter', sans-serif",
+                                            fontWeight: 400,
+                                            fontSize: "16px",
+                                            lineHeight: "24px",
+                                            color: "#6E6E6E"
+                                        }}
+                                    >
+                                        Назад
+                                    </span>
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Back to Login */}
+                    <Link href="/login" className="w-full">
+                        <button
+                            type="button"
+                            className="w-full flex justify-center items-center"
+                            style={{
+                                height: "48px",
+                                padding: "12px 54px",
+                                gap: "16px",
+                                background: "#212121",
+                                borderRadius: "8px"
+                            }}
+                        >
+                            <ArrowLeft className="w-6 h-6" style={{ color: "#6E6E6E" }} />
+                            <span
+                                style={{
+                                    fontFamily: "'Inter', sans-serif",
+                                    fontWeight: 400,
+                                    fontSize: "16px",
+                                    lineHeight: "24px",
+                                    color: "#6E6E6E"
+                                }}
+                            >
+                                Вернуться к входу
+                            </span>
+                        </button>
+                    </Link>
+                </form>
             </div>
 
             <SuccessModal

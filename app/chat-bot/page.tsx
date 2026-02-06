@@ -1,13 +1,13 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, FormEvent, KeyboardEvent } from "react";
-import { Send, ArrowLeft, Trash2, Copy, Building2, Wrench, Ruler, Bell, Home, BarChart3, AlertTriangle, User, Menu } from "lucide-react";
-import Link from "next/link";
+import { Send, Trash2, Copy, Building2, Wrench, Ruler, Bell, Home, BarChart3, AlertTriangle, User, Menu, Bot, BellRing, Check, Clock, ChevronRight, X } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import axios, { AxiosError } from "axios";
 import api from "@/lib/api";
 import ReactMarkdown from 'react-markdown';
 import {useAuthStore} from "@/stores/useAuthStore";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
+import { useNotificationStore } from "@/stores/notificationStore";
 
 type Message = {
     from: "user" | "bot";
@@ -134,6 +134,8 @@ const topics: Topic[] = [
 
 export default function ChatPage() {
     const {token} = useAuthStore()
+    const notifications = useNotificationStore(state => state.notifications)
+    const [activeMessageTab, setActiveMessageTab] = useState<"chat" | "notifications">("chat")
     const [messages, setMessages] = useState<Message[]>([
         { from: "bot", text: "Выберите, с чем хотите работать 👉" },
     ]);
@@ -144,6 +146,7 @@ export default function ChatPage() {
     const [showClearModal, setShowClearModal] = useState(false);
     const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
     const [showTopics, setShowTopics] = useState(true);
+    const [selectedNotification, setSelectedNotification] = useState<any | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -325,194 +328,290 @@ export default function ChatPage() {
         };
     }, []);
 
+    // Форматирование времени уведомления
+    const formatNotificationTime = (dateString: string) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'только что';
+        if (diffMins < 60) return `${diffMins} мин назад`;
+        if (diffHours < 24) return `${diffHours} ч назад`;
+        if (diffDays < 7) return `${diffDays} дн назад`;
+        return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    };
+
     return (
-        <div className="flex flex-col h-screen bg-[#F3F3F3] safe-area-padding">
-            {/* Header */}
-            <header className="sticky top-0 z-10 bg-gradient-to-r from-[#114A65]/20 via-[#114A65]/10 to-[#114A65]/20 border-b border-[#C4C4CE] backdrop-blur-md p-4 safe-area-top">
-                <div className="flex items-center justify-between max-w-2xl mx-auto">
-                    <Link
-                        href="/"
-                        className="p-1 rounded-full hover:bg-gray-100 transition-colors"
-                        aria-label="Назад"
+        <div className="flex flex-col h-screen bg-black safe-area-padding">
+            {/* Header с вкладками */}
+            <header className="sticky top-0 z-10 bg-black pt-12 pb-4 px-4 safe-area-top">
+                <h1 className="text-2xl font-bold text-white mb-4">Сообщение</h1>
+                
+                {/* Переключатель вкладок */}
+                <div className="flex rounded-xl overflow-hidden bg-[#3D3D3D]">
+                    <button
+                        onClick={() => setActiveMessageTab("chat")}
+                        className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
+                            activeMessageTab === "chat"
+                                ? "bg-[#5A5A5A] text-white"
+                                : "bg-transparent text-gray-400"
+                        }`}
                     >
-                        <ArrowLeft className="w-5 h-5 text-gray-700" />
-                    </Link>
-                    <div className="flex items-center gap-3">
-                        <h1 className="font-medium text-gray-900 text-sm">Чат поддержки</h1>
-                        <button
-                            onClick={handleShowTopicsMenu}
-                            className="text-gray-500 hover:text-gray-700 transition-colors"
-                            title="Показать меню тем"
-                        >
-                            <Menu className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={handleClearChat}
-                            className="text-gray-500 hover:text-gray-700 transition-colors"
-                            title="Очистить чат"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                    </div>
-                    <div className="w-6" aria-hidden></div>
+                        <Bot className="w-4 h-4" />
+                        Чат-бот
+                    </button>
+                    <button
+                        onClick={() => setActiveMessageTab("notifications")}
+                        className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
+                            activeMessageTab === "notifications"
+                                ? "bg-[#5A5A5A] text-white"
+                                : "bg-transparent text-gray-400"
+                        }`}
+                    >
+                        <BellRing className="w-4 h-4" />
+                        Уведомления
+                        {notifications.length > 0 && (
+                            <span className="bg-[#F35713] text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                                {notifications.length}
+                            </span>
+                        )}
+                    </button>
                 </div>
             </header>
 
-            {/* Messages */}
-            <main className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full pb-40">
-                {/* Topics Menu */}
-                {showTopics && (
-                    <div className="space-y-3 mb-4">
-                        {topics.map((topic) => (
-                            <button
-                                key={topic.id}
-                                onClick={() => handleTopicSelect(topic.id)}
-                                className="w-full bg-white rounded-xl p-4 border border-[#C4C4CE] hover:border-[#114A65] hover:shadow-md transition-all text-left flex items-start gap-3 group"
-                            >
-                                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-r from-[#114A65]/10 to-[#B8400E]/10 flex items-center justify-center text-[#114A65] group-hover:from-[#114A65]/20 group-hover:to-[#B8400E]/20 transition-colors">
-                                    {topic.icon}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-semibold text-gray-900 text-sm mb-1">{topic.title}</h3>
-                                    <p className="text-xs text-gray-600">{topic.description}</p>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                {/* Questions for selected topic */}
-                {selectedTopic && !showTopics && (
-                    <div className="space-y-3 mb-4">
-                        <button
-                            onClick={handleBackToTopics}
-                            className="text-sm text-[#114A65] hover:underline mb-2 flex items-center gap-1"
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                            Назад к темам
-                        </button>
-                        <div className="bg-white rounded-xl p-4 border border-[#C4C4CE] mb-3">
-                            <h3 className="font-semibold text-gray-900 text-base mb-2">
-                                {topics.find(t => t.id === selectedTopic)?.title}
-                            </h3>
-                            <p className="text-sm text-gray-600 mb-3">
-                                Выберите вопрос или напишите свой:
-                            </p>
-                            <div className="space-y-2">
-                                {topics.find(t => t.id === selectedTopic)?.questions.map((question, idx) => (
+            {/* Контент в зависимости от активной вкладки */}
+            {activeMessageTab === "chat" ? (
+                <>
+                    {/* Chat Messages */}
+                    <main className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full pb-40">
+                        {/* Topics Menu */}
+                        {showTopics && (
+                            <div className="space-y-3 mb-4">
+                                {topics.map((topic) => (
                                     <button
-                                        key={idx}
-                                        onClick={() => handleQuestionSelect(question)}
-                                        className="w-full text-left p-3 rounded-lg bg-[#F3F3F3] hover:bg-[#114A65]/10 hover:border hover:border-[#114A65]/20 transition-all text-sm text-gray-700"
+                                        key={topic.id}
+                                        onClick={() => handleTopicSelect(topic.id)}
+                                        className="w-full bg-[#1C1C1E] rounded-xl p-4 border border-gray-700 hover:border-[#F35713] hover:shadow-md transition-all text-left flex items-start gap-3 group"
                                     >
-                                        {question}
+                                        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#F35713]/20 flex items-center justify-center text-[#F35713] group-hover:bg-[#F35713]/30 transition-colors">
+                                            {topic.icon}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-semibold text-white text-sm mb-1">{topic.title}</h3>
+                                            <p className="text-xs text-gray-400">{topic.description}</p>
+                                        </div>
                                     </button>
                                 ))}
                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {messages.map((msg, idx) => (
-                    <div key={idx} className={`flex ${msg.from === "bot" ? "justify-start" : "justify-end"} items-start gap-2`}>
-                        {msg.from === "bot" && (
-                            <img
-                                src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png"
-                                alt="Аватар бота"
-                                className="w-8 h-8 rounded-full flex-shrink-0 mt-1"
-                                width={32}
-                                height={32}
-                            />
                         )}
 
-                        <div className="relative group max-w-[85%]">
-                            <button
-                                onClick={() => handleCopyMessage(msg.text)}
-                                className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-white rounded-full shadow-sm hover:bg-gray-50 border border-gray-200"
-                                title="Копировать"
-                            >
-                                <Copy className="w-3 h-3 text-gray-500" />
-                            </button>
-                            <div className={`px-4 py-3 rounded-2xl ${msg.from === "bot" ? "bg-gradient-to-r from-[#114A65]/20 via-[#114A65]/10 to-[#114A65]/20 text-[#040404] rounded-tl-none backdrop-blur-sm" : "bg-gradient-to-r from-[#F3F3F3] to-[#C4C4CE]/30 text-[#040404] rounded-tr-none backdrop-blur-sm"}`}>
-                                <ReactMarkdown components={{
-                                    p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
-                                    ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-2" {...props} />,
-                                    ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-2" {...props} />,
-                                    li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-                                    code: ({ node, ...props }) => <code className="bg-[#C4C4CE]/30 px-1 rounded text-sm font-mono" {...props} />,
-                                    a: ({ node, ...props }) => <a className="text-[#114A65] hover:underline" {...props} />
-                                }}>
-                                    {msg.text}
-                                </ReactMarkdown>
+                        {/* Questions for selected topic */}
+                        {selectedTopic && !showTopics && (
+                            <div className="space-y-3 mb-4">
+                                <button
+                                    onClick={handleBackToTopics}
+                                    className="text-sm text-[#F35713] hover:underline mb-2 flex items-center gap-1"
+                                >
+                                    <ChevronRight className="w-4 h-4 rotate-180" />
+                                    Назад к темам
+                                </button>
+                                <div className="bg-[#1C1C1E] rounded-xl p-4 border border-gray-700 mb-3">
+                                    <h3 className="font-semibold text-white text-base mb-2">
+                                        {topics.find(t => t.id === selectedTopic)?.title}
+                                    </h3>
+                                    <p className="text-sm text-gray-400 mb-3">
+                                        Выберите вопрос или напишите свой:
+                                    </p>
+                                    <div className="space-y-2">
+                                        {topics.find(t => t.id === selectedTopic)?.questions.map((question, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleQuestionSelect(question)}
+                                                className="w-full text-left p-3 rounded-lg bg-[#2C2C2E] hover:bg-[#F35713]/20 transition-all text-sm text-gray-300"
+                                            >
+                                                {question}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-
-                        {msg.from === "user" && (
-                            <img
-                                src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-                                alt="Аватар пользователя"
-                                className="w-8 h-8 rounded-full flex-shrink-0 mt-1"
-                                width={32}
-                                height={32}
-                            />
                         )}
-                    </div>
-                ))}
 
-                {isBotTyping && (
-                    <div className="flex justify-start items-end gap-2">
-                        <img
-                            src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png"
-                            alt="Аватар бота"
-                            className="w-8 h-8 rounded-full flex-shrink-0"
-                            width={32}
-                            height={32}
-                        />
-                        <div className="px-4 py-3 rounded-2xl bg-gradient-to-r from-[#114A65]/20 via-[#114A65]/10 to-[#114A65]/20 text-[#040404] rounded-tl-none backdrop-blur-sm">
-                            <div className="flex space-x-2">
-                                <div className="w-2 h-2 rounded-full bg-[#114A65] animate-bounce"></div>
-                                <div className="w-2 h-2 rounded-full bg-[#114A65] animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                                <div className="w-2 h-2 rounded-full bg-[#114A65] animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                        {messages.map((msg, idx) => (
+                            <div key={idx} className={`flex ${msg.from === "bot" ? "justify-start" : "justify-end"} items-start gap-2`}>
+                                {msg.from === "bot" && (
+                                    <div className="w-8 h-8 rounded-full bg-[#F35713] flex items-center justify-center flex-shrink-0 mt-1">
+                                        <Bot className="w-5 h-5 text-white" />
+                                    </div>
+                                )}
+
+                                <div className="relative group max-w-[85%]">
+                                    <button
+                                        onClick={() => handleCopyMessage(msg.text)}
+                                        className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-[#2C2C2E] rounded-full shadow-sm hover:bg-[#3C3C3E] border border-gray-600"
+                                        title="Копировать"
+                                    >
+                                        <Copy className="w-3 h-3 text-gray-400" />
+                                    </button>
+                                    <div className={`px-4 py-3 rounded-2xl ${msg.from === "bot" ? "bg-[#2C2C2E] text-white rounded-tl-none" : "bg-[#F35713] text-white rounded-tr-none"}`}>
+                                        <ReactMarkdown components={{
+                                            p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                            ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-2" {...props} />,
+                                            ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-2" {...props} />,
+                                            li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+                                            code: ({ node, ...props }) => <code className="bg-black/30 px-1 rounded text-sm font-mono" {...props} />,
+                                            a: ({ node, ...props }) => <a className="text-[#F9AB89] hover:underline" {...props} />
+                                        }}>
+                                            {msg.text}
+                                        </ReactMarkdown>
+                                    </div>
+                                </div>
+
+                                {msg.from === "user" && (
+                                    <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0 mt-1">
+                                        <User className="w-5 h-5 text-white" />
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </div>
-                )}
-                <div ref={messagesEndRef} aria-hidden />
-            </main>
+                        ))}
 
-            {/* Input */}
-            <form
-                onSubmit={handleSubmit}
-                className="fixed bottom-16 left-0 right-0 bg-gradient-to-r from-[#F3F3F3] via-white to-[#F3F3F3] border-t border-[#C4C4CE] backdrop-blur-md p-4 max-w-2xl mx-auto w-full safe-area-bottom"
-            >
-                {error && (
-                    <div className="text-[#B8400E] text-xs mb-2 px-2">{error}</div>
-                )}
-                <div className="flex items-end gap-2">
-                    <textarea
-                        ref={textareaRef}
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Напишите сообщение..."
-                        className="flex-1 border border-[#C4C4CE] rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#114A65] focus:border-transparent text-sm min-h-[48px] max-h-[150px] bg-white"
-                        rows={1}
-                        aria-label="Поле ввода сообщения"
-                        disabled={isSending}
-                    />
-                    <button
-                        type="submit"
-                        className="bg-gradient-to-r from-[#114A65] to-[#B8400E] text-white rounded-xl p-3 hover:from-[#0d3a4f] hover:to-[#A3390D] transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#114A65] mb-[2px]"
-                        disabled={!inputValue.trim() || isSending}
-                        aria-label="Отправить сообщение"
+                        {isBotTyping && (
+                            <div className="flex justify-start items-end gap-2">
+                                <div className="w-8 h-8 rounded-full bg-[#F35713] flex items-center justify-center flex-shrink-0">
+                                    <Bot className="w-5 h-5 text-white" />
+                                </div>
+                                <div className="px-4 py-3 rounded-2xl bg-[#2C2C2E] text-white rounded-tl-none">
+                                    <div className="flex space-x-2">
+                                        <div className="w-2 h-2 rounded-full bg-[#F35713] animate-bounce"></div>
+                                        <div className="w-2 h-2 rounded-full bg-[#F35713] animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                        <div className="w-2 h-2 rounded-full bg-[#F35713] animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <div ref={messagesEndRef} aria-hidden />
+                    </main>
+
+                    {/* Chat Input */}
+                    <form
+                        onSubmit={handleSubmit}
+                        className="fixed bottom-20 left-0 right-0 bg-black border-t border-gray-800 p-4 max-w-2xl mx-auto w-full safe-area-bottom"
                     >
-                        <Send className="w-5 h-5" />
-                    </button>
-                </div>
-            </form>
+                        {error && (
+                            <div className="text-[#F35713] text-xs mb-2 px-2">{error}</div>
+                        )}
+                        <div className="flex items-end gap-2">
+                            <button
+                                type="button"
+                                onClick={handleShowTopicsMenu}
+                                className="p-3 rounded-xl bg-[#2C2C2E] text-gray-400 hover:text-white transition-colors"
+                                title="Меню тем"
+                            >
+                                <Menu className="w-5 h-5" />
+                            </button>
+                            <textarea
+                                ref={textareaRef}
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Напишите сообщение..."
+                                className="flex-1 border border-gray-700 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#F35713] focus:border-transparent text-sm min-h-[48px] max-h-[150px] bg-[#2C2C2E] text-white placeholder-gray-500"
+                                rows={1}
+                                aria-label="Поле ввода сообщения"
+                                disabled={isSending}
+                            />
+                            <button
+                                type="submit"
+                                className="bg-[#F35713] text-white rounded-xl p-3 hover:bg-[#E04A0A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!inputValue.trim() || isSending}
+                                aria-label="Отправить сообщение"
+                            >
+                                <Send className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </form>
+                </>
+            ) : (
+                <>
+                    {/* Notifications List */}
+                    <main className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
+                        {notifications.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+                                <BellRing className="w-16 h-16 mb-4 opacity-50" />
+                                <p className="text-lg font-medium">Нет уведомлений</p>
+                                <p className="text-sm">Здесь будут ваши уведомления</p>
+                            </div>
+                        ) : (
+                            notifications.map((notification: any, index: number) => (
+                                <button
+                                    key={notification.id || index}
+                                    onClick={() => setSelectedNotification(notification)}
+                                    className="w-full bg-[#1C1C1E] rounded-xl p-4 border border-gray-700 hover:border-[#F35713] transition-all text-left flex items-start gap-3"
+                                >
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#F35713]/20 flex items-center justify-center">
+                                        <Bell className="w-5 h-5 text-[#F35713]" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-semibold text-white text-sm mb-1 truncate">
+                                            {notification.title || 'Уведомление'}
+                                        </h3>
+                                        <p className="text-xs text-gray-400 line-clamp-2">
+                                            {notification.message || notification.body || 'Новое уведомление'}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <Clock className="w-3 h-3 text-gray-500" />
+                                            <span className="text-xs text-gray-500">
+                                                {formatNotificationTime(notification.created_at || notification.timestamp || new Date().toISOString())}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                                </button>
+                            ))
+                        )}
+                    </main>
+
+                    {/* Notification Detail Modal */}
+                    {selectedNotification && (
+                        <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center">
+                            <div className="bg-[#1C1C1E] w-full max-w-lg rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-lg font-bold text-white">
+                                        {selectedNotification.title || 'Уведомление'}
+                                    </h2>
+                                    <button
+                                        onClick={() => setSelectedNotification(null)}
+                                        className="p-2 rounded-full bg-[#2C2C2E] text-gray-400 hover:text-white"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-2 mb-4 text-gray-400 text-sm">
+                                    <Clock className="w-4 h-4" />
+                                    <span>
+                                        {new Date(selectedNotification.created_at || selectedNotification.timestamp || new Date()).toLocaleString('ru-RU')}
+                                    </span>
+                                </div>
+                                <p className="text-gray-300 text-sm leading-relaxed">
+                                    {selectedNotification.message || selectedNotification.body || 'Нет содержимого'}
+                                </p>
+                                {selectedNotification.request_id && (
+                                    <div className="mt-4 p-3 bg-[#2C2C2E] rounded-xl">
+                                        <p className="text-xs text-gray-400 mb-1">Связанная заявка</p>
+                                        <p className="text-white font-medium">#{selectedNotification.request_id}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
 
             {/* Navigation */}
-            <BottomNav activeTab="chat" />
+            <BottomNav activeTab="help" />
 
             {/* Modal для очистки чата */}
             <DeleteConfirmationModal

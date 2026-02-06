@@ -238,7 +238,7 @@ class FCMService {
                     headers['Authorization'] = `Bearer ${authToken}`;
                 }
 
-                const response = await fetch('/api/fcm/token', {
+                const response = await fetch('https://workflow-back-zpk4.onrender.com/api/fcm/token', {
                     method: 'POST',
                     headers,
                     body: JSON.stringify(tokenData),

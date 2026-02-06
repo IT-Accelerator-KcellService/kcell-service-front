@@ -2,7 +2,7 @@
 
 import React, { useMemo, useCallback, useState, useRef, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { MapPin, Calendar as CalendarLucid, ImageIcon, User } from "lucide-react"
+import { MapPin, Calendar as CalendarLucid, ImageIcon, User, ChevronRight, Clock } from "lucide-react"
 import { RequestGroup } from "@/stores/useRequestStore"
 import { getThumbnailUrl } from "@/lib/imageOptimization"
 
@@ -14,6 +14,7 @@ interface RequestCardProps {
   lastElementRef?: ((node: HTMLDivElement | null) => void) | React.RefObject<HTMLDivElement> | null
   clientRating?: any
   userRole?: string
+  variant?: 'default' | 'compact' // Новый пропс для выбора стиля карточки
 }
 
 // Компонент для ленивой загрузки изображений с IntersectionObserver
@@ -66,7 +67,8 @@ function RequestCardComponent({
   isLast = false,
   lastElementRef,
   clientRating,
-  userRole
+  userRole,
+  variant = 'default'
 }: RequestCardProps) {
 
   const formatDate = useCallback((dateString: string) => {
@@ -77,8 +79,102 @@ function RequestCardComponent({
     })
   }, [])
 
+  const formatDateLong = useCallback((dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }) + ' г. в ' + date.toLocaleTimeString("ru-RU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }, [])
+
   const formattedDate = useMemo(() => formatDate(request.created_date), [request.created_date, formatDate])
+  const formattedDateLong = useMemo(() => formatDateLong(request.created_date), [request.created_date, formatDateLong])
   
+  const handleClick = useCallback(() => onCardClick(request), [onCardClick, request])
+  
+  // Получаем тип заявки и статус для compact варианта
+  const requestTypeLabel = useMemo(() => {
+    if (request.request_type === 'urgent') return 'Экстренная'
+    if (request.request_type === 'planned') return 'Плановая'
+    return 'Обычная'
+  }, [request.request_type])
+
+  const statusLabel = useMemo(() => {
+    switch (request.status) {
+      case 'in_progress': return 'В обработке'
+      case 'awaiting_assignment': return 'Ожидает назначение'
+      case 'execution': return 'Исполнение'
+      case 'completed': return 'Завершено'
+      case 'rejected': return 'Отклонено'
+      default: return 'В обработке'
+    }
+  }, [request.status])
+
+  // Compact вариант карточки (как на скриншотах)
+  if (variant === 'compact') {
+    const firstPhoto = request.photos && request.photos.length > 0 ? request.photos[0] : null
+
+    return (
+      <div
+        ref={isLast ? lastElementRef : null}
+        className="flex items-center gap-4 bg-transparent cursor-pointer"
+        onClick={handleClick}
+      >
+        {/* Фото слева */}
+        <div className="w-[140px] h-[100px] flex-shrink-0 rounded-xl overflow-hidden bg-gray-800">
+          {firstPhoto ? (
+            <LazyImage
+              src={getThumbnailUrl(firstPhoto.photo_url)}
+              alt={`Заявка #${request.id}`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gray-700">
+              <ImageIcon className="w-8 h-8 text-gray-500" />
+            </div>
+          )}
+        </div>
+
+        {/* Контент справа */}
+        <div className="flex-1 min-w-0">
+          {/* Заголовок */}
+          <h3 className="text-white font-semibold text-lg mb-2">
+            Заявка #{request.id}
+          </h3>
+
+          {/* Бейджи */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-medium px-3 py-1 rounded-full bg-[#2A5A4A] text-white">
+              {requestTypeLabel}
+            </span>
+            <span className="text-xs font-medium px-3 py-1 rounded-full bg-[#4A4A4A] text-gray-300">
+              {statusLabel}
+            </span>
+          </div>
+
+          {/* Локация */}
+          <p className="text-gray-400 text-sm mb-2 truncate">
+            {request.location_detail || 'Местоположение не указано'}
+          </p>
+
+          {/* Дата */}
+          <div className="flex items-center gap-2 text-gray-400 text-sm">
+            <Clock className="w-4 h-4" />
+            <span>{formattedDateLong}</span>
+          </div>
+        </div>
+
+        {/* Стрелка */}
+        <ChevronRight className="w-6 h-6 text-gray-500 flex-shrink-0" />
+      </div>
+    )
+  }
+
+  // Default вариант карточки (оригинальный)
   const cardClassName = useMemo(() => {
     return `hover:shadow-xl transition-all duration-300 border-0 shadow-md relative overflow-hidden cursor-pointer will-change-transform backdrop-blur-sm ${
       request.is_long_term && request.request_type !== 'recurring'
@@ -86,8 +182,6 @@ function RequestCardComponent({
         : 'bg-gradient-to-br from-white via-[#F3F3F3] to-white hover:shadow-[#C4C4CE]/40'
     }`
   }, [request.is_long_term, request.request_type])
-  
-  const handleClick = useCallback(() => onCardClick(request), [onCardClick, request])
   
   // Мемоизируем renderCardHeader результат для избежания повторных вычислений
   const headerContent = useMemo(() => renderCardHeader(request), [renderCardHeader, request])

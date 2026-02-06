@@ -114,6 +114,7 @@ export default function ClientDashboard() {
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("meeting-rooms")
+  const [requestsTab, setRequestsTab] = useState<"create" | "my-requests">("create")
   const [showCreateRequest, setShowCreateRequest] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<RequestGroup | null>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
@@ -1172,14 +1173,19 @@ export default function ClientDashboard() {
 
   return (
       <>
-        {/* Header */}
-        <Header
-            handleLogout={handleLogout}
-            notificationCount={notifications.length}
-            role="Клиент"
-        />
+        {/* Header - только на десктопе */}
+        {isDesktop && (
+          <Header
+              handleLogout={handleLogout}
+              notificationCount={notifications.length}
+              role="Клиент"
+          />
+        )}
       <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-[#F3F3F3]">
+      <div 
+        className={`min-h-screen pb-safe ${!isDesktop && activeTab === "requests" ? "bg-black" : "bg-[#F3F3F3]"}`}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
         {/* Quick Stats */}
         {isDesktop && activeTab === "requests" ? (
@@ -1451,8 +1457,8 @@ export default function ClientDashboard() {
               </div>
             )}
 
-            {/* Главная секция для мобильных */}
-            {!isDesktop && (
+            {/* Главная секция для мобильных - скрываем когда активна вкладка заявок */}
+            {!isDesktop && activeTab !== "requests" && (
               <div className="mb-6 space-y-5">
                 {/* Три карточки действий в одном ряду */}
                 <div className="grid grid-cols-3 gap-2">
@@ -1637,49 +1643,150 @@ export default function ClientDashboard() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsContent value="requests">
                 <div className="space-y-4">
+                  {/* Мобильная версия */}
+                  {!isDesktop && (
+                    <div className="space-y-4">
+                      {/* Заголовок Сервисные заявки */}
+                      <h1 className="text-2xl font-bold text-white">Сервисные заявки</h1>
+                      
+                      {/* Переключатель вкладок */}
+                      <div className="flex rounded-xl overflow-hidden bg-[#3D3D3D]">
+                        <button
+                          onClick={() => setRequestsTab("create")}
+                          className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 ${
+                            requestsTab === "create"
+                              ? "bg-[#5A5A5A] text-white"
+                              : "bg-transparent text-gray-400"
+                          }`}
+                        >
+                          Создать заявку
+                        </button>
+                        <button
+                          onClick={() => setRequestsTab("my-requests")}
+                          className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 ${
+                            requestsTab === "my-requests"
+                              ? "bg-[#5A5A5A] text-white"
+                              : "bg-transparent text-gray-400"
+                          }`}
+                        >
+                          Мои заявки
+                        </button>
+                      </div>
 
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div className="flex items-center gap-4 flex-1">
-                      <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="flex-1 sm:w-48">
-                          <SelectValue placeholder="Статус" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Все</SelectItem>
-                          <SelectItem value="in_progress">В обработке</SelectItem>
-                          <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
-                          <SelectItem value="execution">Исполнение</SelectItem>
-                          <SelectItem value="completed">Завершено</SelectItem>
-                          <SelectItem value="long_term">Долгосрочные</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select value={filterType} onValueChange={setFilterType}>
-                        <SelectTrigger className="flex-1 sm:w-48">
-                          <SelectValue placeholder="Тип заявки" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Все</SelectItem>
-                          <SelectItem value="normal">Обычная</SelectItem>
-                          <SelectItem value="urgent">Экстренная</SelectItem>
-                          <SelectItem value="planned">Плановая</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {/* Контент в зависимости от выбранной вкладки */}
+                      {requestsTab === "create" ? (
+                        <div className="space-y-4">
+                          <h2 className="text-lg font-bold text-white">Все сценарий</h2>
+                          <Button
+                            onClick={() => router.push('/create-request')}
+                            className="w-full h-14 bg-[#F35713] hover:bg-[#E04A0A] text-white font-semibold rounded-2xl text-base"
+                          >
+                            Создать заявку
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <h2 className="text-lg font-bold text-white">Все заявки</h2>
+                          
+                          {/* Фильтры */}
+                          <div className="flex gap-2">
+                            <Select value={filterStatus} onValueChange={setFilterStatus}>
+                              <SelectTrigger className="flex-1 bg-[#2C2C2E] border-gray-700 text-white">
+                                <SelectValue placeholder="Статус" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-[#2C2C2E] border-gray-700">
+                                <SelectItem value="all" className="text-white">Все</SelectItem>
+                                <SelectItem value="in_progress" className="text-white">В обработке</SelectItem>
+                                <SelectItem value="awaiting_assignment" className="text-white">Ожидает</SelectItem>
+                                <SelectItem value="execution" className="text-white">Исполнение</SelectItem>
+                                <SelectItem value="completed" className="text-white">Завершено</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Select value={filterType} onValueChange={setFilterType}>
+                              <SelectTrigger className="flex-1 bg-[#2C2C2E] border-gray-700 text-white">
+                                <SelectValue placeholder="Тип" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-[#2C2C2E] border-gray-700">
+                                <SelectItem value="all" className="text-white">Все</SelectItem>
+                                <SelectItem value="normal" className="text-white">Обычная</SelectItem>
+                                <SelectItem value="urgent" className="text-white">Экстренная</SelectItem>
+                                <SelectItem value="planned" className="text-white">Плановая</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-4 pb-24" style={{ contain: 'layout style paint' }}>
+                            {filteredRequests.slice(0, 50).map((requestGroup, index) => {
+                              const isLast = index === filteredRequests.length - 1;
+                              return (
+                                <RequestCard
+                                  key={`incoming-${index}`}
+                                  request={requestGroup}
+                                  onCardClick={handleCardClick}
+                                  renderCardHeader={renderCardHeader}
+                                  isLast={isLast}
+                                  lastElementRef={lastRequestRef}
+                                  clientRating={clientRatings[requestGroup.id]}
+                                  userRole="client"
+                                  variant="compact"
+                                />
+                              );
+                            })}
+                            {filteredRequests.length === 0 && (
+                              <div className="text-center py-8 text-gray-400">
+                                <p>У вас пока нет заявок</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <Button
-                        onClick={() => router.push('/create-request')}
-                        className="hidden sm:flex bg-[#114A65] hover:bg-[#0d3a4f]"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Создать заявку
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
-                    {/* Ограничиваем количество рендеримых карточек для улучшения производительности */}
-                    {filteredRequests.slice(0, 50).map((requestGroup, index) => {
-                      const isLast = index === filteredRequests.length - 1;
-                      return (
-                          <RequestCard
-                              key={`incoming-${index}`}
+                  )}
+
+                  {/* Десктопная версия с фильтрами */}
+                  {isDesktop && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between gap-4 mb-4">
+                        <div className="flex items-center gap-4 flex-1">
+                          <Select value={filterStatus} onValueChange={setFilterStatus}>
+                            <SelectTrigger className="flex-1 sm:w-48">
+                              <SelectValue placeholder="Статус" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Все</SelectItem>
+                              <SelectItem value="in_progress">В обработке</SelectItem>
+                              <SelectItem value="awaiting_assignment">Ожидает назначение</SelectItem>
+                              <SelectItem value="execution">Исполнение</SelectItem>
+                              <SelectItem value="completed">Завершено</SelectItem>
+                              <SelectItem value="long_term">Долгосрочные</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Select value={filterType} onValueChange={setFilterType}>
+                            <SelectTrigger className="flex-1 sm:w-48">
+                              <SelectValue placeholder="Тип заявки" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Все</SelectItem>
+                              <SelectItem value="normal">Обычная</SelectItem>
+                              <SelectItem value="urgent">Экстренная</SelectItem>
+                              <SelectItem value="planned">Плановая</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          onClick={() => router.push('/create-request')}
+                          className="bg-[#114A65] hover:bg-[#0d3a4f]"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Создать заявку
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ contain: 'layout style paint' }}>
+                        {filteredRequests.slice(0, 50).map((requestGroup, index) => {
+                          const isLast = index === filteredRequests.length - 1;
+                          return (
+                            <RequestCard
+                              key={`incoming-desktop-${index}`}
                               request={requestGroup}
                               onCardClick={handleCardClick}
                               renderCardHeader={renderCardHeader}
@@ -1687,11 +1794,14 @@ export default function ClientDashboard() {
                               lastElementRef={lastRequestRef}
                               clientRating={clientRatings[requestGroup.id]}
                               userRole="client"
-                          />
-                      );})}
-                  </div>
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
-                  </TabsContent>
+                  )}
+                </div>
+              </TabsContent>
 
                   <TabsContent value="statistics">
                     <div className="space-y-6">
@@ -1748,33 +1858,35 @@ export default function ClientDashboard() {
                 </Tabs>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6 mb-20 mt-6 lg:mt-0">
-            <Card className="overflow-hidden">
-              <CardContent className="p-0">
-                <NotificationsSidebar 
-                  onNotificationClick={handleNotificationClick}
-                  onRequestClick={(requestId) => {
-                    // Парсим ID заявки (может быть в формате "123" или "123/1")
-                    const parsedId = parseInt(requestId.split('/')[0]);
-                    const request = requests.find(r => r.id === parsedId);
-                    if (request) {
-                      setSelectedRequest(request);
-                      openModal('requestDetails');
-                      return true;
-                    }
-                    return false;
-                  }}
-                />
-              </CardContent>
-            </Card>
-          </div>
+          {/* Sidebar - скрываем на мобильном в разделе заявок */}
+          {(isDesktop || activeTab !== "requests") && (
+            <div className="space-y-6 mb-20 mt-6 lg:mt-0">
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <NotificationsSidebar 
+                    onNotificationClick={handleNotificationClick}
+                    onRequestClick={(requestId) => {
+                      // Парсим ID заявки (может быть в формате "123" или "123/1")
+                      const parsedId = parseInt(requestId.split('/')[0]);
+                      const request = requests.find(r => r.id === parsedId);
+                      if (request) {
+                        setSelectedRequest(request);
+                        openModal('requestDetails');
+                        return true;
+                      }
+                      return false;
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
         </div>
       </div>
       </PullToRefresh>
   <BottomNav
-      activeTab={activeTab === "requests" ? "home" : activeTab === "meeting-rooms" ? "home" : "history"}
+      activeTab={activeTab === "requests" ? "requests" : activeTab === "meeting-rooms" ? "booking" : "home"}
       hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showDeleteRequestModal}
   />
         {/* Request Details Modal */}
