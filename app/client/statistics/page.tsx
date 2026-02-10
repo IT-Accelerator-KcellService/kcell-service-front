@@ -127,10 +127,10 @@ export default function ClientStatisticsPage() {
           </div>
         </div>
       </PullToRefresh>
-      <BottomNav
+      {!isDesktop && <BottomNav
         activeTab="statistics"
         hidden={false}
-      />
+      />}
     </>
   )
 }

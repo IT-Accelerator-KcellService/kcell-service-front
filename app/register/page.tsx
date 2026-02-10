@@ -314,12 +314,12 @@ export default function RegisterPage() {
 
     return (
         <div 
-            className="min-h-screen flex flex-col overflow-auto"
+            className="min-h-screen flex flex-col items-center overflow-auto"
             style={{ background: "#040404" }}
         >
             {/* Main Content */}
             <div 
-                className="flex flex-col px-5 py-8 md:py-16"
+                className="flex flex-col px-5 py-8 md:py-16 w-full md:max-w-[420px]"
                 style={{ gap: "32px" }}
             >
                 {/* Header */}

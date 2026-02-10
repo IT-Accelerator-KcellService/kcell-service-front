@@ -770,10 +770,10 @@ export default function AdminWorkerStatisticsPage() {
           </div>
         </div>
       </PullToRefresh>
-      <BottomNav
+      {!isDesktop && <BottomNav
         activeTab="statistics"
         hidden={false}
-      />
+      />}
     </>
   )
 }

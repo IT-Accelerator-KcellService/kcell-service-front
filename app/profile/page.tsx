@@ -548,7 +548,7 @@ export default function ProfilePage() {
                     </TabsContent>
                     </Tabs>
                 </div>
-                <BottomNav activeTab="profile" />
+                {!isDesktop && <BottomNav activeTab="profile" />}
             </div>
         </>
     )

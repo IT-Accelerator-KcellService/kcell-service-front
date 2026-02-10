@@ -3941,11 +3941,10 @@ export default function ManagerDashboard() {
           isDesktop={isDesktop}
       />
 
-      <BottomNav
-
+      {!isDesktop && <BottomNav
           activeTab="history"
           hidden={showCreateRequestModal || showMapModal || showDeleteRequestModal || isModalOpen || !!selectedPhoto || !!selectedRequest}
-      />
+      />}
 
       {isDesktop && <Link
           href="/chat-bot"

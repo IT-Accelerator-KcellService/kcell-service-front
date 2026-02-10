@@ -1299,7 +1299,7 @@ export default function HomePage() {
                 </main>
             </PullToRefresh>
 
-            <BottomNav activeTab="home"/>
+            {!isDesktop && <BottomNav activeTab="home"/>}
 
             {/* Modern animated modal with the map */}
             <CardModal

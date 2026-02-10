@@ -175,10 +175,10 @@ export default function DepartmentHeadStatisticsPage() {
           </div>
         </div>
       </PullToRefresh>
-      <BottomNav
+      {!isDesktop && <BottomNav
         activeTab="statistics"
         hidden={false}
-      />
+      />}
     </>
   )
 }

@@ -43,6 +43,7 @@ export interface SubRequest {
     comment?: string;
     rating?: number;
     photos?: Photo[];
+    location?: string;
 }
 
 export interface RequestGroup {
@@ -62,6 +63,7 @@ export interface RequestGroup {
     photos?: Photo[];
     requests: SubRequest[];
     is_long_term?: boolean;
+    clientRatings?: any[];
     // Поля для повторяющихся задач
     recurrence_type?: 'daily' | 'weekly' | 'monthly' | 'yearly';
     recurrence_interval?: number;

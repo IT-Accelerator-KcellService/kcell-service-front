@@ -147,12 +147,12 @@ export default function LoginPage() {
 
   return (
     <div 
-      className="min-h-screen flex flex-col"
+      className="min-h-screen flex flex-col items-center"
       style={{ background: "#040404" }}
     >
       {/* Main Content */}
       <div 
-        className="flex flex-col px-5 pt-[124px]"
+        className="flex flex-col px-5 pt-[124px] md:pt-[15vh] w-full md:max-w-[420px]"
         style={{ gap: "48px" }}
       >
         {/* Header */}

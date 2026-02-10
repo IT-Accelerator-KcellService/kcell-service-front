@@ -163,10 +163,10 @@ export default function ExecutorStatisticsPage() {
           </div>
         </div>
       </PullToRefresh>
-      <BottomNav
+      {!isDesktop && <BottomNav
         activeTab="statistics"
         hidden={false}
-      />
+      />}
     </>
   )
 }

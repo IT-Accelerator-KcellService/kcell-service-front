@@ -2788,10 +2788,10 @@ export default function ExecutorDashboard() {
           }}
         />
 
-        <BottomNav
+        {!isDesktop && <BottomNav
             activeTab="history"
             hidden={showCreateRequestModal || !! selectedRequest || showMapModal || !!selectedPhoto || isModalOpen || showRejectModal || showRedirectModal || showQRScanner}
-        />
+        />}
 
         {isDesktop && <Link
             href="/chat-bot"

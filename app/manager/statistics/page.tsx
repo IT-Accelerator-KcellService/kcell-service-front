@@ -747,10 +747,10 @@ export default function ManagerStatisticsPage() {
           </section>
         </main>
       </PullToRefresh>
-      <BottomNav
+      {!isDesktop && <BottomNav
         activeTab="statistics"
         hidden={false}
-      />
+      />}
     </>
   )
 }

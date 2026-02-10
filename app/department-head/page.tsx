@@ -2645,10 +2645,10 @@ export default function DepartmentHeadDashboard() {
           description={`Это действие нельзя отменить. Вы действительно хотите удалить исполнителя ${executorToDelete?.user.full_name}?`}
         />
 
-        <BottomNav
+        {!isDesktop && <BottomNav
             activeTab="history"
             hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal || showChangeExecutorsModal}
-        />
+        />}
         {isDesktop && <Link
             href="/chat-bot"
             className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-[#114A65]/10 text-[#114A65] rounded-full shadow-lg hover:bg-[#114A65]/20 transition"

@@ -87,7 +87,7 @@ export default function RequestsPage() {
   const [selectedSubRequestForComments, setSelectedSubRequestForComments] = useState<SubRequest | null>(null)
   
   const observer = useRef<IntersectionObserver | null>(null)
-  const lastRequestRef = useRef<HTMLDivElement | null>(null)
+  const lastRequestRef = useRef<HTMLDivElement>(null)
 
   const filteredRequests = useMemo(() => requests
     .filter((request) => {
@@ -771,7 +771,7 @@ export default function RequestsPage() {
                           onCardClick={handleCardClick}
                           renderCardHeader={renderCardHeader}
                           isLast={isLast}
-                          lastElementRef={isLast ? lastRequestRef : undefined}
+                          lastElementRef={isLast ? lastRequestRef as React.RefObject<HTMLDivElement> : undefined}
                           clientRating={clientRatings[requestGroup.id]}
                           userRole="client"
                           variant="compact"
@@ -808,7 +808,7 @@ export default function RequestsPage() {
       {/* Photo Modal */}
       {selectedPhoto && (
         <PhotoModal
-          photo={selectedPhoto}
+          selectedPhoto={selectedPhoto}
           onClose={() => setSelectedPhoto(null)}
         />
       )}
@@ -823,10 +823,10 @@ export default function RequestsPage() {
           setRatingComment("")
         }}
         onSubmit={handleRateRequest}
-        rating={ratingValue}
-        setRating={setRatingValue}
+        ratingValue={ratingValue}
+        onRatingChange={setRatingValue}
         comment={ratingComment}
-        setComment={setRatingComment}
+        onCommentChange={setRatingComment}
         title="Оцените заявку"
       />
 

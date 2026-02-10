@@ -1885,10 +1885,12 @@ export default function ClientDashboard() {
         </div>
       </div>
       </PullToRefresh>
-  <BottomNav
-      activeTab={activeTab === "requests" ? "requests" : activeTab === "meeting-rooms" ? "booking" : "home"}
-      hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showDeleteRequestModal}
-  />
+  {!isDesktop && (
+    <BottomNav
+        activeTab={activeTab === "requests" ? "requests" : activeTab === "meeting-rooms" ? "booking" : "home"}
+        hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showDeleteRequestModal}
+    />
+  )}
         {/* Request Details Modal */}
         {selectedRequest && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {

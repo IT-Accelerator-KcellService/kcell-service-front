@@ -77,8 +77,7 @@ import PhotoModal from "@/components/photo/PhotoModal";
 import { MeetingRoomsAdmin } from "@/components/meeting-rooms/MeetingRoomsAdmin";
 import { MeetingRoomStatistics } from "@/components/meeting-rooms/MeetingRoomStatistics";
 import { YandexSmartHomeAdmin } from "@/components/yandex-smart-home/YandexSmartHomeAdmin";
-import { RoomDevicesAdmin } from "@/components/yandex-smart-home/RoomDevicesAdmin";
-import { ClientRoomSubscriptionsAdmin } from "@/components/yandex-smart-home/ClientRoomSubscriptionsAdmin";
+import { SmartHomeManagement } from "@/components/yandex-smart-home/SmartHomeManagement";
 
 interface User {
   id: number;
@@ -3254,8 +3253,7 @@ export default function AdminWorkerDashboard() {
                       {/* Управление умным домом */}
                       {selectedManagementSection === "smart-home" && (
                         <div className="space-y-6">
-                          <RoomDevicesAdmin />
-                          <ClientRoomSubscriptionsAdmin />
+                          <SmartHomeManagement />
                           <YandexSmartHomeAdmin />
                         </div>
                       )}
@@ -4203,10 +4201,10 @@ export default function AdminWorkerDashboard() {
         />
 
 
-        <BottomNav
+        {!isDesktop && <BottomNav
             activeTab="history"
             hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto}
-        />
+        />}
         {isDesktop && <Link
             href="/chat-bot"
             className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-[#114A65]/10 text-[#114A65] rounded-full shadow-lg hover:bg-[#114A65]/20 transition"
