@@ -270,6 +270,13 @@ export async function ensureCameraPermission(): Promise<boolean> {
     if (!iosBridge.isIOSWebView()) return true; // в вебе даём работать как есть
     const status = await iosBridge.checkPermission('camera');
     if (status === 'granted') return true;
+    // Если уже denied — iOS не покажет системный диалог повторно.
+    // React Native покажет алерт «Открыть Настройки» при вызове requestPermission.
+    if (status === 'denied') {
+        // Всё равно вызываем requestPermission, чтобы React Native показал алерт с кнопкой Settings
+        iosBridge.requestPermission('camera');
+        return false;
+    }
     return iosBridge.requestPermission('camera');
 }
 
@@ -277,6 +284,13 @@ export async function ensureLocationPermission(): Promise<boolean> {
     if (!iosBridge.isIOSWebView()) return true;
     const status = await iosBridge.checkPermission('location');
     if (status === 'granted') return true;
+    // Если уже denied — iOS не покажет системный диалог повторно.
+    // React Native покажет алерт «Открыть Настройки» при вызове requestPermission.
+    if (status === 'denied') {
+        // Всё равно вызываем requestPermission, чтобы React Native показал алерт с кнопкой Settings
+        iosBridge.requestPermission('location');
+        return false;
+    }
     return iosBridge.requestPermission('location');
 }
 

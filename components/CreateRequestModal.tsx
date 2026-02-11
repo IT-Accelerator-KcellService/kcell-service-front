@@ -430,10 +430,14 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       const { ensureLocationPermission, iosBridge } = await import('@/lib/ios-bridge');
       const { androidBridge } = await import('@/lib/android-bridge');
       if (iosBridge.isIOSWebView()) {
-        // При ручном нажатии «Определить геолокацию» явно запрашиваем разрешение,
-        // чтобы системный диалог гарантированно показался (в т.ч. при повторном нажатии)
-        await iosBridge.requestPermission('location');
-        await ensureLocationPermission();
+        // ensureLocationPermission сам проверит статус и:
+        // - если notDetermined → покажет системный диалог
+        // - если denied → React Native покажет алерт «Открыть Настройки»
+        const hasPermission = await ensureLocationPermission();
+        if (!hasPermission) {
+          setIsGettingLocation(false);
+          return;
+        }
       } else if (androidBridge.isAndroidWebView()) {
         await androidBridge.requestPermission('location');
       }
