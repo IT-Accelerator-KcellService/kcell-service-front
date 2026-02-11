@@ -26,11 +26,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false 
                     size="sm"
                     className={`flex flex-col items-center w-full ${
                         activeTab === 'home'
-                            ? 'text-purple-600 hover:text-purple-600'
+                            ? 'text-brand-teal hover:text-brand-teal'
                             : 'text-gray-600 hover:text-gray-600'
                     }`}
                 >
-                    <House className={`w-5 h-5 ${activeTab === 'home' ? 'text-purple-600' : 'text-gray-600'}`} />
+                    <House className={`w-5 h-5 ${activeTab === 'home' ? 'text-brand-teal' : 'text-gray-600'}`} />
                     <span className="text-xs mt-1">Главная</span>
                 </Button>
             </Link>
@@ -42,11 +42,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false 
                     size="sm"
                     className={`flex flex-col items-center w-full ${
                         activeTab === 'history'
-                            ? 'text-purple-600 hover:text-purple-600'
+                            ? 'text-brand-teal hover:text-brand-teal'
                             : 'text-gray-600 hover:text-gray-600'
                     }`}
                 >
-                    <History className={`w-5 h-5 ${activeTab === 'history' ? 'text-purple-600' : 'text-gray-600'}`} />
+                    <History className={`w-5 h-5 ${activeTab === 'history' ? 'text-brand-teal' : 'text-gray-600'}`} />
                     <span className="text-xs mt-1">История</span>
                 </Button>
             </Link>
@@ -57,7 +57,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false 
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="absolute -top-6 bg-purple-600 text-white rounded-full w-12 h-12 hover:bg-purple-700 shadow-lg"
+                    className="absolute -top-6 bg-brand-teal text-white rounded-full w-12 h-12 hover:bg-brand-black shadow-lg"
                 >
                     <Plus className="w-6 h-6" />
                 </Button>
@@ -71,11 +71,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false 
                     size="sm"
                     className={`flex flex-col items-center w-full ${
                         activeTab === 'chat'
-                            ? 'text-purple-600 hover:text-purple-600'
+                            ? 'text-brand-teal hover:text-brand-teal'
                             : 'text-gray-600 hover:text-gray-600'
                     }`}
                 >
-                    <MessageCircle className={`w-5 h-5 ${activeTab === 'chat' ? 'text-purple-600' : 'text-gray-600'}`} />
+                    <MessageCircle className={`w-5 h-5 ${activeTab === 'chat' ? 'text-brand-teal' : 'text-gray-600'}`} />
                     <span className="text-xs mt-1">Чат</span>
                 </Button>
             </Link>
@@ -87,11 +87,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false 
                     size="sm"
                     className={`flex flex-col items-center w-full ${
                         activeTab === 'profile'
-                            ? 'text-purple-600 hover:text-purple-600'
+                            ? 'text-brand-teal hover:text-brand-teal'
                             : 'text-gray-600 hover:text-gray-600'
                     }`}
                 >
-                    <User className={`w-5 h-5 ${activeTab === 'profile' ? 'text-purple-600' : 'text-gray-600'}`} />
+                    <User className={`w-5 h-5 ${activeTab === 'profile' ? 'text-brand-teal' : 'text-gray-600'}`} />
                     <span className="text-xs mt-1">Профиль</span>
                 </Button>
             </Link>

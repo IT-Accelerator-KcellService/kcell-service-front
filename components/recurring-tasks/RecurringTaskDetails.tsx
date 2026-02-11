@@ -119,7 +119,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
       case 'awaiting_sla':
         return 'bg-orange-100 text-orange-800';
       case 'execution':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-brand-light text-brand-teal';
       case 'completed':
         return 'bg-green-100 text-green-800';
       case 'rejected':
@@ -136,7 +136,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
       case 'planned':
         return 'bg-blue-100 text-blue-800';
       case 'recurring':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-brand-light text-brand-teal';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -284,11 +284,11 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
           </div>
 
           {/* Информация о повторяющейся задаче */}
-          <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-            <Clock className="w-4 h-4 text-purple-600" />
+          <div className="flex items-center gap-2 p-3 bg-brand-light border border-brand-gray rounded-lg">
+            <Clock className="w-4 h-4 text-brand-teal" />
             <div>
-              <Label className="text-sm font-medium text-purple-800">Повторение: </Label>
-              <span className="text-sm text-purple-700">
+              <Label className="text-sm font-medium text-brand-teal">Повторение: </Label>
+              <span className="text-sm text-brand-teal">
                 {getRecurrenceText(task.recurrence_type, task.recurrence_interval)}
               </span>
             </div>
@@ -376,7 +376,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                       key={index}
                       src={photo.photo_url || "/placeholder.svg"}
                       alt={`Фото ${index + 1}`}
-                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-brand-teal transition-colors"
                       onClick={() => {
                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                       }}
@@ -401,7 +401,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                       key={index}
                       src={photo.photo_url || "/placeholder.svg"}
                       alt={`Фото ${index + 1}`}
-                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-purple-400 transition-colors"
+                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-brand-teal transition-colors"
                       onClick={() => {
                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                       }}
@@ -467,7 +467,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                             </div>
                             <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                               <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
-                                <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                                <span className="w-2 h-2 bg-brand-teal rounded-full"></span>
                                 {subRequest.category?.name || 'Без категории'}
                               </span>
                             </div>
@@ -480,7 +480,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                             <Button
                               variant="ghost"
                               size="sm"
-                              className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-purple-50`}
+                              className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-brand-light`}
                               onClick={() => {
                                 if (hasComments) {
                                   setShowComments(null);
@@ -489,7 +489,7 @@ export const RecurringTaskDetails: React.FC<RecurringTaskDetailsProps> = ({
                                 }
                               }}
                             >
-                              <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-purple-600' : 'text-gray-500'}`} />
+                              <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-brand-teal' : 'text-gray-500'}`} />
                             </Button>
 
                             {/* Отладочная информация для меню */}

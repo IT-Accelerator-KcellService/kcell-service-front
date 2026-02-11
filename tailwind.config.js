@@ -60,17 +60,13 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        violet: {
-          50: "#f3e8ff",
-          100: "#e9d5ff",
-          200: "#d8b4fe",
-          300: "#c084fc",
-          400: "#a855f7",
-          500: "#9333ea",
-          600: "#6A1B9A",
-          700: "#7c3aed",
-          800: "#6b21a8",
-          900: "#581c87",
+        // Brand palette (replaces purple/violet)
+        brand: {
+          light: "#F2F1F1",      // Очень светлый серый
+          gray: "#C4C4CE",       // Светло-серый
+          teal: "#114A65",       // Тёмный сине-зелёный
+          black: "#040404",      // Чёрный
+          terracotta: "#B73F0D", // Тёмно-оранжевый
         },
       },
       borderRadius: {

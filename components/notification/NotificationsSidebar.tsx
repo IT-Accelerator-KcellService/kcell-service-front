@@ -82,7 +82,7 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick }: Pr
         if (title.toLowerCase().includes('просрочена') || title.toLowerCase().includes('отклонена')) {
             return 'bg-red-50/90 border-red-200';
         }
-        return 'bg-violet-50/90 border-violet-200';
+        return 'bg-brand-light/90 border-brand-gray';
     }
 
     // Обработчик клика по ID заявки
@@ -106,7 +106,7 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick }: Pr
         <Card className="border-0 shadow-lg bg-white/95 backdrop-blur-sm">
             <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gradient-to-br from-brand-teal to-brand-black rounded-lg flex items-center justify-center">
                         <Bell className="h-4 w-4 text-white" />
                     </div>
                     <CardTitle className="text-lg font-bold text-gray-900">Уведомления</CardTitle>
@@ -116,7 +116,7 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick }: Pr
                 {notificationLoading ? (
                     <div className="flex justify-center py-8">
                         <div className="flex items-center gap-2 text-gray-500">
-                            <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+                            <div className="w-4 h-4 border-2 border-brand-teal border-t-transparent rounded-full animate-spin"></div>
                             <span className="text-sm">Загрузка...</span>
                         </div>
                     </div>
@@ -148,7 +148,7 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick }: Pr
                                                 {n.title}
                                             </h3>
                                             {!n.is_read && (
-                                                <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-violet-600 bg-violet-100 rounded-full whitespace-nowrap">
+                                                <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-brand-teal bg-brand-light rounded-full whitespace-nowrap">
                                                     Новое
                                                 </span>
                                             )}

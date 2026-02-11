@@ -19,7 +19,7 @@ export default function PullToRefresh(props: PullToRefreshProps) {
         },
         threshold = 96,
         maxPull = 180,
-        color = "#7B28CC",
+        color = "#114A65",
     } = props
 
     const containerRef = React.useRef<HTMLDivElement | null>(null)
@@ -181,7 +181,7 @@ export default function PullToRefresh(props: PullToRefreshProps) {
 function ProgressRing({
                           size = 48,
                           thickness = 5,
-                          color = "#7B28CC",
+                          color = "#114A65",
                           angle = 0,
                           spinning = false,
                           progress = 0,
@@ -235,7 +235,7 @@ function ProgressRing({
     )
 }
 
-function KcellMark({ size = 40, color = "#7B28CC" }) {
+function KcellMark({ size = 40, color = "#114A65" }) {
     return (
         <div
             className="rounded-full grid place-items-center"

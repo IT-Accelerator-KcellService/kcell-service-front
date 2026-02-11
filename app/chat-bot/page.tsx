@@ -147,7 +147,7 @@ export default function ChatPage() {
     return (
         <div className="flex flex-col h-screen bg-gray-50 safe-area-padding">
             {/* Header */}
-            <header className="sticky top-0 z-10 bg-purple-100 border-b p-4 safe-area-top">
+            <header className="sticky top-0 z-10 bg-brand-light border-b p-4 safe-area-top">
                 <div className="flex items-center justify-between max-w-2xl mx-auto">
                     <Link
                         href="/"
@@ -192,14 +192,14 @@ export default function ChatPage() {
                             >
                                 <Copy className="w-3 h-3 text-gray-500" />
                             </button>
-                            <div className={`px-4 py-3 rounded-2xl ${msg.from === "bot" ? "bg-purple-100 text-gray-800 rounded-tl-none" : "bg-gray-100 text-gray-800 rounded-tr-none"}`}>
+                            <div className={`px-4 py-3 rounded-2xl ${msg.from === "bot" ? "bg-brand-light text-gray-800 rounded-tl-none" : "bg-gray-100 text-gray-800 rounded-tr-none"}`}>
                                 <ReactMarkdown components={{
                                     p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
                                     ul: ({ node, ...props }) => <ul className="list-disc pl-5 mb-2" {...props} />,
                                     ol: ({ node, ...props }) => <ol className="list-decimal pl-5 mb-2" {...props} />,
                                     li: ({ node, ...props }) => <li className="mb-1" {...props} />,
                                     code: ({ node, ...props }) => <code className="bg-gray-200 px-1 rounded text-sm font-mono" {...props} />,
-                                    a: ({ node, ...props }) => <a className="text-purple-600 hover:underline" {...props} />
+                                    a: ({ node, ...props }) => <a className="text-brand-teal hover:underline" {...props} />
                                 }}>
                                     {msg.text}
                                 </ReactMarkdown>
@@ -227,11 +227,11 @@ export default function ChatPage() {
                             width={32}
                             height={32}
                         />
-                        <div className="px-4 py-3 rounded-2xl bg-purple-100 text-gray-800 rounded-tl-none">
+                        <div className="px-4 py-3 rounded-2xl bg-brand-light text-gray-800 rounded-tl-none">
                             <div className="flex space-x-2">
-                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce"></div>
-                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                                <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{animationDelay: '0.4s'}}></div>
+                                <div className="w-2 h-2 rounded-full bg-brand-teal animate-bounce"></div>
+                                <div className="w-2 h-2 rounded-full bg-brand-teal animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                <div className="w-2 h-2 rounded-full bg-brand-teal animate-bounce" style={{animationDelay: '0.4s'}}></div>
                             </div>
                         </div>
                     </div>
@@ -254,14 +254,14 @@ export default function ChatPage() {
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Напишите сообщение..."
-                        className="flex-1 border border-gray-300 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm min-h-[48px] max-h-[150px] bg-white"
+                        className="flex-1 border border-gray-300 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent text-sm min-h-[48px] max-h-[150px] bg-white"
                         rows={1}
                         aria-label="Поле ввода сообщения"
                         disabled={isSending}
                     />
                     <button
                         type="submit"
-                        className="bg-purple-600 text-white rounded-xl p-3 hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 mb-[2px]"
+                        className="bg-brand-teal text-white rounded-xl p-3 hover:bg-brand-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-teal mb-[2px]"
                         disabled={!inputValue.trim() || isSending}
                         aria-label="Отправить сообщение"
                     >

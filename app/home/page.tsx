@@ -864,7 +864,7 @@ export default function HomePage() {
                                 onClick={() => setMapOpen(true)}
                             />
                             <div className="absolute left-3 top-3 flex gap-2">
-                                <span className="rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-purple-700 shadow">
+                                <span className="rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-brand-teal shadow">
                                   Kcell Kazakhstan
                                 </span>
                                 <span className="rounded-full bg-white/80 px-2 py-1 text-[11px] text-neutral-700 shadow">Mobile</span>
@@ -873,7 +873,7 @@ export default function HomePage() {
                             <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                                 <button
                                     onClick={() => setMapOpen(true)}
-                                    className="rounded-full bg-purple-700 px-3 py-2 text-xs font-medium text-white shadow active:scale-[0.98]"
+                                    className="rounded-full bg-brand-teal px-3 py-2 text-xs font-medium text-white shadow active:scale-[0.98]"
                                 >
                                   <span className="inline-flex items-center gap-1">
                                     <MapPin className="h-4 w-4" />
@@ -946,7 +946,7 @@ export default function HomePage() {
                                         <div className="rounded-lg border bg-white p-3">
                                             <div className="text-xs text-neutral-500">Рейтинг</div>
                                             <div className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight">
-                                                <span className="text-purple-700">{rating.label}</span> {rating.icon}
+                                                <span className="text-brand-teal">{rating.label}</span> {rating.icon}
                                             </div>
                                         </div>
                                         <div className="rounded-lg border bg-white p-3">
@@ -1220,19 +1220,19 @@ export default function HomePage() {
                                                             key: "normal",
                                                             label: "Обычные",
                                                             pctKey: "normalPercent",
-                                                            icon: <BarChart3 className="h-4 w-4 text-purple-700" />,
+                                                            icon: <BarChart3 className="h-4 w-4 text-brand-teal" />,
                                                         },
                                                         {
                                                             key: "urgent",
                                                             label: "Экстренные",
                                                             pctKey: "urgentPercent",
-                                                            icon: <AlertTriangle className="h-4 w-4 text-purple-700" />,
+                                                            icon: <AlertTriangle className="h-4 w-4 text-brand-teal" />,
                                                         },
                                                         {
                                                             key: "planned",
                                                             label: "Плановые",
                                                             pctKey: "plannedPercent",
-                                                            icon: <CalendarLucid className="h-4 w-4 text-purple-700" />,
+                                                            icon: <CalendarLucid className="h-4 w-4 text-brand-teal" />,
                                                         },
                                                     ].map((row) => {
                                                         const totalKey = row.key as "normal" | "urgent" | "planned"
@@ -1261,7 +1261,7 @@ export default function HomePage() {
                                                                 </div>
                                                                 <div className="h-2 w-full overflow-hidden rounded bg-neutral-200">
                                                                     <div
-                                                                        className="h-full bg-purple-700 transition-all"
+                                                                        className="h-full bg-brand-teal transition-all"
                                                                         style={{ width: `${distribution[pctKey]}%` }}
                                                                     />
                                                                 </div>
@@ -1291,7 +1291,7 @@ export default function HomePage() {
                         <Button variant="outline" className="w-full bg-transparent" onClick={() => setMapOpen(false)}>
                             Закрыть
                         </Button>
-                        <Button className="w-full bg-purple-700 hover:bg-purple-700/90" onClick={() => setMapOpen(false)}>
+                        <Button className="w-full bg-brand-teal hover:bg-brand-teal/90" onClick={() => setMapOpen(false)}>
                             Готово
                         </Button>
                     </div>
@@ -1312,7 +1312,7 @@ export default function HomePage() {
                                     href={`https://www.google.com/maps?q=${o.lat},${o.lon}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="text-xs font-medium text-purple-700 underline"
+                                    className="text-xs font-medium text-brand-teal underline"
                                 >
                                     Открыть в картах
                                 </a>

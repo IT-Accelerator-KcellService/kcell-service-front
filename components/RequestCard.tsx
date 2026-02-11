@@ -105,12 +105,12 @@ function RequestCardComponent({
         {/* Основная информация в сетке */}
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-            <MapPin className="w-4 h-4 flex-shrink-0 text-purple-500" />
+            <MapPin className="w-4 h-4 flex-shrink-0 text-brand-teal" />
             <span className="truncate font-medium">{request.location_detail}</span>
           </div>
 
           <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-2 rounded-lg">
-            <CalendarLucid className="w-4 h-4 flex-shrink-0 text-purple-500" />
+            <CalendarLucid className="w-4 h-4 flex-shrink-0 text-brand-teal" />
             <span className="truncate font-medium">{formattedDate}</span>
           </div>
         </div>
@@ -119,7 +119,7 @@ function RequestCardComponent({
         {request.photos && request.photos.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-purple-500" />
+              <ImageIcon className="w-4 h-4 text-brand-teal" />
               <span className="text-sm font-medium text-gray-700">{request.photos.length} фото</span>
             </div>
             <div className="flex gap-2 overflow-x-auto">
@@ -128,11 +128,11 @@ function RequestCardComponent({
                   key={index}
                   src={getThumbnailUrl(photo.photo_url)}
                   alt={`Фото ${index + 1}`}
-                  className="w-12 h-12 rounded-lg object-cover border-2 border-purple-200 shadow-sm flex-shrink-0"
+                  className="w-12 h-12 rounded-lg object-cover border-2 border-brand-gray shadow-sm flex-shrink-0"
                 />
               ))}
               {request.photos.length > 2 && (
-                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-purple-600 border-2 border-purple-200 flex items-center justify-center shadow-sm">
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-brand-teal border-2 border-brand-gray flex items-center justify-center shadow-sm">
                   <span className="text-xs font-bold text-white">+{request.photos.length - 2}</span>
                 </div>
               )}
@@ -142,21 +142,21 @@ function RequestCardComponent({
 
         {/* Рейтинг клиента */}
         {clientRating && request.status === "completed" && request.client?.role === "client" && (
-          <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+          <div className="p-3 bg-brand-light border border-brand-gray rounded-lg">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm font-medium text-purple-800">
+              <span className="text-sm font-medium text-brand-teal">
                 {userRole === "client" ? "Оценки от исполнителей:" : "Оценки клиента:"}
               </span>
               {Array.isArray(clientRating) ? (
                 // Показываем количество оценок
-                <span className="text-xs text-purple-700">
+                <span className="text-xs text-brand-teal">
                   {clientRating.length} оценок
                 </span>
               ) : (
                 // Обратная совместимость для старого формата
                 <div className="flex">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <span key={star} className={`text-sm ${star <= clientRating.rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                    <span key={star} className={`text-sm ${star <= clientRating.rating ? 'text-brand-teal' : 'text-gray-300'}`}>
                       ★
                     </span>
                   ))}
@@ -171,22 +171,22 @@ function RequestCardComponent({
                   <div className="flex items-center gap-2 mb-1">
                     <div className="flex">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <span key={star} className={`text-sm ${star <= clientRating[0].rating ? 'text-purple-500' : 'text-gray-300'}`}>
+                        <span key={star} className={`text-sm ${star <= clientRating[0].rating ? 'text-brand-teal' : 'text-gray-300'}`}>
                           ★
                         </span>
                       ))}
                     </div>
-                    <span className="text-xs text-purple-700">
+                    <span className="text-xs text-brand-teal">
                       {clientRating[0].rating}/5
                     </span>
                   </div>
                   {clientRating[0].comment && (
-                    <p className="text-xs text-purple-700 break-words line-clamp-2">
+                    <p className="text-xs text-brand-teal break-words line-clamp-2">
                       "{clientRating[0].comment}"
                     </p>
                   )}
                   {clientRating.length > 1 && (
-                    <p className="text-xs text-purple-600 mt-1">
+                    <p className="text-xs text-brand-teal mt-1">
                       +{clientRating.length - 1} еще оценок
                     </p>
                   )}
@@ -195,7 +195,7 @@ function RequestCardComponent({
             ) : (
               // Обратная совместимость для старого формата
               clientRating.comment && (
-                <p className="text-xs text-purple-700 break-words line-clamp-2">
+                <p className="text-xs text-brand-teal break-words line-clamp-2">
                   "{clientRating.comment}"
                 </p>
               )

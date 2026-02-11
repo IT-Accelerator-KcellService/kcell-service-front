@@ -59,8 +59,8 @@ export default function ClientRatingModal({
                 >
                   <span className={`text-4xl cursor-pointer transition-colors duration-150 ${
                     star <= ratingValue 
-                      ? 'text-purple-500' 
-                      : 'text-gray-300 hover:text-purple-300'
+                      ? 'text-brand-teal' 
+                      : 'text-gray-300 hover:text-brand-gray'
                   }`}>
                     ★
                   </span>
@@ -84,7 +84,7 @@ export default function ClientRatingModal({
                 value={comment}
                 onChange={(e) => onCommentChange?.(e.target.value)}
                 placeholder="Опишите, что именно вас не устроило в сотрудничестве..."
-                className="w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none break-words"
+                className="w-full max-w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent resize-none break-words"
                 rows={3}
                 required
               />
@@ -97,7 +97,7 @@ export default function ClientRatingModal({
           <div className="space-y-3">
             <button
               onClick={onSubmit}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-md transition-colors duration-150 disabled:opacity-50"
+              className="w-full bg-brand-teal hover:bg-brand-black text-white py-3 px-4 rounded-md transition-colors duration-150 disabled:opacity-50"
               disabled={ratingValue === 0 || (showCommentField && !comment.trim())}
             >
               {isUpdate ? 'Обновить оценку' : 'Отправить оценку'}

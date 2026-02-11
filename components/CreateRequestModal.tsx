@@ -854,7 +854,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                >
                  {isGettingLocation ? (
                      <>
-                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-violet-600 mr-2"></div>
+                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-teal mr-2"></div>
                        Определение...
                      </>
                  ) : (
@@ -1221,7 +1221,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 <button
                   type="button"
                   onClick={handleButtonClick}
-                  className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
+                  className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-brand-teal transition-colors"
                 >
                   <input
                     type="file"
@@ -1316,7 +1316,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     <button
                       type="button"
                       onClick={() => document.getElementById('after-photo-input')?.click()}
-                      className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-violet-500 transition-colors"
+                      className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-brand-teal transition-colors"
                     >
                       <input
                         id="after-photo-input"
@@ -1718,7 +1718,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           <div className="flex space-x-4">
             <Button
               onClick={handleSubmit}
-              className="flex-1 bg-violet-600 hover:bg-violet-700"
+              className="flex-1 bg-brand-teal hover:bg-brand-black"
               disabled={isSubmitting}
             >
               {isSubmitting ? (

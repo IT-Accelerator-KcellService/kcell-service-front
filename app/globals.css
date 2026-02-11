@@ -10,7 +10,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 262.1 83.3% 57.8%;
+    --primary: 197 71% 23%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
@@ -22,7 +22,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 262.1 83.3% 57.8%;
+    --ring: 197 71% 23%;
     --radius: 0.75rem;
   }
 
@@ -33,7 +33,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 262.1 83.3% 57.8%;
+    --primary: 197 71% 23%;
     --primary-foreground: 210 40% 98%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -45,7 +45,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 262.1 83.3% 57.8%;
+    --ring: 197 71% 23%;
   }
 }
 
@@ -85,8 +85,8 @@ html {
 }
 
 /* Custom gradient backgrounds */
-.gradient-violet {
-  background: linear-gradient(135deg, #6a1b9a 0%, #8e24aa 50%, #ab47bc 100%);
+.gradient-brand {
+  background: linear-gradient(135deg, #114A65 0%, #114A65 50%, #040404 100%);
 }
 
 /* Prevent iOS zoom on input focus */
@@ -137,14 +137,14 @@ input, textarea, select {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #a78bfa; /* насыщенный фиолетовый для ползунка */
+  background: #114A65;
   border-radius: 8px;
 }
 
 /* для Firefox */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #a78bfa #ffffff;
+  scrollbar-color: #114A65 #ffffff;
 }
 
 /* Notification specific styles */

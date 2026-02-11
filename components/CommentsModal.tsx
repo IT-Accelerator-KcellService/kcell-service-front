@@ -158,7 +158,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                     onKeyPress={handleKeyPress}
                     onInput={handleInput}
                     placeholder="Написать комментарий..."
-                    className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                    className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent resize-none"
                     style={{
                       height: 'auto',
                       minHeight: '40px',
@@ -169,7 +169,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                 <Button
                   size="sm"
                   onClick={() => handleSend(requestId)}
-                  className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
+                  className="bg-brand-teal hover:bg-brand-black p-3 rounded-lg flex-shrink-0"
                   disabled={!comment.trim()}
                 >
                   <Send className="w-4 w-4" />
@@ -225,7 +225,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
                   onKeyPress={handleKeyPress}
                   onInput={handleInput}
                   placeholder="Написать комментарий..."
-                  className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                  className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent resize-none"
                   style={{
                     height: 'auto',
                     minHeight: '40px',
@@ -236,7 +236,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
               <Button
                 size="sm"
                 onClick={() => handleSend(requestId)}
-                className="bg-violet-600 hover:bg-violet-700 p-3 rounded-lg flex-shrink-0"
+                className="bg-brand-teal hover:bg-brand-black p-3 rounded-lg flex-shrink-0"
                 disabled={!comment.trim()}
               >
                 <Send className="w-4 w-4" />

@@ -37,7 +37,7 @@ const Executors: React.FC<ExecutorsProps> = ({ subRequest, userRatings }) => {
 
     const renderStars = (rating: number) => {
         return Array.from({ length: 5 }, (_, i) => (
-            <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-purple-400 text-purple-400" : "text-gray-300"}`} />
+            <Star key={i} className={`w-3 h-3 ${i < rating ? "fill-brand-teal text-brand-teal" : "text-gray-300"}`} />
         ))
     }
 

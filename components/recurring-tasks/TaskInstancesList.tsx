@@ -131,7 +131,7 @@ export const TaskInstancesList: React.FC<TaskInstancesListProps> = ({ taskId }) 
     return (
       <div className="flex items-center justify-center h-32 sm:h-40">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-teal mx-auto"></div>
           <p className="mt-2 text-gray-600 text-sm sm:text-base">Загрузка экземпляров...</p>
         </div>
       </div>

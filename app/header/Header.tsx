@@ -46,7 +46,7 @@ const Header: React.FC<HeaderProps> = ({
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
+                            <div className="w-8 h-8 bg-brand-teal rounded-lg flex items-center justify-center">
                                 <span className="text-white font-bold">W</span>
                             </div>
                             <span className="font-bold text-xl text-gray-900">Work Flow Pulse</span>
@@ -58,7 +58,7 @@ const Header: React.FC<HeaderProps> = ({
                                     variant="ghost"
                                     size="sm"
                                     onClick={onRefresh}
-                                    className="hover:bg-violet-50 transition-colors duration-200"
+                                    className="hover:bg-brand-light transition-colors duration-200"
                                 >
                                     <RefreshCw className="w-5 h-5 text-gray-700"/>
                                     <span className="ml-1 text-sm">Обновить</span>
@@ -68,7 +68,7 @@ const Header: React.FC<HeaderProps> = ({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => router.push('/notifications')}
-                                className="relative hover:bg-violet-50 transition-colors duration-200"
+                                className="relative hover:bg-brand-light transition-colors duration-200"
                             >
                                 <Bell className="w-5 h-5 text-gray-700"/>
                                 {unreadNotificationCount > 0 && (
@@ -82,12 +82,12 @@ const Header: React.FC<HeaderProps> = ({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => router.push('/profile')}
-                                className="hover:bg-violet-50 transition-colors duration-200"
+                                className="hover:bg-brand-light transition-colors duration-200"
                             >
                                 <User className="w-5 h-5 text-gray-600"/>
                                 <span className="text-sm font-medium">Профиль</span>
                             </Button>
-                            <Badge variant="secondary" className="bg-violet-100 text-violet-800 border-violet-200">{role}</Badge>
+                            <Badge variant="secondary" className="bg-brand-light text-brand-teal border-brand-gray">{role}</Badge>
                             <Button variant="ghost" size="sm" onClick={handleLogout} className="hover:bg-red-50 hover:text-red-600 transition-colors duration-200">
                                 <LogOut className="w-5 h-5"/>
                             </Button>
@@ -98,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({
                                     variant="ghost"
                                     size="sm"
                                     onClick={onRefresh}
-                                    className="p-2 hover:bg-violet-50 transition-colors duration-200"
+                                    className="p-2 hover:bg-brand-light transition-colors duration-200"
                                 >
                                     <RefreshCw className="w-5 h-5 text-gray-700"/>
                                     <span className="ml-1 text-sm">Обновить</span>
@@ -108,7 +108,7 @@ const Header: React.FC<HeaderProps> = ({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => router.push('/notifications')}
-                                className="relative p-2 hover:bg-violet-50 transition-colors duration-200"
+                                className="relative p-2 hover:bg-brand-light transition-colors duration-200"
                             >
                                 <Bell className="w-5 h-5 text-gray-700"/>
                                 {unreadNotificationCount > 0 && (

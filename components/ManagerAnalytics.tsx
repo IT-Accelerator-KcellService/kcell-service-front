@@ -84,7 +84,7 @@ interface DetailedStats {
   }>;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#114A65'];
 
 export default function ManagerAnalytics() {
   const [slaStats, setSlaStats] = useState<SLAStats | null>(null);
@@ -262,7 +262,7 @@ export default function ManagerAnalytics() {
                       <XAxis dataKey="date" />
                       <YAxis />
                       <Tooltip />
-                      <Line type="monotone" dataKey="avgHours" stroke="#8884d8" strokeWidth={2} />
+                      <Line type="monotone" dataKey="avgHours" stroke="#114A65" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -285,7 +285,7 @@ export default function ManagerAnalytics() {
                       <XAxis dataKey="categoryName" />
                       <YAxis />
                       <Tooltip formatter={(value, name) => [value, name === 'avgHours' ? 'Средние часы' : name]} />
-                      <Bar dataKey="avgHours" fill="#8884d8" name="Средние часы" />
+                      <Bar dataKey="avgHours" fill="#114A65" name="Средние часы" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -336,7 +336,7 @@ export default function ManagerAnalytics() {
                       <XAxis dataKey="date" />
                       <YAxis />
                       <Tooltip />
-                      <Line type="monotone" dataKey="avgRating" stroke="#8884d8" strokeWidth={2} />
+                      <Line type="monotone" dataKey="avgRating" stroke="#114A65" strokeWidth={2} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -415,8 +415,8 @@ export default function ManagerAnalytics() {
             <StatCard
               title="Исполнителей"
               value={detailedStats?.byExecutor.length || 0}
-              icon={<BarChart3 className="w-4 h-4 text-purple-600" />}
-              bg="bg-purple-100"
+              icon={<BarChart3 className="w-4 h-4 text-brand-teal" />}
+              bg="bg-brand-light"
             />
           </div>
 
@@ -440,7 +440,7 @@ export default function ManagerAnalytics() {
                         labelLine={false}
                         label={({ categoryName, totalRequests }) => `${categoryName}: ${totalRequests}`}
                         outerRadius={isDesktop ? 80 : 60}
-                        fill="#8884d8"
+                        fill="#114A65"
                         dataKey="totalRequests"
                       >
                         {(detailedStats?.byCategory || []).map((entry, index) => (
@@ -474,7 +474,7 @@ export default function ManagerAnalytics() {
                         name === 'totalAssigned' ? 'Назначено' : 
                         name === 'completedRequests' ? 'Завершено' : name
                       ]} />
-                      <Bar dataKey="totalAssigned" fill="#8884d8" name="Назначено" />
+                      <Bar dataKey="totalAssigned" fill="#114A65" name="Назначено" />
                       <Bar dataKey="completedRequests" fill="#82ca9d" name="Завершено" />
                     </BarChart>
                   </ResponsiveContainer>

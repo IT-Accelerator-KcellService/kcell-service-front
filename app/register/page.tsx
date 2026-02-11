@@ -246,16 +246,16 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-violet-600 via-purple-600 to-violet-800 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-brand-teal via-brand-teal to-brand-black flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
                     <div className="flex items-center justify-center space-x-2 mb-4">
                         <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                            <span className="text-violet-600 font-bold text-2xl">W</span>
+                            <span className="text-brand-teal font-bold text-2xl">W</span>
                         </div>
                         <span className="text-white font-bold text-2xl">Work Flow Pulse</span>
                     </div>
-                    <p className="text-violet-100">Запрос на регистрацию</p>
+                    <p className="text-brand-light">Запрос на регистрацию</p>
                 </div>
 
                 <Card className="border-0 shadow-2xl">

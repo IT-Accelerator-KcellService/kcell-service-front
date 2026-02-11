@@ -138,16 +138,16 @@ export default function LoginPage() {
   }
 
   return (
-      <div className="min-h-screen bg-gradient-to-br from-violet-600 via-purple-600 to-violet-800 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-brand-teal via-brand-teal to-brand-black flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-2 mb-4">
               <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                <span className="text-violet-600 font-bold text-2xl">W</span>
+                <span className="text-brand-teal font-bold text-2xl">W</span>
               </div>
               <span className="text-white font-bold text-2xl">Work Flow Pulse</span>
             </div>
-            <p className="text-violet-100">Система управления сервисными заявками</p>
+            <p className="text-white">Система управления сервисными заявками</p>
           </div>
 
           <Card className="border-0 shadow-2xl">
@@ -187,7 +187,7 @@ export default function LoginPage() {
 
               <Button
                   onClick={handleLogin}
-                  className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl text-lg font-semibold"
+                  className="w-full bg-brand-teal hover:bg-brand-black text-white py-3 rounded-xl text-lg font-semibold"
                   disabled={loading}
               >
                 {isLogin ? "Войти" : "Зарегистрироваться"}
@@ -201,7 +201,7 @@ export default function LoginPage() {
                 <Link href="/reset-password" className="block">
                   <Button
                     variant="link"
-                    className="text-violet-600 hover:text-violet-700 text-sm"
+                    className="text-brand-teal hover:text-brand-black text-sm"
                   >
                     Забыли пароль?
                   </Button>
@@ -209,7 +209,7 @@ export default function LoginPage() {
                 <Link href="/register" className="block w-full">
                   <Button
                     variant="outline"
-                    className="w-full text-violet-600 border-violet-600 hover:bg-violet-50"
+                    className="w-full text-brand-teal border-brand-teal hover:bg-brand-light"
                   >
                     <UserPlus className="w-4 h-4 mr-2" />
                     Запросить регистрацию
@@ -218,7 +218,7 @@ export default function LoginPage() {
                 <Link href="/privacy-policy" className="block mt-4">
                   <Button
                     variant="link"
-                    className="text-violet-400 hover:text-violet-500 text-xs"
+                    className="text-brand-gray hover:text-brand-teal text-xs"
                   >
                     Политика конфиденциальности
                   </Button>

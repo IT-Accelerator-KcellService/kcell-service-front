@@ -208,7 +208,7 @@ Administrators and Managers may view and process service requests, including rel
   const policy = language === "ru" ? privacyPolicyRU : privacyPolicyEN
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-600 via-purple-600 to-violet-800 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-teal via-brand-teal to-brand-black p-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-4">
           <Link href="/login">
@@ -230,7 +230,7 @@ Administrators and Managers may view and process service requests, including rel
                   variant={language === "ru" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setLanguage("ru")}
-                  className={language === "ru" ? "bg-violet-600" : ""}
+                  className={language === "ru" ? "bg-brand-teal" : ""}
                 >
                   RU
                 </Button>
@@ -238,7 +238,7 @@ Administrators and Managers may view and process service requests, including rel
                   variant={language === "en" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setLanguage("en")}
-                  className={language === "en" ? "bg-violet-600" : ""}
+                  className={language === "en" ? "bg-brand-teal" : ""}
                 >
                   EN
                 </Button>

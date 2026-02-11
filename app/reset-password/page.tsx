@@ -157,16 +157,16 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-600 via-purple-600 to-violet-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-teal via-brand-teal to-brand-black flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-              <span className="text-violet-600 font-bold text-2xl">W</span>
+              <span className="text-brand-teal font-bold text-2xl">W</span>
             </div>
             <span className="text-white font-bold text-2xl">Work Flow Pulse</span>
           </div>
-          <p className="text-violet-100">Восстановление пароля</p>
+          <p className="text-brand-light">Восстановление пароля</p>
         </div>
 
         <Card className="border-0 shadow-2xl">
@@ -204,7 +204,7 @@ export default function ResetPasswordPage() {
                 <Button
                   onClick={handleSendVerificationCode}
                   disabled={isSendingCode || !phone}
-                  className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl text-lg font-semibold"
+                  className="w-full bg-brand-teal hover:bg-brand-black text-white py-3 rounded-xl text-lg font-semibold"
                 >
                   {isSendingCode ? 'Отправка...' : 'Отправить код'}
                 </Button>
@@ -213,7 +213,7 @@ export default function ResetPasswordPage() {
                   <Link href="/login">
                     <Button
                       variant="outline"
-                      className="w-full text-violet-600 border-violet-600 hover:bg-violet-50"
+                      className="w-full text-brand-teal border-brand-teal hover:bg-brand-light"
                     >
                       <ArrowLeft className="w-4 h-4 mr-2" />
                       Вернуться к входу
@@ -261,7 +261,7 @@ export default function ResetPasswordPage() {
                     <Button
                       onClick={handleVerifyCode}
                       disabled={verificationCode.length !== 6}
-                      className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl text-lg font-semibold"
+                      className="w-full bg-brand-teal hover:bg-brand-black text-white py-3 rounded-xl text-lg font-semibold"
                     >
                       Подтвердить
                     </Button>
@@ -270,7 +270,7 @@ export default function ResetPasswordPage() {
                       onClick={handleSendVerificationCode}
                       disabled={isSendingCode || countdown > 0}
                       variant="outline"
-                      className="w-full text-violet-600 border-violet-600 hover:bg-violet-50"
+                      className="w-full text-brand-teal border-brand-teal hover:bg-brand-light"
                     >
                       {isSendingCode
                         ? 'Отправка...'
@@ -350,7 +350,7 @@ export default function ResetPasswordPage() {
                   <Button
                     onClick={handleResetPassword}
                     disabled={loading || !newPassword || !confirmPassword}
-                    className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl text-lg font-semibold"
+                    className="w-full bg-brand-teal hover:bg-brand-black text-white py-3 rounded-xl text-lg font-semibold"
                   >
                     {loading ? 'Сохранение...' : 'Изменить пароль'}
                   </Button>
@@ -377,7 +377,7 @@ export default function ResetPasswordPage() {
                     Ваш пароль успешно изменен. Теперь вы можете войти в систему с новым паролем.
                   </p>
                   <Link href="/login">
-                    <Button className="w-full bg-violet-600 hover:bg-violet-700 text-white py-3 rounded-xl text-lg font-semibold">
+                    <Button className="w-full bg-brand-teal hover:bg-brand-black text-white py-3 rounded-xl text-lg font-semibold">
                       Перейти к входу
                     </Button>
                   </Link>

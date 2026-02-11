@@ -24,7 +24,7 @@ export const IconInfoModal: React.FC<IconInfoModalProps> = ({ isOpen, onClose, i
         return <CheckCircle className={`${iconClass} text-green-600`} />
       case "in_progress":
       case "execution":
-        return <Loader2 className={`${iconClass} text-purple-600 animate-spin`} />
+        return <Loader2 className={`${iconClass} text-brand-teal animate-spin`} />
       case "awaiting_assignment":
       case "awaiting_sla":
         return <Clock className={`${iconClass} text-orange-500`} />
@@ -57,7 +57,7 @@ export const IconInfoModal: React.FC<IconInfoModalProps> = ({ isOpen, onClose, i
           <div className="p-6 pt-8">
             {/* Header with icon */}
             <div className="flex items-start gap-4 mb-6">
-              <div className="flex-shrink-0 w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center">
+              <div className="flex-shrink-0 w-12 h-12 bg-brand-light rounded-2xl flex items-center justify-center">
                 {iconInfo.type === "status" ? (
                     getStatusIcon(
                         iconInfo.value === "Ожидание"
@@ -71,14 +71,14 @@ export const IconInfoModal: React.FC<IconInfoModalProps> = ({ isOpen, onClose, i
                                         : "pending",
                     )
                 ) : (
-                    <Hourglass className="w-5 h-5 text-purple-600" />
+                    <Hourglass className="w-5 h-5 text-brand-teal" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-semibold text-gray-900 mb-1 leading-tight">
                   {iconInfo.type === "status" ? "Статус заявки" : "Тип задачи"}
                 </h3>
-                <p className="text-purple-600 font-medium text-base">{iconInfo.value}</p>
+                <p className="text-brand-teal font-medium text-base">{iconInfo.value}</p>
               </div>
             </div>
 
@@ -95,7 +95,7 @@ export const IconInfoModal: React.FC<IconInfoModalProps> = ({ isOpen, onClose, i
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors">
-                      <Loader2 className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                      <Loader2 className="w-4 h-4 text-brand-teal flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900">В работе</p>
                         <p className="text-xs text-gray-600">Заявка выполняется</p>
@@ -120,7 +120,7 @@ export const IconInfoModal: React.FC<IconInfoModalProps> = ({ isOpen, onClose, i
             )}
 
             {iconInfo.type === "longTerm" && (
-                <div className="mb-6 p-4 bg-purple-50 rounded-2xl">
+                <div className="mb-6 p-4 bg-brand-light rounded-2xl">
                   <p className="text-sm font-medium text-gray-900 mb-2">Долгосрочная задача</p>
                   <p className="text-sm text-gray-600 leading-relaxed">Задача, требующая длительного времени выполнения.</p>
                 </div>
@@ -129,7 +129,7 @@ export const IconInfoModal: React.FC<IconInfoModalProps> = ({ isOpen, onClose, i
             {/* Action button */}
             <Button
                 onClick={onClose}
-                className="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-2xl transition-colors shadow-none border-0"
+                className="w-full h-12 bg-brand-teal hover:bg-brand-black text-white font-medium rounded-2xl transition-colors shadow-none border-0"
             >
               Понятно
             </Button>
