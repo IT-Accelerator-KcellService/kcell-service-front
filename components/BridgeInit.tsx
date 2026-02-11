@@ -52,9 +52,13 @@ export default function BridgeInit() {
 
             console.log("[BridgeInit] Auth token changed:", prevToken ? "EXISTS" : "null", "→", newToken ? "EXISTS" : "null");
 
-            // Проверяем, есть ли ReactNativeWebView (мы в iOS/Android WebView)
+            // Определяем среду: React Native WebView или Android native WebView
             const rn = (window as any).ReactNativeWebView;
-            if (!rn?.postMessage) {
+            const fcmBridge = (window as any).FCM; // Android native WebView (Kcell copy)
+            const isReactNative = !!rn?.postMessage;
+            const isAndroidNative = !isReactNative && !!fcmBridge?.notifyLogout;
+
+            if (!isReactNative && !isAndroidNative) {
                 // Обычный браузер — обновляем ref и выходим
                 prevTokenRef.current = newToken;
                 return;
@@ -62,24 +66,17 @@ export default function BridgeInit() {
 
             if (!newToken && prevToken) {
                 // === LOGOUT ===
-                console.log("[BridgeInit] LOGOUT detected — sending userLoggedOut to React Native");
-                rn.postMessage(JSON.stringify({ type: "userLoggedOut" }));
+                if (isReactNative) {
+                    console.log("[BridgeInit] LOGOUT detected — sending userLoggedOut to React Native");
+                    rn.postMessage(JSON.stringify({ type: "userLoggedOut" }));
+                } else if (isAndroidNative) {
+                    console.log("[BridgeInit] LOGOUT detected — calling FCM.notifyLogout (Android native)");
+                    fcmBridge.notifyLogout();
+                }
             } else if (newToken && !prevToken) {
                 // === LOGIN (первый или после logout) ===
-                console.log("[BridgeInit] LOGIN detected — sending userLoggedIn to React Native");
-                rn.postMessage(
-                    JSON.stringify({
-                        type: "userLoggedIn",
-                        authToken: newToken,
-                        success: true,
-                    })
-                );
-            } else if (newToken && prevToken && newToken !== prevToken) {
-                // === СМЕНА АККАУНТА (другой токен без промежуточного logout) ===
-                console.log("[BridgeInit] ACCOUNT SWITCH detected — sending userLoggedOut + userLoggedIn");
-                rn.postMessage(JSON.stringify({ type: "userLoggedOut" }));
-                // Небольшая задержка чтобы React Native успел сбросить флаги
-                setTimeout(() => {
+                if (isReactNative) {
+                    console.log("[BridgeInit] LOGIN detected — sending userLoggedIn to React Native");
                     rn.postMessage(
                         JSON.stringify({
                             type: "userLoggedIn",
@@ -87,7 +84,35 @@ export default function BridgeInit() {
                             success: true,
                         })
                     );
-                }, 200);
+                } else if (isAndroidNative) {
+                    console.log("[BridgeInit] LOGIN detected — calling FCM.sendStoredTokenToServer (Android native)");
+                    // Даём время на сохранение токена в localStorage
+                    setTimeout(() => {
+                        fcmBridge.sendStoredTokenToServer();
+                    }, 500);
+                }
+            } else if (newToken && prevToken && newToken !== prevToken) {
+                // === СМЕНА АККАУНТА (другой токен без промежуточного logout) ===
+                if (isReactNative) {
+                    console.log("[BridgeInit] ACCOUNT SWITCH detected — sending userLoggedOut + userLoggedIn");
+                    rn.postMessage(JSON.stringify({ type: "userLoggedOut" }));
+                    setTimeout(() => {
+                        rn.postMessage(
+                            JSON.stringify({
+                                type: "userLoggedIn",
+                                authToken: newToken,
+                                success: true,
+                            })
+                        );
+                    }, 200);
+                } else if (isAndroidNative) {
+                    console.log("[BridgeInit] ACCOUNT SWITCH detected — reset + re-send FCM (Android native)");
+                    fcmBridge.notifyLogout();
+                    // Даём время на сброс флагов и сохранение нового токена
+                    setTimeout(() => {
+                        fcmBridge.sendStoredTokenToServer();
+                    }, 500);
+                }
             }
 
             prevTokenRef.current = newToken;
