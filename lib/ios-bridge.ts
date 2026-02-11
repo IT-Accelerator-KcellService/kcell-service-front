@@ -283,7 +283,21 @@ export async function ensureLocationPermission(): Promise<boolean> {
 
 // Авто‑инициализация, аналогичная Android bridge: слушаем изменения auth-storage
 // и уведомляем iOS нативный слой, когда во фронте сохраняется auth‑токен.
+// При смене аккаунта — сначала отправляем userLoggedOut, затем authTokenSaved,
+// чтобы React Native сбросил флаг отправки FCM и перерегистрировал токен.
 if (typeof window !== 'undefined') {
+    /** Последний auth‑токен, о котором мы уже уведомили нативный слой */
+    let _lastNotifiedAuthToken: string | null = null;
+
+    // Инициализируем из текущего localStorage (чтобы не срабатывал «первый логин» на SPA‑навигации)
+    try {
+        const stored = localStorage.getItem('auth-storage');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            _lastNotifiedAuthToken = parsed?.state?.token || parsed?.token || null;
+        }
+    } catch { /* ignore */ }
+
     const originalSetItem = localStorage.setItem;
 
     localStorage.setItem = function (key: string, value: string) {
@@ -292,14 +306,72 @@ if (typeof window !== 'undefined') {
         try {
             if (key === 'auth-storage' && iosBridge.isIOSWebView()) {
                 const authData = JSON.parse(value);
-                const token: string | undefined =
+                const newToken: string | undefined =
                     authData?.state?.token || authData?.token;
-                if (token) {
-                    iosBridge.notifyTokenSaved(token);
+
+                if (newToken) {
+                    // Обнаружена смена аккаунта — другой auth‑токен
+                    if (_lastNotifiedAuthToken && _lastNotifiedAuthToken !== newToken) {
+                        console.log('[iOSBridge] Account changed — resending FCM token');
+
+                        // 1. Уведомляем React Native о выходе (сброс FCM‑флагов)
+                        if (window.ReactNativeWebView?.postMessage) {
+                            window.ReactNativeWebView.postMessage(
+                                JSON.stringify({ type: 'userLoggedOut' }),
+                            );
+                        }
+
+                        // 2. Небольшая задержка, чтобы React Native успел сбросить флаги
+                        setTimeout(() => {
+                            iosBridge.notifyTokenSaved(newToken);
+
+                            // 3. Явно запрашиваем перерегистрацию FCM‑токена
+                            if (window.ReactNativeWebView?.postMessage) {
+                                window.ReactNativeWebView.postMessage(
+                                    JSON.stringify({
+                                        type: 'accountChanged',
+                                        token: newToken,
+                                    }),
+                                );
+                            }
+                        }, 200);
+                    } else {
+                        // Первый логин или тот же аккаунт
+                        iosBridge.notifyTokenSaved(newToken);
+                    }
+
+                    _lastNotifiedAuthToken = newToken;
+                } else {
+                    // auth‑токен стёрт (logout через setItem с пустым state)
+                    if (_lastNotifiedAuthToken) {
+                        console.log('[iOSBridge] Auth token cleared — user logged out');
+                        _lastNotifiedAuthToken = null;
+                        if (window.ReactNativeWebView?.postMessage) {
+                            window.ReactNativeWebView.postMessage(
+                                JSON.stringify({ type: 'userLoggedOut' }),
+                            );
+                        }
+                    }
                 }
             }
         } catch (e) {
             console.error('[iOSBridge] auth-storage listener error:', e);
+        }
+    };
+
+    // Слушаем удаление auth‑storage (logout)
+    const originalRemoveItem = localStorage.removeItem;
+    localStorage.removeItem = function (key: string) {
+        originalRemoveItem.call(this, key);
+
+        if (key === 'auth-storage' && iosBridge.isIOSWebView() && _lastNotifiedAuthToken) {
+            console.log('[iOSBridge] auth-storage removed — user logged out');
+            _lastNotifiedAuthToken = null;
+            if (window.ReactNativeWebView?.postMessage) {
+                window.ReactNativeWebView.postMessage(
+                    JSON.stringify({ type: 'userLoggedOut' }),
+                );
+            }
         }
     };
 }
