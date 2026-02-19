@@ -1,9 +1,6 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import {
-    Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -21,9 +18,7 @@ import {useStatsStore} from "@/stores/statsStore"
 import {useAuthStore} from "@/stores/useAuthStore"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { ProfileModal } from "@/components/ProfileModal"
-import Image from "next/image"
 import { useToast } from "@/hooks/use-toast"
-import Header from "@/app/header/Header"
 
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
@@ -222,60 +217,76 @@ export default function ProfilePage() {
         )
     }
 
-    // На мобильных показываем как обычную страницу
+    // На мобильных показываем как обычную страницу (стиль как login — без лого, надписи и уведомлений сверху)
+    const inputClass = "h-12 rounded-lg border border-[#212121] bg-transparent px-4 text-base text-white placeholder:text-[#6E6E6E] focus-visible:ring-2 focus-visible:ring-[#212121] focus-visible:ring-offset-0 focus-visible:ring-offset-[#040404]"
+    const labelClass = "text-[15px] font-medium text-white"
+
     return (
-        <>
-            <Header
-                handleLogout={handleLogout}
-                notificationCount={notifications.length}
-                role={roleTranslations[role || 'client'] || 'Клиент'}
-            />
-            <div className="pb-16">
-                <div className="container px-4 py-6">
-                    <Tabs defaultValue="profile" className="space-y-4">
-                    <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="profile" className="text-xs sm:text-sm">
+        <div className="min-h-screen pb-20" style={{ background: "#040404" }}>
+            <div className="mx-auto w-full max-w-[420px] px-5 pt-8 md:pt-[72px]" style={{ gap: "32px" }}>
+                {/* Заголовок в стиле login */}
+                <div className="flex flex-col" style={{ gap: "8px" }}>
+                    <h1 className="text-white" style={{ fontFamily: "'SF Pro Text', sans-serif", fontWeight: 600, fontSize: "28px", lineHeight: "40px" }}>
+                        Профиль
+                    </h1>
+                    <p className="text-[#7F7F7F]" style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: "16px", lineHeight: "24px" }}>
+                        Личные данные и настройки
+                    </p>
+                </div>
+
+                <Tabs defaultValue="profile" className="space-y-6">
+                    <TabsList className="grid w-full grid-cols-3 rounded-xl border border-[#212121] bg-transparent p-1">
+                        <TabsTrigger
+                            value="profile"
+                            className="rounded-lg text-sm font-medium text-[#7F7F7F] transition-colors data-[state=active]:bg-[#212121] data-[state=active]:text-white"
+                        >
                             Профиль
                         </TabsTrigger>
-                        <TabsTrigger value="password" className="text-xs sm:text-sm">
+                        <TabsTrigger
+                            value="password"
+                            className="rounded-lg text-sm font-medium text-[#7F7F7F] transition-colors data-[state=active]:bg-[#212121] data-[state=active]:text-white"
+                        >
                             Пароль
                         </TabsTrigger>
-                        <TabsTrigger value="notifications" className="text-xs sm:text-sm">
+                        <TabsTrigger
+                            value="notifications"
+                            className="rounded-lg text-sm font-medium text-[#7F7F7F] transition-colors data-[state=active]:bg-[#212121] data-[state=active]:text-white"
+                        >
                             Уведомления
                         </TabsTrigger>
                     </TabsList>
 
                     {/* Вкладка: Профиль */}
-                    <TabsContent value="profile" className="space-y-4">
-                        <Card className="border-0 shadow-sm">
-                            <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
-                                <CardTitle className="text-lg">Данные клиента</CardTitle>
-                                <CardDescription>Редактирование профиля</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-3 px-4 py-2 sm:px-6 sm:py-4">
-                                <div className="space-y-1">
-                                    <Label className="text-sm">ФИО</Label>
+                    <TabsContent value="profile" className="space-y-6 mt-0">
+                        <div className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5" style={{ gap: "20px" }}>
+                            <div>
+                                <h2 className="text-lg font-semibold text-white">Данные клиента</h2>
+                                <p className="mt-0.5 text-sm text-[#7F7F7F]">Редактирование профиля</p>
+                            </div>
+                            <div className="flex flex-col" style={{ gap: "16px" }}>
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
+                                    <Label className={labelClass}>ФИО</Label>
                                     <Input
                                         value={user?.full_name || ""}
                                         onChange={(e) => updateUser((prev) => prev ? { ...prev, full_name: e.target.value } : null)}
-                                        className="text-sm"
+                                        className={inputClass}
                                     />
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-sm">Номер телефона</Label>
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
+                                    <Label className={labelClass}>Номер телефона</Label>
                                     <Input
                                         type="tel"
                                         value={user?.phone || ""}
                                         onChange={handlePhoneChange}
-                                        className="text-sm"
-                                        placeholder="+7 (999) 123-45-67"
+                                        className={inputClass}
+                                        placeholder="+7 XXX XXX XX XX"
                                     />
                                 </div>
-                                <div className="space-y-1">
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-sm">Email адрес</Label>
+                                        <Label className={labelClass}>Email</Label>
                                         {user?.email_verified && (
-                                            <Badge className="text-xs bg-green-100 text-green-700 flex items-center gap-1">
+                                            <Badge className="text-xs font-medium bg-green-500/15 text-green-400 border border-green-500/30 rounded-md px-2 py-0.5 flex items-center gap-1">
                                                 <CheckCircle2 className="h-3 w-3" />
                                                 Верифицирован
                                             </Badge>
@@ -290,7 +301,7 @@ export default function ProfilePage() {
                                                 setEmailError("")
                                                 setEmailSuccess("")
                                             }}
-                                            className="text-sm flex-1"
+                                            className={`flex-1 ${inputClass}`}
                                             placeholder="example@mail.com"
                                             disabled={isSendingCode || isVerifying}
                                         />
@@ -299,10 +310,9 @@ export default function ProfilePage() {
                                             onClick={async () => {
                                                 const emailToSend = email || user?.email
                                                 if (!emailToSend) {
-                                                    setEmailError("Введите email адрес")
+                                                    setEmailError("Введите email")
                                                     return
                                                 }
-                                                // Проверяем, что email отличается от текущего верифицированного
                                                 if (user?.email_verified && emailToSend === user?.email) {
                                                     setEmailError("Email уже верифицирован")
                                                     return
@@ -312,10 +322,7 @@ export default function ProfilePage() {
                                                 setEmailSuccess("")
                                                 try {
                                                     await sendEmailVerificationCode(emailToSend)
-                                                    toast({
-                                                        title: "Успешно",
-                                                        description: "Код верификации отправлен на email"
-                                                    })
+                                                    toast({ title: "Успешно", description: "Код верификации отправлен на email" })
                                                     setEmail(emailToSend)
                                                 } catch (err: any) {
                                                     setEmailError(err.response?.data?.error || "Ошибка при отправке кода")
@@ -324,28 +331,17 @@ export default function ProfilePage() {
                                                 }
                                             }}
                                             disabled={isSendingCode || isVerifying || (!email && !user?.email) || (user?.email_verified && (email || user?.email) === user?.email)}
-                                            variant="outline"
-                                            size="sm"
-                                            className="whitespace-nowrap"
+                                            className="h-12 shrink-0 rounded-lg border border-[#212121] bg-[#212121] px-4 text-sm font-medium text-white hover:bg-[#2a2a2a]"
                                         >
-                                            {isSendingCode ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                                                    Отправка...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Mail className="h-4 w-4 mr-1" />
-                                                    Отправить код
-                                                </>
-                                            )}
+                                            {isSendingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                                            <span className="ml-1.5">{isSendingCode ? "Отправка..." : "Код"}</span>
                                         </Button>
                                     </div>
-                                    {emailSuccess && <p className="text-xs text-green-600">{emailSuccess}</p>}
-                                    {emailError && <p className="text-xs text-[#B8400E]">{emailError}</p>}
+                                    {emailSuccess && <p className="text-xs text-green-400">{emailSuccess}</p>}
+                                    {emailError && <p className="text-xs text-[#F35713]">{emailError}</p>}
                                     {((email || user?.email) && (!user?.email_verified || emailSuccess?.includes("Код верификации отправлен"))) && (
-                                        <div className="space-y-2 mt-2 p-3">
-                                            <Label className="text-sm">Код верификации</Label>
+                                        <div className="mt-2 flex flex-col rounded-lg border border-[#212121] bg-transparent p-3" style={{ gap: "8px" }}>
+                                            <Label className={labelClass}>Код верификации</Label>
                                             <div className="flex gap-2">
                                                 <Input
                                                     type="text"
@@ -354,7 +350,7 @@ export default function ProfilePage() {
                                                         setVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                                                         setEmailError("")
                                                     }}
-                                                    className="text-sm flex-1"
+                                                    className={`flex-1 ${inputClass}`}
                                                     placeholder="000000"
                                                     maxLength={6}
                                                     disabled={isVerifying}
@@ -370,186 +366,136 @@ export default function ProfilePage() {
                                                         setEmailError("")
                                                         try {
                                                             await verifyEmail(verificationCode)
-                                                                toast({
-                                                                    title: "Успешно",
-                                                                    description: "Email успешно верифицирован"
-                                                                })
+                                                            toast({ title: "Успешно", description: "Email верифицирован" })
                                                             setVerificationCode("")
                                                             const emailToUpdate = email || user?.email
                                                             updateUser((prev) => prev ? { ...prev, email: emailToUpdate, email_verified: true } : null)
                                                         } catch (err: any) {
-                                                            setEmailError(err.response?.data?.error || "Неверный код верификации")
+                                                            setEmailError(err.response?.data?.error || "Неверный код")
                                                         } finally {
                                                             setIsVerifying(false)
                                                         }
                                                     }}
                                                     disabled={isVerifying || verificationCode.length !== 6}
-                                                    variant="default"
-                                                    size="sm"
-                                                    className="whitespace-nowrap bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                                                    className="h-12 shrink-0 rounded-lg bg-[#F35713] px-4 text-sm font-medium text-white hover:bg-[#e04f10]"
                                                 >
-                                                    {isVerifying ? (
-                                                        <>
-                                                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                                                            Проверка...
-                                                        </>
-                                                    ) : (
-                                                        "Подтвердить"
-                                                    )}
+                                                    {isVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : "OK"}
                                                 </Button>
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-sm">Роль</Label>
-                                    <Badge className="text-sm bg-gradient-to-r from-[#114A65] to-[#B8400E] text-white border-transparent">
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
+                                    <Label className={labelClass}>Роль</Label>
+                                    <span className="inline-flex w-fit items-center rounded-lg border border-[#212121] bg-[#212121] px-3 py-1.5 text-sm font-medium text-white">
                                         {role && roleTranslations[role] || role || "—"}
-                                    </Badge>
+                                    </span>
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-sm">Офис</Label>
-                                    <Input
-                                        value={user?.office?.name || ""}
-                                        readOnly
-                                        className="bg-muted cursor-not-allowed text-sm"
-                                    />
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
+                                    <Label className={labelClass}>Офис</Label>
+                                    <Input value={user?.office?.name || ""} readOnly className={`${inputClass} cursor-not-allowed text-[#7F7F7F]`} />
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-sm">ID</Label>
-                                    <p className="text-muted-foreground font-mono text-sm">#{user?.id}</p>
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
+                                    <Label className={labelClass}>ID</Label>
+                                    <p className="font-mono text-sm text-[#7F7F7F]">#{user?.id}</p>
                                 </div>
+                            </div>
+                            <div className="flex flex-col pt-2" style={{ gap: "12px" }}>
                                 <Button
                                     onClick={handleSaveProfile}
                                     disabled={isSavingProfile}
-                                    className="mt-2 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
+                                    className="h-12 w-full rounded-lg bg-[#F35713] text-base font-medium text-white hover:bg-[#e04f10]"
                                 >
-                                    <Save className="mr-2 h-4 w-4" />
+                                    {isSavingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                                     {isSavingProfile ? "Сохранение..." : "Сохранить"}
                                 </Button>
-                                {profileError && <p className="text-sm text-[#B8400E]">{profileError}</p>}
-
-                                {/* Кнопка Выйти */}
+                                {profileError && <p className="text-sm text-[#F35713]">{profileError}</p>}
                                 <Button
                                     variant="outline"
-                                    className="mt-4 w-full text-[#B8400E] border-[#B8400E] hover:bg-[#B8400E]/10"
                                     onClick={handleLogout}
+                                    className="h-12 w-full rounded-lg border border-[#212121] bg-[#212121] text-[#A3A3A3] hover:bg-[#2a2a2a] hover:text-white"
                                 >
-                                    {isLoggingOut ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Выходим...
-                                        </>
-                                    ) : (
-                                        <>
-                                            Выйти из аккаунта
-                                        </>
-                                    )}
+                                    {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                    {isLoggingOut ? "Выходим..." : "Выйти из аккаунта"}
                                 </Button>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
                     </TabsContent>
 
                     {/* Вкладка: Пароль */}
-                    <TabsContent value="password" className="space-y-4">
-                        <Card className="border-0 shadow-sm">
-                            <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
-                                <CardTitle className="text-lg">Смена пароля</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3 px-4 py-2 sm:px-6 sm:py-4">
-                                <div className="space-y-1">
-                                    <Label className="text-sm">Старый пароль</Label>
-                                    <Input
-                                        type="password"
-                                        value={oldPassword}
-                                        onChange={(e) => setOldPassword(e.target.value)}
-                                        className="text-sm"
-                                    />
+                    <TabsContent value="password" className="mt-0 space-y-6">
+                        <div className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5" style={{ gap: "20px" }}>
+                            <h2 className="text-lg font-semibold text-white">Смена пароля</h2>
+                            <div className="flex flex-col" style={{ gap: "16px" }}>
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
+                                    <Label className={labelClass}>Старый пароль</Label>
+                                    <Input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} className={inputClass} placeholder="••••••••" />
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-sm">Новый пароль</Label>
-                                    <Input
-                                        type="password"
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        className="text-sm"
-                                    />
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
+                                    <Label className={labelClass}>Новый пароль</Label>
+                                    <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={inputClass} placeholder="••••••••" />
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-sm">Подтверждение</Label>
-                                    <Input
-                                        type="password"
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        className="text-sm"
-                                    />
+                                <div className="flex flex-col" style={{ gap: "8px" }}>
+                                    <Label className={labelClass}>Подтверждение</Label>
+                                    <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputClass} placeholder="••••••••" />
                                 </div>
-                                <Button
-                                    onClick={handleChangePassword}
-                                    disabled={isChanging}
-                                    className="mt-2 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
-                                >
-                                    <Lock className="mr-2 h-4 w-4" />
-                                    {isChanging ? "Смена..." : "Сменить пароль"}
-                                </Button>
-                                {error && <p className="text-sm text-[#B8400E]">{error}</p>}
-                            </CardContent>
-                        </Card>
+                            </div>
+                            <Button
+                                onClick={handleChangePassword}
+                                disabled={isChanging}
+                                className="h-12 w-full rounded-lg bg-[#F35713] text-base font-medium text-white hover:bg-[#e04f10]"
+                            >
+                                {isChanging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="mr-2 h-4 w-4" />}
+                                {isChanging ? "Смена..." : "Сменить пароль"}
+                            </Button>
+                            {error && <p className="text-sm text-[#F35713]">{error}</p>}
+                        </div>
                     </TabsContent>
 
                     {/* Вкладка: Уведомления */}
-                    <TabsContent value="notifications" className="space-y-4">
-                        <Card className="border-0 shadow-sm">
-                            <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
-                                <CardTitle className="text-lg">Уведомления</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3 px-4 py-2 sm:px-6 sm:py-4">
-                                <div className="flex items-center justify-between py-1">
-                                    <Label className="text-sm">Email уведомления</Label>
+                    <TabsContent value="notifications" className="mt-0 space-y-6">
+                        <div className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5" style={{ gap: "20px" }}>
+                            <h2 className="text-lg font-semibold text-white">Уведомления</h2>
+                            <div className="flex flex-col" style={{ gap: "12px" }}>
+                                <div className="flex items-center justify-between rounded-lg border border-[#212121] px-4 py-3">
+                                    <Label className={labelClass}>Email уведомления</Label>
                                     <Switch
                                         checked={user?.email_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, email_notifications: checked } : null)}
+                                        className="data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"
                                     />
                                 </div>
-                                <div className="flex items-center justify-between py-1">
-                                    <Label className="text-sm">Безопасность</Label>
+                                <div className="flex items-center justify-between rounded-lg border border-[#212121] px-4 py-3">
+                                    <Label className={labelClass}>Безопасность</Label>
                                     <Switch
                                         checked={user?.security_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, security_notifications: checked } : null)}
+                                        className="data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"
                                     />
                                 </div>
-                                <div className="flex items-center justify-between py-1">
-                                    <Label className="text-sm">Маркетинг</Label>
+                                <div className="flex items-center justify-between rounded-lg border border-[#212121] px-4 py-3">
+                                    <Label className={labelClass}>Маркетинг</Label>
                                     <Switch
                                         checked={user?.marketing_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, marketing_notifications: checked } : null)}
+                                        className="data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"
                                     />
                                 </div>
-                                <Button
-                                    onClick={handleSaveNotifications}
-                                    disabled={isSavingNotifications}
-                                    className="mt-2 w-full sm:w-auto bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] text-white"
-                                >
-                                    {isSavingNotifications ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Сохранение...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save className="mr-2 h-4 w-4" />
-                                            Сохранить
-                                        </>
-                                    )}
-                                </Button>
-                                {notificationError && <p className="text-sm text-[#B8400E] mt-2">{notificationError}</p>}
-                            </CardContent>
-                        </Card>
+                            </div>
+                            <Button
+                                onClick={handleSaveNotifications}
+                                disabled={isSavingNotifications}
+                                className="h-12 w-full rounded-lg bg-[#F35713] text-base font-medium text-white hover:bg-[#e04f10]"
+                            >
+                                {isSavingNotifications ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                {isSavingNotifications ? "Сохранение..." : "Сохранить"}
+                            </Button>
+                            {notificationError && <p className="text-sm text-[#F35713]">{notificationError}</p>}
+                        </div>
                     </TabsContent>
-                    </Tabs>
-                </div>
-                {!isDesktop && <BottomNav activeTab="profile" />}
+                </Tabs>
             </div>
-        </>
+            {!isDesktop && <BottomNav activeTab="profile" />}
+        </div>
     )
 }
