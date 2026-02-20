@@ -1,7 +1,7 @@
 "use client"
 
 import {useEffect, useState} from "react"
-import { UserPlus, Eye, EyeOff } from "lucide-react"
+import { UserPlus, Eye, EyeOff, Shield } from "lucide-react"
 import {useRouter} from "next/navigation";
 import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
@@ -354,6 +354,35 @@ export default function LoginPage() {
                   Запросить регистрацию
                 </span>
               </button>
+
+              {/* Privacy Policy Button */}
+              <Link
+                href="/privacy"
+                className="w-full flex justify-center items-center"
+                style={{
+                  height: "48px",
+                  padding: "12px 16px",
+                  gap: "16px",
+                  background: "transparent",
+                  border: "1px solid #212121",
+                  borderRadius: "8px",
+                  textDecoration: "none"
+                }}
+              >
+                <Shield className="w-5 h-5" style={{ color: "#6E6E6E" }} />
+                <span
+                  style={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 400,
+                    fontSize: "16px",
+                    lineHeight: "24px",
+                    color: "#6E6E6E",
+                    textAlign: "center"
+                  }}
+                >
+                  Политика конфиденциальности
+                </span>
+              </Link>
             </div>
           </div>
 
