@@ -21,7 +21,7 @@ export const AdminBottomNav: React.FC<AdminBottomNavProps> = ({ hidden = false }
         return null;
     }
 
-    const activeColor = '#F9AB89';
+    const activeColor = '#FFFFFF';
     const inactiveColor = 'rgba(255, 255, 255, 0.5)';
 
     const getActiveTab = () => {
@@ -70,9 +70,9 @@ export const AdminBottomNav: React.FC<AdminBottomNavProps> = ({ hidden = false }
                         <Link
                             key={item.key}
                             href={item.href}
-                            className="flex flex-col justify-center items-center gap-1 mx-auto flex-1"
+                            className={`flex flex-col justify-center items-center gap-1 mx-auto flex-1 rounded-xl transition-colors`}
                             style={{
-                                padding: '0px',
+                                padding: '6px 4px',
                                 height: '40px',
                                 flex: 'none',
                                 flexGrow: 0,

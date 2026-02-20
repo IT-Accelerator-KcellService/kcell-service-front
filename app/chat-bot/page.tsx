@@ -575,7 +575,8 @@ export default function ChatPage() {
             <header className="sticky top-0 z-10 bg-black pt-12 pb-4 px-4 safe-area-top">
                 <h1 className="text-2xl font-bold text-white mb-4">Сообщение</h1>
                 
-                {/* Переключатель вкладок */}
+                {/* Переключатель вкладок: на мобилке только чат (уведомления — в Профиле) */}
+                {isDesktop && (
                 <div className="flex rounded-xl overflow-hidden bg-[#3D3D3D]">
                     <button
                         onClick={() => setActiveMessageTab("chat")}
@@ -605,10 +606,11 @@ export default function ChatPage() {
                         )}
                     </button>
                 </div>
+                )}
             </header>
 
-            {/* Контент в зависимости от активной вкладки */}
-            {activeMessageTab === "chat" ? (
+            {/* Контент: на мобилке только чат, на десктопе — по вкладке */}
+            {(isDesktop ? activeMessageTab === "chat" : true) ? (
                 <>
                     {/* Support chat view */}
                     {supportChatView && activeSupportTicket ? (
@@ -875,7 +877,7 @@ export default function ChatPage() {
                 </>
             ) : (
                 <>
-                    {/* Notifications List */}
+                    {/* Notifications List (на мобилке эта ветка не показывается — уведомления в Профиле) */}
                     <main 
                         ref={notifContainerRef}
                         className="flex-1 overflow-y-auto p-4 space-y-3 pb-24"

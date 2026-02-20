@@ -62,12 +62,12 @@ export default function AdminWorkerLayout({
 
     return (
         <div
-            className={`min-h-screen pb-[calc(110px+env(safe-area-inset-bottom,0px))] md:pb-0 ${
+            className={`min-h-screen ${!isDesktop ? "pb-[calc(110px+env(safe-area-inset-bottom,0px))]" : "pb-0"} ${
                 !isDesktop ? "bg-[#1C1C1E]" : "bg-[#F3F3F3]"
             }`}
         >
             {children}
-            <AdminBottomNav />
+            {!isDesktop && <AdminBottomNav />}
         </div>
     );
 }

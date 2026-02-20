@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle,
   Clock,
+  Loader2,
   MapPin,
   MessageCircle,
   User,
@@ -22,6 +23,12 @@ import { IconInfoModal } from "@/components/IconInfoModal";
 import { CommentsModal } from "@/components/CommentsModal";
 import { MapModal } from "@/components/MapModal";
 import PhotoModal from "@/components/photo/PhotoModal";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { RatingModal } from "@/components/RatingModal";
+import ClientRatingModal from "@/components/ClientRatingModal";
 import api from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -111,6 +118,132 @@ export function AdminRequestDetailsModal({
     type: "status" | "longTerm";
     value: string;
   } | null>(null);
+
+  // Принятие/отклонение заявки (для hideFullModeButton + status in_progress)
+  const [subRequestSettings, setSubRequestSettings] = useState<Record<number, { sla: string; complexity: string; category_id?: number }>>({});
+  const [editableRequestType, setEditableRequestType] = useState<string>("");
+  const [editableLocationDetail, setEditableLocationDetail] = useState<string>("");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<string | null>(null);
+
+  // Оценка исполнителя и клиента (вместо openFullMode)
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [requestToRate, setRequestToRate] = useState<SubRequest | null>(null);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
+  const [showClientRatingModal, setShowClientRatingModal] = useState(false);
+  const [clientRatingValue, setClientRatingValue] = useState(0);
+  const [clientRatingComment, setClientRatingComment] = useState("");
+
+  useEffect(() => {
+    if (selectedRequest) {
+      setEditableRequestType(selectedRequest.request_type || "normal");
+      setEditableLocationDetail(selectedRequest.location_detail || "");
+    }
+  }, [selectedRequest]);
+
+  const handleAcceptRequestGroup = async () => {
+    try {
+      setIsSubmitting(true);
+      setFormErrors(null);
+      if (editableRequestType !== "planned") {
+        const allHave = selectedRequest.requests.every((sr: SubRequest) => {
+          const s = subRequestSettings[sr.id];
+          return s?.sla && s?.complexity;
+        });
+        if (!allHave) {
+          setFormErrors("Укажите время выполнения и сложность для всех подзаявок");
+          return;
+        }
+      }
+      const sub_requests = selectedRequest.requests.map((sr: SubRequest) => {
+        const s = subRequestSettings[sr.id];
+        return {
+          id: sr.id,
+          sla: editableRequestType === "planned" ? null : s?.sla,
+          complexity: editableRequestType === "planned" ? null : s?.complexity,
+          category_id: s?.category_id || sr.category_id,
+        };
+      });
+      await api.patch(`/request-groups/${selectedRequest.id}`, {
+        patch_code: 1,
+        sub_requests,
+        request_type: editableRequestType,
+        location_detail: editableLocationDetail,
+      });
+      toast({ title: "Заявка принята в работу" });
+      onRequestUpdated?.();
+      onClose();
+    } catch (err) {
+      setFormErrors("Ошибка при принятии заявки");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRejectRequestGroup = async () => {
+    if (!rejectionReason.trim()) {
+      setFormErrors("Укажите причину отклонения");
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      setFormErrors(null);
+      await api.patch(`/request-groups/${selectedRequest.id}`, {
+        patch_code: 2,
+        rejection_reason: rejectionReason,
+      });
+      toast({ title: "Заявка отклонена" });
+      onRequestUpdated?.();
+      onClose();
+    } catch (err) {
+      setFormErrors("Ошибка при отклонении заявки");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRateExecutor = async () => {
+    if (!requestToRate || ratingValue <= 0) return;
+    try {
+      const existing = userRatings[requestToRate.id]?.rating;
+      const isUpdate = !!existing;
+      await api[isUpdate ? "put" : "post"]("/ratings", {
+        rating: ratingValue,
+        request_id: requestToRate.id,
+        comment: ratingComment,
+      });
+      toast({ title: "Оценка отправлена" });
+      setShowRatingModal(false);
+      setRequestToRate(null);
+      setRatingValue(0);
+      setRatingComment("");
+      onRequestUpdated?.();
+    } catch (err) {
+      toast({ title: "Ошибка при отправке оценки", variant: "destructive" });
+    }
+  };
+
+  const handleRateClient = async () => {
+    if (!selectedRequest || clientRatingValue <= 0) return;
+    try {
+      const existing = selectedRequest.clientRatings?.[0]?.rating;
+      const isUpdate = !!existing;
+      await api[isUpdate ? "put" : "post"]("/client-ratings", {
+        rating: clientRatingValue,
+        request_group_id: selectedRequest.id,
+        comment: clientRatingComment,
+      });
+      toast({ title: "Оценка клиента отправлена" });
+      setShowClientRatingModal(false);
+      setClientRatingValue(0);
+      setClientRatingComment("");
+      onRequestUpdated?.();
+    } catch (err) {
+      toast({ title: "Ошибка при отправке оценки клиента", variant: "destructive" });
+    }
+  };
 
   const userRatings: Record<number, { rating: number }> = {};
   selectedRequest.requests.forEach((subReq) => {
@@ -219,7 +352,17 @@ export function AdminRequestDetailsModal({
                   userRole="admin-worker"
                   isSubRequest={true}
                   variant="admin"
-                  onRateRequest={() => openFullMode()}
+                  onRateRequest={() => {
+                    setRequestToRate(subRequest);
+                    setRatingValue(userRatings[subRequest.id]?.rating || 0);
+                    setRatingComment("");
+                    setShowRatingModal(true);
+                  }}
+                  onRateClient={() => {
+                    setClientRatingValue(selectedRequest.clientRatings?.[0]?.rating || 0);
+                    setClientRatingComment("");
+                    setShowClientRatingModal(true);
+                  }}
                   onDelete={handleDeleteSubRequest}
                   onToggleLongTerm={handleToggleLongTerm}
                   onAssignExecutor={() => openFullMode()}
@@ -436,6 +579,139 @@ export function AdminRequestDetailsModal({
                 </p>
               </div>
 
+              {/* Принятие / Отклонение заявки */}
+              {selectedRequest.status === "in_progress" && hideFullModeButton && (
+                <div className="bg-[#1C1C1E] rounded-xl p-4 space-y-4 border border-[#3A3A3C]">
+                  <h3 className="text-white font-medium">Действия по заявке</h3>
+
+                  <div>
+                    <Label className="text-xs text-gray-400">Тип заявки</Label>
+                    <Select value={editableRequestType} onValueChange={setEditableRequestType}>
+                      <SelectTrigger className="bg-[#262626] border-[#3A3A3C] text-white h-9 mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#2C2C2E] border-[#3A3A3C]">
+                        <SelectItem value="normal" className="text-white">Обычная</SelectItem>
+                        <SelectItem value="urgent" className="text-white">Экстренная</SelectItem>
+                        <SelectItem value="planned" className="text-white">Плановая</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {editableRequestType !== "planned" && (
+                    <div className="space-y-3">
+                      <p className="text-gray-400 text-sm">Укажите время выполнения и сложность для каждой подзаявки</p>
+                      {selectedRequest.requests.map((sr: SubRequest) => (
+                        <div key={sr.id} className="space-y-2 p-3 rounded-lg bg-[#262626]">
+                          <p className="text-white text-sm font-medium">
+                            {sr.title || `Подзаявка #${sr.id}`}
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs text-gray-400">Время</Label>
+                              <Select
+                                value={subRequestSettings[sr.id]?.sla || ""}
+                                onValueChange={(v) =>
+                                  setSubRequestSettings((prev) => ({
+                                    ...prev,
+                                    [sr.id]: {
+                                      sla: v,
+                                      complexity: prev[sr.id]?.complexity || "",
+                                    },
+                                  }))
+                                }
+                              >
+                                <SelectTrigger className="bg-[#1C1C1E] border-[#3A3A3C] text-white h-9">
+                                  <SelectValue placeholder="Выберите" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#2C2C2E] border-[#3A3A3C]">
+                                  <SelectItem value="1h" className="text-white">1 час</SelectItem>
+                                  <SelectItem value="4h" className="text-white">4 часа</SelectItem>
+                                  <SelectItem value="8h" className="text-white">8 часов</SelectItem>
+                                  <SelectItem value="1d" className="text-white">1 день</SelectItem>
+                                  <SelectItem value="3d" className="text-white">3 дня</SelectItem>
+                                  <SelectItem value="1w" className="text-white">1 неделя</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-gray-400">Сложность</Label>
+                              <Select
+                                value={subRequestSettings[sr.id]?.complexity || ""}
+                                onValueChange={(v) =>
+                                  setSubRequestSettings((prev) => ({
+                                    ...prev,
+                                    [sr.id]: {
+                                      sla: prev[sr.id]?.sla || "",
+                                      complexity: v,
+                                    },
+                                  }))
+                                }
+                              >
+                                <SelectTrigger className="bg-[#1C1C1E] border-[#3A3A3C] text-white h-9">
+                                  <SelectValue placeholder="Выберите" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#2C2C2E] border-[#3A3A3C]">
+                                  <SelectItem value="simple" className="text-white">Простая</SelectItem>
+                                  <SelectItem value="medium" className="text-white">Средняя</SelectItem>
+                                  <SelectItem value="complex" className="text-white">Сложная</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div>
+                    <Label className="text-xs text-gray-400">Причина отклонения (если необходимо)</Label>
+                    <Textarea
+                      placeholder="Укажите причину отклонения..."
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      className="mt-1 bg-[#1C1C1E] border-[#3A3A3C] text-white placeholder:text-gray-500 min-h-[80px]"
+                    />
+                  </div>
+
+                  {formErrors && (
+                    <p className="text-[#F35713] text-sm">{formErrors}</p>
+                  )}
+
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handleAcceptRequestGroup}
+                      disabled={isSubmitting}
+                      className="flex-1 bg-[#22C55E] hover:bg-[#16A34A] text-white"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Принять
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleRejectRequestGroup}
+                      disabled={isSubmitting}
+                      className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/20"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Отклонить
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Фотографии до выполнения */}
               {selectedRequest.photos?.filter(
                 (p: any) => p.type === "before"
@@ -564,6 +840,43 @@ export function AdminRequestDetailsModal({
             onClose={() => setSelectedPhoto(null)}
           />
         )}
+
+        <RatingModal
+          isOpen={showRatingModal && !!requestToRate}
+          onClose={() => {
+            setShowRatingModal(false);
+            setRequestToRate(null);
+            setRatingValue(0);
+            setRatingComment("");
+          }}
+          ratingValue={ratingValue}
+          onRatingChange={setRatingValue}
+          onSubmit={handleRateExecutor}
+          currentRating={requestToRate ? userRatings[requestToRate.id]?.rating : undefined}
+          comment={ratingComment}
+          onCommentChange={setRatingComment}
+          title="Оценка заявки"
+          description="Поставьте оценку выполненной работе"
+          variant="dark"
+        />
+
+        <ClientRatingModal
+          isOpen={showClientRatingModal}
+          onClose={() => {
+            setShowClientRatingModal(false);
+            setClientRatingValue(0);
+            setClientRatingComment("");
+          }}
+          ratingValue={clientRatingValue}
+          onRatingChange={setClientRatingValue}
+          onSubmit={handleRateClient}
+          currentRating={selectedRequest.clientRatings?.[0]?.rating}
+          comment={clientRatingComment}
+          onCommentChange={setClientRatingComment}
+          title="Оценить клиента"
+          description="Поставьте оценку клиенту за сотрудничество"
+          variant="dark"
+        />
       </>
     );
   }

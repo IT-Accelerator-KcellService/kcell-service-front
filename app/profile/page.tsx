@@ -260,8 +260,10 @@ export default function ProfilePage() {
 
     const handleRequestClick = (requestId: string) => {
         const parsedId = parseInt(requestId.split("/")[0], 10)
-        if (role === "admin-worker") router.push(`/admin-worker?tab=incoming&requestId=${parsedId}`)
-        else if (role === "department-head") router.push(`/department-head?requestId=${parsedId}`)
+        if (role === "admin-worker") {
+            if (!isDesktop) router.push(`/admin-worker/requests/${parsedId}`)
+            else router.push(`/admin-worker?tab=incoming&requestId=${parsedId}`)
+        } else if (role === "department-head") router.push(`/department-head?requestId=${parsedId}`)
         else if (role === "client") router.push(`/client?requestId=${parsedId}`)
         else if (role === "executor") router.push(`/executor?requestId=${parsedId}`)
         else if (role === "manager") router.push(`/manager?requestId=${parsedId}`)
@@ -551,33 +553,33 @@ export default function ProfilePage() {
                     {/* Вкладка: Уведомления */}
                     <TabsContent value="notifications" className="mt-0 space-y-6">
                         <div
-                            className={`flex flex-col rounded-xl border p-5 ${isAdminMobile ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            className={`flex flex-col rounded-xl border p-5 ${!isDesktop ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
                             style={{ gap: "20px" }}
                         >
                             <h2 className="text-lg font-semibold text-white">Настройки уведомлений</h2>
                             <div className="flex flex-col" style={{ gap: "12px" }}>
-                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${isAdminMobile ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
+                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${!isDesktop ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
                                     <Label className={labelClass}>Email уведомления</Label>
                                     <Switch
                                         checked={user?.email_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, email_notifications: checked } : null)}
-                                        className={isAdminMobile ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
+                                        className={!isDesktop ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
                                     />
                                 </div>
-                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${isAdminMobile ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
+                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${!isDesktop ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
                                     <Label className={labelClass}>Безопасность</Label>
                                     <Switch
                                         checked={user?.security_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, security_notifications: checked } : null)}
-                                        className={isAdminMobile ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
+                                        className={!isDesktop ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
                                     />
                                 </div>
-                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${isAdminMobile ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
+                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${!isDesktop ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
                                     <Label className={labelClass}>Маркетинг</Label>
                                     <Switch
                                         checked={user?.marketing_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, marketing_notifications: checked } : null)}
-                                        className={isAdminMobile ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
+                                        className={!isDesktop ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
                                     />
                                 </div>
                             </div>
@@ -594,12 +596,12 @@ export default function ProfilePage() {
 
                         {/* Все уведомления — список внизу настроек */}
                         <div
-                            className={`flex flex-col rounded-xl border p-5 ${isAdminMobile ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            className={`flex flex-col rounded-xl border p-5 ${!isDesktop ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
                             style={{ gap: "16px" }}
                         >
                             <h2 className="text-lg font-semibold text-white">Все уведомления</h2>
                             <NotificationsSidebar
-                                variant={isAdminMobile ? "dark" : "light"}
+                                variant={!isDesktop ? "dark" : "light"}
                                 onNotificationClick={handleNotificationClick}
                                 onRequestClick={handleRequestClick}
                                 limit={0}
@@ -619,7 +621,7 @@ export default function ProfilePage() {
                             >
                                 <h2 className="text-lg font-semibold text-white">Логи действий</h2>
                                 <p className={isAdminMobile ? "text-sm text-[#8E8E93]" : "text-sm text-[#7F7F7F]"}>История операций</p>
-                                <LogsViewer userRole={role || "admin-worker"} isDesktop={false} dark={isAdminMobile} />
+                                <LogsViewer userRole={role || "admin-worker"} isDesktop={false} dark={!isDesktop} />
                             </div>
                         </TabsContent>
                     )}
@@ -633,7 +635,7 @@ export default function ProfilePage() {
                     onClick={() => setSelectedNotification(null)}
                 >
                     <div
-                        className={`rounded-xl shadow-lg max-w-md w-full p-6 border ${isAdminMobile ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-[#040404]"}`}
+                        className={`rounded-xl shadow-lg max-w-md w-full p-6 border ${!isDesktop ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-[#040404]"}`}
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-4">
