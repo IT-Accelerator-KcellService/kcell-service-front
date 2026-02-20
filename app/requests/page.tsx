@@ -67,8 +67,6 @@ export default function RequestsPage() {
   const router = useRouter()
   const isDesktop = useMediaQuery("(min-width: 768px)")
   
-  // Tab state: "create" or "my-requests"
-  const [activeTab, setActiveTab] = useState<"create" | "my-requests">("create")
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterType, setFilterType] = useState("all")
   const [loading, setLoading] = useState(true)
@@ -761,76 +759,9 @@ export default function RequestsPage() {
               Сервисные заявки
             </h1>
 
-            {/* Tab Switcher - matches Frame 1171274981 */}
-            <div 
-              className="flex flex-row justify-between items-center w-full"
-              style={{
-                height: '36px',
-                background: '#262626',
-                borderRadius: '10px',
-              }}
-            >
-              {/* Create Tab - matches Frame 1171274979 */}
-              <button
-                onClick={() => setActiveTab("create")}
-                className="flex flex-row justify-center items-center flex-1"
-                style={{
-                  padding: '5px 50px',
-                  gap: '8px',
-                  height: '36px',
-                  background: activeTab === "create" ? '#909090' : 'transparent',
-                  borderRadius: '10px',
-                }}
-              >
-                <span 
-                  className="text-center"
-                  style={{
-                    fontFamily: "'Yandex Sans Text', -apple-system, sans-serif",
-                    fontWeight: 500,
-                    fontSize: '10px',
-                    lineHeight: '80%',
-                    color: '#FFFFFF',
-                  }}
-                >
-                  Создать заявку
-                </span>
-              </button>
-
-              {/* My Requests Tab - matches Frame 1171274980 */}
-              <button
-                onClick={() => setActiveTab("my-requests")}
-                className="flex flex-row justify-center items-center flex-1"
-                style={{
-                  padding: '5px 38px',
-                  gap: '8px',
-                  height: '36px',
-                  background: activeTab === "my-requests" ? '#909090' : 'transparent',
-                  borderRadius: '10px',
-                }}
-              >
-                <span 
-                  className="text-center"
-                  style={{
-                    fontFamily: "'Yandex Sans Text', -apple-system, sans-serif",
-                    fontWeight: 500,
-                    fontSize: '10px',
-                    lineHeight: '80%',
-                    color: '#FFFFFF',
-                  }}
-                >
-                  Мои заявки
-                </span>
-              </button>
-            </div>
-
-            {/* Content based on active tab */}
-            {activeTab === "create" ? (
-              /* Create Request Content - matches Frame 1171275004 */
-              <div 
-                className="flex flex-col items-start w-full"
-                style={{ gap: '16px' }}
-              >
-                {/* Title - matches Frame 1171274962 */}
+            {/* Мои заявки - единый раздел */}
+            <div className="flex flex-col items-start w-full" style={{ gap: '16px' }}>
+                {/* Title */}
                 <h2 
                   style={{
                     fontFamily: "'Yandex Sans Text', -apple-system, sans-serif",
@@ -840,10 +771,10 @@ export default function RequestsPage() {
                     color: '#FFFFFF',
                   }}
                 >
-                  Все сценарий
+                  Мои заявки
                 </h2>
 
-                {/* Create Button - matches Frame 1171275005 */}
+                {/* Create Button */}
                 <button
                   onClick={() => router.push('/create-request')}
                   className="flex flex-row justify-center items-center w-full"
@@ -867,22 +798,6 @@ export default function RequestsPage() {
                     Создать заявку
                   </span>
                 </button>
-              </div>
-            ) : (
-              /* My Requests Content */
-              <div className="flex flex-col items-start w-full" style={{ gap: '16px' }}>
-                {/* Title */}
-                <h2 
-                  style={{
-                    fontFamily: "'Yandex Sans Text', -apple-system, sans-serif",
-                    fontWeight: 700,
-                    fontSize: '16px',
-                    lineHeight: '115%',
-                    color: '#FFFFFF',
-                  }}
-                >
-                  Все заявки
-                </h2>
 
                 {/* Filters */}
                 <div className="flex gap-2 w-full">
@@ -935,7 +850,7 @@ export default function RequestsPage() {
                     <div className="text-center py-12 text-gray-400">
                       <p>У вас пока нет заявок</p>
                       <button
-                        onClick={() => setActiveTab("create")}
+                        onClick={() => router.push('/create-request')}
                         className="mt-4 px-6 py-3 text-white"
                         style={{
                           background: '#F35713',
@@ -974,7 +889,6 @@ export default function RequestsPage() {
                   )}
                 </div>
               </div>
-            )}
           </div>
         </div>
       </PullToRefresh>
