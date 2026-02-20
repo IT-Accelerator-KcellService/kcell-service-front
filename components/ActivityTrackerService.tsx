@@ -588,6 +588,7 @@ export function ActivityTrackerService() {
           console.log('✅ [Service] Android sensors started')
         } catch (err) {
           console.error('❌ [Service] Failed to start Android sensors:', err)
+          setIsTracking(false)
           isStartingRef.current = false
           return
         }
@@ -595,21 +596,24 @@ export function ActivityTrackerService() {
         // Стандартные Web API
         if (typeof DeviceMotionEvent === 'undefined') {
           console.error('❌ [Service] DeviceMotionEvent not supported')
+          setIsTracking(false)
           isStartingRef.current = false
           return
         }
 
-        // Запрашиваем разрешения для iOS
+        // Запрашиваем разрешения для iOS (если не запросили заранее из обработчика тапа)
         if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
           try {
             const motionPermission = await (DeviceMotionEvent as any).requestPermission()
             if (motionPermission !== 'granted') {
               console.error('❌ [Service] Motion permission denied')
+              setIsTracking(false)
               isStartingRef.current = false
               return
             }
           } catch (err) {
             console.error('❌ [Service] Error requesting motion permission:', err)
+            setIsTracking(false)
             isStartingRef.current = false
             return
           }
@@ -620,12 +624,13 @@ export function ActivityTrackerService() {
               const orientationPermission = await (DeviceOrientationEvent as any).requestPermission()
               if (orientationPermission !== 'granted') {
                 console.warn('⚠️ [Service] Orientation permission denied')
-                return
+                // Ориентация не критична, не сбрасываем isTracking
+              } else {
+                console.log('✅ [Service] Orientation permission granted')
               }
-              console.log('✅ [Service] Orientation permission granted')
           } catch (err) {
             console.warn('⚠️ [Service] Orientation permission error:', err)
-              return
+            // Ориентация не критична
           }
         }
       }

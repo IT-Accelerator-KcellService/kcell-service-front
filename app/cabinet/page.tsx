@@ -10,6 +10,7 @@ import PullToRefresh from "@/components/pull-to-refresh"
 import { Home, Heart, Settings, Lightbulb, Clock, TrendingUp, BarChart2, Activity, Play, Pause, Power, Loader2, ChevronDown } from "lucide-react"
 import api, { getClientRoomSubscriptions, getRoomDevicesForClient, controlDevice, type YandexDevice, type ControlDeviceRequest } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { requestMotionAndOrientationPermission } from "@/lib/activity-tracker-permissions"
 
 type TabType = "home" | "health" | "settings"
 
@@ -77,11 +78,20 @@ export default function CabinetPage() {
     }
   }
 
-  // Toggle tracker
-  const handleToggleTracker = () => {
+  // Toggle tracker (на мобильном iOS разрешение нужно запрашивать в ответ на тап)
+  const handleToggleTracker = async () => {
     if (isTracking) {
       requestStopTracking(true)
     } else {
+      const granted = await requestMotionAndOrientationPermission()
+      if (!granted) {
+        toast({
+          title: "Доступ к датчикам",
+          description: "Разрешите доступ к датчикам движения для работы трекера активности.",
+          variant: "destructive",
+        })
+        return
+      }
       requestStartTracking(true)
     }
   }
