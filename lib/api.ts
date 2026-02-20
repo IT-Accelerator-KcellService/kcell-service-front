@@ -727,3 +727,38 @@ export const getClientRoomSubscriptions = (client_id: number) =>
 // Получить подписки для конкретной комнаты
 export const getRoomSubscriptions = (meeting_room_id: number) =>
     api.get<{ success: boolean; subscriptions: ClientRoomSubscription[] }>(`/client-room-subscriptions/room/${meeting_room_id}`);
+
+// ==================== Поддержка (Support Chat) ====================
+
+export interface SupportTicket {
+    id: number;
+    user_id: number;
+    message: string;
+    status: 'open' | 'in_progress' | 'closed';
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface SupportMessage {
+    id: number;
+    ticket_id: number;
+    sender: 'user' | 'admin';
+    message: string;
+    created_at: string;
+}
+
+// Создать заявку в поддержку
+export const createSupportTicket = (message: string) =>
+    api.post<{ ticket: SupportTicket }>('/support-tickets', { message });
+
+// Получить мои заявки в поддержку
+export const getMySupportTickets = () =>
+    api.get<{ tickets: SupportTicket[] }>('/support-tickets');
+
+// Получить сообщения чата поддержки
+export const getSupportTicketMessages = (ticketId: number) =>
+    api.get<{ messages: SupportMessage[] }>(`/support-tickets/${ticketId}/messages`);
+
+// Отправить сообщение в чат поддержки
+export const sendSupportMessage = (ticketId: number, message: string) =>
+    api.post<{ message: SupportMessage }>(`/support-tickets/${ticketId}/messages`, { message });
