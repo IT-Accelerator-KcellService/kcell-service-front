@@ -26,8 +26,8 @@ class IOSBridge {
     }
 
     /**
-     * Проверяет, работает ли приложение в iOS WebView (нативная оболочка с инъекцией).
-     * В обычном Safari на iPhone messageHandlers нет — тогда возвращаем false и используем DeviceMotionEvent.requestPermission.
+     * Проверяет, работает ли приложение в iOS WebView.
+     * На Android не возвращаем true (даже если есть webkit.messageHandlers).
      */
     public isIOSWebView(): boolean {
         if (typeof window === 'undefined') return false;
@@ -35,9 +35,10 @@ class IOSBridge {
         const ua = navigator.userAgent || navigator.vendor;
         if (/Android/i.test(ua)) return false;
         const isIOS = /iPhone|iPad|iPod/i.test(ua);
-        const hasWebkitBridge = !!(window as any).webkit?.messageHandlers;
+        const hasWebkitBridge =
+            !!(window as any).webkit?.messageHandlers;
 
-        return isIOS && hasWebkitBridge;
+        return isIOS || hasWebkitBridge;
     }
 
     /**
@@ -293,40 +294,15 @@ export async function ensureLocationPermission(): Promise<boolean> {
     return iosBridge.requestPermission('location');
 }
 
-/**
- * Ждёт появления window.FCM с startMotionUpdates (нативная инъекция может быть отложенной).
- * Возвращает true, если FCM готов, иначе false по истечении timeoutMs.
- */
-export function waitForFCM(timeoutMs = 5000): Promise<boolean> {
-    if (typeof window === 'undefined') return Promise.resolve(false);
-    if ((window as any).FCM?.startMotionUpdates) return Promise.resolve(true);
-    return new Promise((resolve) => {
-        const deadline = Date.now() + timeoutMs;
-        const t = setInterval(() => {
-            if ((window as any).FCM?.startMotionUpdates) {
-                clearInterval(t);
-                resolve(true);
-            } else if (Date.now() >= deadline) {
-                clearInterval(t);
-                resolve(false);
-            }
-        }, 300);
-    });
-}
-
 /** Разрешение на датчики движения (акселерометр/гироскоп) для Activity Tracker. */
 export async function ensureMotionPermission(): Promise<boolean> {
     if (!iosBridge.isIOSWebView()) return true;
-    // Если нативная сторона не внедрила FCM или не реализует проверку motion — считаем разрешённым и полагаемся на startMotionUpdates
-    if (!(window as any).FCM?.checkPermissionStatus) return true;
     const status = await iosBridge.checkPermission('motion');
     if (status === 'granted') return true;
     if (status === 'denied') return false;
-    const requested = await iosBridge.requestPermission('motion');
-    if (requested) return true;
-    // После requestPermission иногда приходит "unknown" — не блокируем запуск, нативный слой может начать отдавать данные
+    // На iOS для Core Motion нет системного диалога — при unknown считаем доступ разрешён
     if (status === 'unknown') return true;
-    return false;
+    return iosBridge.requestPermission('motion');
 }
 
 /** Запуск передачи данных CoreMotion в WebView (Activity Tracker). В WebView на iOS DeviceMotionEvent не приходит. */

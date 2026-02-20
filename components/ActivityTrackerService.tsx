@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/useAuthStore"
 import api, { getOffices } from "@/lib/api"
 import { findNearestOffice } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 
 interface LocationData {
   latitude: number
@@ -594,20 +595,8 @@ export function ActivityTrackerService() {
         }
       } else {
         // В iOS WebView: DeviceMotionEvent в WKWebView не приходит — данные идут через CoreMotion в handleIOSMotionData
-        const { ensureMotionPermission, iosBridge, startMotionUpdates, startBackgroundTracking, waitForFCM } = await import('@/lib/ios-bridge')
+        const { ensureMotionPermission, iosBridge, startMotionUpdates, startBackgroundTracking } = await import('@/lib/ios-bridge')
         if (iosBridge.isIOSWebView()) {
-          const fcmReady = await waitForFCM(5000)
-          if (!fcmReady) {
-            console.warn('⚠️ [Service] iOS: FCM bridge not found — native app must inject window.FCM with startMotionUpdates')
-            toast({
-              title: 'Трекер на iOS',
-              description: 'Требуется обновление приложения для поддержки датчиков движения.',
-              variant: 'destructive',
-            })
-            setIsTracking(false)
-            isStartingRef.current = false
-            return
-          }
           try {
             const hasPermission = await ensureMotionPermission()
             if (!hasPermission) {
@@ -849,9 +838,8 @@ export function ActivityTrackerService() {
     if (!user || (user.role !== 'executor' && user.role !== 'client')) return // Для executor и client
     if (isTracking && !intervalRef.current) {
       console.log('🔄 [Service] Restoring tracking state...')
-      // iOS: либо permissionBridge, либо FCM (нативная инъекция)
-      const ua = navigator.userAgent || ''
-      const isIOS = /iPhone|iPad|iPod/i.test(ua) && (!!(window as any).webkit?.messageHandlers?.permissionBridge || !!(window as any).FCM?.startMotionUpdates)
+      // Восстанавливаем обработчики событий (не для Android; для iOS — данные идут через handleIOSMotionData)
+      const isIOS = typeof (window as any).webkit?.messageHandlers?.permissionBridge !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
       if (!isAndroidWebView.current && !isIOS) {
         window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
         window.addEventListener('deviceorientation', handleDeviceOrientation as EventListener)
@@ -1068,9 +1056,8 @@ export function ActivityTrackerService() {
       window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
       return
     }
-    const ua = navigator.userAgent || ''
-    const isIOSWebView = /iPhone|iPad|iPod/i.test(ua) && (!!(window as any).webkit?.messageHandlers?.permissionBridge || !!(window as any).FCM?.startMotionUpdates)
-    if (isTracking && !isAndroidWebView.current && !isIOSWebView) {
+    const isIOS = typeof (window as any).webkit?.messageHandlers?.permissionBridge !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+    if (isTracking && !isAndroidWebView.current && !isIOS) {
       window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
       window.addEventListener('deviceorientation', handleDeviceOrientation as EventListener)
     } else {
