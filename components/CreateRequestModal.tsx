@@ -223,37 +223,26 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setCurrentStep(1);
   };
 
-  const handleButtonClick = async () => {
-    try {
-      const { ensureCameraPermission, iosBridge } = await import('@/lib/ios-bridge');
-      const { androidBridge } = await import('@/lib/android-bridge');
-      if (iosBridge.isIOSWebView()) {
-        const hasPermission = await ensureCameraPermission();
-        if (!hasPermission) return;
-      } else if (androidBridge.isAndroidWebView()) {
-        await androidBridge.requestPermission('camera');
+  // На iOS вызов input.click() должен быть в том же жесте пользователя — запрашиваем разрешение заранее при переходе на шаг с фото
+  useEffect(() => {
+    if (currentStep !== 4) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { ensureCameraPermission, iosBridge } = await import('@/lib/ios-bridge');
+        const { androidBridge } = await import('@/lib/android-bridge');
+        if (cancelled) return;
+        if (iosBridge.isIOSWebView()) {
+          await ensureCameraPermission();
+        } else if (androidBridge.isAndroidWebView()) {
+          await androidBridge.requestPermission('camera');
+        }
+      } catch (e) {
+        if (!cancelled) console.error('Ошибка при запросе разрешения на камеру:', e);
       }
-    } catch (e) {
-      console.error('Ошибка при запросе разрешения на камеру:', e);
-    }
-    fileInputRef.current?.click();
-  };
-
-  const handleAfterPhotoButtonClick = async () => {
-    try {
-      const { ensureCameraPermission, iosBridge } = await import('@/lib/ios-bridge');
-      const { androidBridge } = await import('@/lib/android-bridge');
-      if (iosBridge.isIOSWebView()) {
-        const hasPermission = await ensureCameraPermission();
-        if (!hasPermission) return;
-      } else if (androidBridge.isAndroidWebView()) {
-        await androidBridge.requestPermission('camera');
-      }
-    } catch (e) {
-      console.error('Ошибка при запросе разрешения на камеру:', e);
-    }
-    document.getElementById('after-photo-input')?.click();
-  };
+    })();
+    return () => { cancelled = true; };
+  }, [currentStep]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -1356,21 +1345,21 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 </div>
               ))}
               {photoPreviews.length < 3 && (
-                <button
-                  type="button"
-                  onClick={handleButtonClick}
-                  className="w-20 h-20 border-2 border-dashed border-[#1E1E1E] rounded-lg flex items-center justify-center hover:border-[#F35713]/50 transition-colors bg-[#040404]"
+                <label
+                  htmlFor="create-request-photo-input"
+                  className="w-20 h-20 border-2 border-dashed border-[#1E1E1E] rounded-lg flex items-center justify-center hover:border-[#F35713]/50 transition-colors bg-[#040404] cursor-pointer"
                 >
                   <input
+                    id="create-request-photo-input"
                     type="file"
                     accept="image/*"
                     multiple
                     ref={fileInputRef}
                     onChange={handleFileChange}
-                    className="hidden"
+                    className="sr-only"
                   />
                   <Camera className="w-6 h-6 text-[#6E6E6E]" />
-                </button>
+                </label>
               )}
             </div>
             {hasAttemptedSubmit && basicFieldErrors.has('photos') && (
@@ -1451,10 +1440,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                     </div>
                   ))}
                   {afterPhotoPreviews.length < 3 && (
-                    <button
-                      type="button"
-                      onClick={handleAfterPhotoButtonClick}
-                      className="w-full h-32 sm:h-40 border-2 border-dashed border-[#1E1E1E] rounded-lg flex items-center justify-center hover:border-[#F35713]/50 transition-colors bg-[#040404]"
+                    <label
+                      htmlFor="after-photo-input"
+                      className="w-full h-32 sm:h-40 border-2 border-dashed border-[#1E1E1E] rounded-lg flex items-center justify-center hover:border-[#F35713]/50 transition-colors bg-[#040404] cursor-pointer"
                     >
                       <input
                         id="after-photo-input"
@@ -1462,10 +1450,10 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                         accept="image/*"
                         multiple
                         onChange={handleAfterPhotoUpload}
-                        className="hidden"
+                        className="sr-only"
                       />
                       <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-[#6E6E6E]" />
-                    </button>
+                    </label>
                   )}
                 </div>
                 {hasAttemptedSubmit && basicFieldErrors.has('фотографии результата') && (
