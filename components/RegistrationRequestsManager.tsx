@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {useAuthStore} from "@/stores/useAuthStore";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface RegistrationRequest {
     id: number;
@@ -32,7 +33,8 @@ interface Office {
 }
 
 export default function RegistrationRequestsManager() {
-    const {role} = useAuthStore()
+    const {role} = useAuthStore();
+    const isMobile = useMediaQuery("(max-width: 767px)");
     const [requests, setRequests] = useState<RegistrationRequest[]>([]);
     const [offices, setOffices] = useState<Office[]>([]);
     const [loading, setLoading] = useState(false);
@@ -151,10 +153,10 @@ export default function RegistrationRequestsManager() {
                                 value={filters.status}
                                 onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === "all" ? "" : value }))}
                             >
-                                <SelectTrigger className="text-xs md:text-sm">
+                                <SelectTrigger className={`text-xs md:text-sm ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}>
                                     <SelectValue placeholder="Все статусы" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className={isMobile ? "bg-[#2C2C2E] border-[#3A3A3C] text-white" : ""}>
                                     <SelectItem value="all">Все статусы</SelectItem>
                                     <SelectItem value="pending">Ожидает</SelectItem>
                                     <SelectItem value="approved">Одобрено</SelectItem>
@@ -170,10 +172,10 @@ export default function RegistrationRequestsManager() {
                                     value={filters.office_id}
                                     onValueChange={(value) => setFilters(prev => ({ ...prev, office_id: value === "all" ? "" : value }))}
                                 >
-                                    <SelectTrigger className="text-xs md:text-sm">
+                                    <SelectTrigger className={`text-xs md:text-sm ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}>
                                         <SelectValue placeholder="Все офисы" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className={isMobile ? "bg-[#2C2C2E] border-[#3A3A3C] text-white" : ""}>
                                         <SelectItem value="all">Все офисы</SelectItem>
                                         {offices.map((office) => (
                                             <SelectItem key={office.id} value={office.id.toString()}>
@@ -191,7 +193,7 @@ export default function RegistrationRequestsManager() {
                                 type="date"
                                 value={filters.date_from}
                                 onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
-                                className="text-xs md:text-sm"
+                                className={`text-xs md:text-sm ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}
                             />
                         </div>
 
@@ -201,7 +203,7 @@ export default function RegistrationRequestsManager() {
                                 type="date"
                                 value={filters.date_to}
                                 onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
-                                className="text-xs md:text-sm"
+                                className={`text-xs md:text-sm ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}
                             />
                         </div>
                     </div>
@@ -244,7 +246,11 @@ export default function RegistrationRequestsManager() {
                                                     <Button
                                                         onClick={() => handleApprove(request.id)}
                                                         size="sm"
-                                                        className="bg-green-600 hover:bg-green-700 text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
+                                                        className={
+                                                            isMobile
+                                                                ? "bg-[#F35713] hover:bg-[#E04D0F] text-white text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
+                                                                : "bg-green-600 hover:bg-green-700 text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
+                                                        }
                                                     >
                                                         Одобрить
                                                     </Button>
@@ -252,7 +258,11 @@ export default function RegistrationRequestsManager() {
                                                         onClick={() => handleReject(request.id)}
                                                         size="sm"
                                                         variant="destructive"
-                                                        className="text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
+                                                        className={
+                                                            isMobile
+                                                                ? "bg-[#8E2B2B] hover:bg-[#A33030] text-white text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
+                                                                : "text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
+                                                        }
                                                     >
                                                         Отклонить
                                                     </Button>
