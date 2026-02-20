@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
 import "../lib/fcm"
+import BridgeInit from "@/components/BridgeInit"
 import { ActivityTrackerService } from "@/components/ActivityTrackerService"
 import { NotificationPermissionRequest } from "@/components/NotificationPermissionRequest"
 import { Toaster } from "@/components/ui/toaster"
@@ -25,6 +26,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
       </head>
       <body className="font-sf-pro">
+        <BridgeInit />
         {children}
         <ActivityTrackerService />
         <NotificationPermissionRequest />

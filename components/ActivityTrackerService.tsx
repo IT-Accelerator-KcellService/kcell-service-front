@@ -593,6 +593,22 @@ export function ActivityTrackerService() {
           return
         }
       } else {
+        // В iOS WebView сначала запрашиваем разрешение через bridge
+        try {
+          const { ensureMotionPermission, iosBridge } = await import('@/lib/ios-bridge')
+          if (iosBridge.isIOSWebView()) {
+            const hasPermission = await ensureMotionPermission()
+            if (!hasPermission) {
+              console.error('❌ [Service] Motion permission denied (iOS bridge)')
+              setIsTracking(false)
+              isStartingRef.current = false
+              return
+            }
+          }
+        } catch (e) {
+          console.error('❌ [Service] Error requesting motion permission (bridge):', e)
+        }
+
         // Стандартные Web API
         if (typeof DeviceMotionEvent === 'undefined') {
           console.error('❌ [Service] DeviceMotionEvent not supported')

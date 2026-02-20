@@ -478,6 +478,21 @@ export function ActivityTracker() {
     try {
       setError(null)
       
+      // В iOS WebView сначала запрашиваем разрешение через bridge
+      try {
+        const { ensureMotionPermission, iosBridge } = await import('@/lib/ios-bridge')
+        if (iosBridge.isIOSWebView()) {
+          const hasPermission = await ensureMotionPermission()
+          if (!hasPermission) {
+            setError('Разрешение на доступ к датчикам движения отклонено')
+            isStartingRef.current = false
+            return
+          }
+        }
+      } catch (e) {
+        console.error('Ошибка при запросе разрешения на датчики движения:', e)
+      }
+
       // Проверяем поддержку API (только для стандартных браузеров, не Android WebView)
       if (!isAndroidWebView.current && typeof DeviceMotionEvent === 'undefined') {
         setError('Ваш браузер не поддерживает DeviceMotionEvent API')

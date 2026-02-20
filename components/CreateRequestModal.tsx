@@ -223,8 +223,36 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setCurrentStep(1);
   };
 
-  const handleButtonClick = () => {
+  const handleButtonClick = async () => {
+    try {
+      const { ensureCameraPermission, iosBridge } = await import('@/lib/ios-bridge');
+      const { androidBridge } = await import('@/lib/android-bridge');
+      if (iosBridge.isIOSWebView()) {
+        const hasPermission = await ensureCameraPermission();
+        if (!hasPermission) return;
+      } else if (androidBridge.isAndroidWebView()) {
+        await androidBridge.requestPermission('camera');
+      }
+    } catch (e) {
+      console.error('Ошибка при запросе разрешения на камеру:', e);
+    }
     fileInputRef.current?.click();
+  };
+
+  const handleAfterPhotoButtonClick = async () => {
+    try {
+      const { ensureCameraPermission, iosBridge } = await import('@/lib/ios-bridge');
+      const { androidBridge } = await import('@/lib/android-bridge');
+      if (iosBridge.isIOSWebView()) {
+        const hasPermission = await ensureCameraPermission();
+        if (!hasPermission) return;
+      } else if (androidBridge.isAndroidWebView()) {
+        await androidBridge.requestPermission('camera');
+      }
+    } catch (e) {
+      console.error('Ошибка при запросе разрешения на камеру:', e);
+    }
+    document.getElementById('after-photo-input')?.click();
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -421,6 +449,26 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     // Показываем индикатор загрузки
     setIsGettingLocation(true);
 
+    try {
+      // В приложении (iOS/Android) сначала запрашиваем разрешение через бриджи
+      const { ensureLocationPermission, iosBridge } = await import('@/lib/ios-bridge');
+      const { androidBridge } = await import('@/lib/android-bridge');
+      if (iosBridge.isIOSWebView()) {
+        // ensureLocationPermission сам проверит статус и:
+        // - если notDetermined → покажет системный диалог
+        // - если denied → React Native покажет алерт «Открыть Настройки»
+        const hasPermission = await ensureLocationPermission();
+        if (!hasPermission) {
+          setIsGettingLocation(false);
+          return;
+        }
+      } else if (androidBridge.isAndroidWebView()) {
+        await androidBridge.requestPermission('location');
+      }
+    } catch (e) {
+      console.error('Ошибка при запросе разрешения на локацию:', e);
+    }
+
     // Сначала пробуем геолокацию браузера
     if (navigator.geolocation) {
       const options = {
@@ -460,6 +508,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       } finally {
         setIsGettingLocation(false);
       }
+    } else {
+      setIsGettingLocation(false);
     }
   };
 
@@ -1403,7 +1453,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                   {afterPhotoPreviews.length < 3 && (
                     <button
                       type="button"
-                      onClick={() => document.getElementById('after-photo-input')?.click()}
+                      onClick={handleAfterPhotoButtonClick}
                       className="w-full h-32 sm:h-40 border-2 border-dashed border-[#1E1E1E] rounded-lg flex items-center justify-center hover:border-[#F35713]/50 transition-colors bg-[#040404]"
                     >
                       <input

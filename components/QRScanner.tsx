@@ -65,100 +65,21 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
         }
       }
 
-      // Проверяем роль через localStorage (из auth-storage)
-      let userRole: string | null = null
+      // В приложении (iOS/Android WebView) сначала запрашиваем разрешение на камеру через бриджи
       try {
-        const authStorage = localStorage.getItem('auth-storage')
-        if (authStorage) {
-          const authData = JSON.parse(authStorage)
-          userRole = authData?.state?.role || authData?.state?.user?.role || null
-        }
-      } catch (error) {
-        console.warn('Не удалось прочитать роль из auth-storage:', error)
-      }
-      
-      // Если не нашли в auth-storage, пробуем напрямую
-      if (!userRole) {
-        userRole = localStorage.getItem('role')
-      }
-      
-      console.log('🔍 QR Scanner - User role:', userRole)
-      console.log('🔍 QR Scanner - androidApp available:', !!(window as any).androidApp)
-      console.log('🔍 QR Scanner - requestCameraPermission available:', !!(window as any).androidApp?.requestCameraPermission)
-      
-      // Если роль executor, запрашиваем разрешение на камеру через Android интерфейс
-      if (userRole === 'executor') {
-        if ((window as any).androidApp?.requestCameraPermission) {
-          console.log('📷 Запрос разрешения на камеру через Android интерфейс...')
-          
-          // Создаем глобальный callback для получения результата разрешения
-          const permissionGranted = await new Promise<boolean>((resolve) => {
-            let resolved = false
-            // Сохраняем старый callback, если он был
-            const oldCallback = (window as any).onCameraPermissionResult
-            
-            // Устанавливаем новый callback
-            ;(window as any).onCameraPermissionResult = (granted: boolean) => {
-              if (resolved) return
-              resolved = true
-              console.log('✅ Результат разрешения на камеру:', granted)
-              // Восстанавливаем старый callback, если он был
-              if (oldCallback) {
-                ;(window as any).onCameraPermissionResult = oldCallback
-              } else {
-                delete (window as any).onCameraPermissionResult
-              }
-              resolve(granted)
-            }
-            
-            // Вызываем Android метод
-            try {
-              console.log('📞 Вызываем androidApp.requestCameraPermission()...')
-              ;(window as any).androidApp.requestCameraPermission()
-              console.log('✅ requestCameraPermission вызван')
-            } catch (error) {
-              console.error('❌ Ошибка при вызове requestCameraPermission:', error)
-              if (!resolved) {
-                resolved = true
-                // Восстанавливаем callback
-                if (oldCallback) {
-                  ;(window as any).onCameraPermissionResult = oldCallback
-                } else {
-                  delete (window as any).onCameraPermissionResult
-                }
-                resolve(false)
-              }
-            }
-            
-            // Таймаут на случай, если ответ не придет
-            setTimeout(() => {
-              if (!resolved) {
-                resolved = true
-                console.warn('⏰ Таймаут ожидания разрешения на камеру')
-                // Восстанавливаем старый callback
-                if (oldCallback) {
-                  ;(window as any).onCameraPermissionResult = oldCallback
-                } else {
-                  delete (window as any).onCameraPermissionResult
-                }
-                resolve(false)
-              }
-            }, 10000) // Таймаут 10 секунд
-          })
-          
-          console.log('📷 Результат запроса разрешения:', permissionGranted)
-          
-          if (!permissionGranted) {
-            throw new Error('Разрешение на использование камеры было отклонено. Пожалуйста, разрешите доступ к камере в настройках приложения.')
+        const { ensureCameraPermission, iosBridge } = await import('@/lib/ios-bridge')
+        const { androidBridge } = await import('@/lib/android-bridge')
+        if (iosBridge.isIOSWebView()) {
+          const hasPermission = await ensureCameraPermission()
+          if (!hasPermission) {
+            throw new Error('Разрешение на использование камеры было отклонено. Откройте Настройки и разрешите доступ к камере.')
           }
-          
-          // Даем WebView время обновиться после получения разрешения
-          // WebView автоматически получит разрешение через onPermissionRequest
-          console.log('⏳ Ожидание обновления WebView после получения разрешения...')
-          await new Promise(resolve => setTimeout(resolve, 300))
-        } else {
-          console.warn('⚠️ androidApp.requestCameraPermission недоступен, пропускаем запрос разрешения')
+        } else if (androidBridge.isAndroidWebView()) {
+          await androidBridge.requestPermission('camera')
         }
+      } catch (e) {
+        if (e instanceof Error && e.message.includes('Разрешение')) throw e
+        console.error('Ошибка при запросе разрешения на камеру:', e)
       }
 
       // Убираем предварительную проверку - просто пробуем запустить сканер
