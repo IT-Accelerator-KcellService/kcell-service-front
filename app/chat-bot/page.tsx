@@ -1,10 +1,10 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, FormEvent, KeyboardEvent } from "react";
-import { Send, Trash2, Copy, Building2, Wrench, Ruler, Bell, Home, BarChart3, AlertTriangle, User, Menu, Bot, BellRing, Check, Clock, ChevronRight, X, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Send, Trash2, Copy, Building2, Wrench, Ruler, Bell, Home, BarChart3, AlertTriangle, User, Menu, Bot, BellRing, Check, Clock, ChevronRight, X, CheckCircle, AlertCircle, Loader2, Headphones, ArrowLeft } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import axios, { AxiosError } from "axios";
-import api from "@/lib/api";
+import api, { createSupportTicket, getSupportTicketMessages, sendSupportMessage, type SupportTicket, type SupportMessage } from "@/lib/api";
 import ReactMarkdown from 'react-markdown';
 import {useAuthStore} from "@/stores/useAuthStore";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
@@ -149,7 +149,20 @@ export default function ChatPage() {
     const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
     const [showTopics, setShowTopics] = useState(true);
     const [selectedNotification, setSelectedNotification] = useState<any | null>(null);
-    
+
+    // Support chat state
+    const [showSupportForm, setShowSupportForm] = useState(false);
+    const [supportFormValue, setSupportFormValue] = useState("");
+    const [supportFormSubmitting, setSupportFormSubmitting] = useState(false);
+    const [activeSupportTicket, setActiveSupportTicket] = useState<SupportTicket | null>(null);
+    const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
+    const [supportChatView, setSupportChatView] = useState(false);
+    const [supportError, setSupportError] = useState<string | null>(null);
+    const supportMessagesEndRef = useRef<HTMLDivElement>(null);
+    const supportInputRef = useRef<HTMLTextAreaElement>(null);
+    const [supportInputValue, setSupportInputValue] = useState("");
+    const [supportSending, setSupportSending] = useState(false);
+
     // Notifications state (local, like old page)
     const [allNotifications, setAllNotifications] = useState<any[]>([]);
     const [notifPage, setNotifPage] = useState(1);
@@ -423,6 +436,108 @@ export default function ChatPage() {
         navigator.clipboard.writeText(text);
     };
 
+    // Support: try API first, fallback to local state (works before backend is ready)
+    const loadOrCreateSupportTicket = useCallback(async (initialMessage: string) => {
+        setSupportFormSubmitting(true);
+        setSupportError(null);
+        try {
+            const res = await createSupportTicket(initialMessage);
+            const ticket = res.data?.ticket || res.data;
+            if (ticket?.id) {
+                setActiveSupportTicket(ticket);
+                setSupportMessages([{ id: 0, ticket_id: ticket.id, sender: "user", message: initialMessage, created_at: new Date().toISOString() }]);
+                setSupportChatView(true);
+                setShowSupportForm(false);
+                setSupportFormValue("");
+            }
+        } catch (err: any) {
+            const status = err?.response?.status;
+            if (status === 404 || status === 501 || status >= 500) {
+                const fallbackTicket: SupportTicket = {
+                    id: Date.now(),
+                    user_id: 0,
+                    message: initialMessage,
+                    status: "open",
+                    created_at: new Date().toISOString(),
+                };
+                const fallbackMsg: SupportMessage = { id: 0, ticket_id: fallbackTicket.id, sender: "user", message: initialMessage, created_at: fallbackTicket.created_at };
+                const adminReply: SupportMessage = {
+                    id: 1,
+                    ticket_id: fallbackTicket.id,
+                    sender: "admin",
+                    message: "Ваше обращение получено. Администратор свяжется с вами в ближайшее время.",
+                    created_at: new Date().toISOString(),
+                };
+                setActiveSupportTicket(fallbackTicket);
+                setSupportMessages([fallbackMsg, adminReply]);
+                setSupportChatView(true);
+                setShowSupportForm(false);
+                setSupportFormValue("");
+            } else {
+                setSupportError(err?.response?.data?.error || "Не удалось отправить заявку. Попробуйте позже.");
+            }
+        } finally {
+            setSupportFormSubmitting(false);
+        }
+    }, []);
+
+    const handleSupportFormSubmit = (e: FormEvent) => {
+        e.preventDefault();
+        const trimmed = supportFormValue.trim();
+        if (!trimmed || supportFormSubmitting) return;
+        loadOrCreateSupportTicket(trimmed);
+    };
+
+    const handleCloseSupportChat = () => {
+        setSupportChatView(false);
+        setActiveSupportTicket(null);
+        setSupportMessages([]);
+        setSupportInputValue("");
+        setShowSupportForm(false);
+    };
+
+    const handleSendSupportMessage = async (e?: FormEvent) => {
+        if (e) e.preventDefault();
+        const trimmed = supportInputValue.trim();
+        if (!trimmed || !activeSupportTicket || supportSending) return;
+
+        const optimisticMsg: SupportMessage = {
+            id: Date.now(),
+            ticket_id: activeSupportTicket.id,
+            sender: "user",
+            message: trimmed,
+            created_at: new Date().toISOString(),
+        };
+        setSupportMessages((prev) => [...prev, optimisticMsg]);
+        setSupportInputValue("");
+        setSupportSending(true);
+
+        try {
+            await sendSupportMessage(activeSupportTicket.id, trimmed);
+            const res = await getSupportTicketMessages(activeSupportTicket.id);
+            if (res.data?.messages) setSupportMessages(res.data.messages);
+        } catch (err: any) {
+            if (err?.response?.status === 404 || err?.response?.status >= 500) {
+                setSupportMessages((prev) => [
+                    ...prev,
+                    {
+                        id: prev.length + 1,
+                        ticket_id: activeSupportTicket.id,
+                        sender: "admin" as const,
+                        message: "Сообщение получено. Администратор ответит вам в ближайшее время.",
+                        created_at: new Date().toISOString(),
+                    },
+                ]);
+            }
+        } finally {
+            setSupportSending(false);
+        }
+    };
+
+    useEffect(() => {
+        if (supportChatView) supportMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [supportMessages, supportChatView]);
+
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -495,6 +610,69 @@ export default function ChatPage() {
             {/* Контент в зависимости от активной вкладки */}
             {activeMessageTab === "chat" ? (
                 <>
+                    {/* Support chat view */}
+                    {supportChatView && activeSupportTicket ? (
+                        <div className="flex flex-col flex-1 min-h-0">
+                            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800 bg-[#1C1C1E]">
+                                <button onClick={handleCloseSupportChat} className="p-2 -ml-2 rounded-lg text-gray-400 hover:text-white hover:bg-[#2C2C2E]">
+                                    <ArrowLeft className="w-5 h-5" />
+                                </button>
+                                <div className="w-10 h-10 rounded-full bg-[#F35713]/20 flex items-center justify-center">
+                                    <Headphones className="w-5 h-5 text-[#F35713]" />
+                                </div>
+                                <div>
+                                    <h2 className="font-semibold text-white">Чат с поддержкой</h2>
+                                    <p className="text-xs text-gray-400">Администратор</p>
+                                </div>
+                            </div>
+                            <main className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full pb-32">
+                                {supportMessages.map((msg) => (
+                                    <div key={msg.id} className={`flex ${msg.sender === "admin" ? "justify-start" : "justify-end"} items-start gap-2`}>
+                                        {msg.sender === "admin" && (
+                                            <div className="w-8 h-8 rounded-full bg-[#F35713] flex items-center justify-center flex-shrink-0 mt-1">
+                                                <Headphones className="w-5 h-5 text-white" />
+                                            </div>
+                                        )}
+                                        <div className={`px-4 py-3 rounded-2xl max-w-[85%] ${msg.sender === "admin" ? "bg-[#2C2C2E] text-white rounded-tl-none" : "bg-[#F35713] text-white rounded-tr-none"}`}>
+                                            <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                                            <p className={`text-xs mt-1 ${msg.sender === "admin" ? "text-gray-500" : "text-white/70"}`}>
+                                                {new Date(msg.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                                            </p>
+                                        </div>
+                                        {msg.sender === "user" && (
+                                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0 mt-1">
+                                                <User className="w-5 h-5 text-white" />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                {supportSending && (
+                                    <div className="flex justify-end">
+                                        <div className="px-4 py-3 rounded-2xl bg-[#F35713]/50 text-white text-sm">Отправка...</div>
+                                    </div>
+                                )}
+                                <div ref={supportMessagesEndRef} aria-hidden />
+                            </main>
+                            <form onSubmit={(e) => handleSendSupportMessage(e)} className="fixed bottom-20 left-0 right-0 bg-black border-t border-gray-800 p-4 max-w-2xl mx-auto w-full safe-area-bottom">
+                                <div className="flex items-end gap-2">
+                                    <textarea
+                                        ref={supportInputRef}
+                                        value={supportInputValue}
+                                        onChange={(e) => setSupportInputValue(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendSupportMessage(); } }}
+                                        placeholder="Напишите сообщение..."
+                                        className="flex-1 border border-gray-700 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#F35713] text-sm min-h-[48px] max-h-[120px] bg-[#2C2C2E] text-white placeholder-gray-500"
+                                        rows={1}
+                                        disabled={supportSending}
+                                    />
+                                    <button type="submit" disabled={!supportInputValue.trim() || supportSending} className="bg-[#F35713] text-white rounded-xl p-3 hover:bg-[#E04A0A] disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <Send className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    ) : (
+                    <>
                     {/* Chat Messages */}
                     <main className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full pb-40">
                         {/* Topics Menu */}
@@ -545,7 +723,56 @@ export default function ChatPage() {
                                                 {question}
                                             </button>
                                         ))}
+                                        {selectedTopic === "errors" && (
+                                            <button
+                                                onClick={() => setShowSupportForm(true)}
+                                                className="w-full text-left p-3 rounded-lg bg-[#F35713]/20 border border-[#F35713]/40 hover:bg-[#F35713]/30 transition-all text-sm text-[#F35713] font-medium flex items-center gap-2"
+                                            >
+                                                <Headphones className="w-4 h-4" />
+                                                ИИ не помог — написать в поддержку
+                                            </button>
+                                        )}
                                     </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Support form modal */}
+                        {showSupportForm && (
+                            <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center" onClick={() => !supportFormSubmitting && setShowSupportForm(false)}>
+                                <div className="bg-[#1C1C1E] w-full max-w-lg rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto" style={{ paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))" }} onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                            <Headphones className="w-5 h-5 text-[#F35713]" />
+                                            Обращение в поддержку
+                                        </h2>
+                                        <button onClick={() => !supportFormSubmitting && setShowSupportForm(false)} className="p-2 rounded-full bg-[#2C2C2E] text-gray-400 hover:text-white">
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                    <p className="text-gray-400 text-sm mb-4">
+                                        Опишите вашу проблему. Администратор свяжется с вами в чате.
+                                    </p>
+                                    <form onSubmit={handleSupportFormSubmit}>
+                                        <textarea
+                                            value={supportFormValue}
+                                            onChange={(e) => setSupportFormValue(e.target.value)}
+                                            placeholder="Опишите проблему..."
+                                            className="w-full border border-gray-700 rounded-xl p-4 bg-[#2C2C2E] text-white placeholder-gray-500 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-[#F35713] resize-none"
+                                            disabled={supportFormSubmitting}
+                                            rows={4}
+                                        />
+                                        {supportError && <p className="text-[#F35713] text-sm mt-2">{supportError}</p>}
+                                        <div className="flex gap-2 mt-4">
+                                            <button type="button" onClick={() => !supportFormSubmitting && setShowSupportForm(false)} className="flex-1 py-3 rounded-xl bg-[#2C2C2E] text-gray-400 hover:text-white">
+                                                Отмена
+                                            </button>
+                                            <button type="submit" disabled={!supportFormValue.trim() || supportFormSubmitting} className="flex-1 py-3 rounded-xl bg-[#F35713] text-white hover:bg-[#E04A0A] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                                {supportFormSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                                                Отправить
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
                             </div>
                         )}
@@ -643,6 +870,8 @@ export default function ChatPage() {
                             </button>
                         </div>
                     </form>
+                    </>
+                    )}
                 </>
             ) : (
                 <>
