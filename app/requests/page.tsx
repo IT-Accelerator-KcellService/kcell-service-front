@@ -551,7 +551,7 @@ export default function RequestsPage() {
     <>
       <PullToRefresh onRefresh={handleRefresh}>
         <div 
-          className="min-h-screen bg-black"
+          className="min-h-screen bg-black relative z-10"
           style={{ 
             paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
             minHeight: '100vh',
@@ -793,9 +793,9 @@ export default function RequestsPage() {
         </div>
       </PullToRefresh>
 
-      {/* Black background extension for safe area */}
+      {/* Нижняя подложка под навбар — закрывает safe area, чтобы не было белой полосы */}
       <div 
-        className="fixed bottom-0 left-0 right-0 bg-black -z-10"
+        className="fixed bottom-0 left-0 right-0 z-0 bg-black"
         style={{ height: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}
       />
 

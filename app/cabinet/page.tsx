@@ -229,7 +229,7 @@ export default function CabinetPage() {
     <>
       <PullToRefresh onRefresh={handleRefresh}>
         <div 
-          className="min-h-screen"
+          className="min-h-screen relative z-10"
           style={{ 
             background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 25%, #E25B21 45%, #E25B21 70%, #4A2510 90%, #1C1C1E 100%)',
             paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
@@ -591,9 +591,10 @@ export default function CabinetPage() {
       </PullToRefresh>
 
       {/* Black background extension for safe area */}
-      <div 
-        className="fixed bottom-0 left-0 right-0 -z-10"
-        style={{ 
+      {/* Нижняя подложка под навбар — закрывает safe area, чтобы не было белой полосы */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-0"
+        style={{
           height: 'calc(100px + env(safe-area-inset-bottom, 0px))',
           background: '#1C1C1E',
         }}

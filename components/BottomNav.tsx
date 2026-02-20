@@ -87,12 +87,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false 
 
     return (
         <>
-        {/* Фон под safe area */}
+        {/* Фон под навбаром и safe area — тёмный, чтобы не было белой полосы на iOS */}
         <div 
             className="md:hidden fixed bottom-0 left-0 right-0 z-40"
             style={{
                 height: 'calc(73px + env(safe-area-inset-bottom, 0px))',
-                background: 'transparent',
+                background: '#1C1C1E',
             }}
         />
         <nav 
