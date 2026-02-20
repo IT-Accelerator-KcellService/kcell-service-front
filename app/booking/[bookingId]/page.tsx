@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { QRCodeSVG } from "qrcode.react"
 import { QrCode, Copy, Share2, MapPin, Building2, Calendar, Clock, ArrowLeft } from "lucide-react"
 import { getPublicBooking, type MeetingRoomBooking } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
+import { BottomNav } from "@/components/BottomNav"
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 export default function BookingQRPage() {
   const params = useParams()
   const router = useRouter()
+  const isDesktop = useMediaQuery("(min-width: 768px)")
   const bookingId = params?.bookingId ? parseInt(params.bookingId as string) : null
   const [booking, setBooking] = useState<MeetingRoomBooking | null>(null)
   const [loading, setLoading] = useState(true)
@@ -96,25 +97,21 @@ export default function BookingQRPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#114A65]/10 to-blue-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#114A65] mx-auto"></div>
-            <p className="mt-4 text-gray-600">Загрузка...</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#1C1C1E] rounded-[10px] p-8 text-center">
+          <div className="w-12 h-12 border-2 border-[#F35713] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-white/60">Загрузка...</p>
+        </div>
       </div>
     )
   }
 
   if (error || !booking) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#114A65]/10 to-blue-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8 text-center">
-            <p className="text-red-600">{error || "Бронирование не найдено"}</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#1C1C1E] rounded-[10px] p-8 text-center">
+          <p className="text-red-400">{error || "Бронирование не найдено"}</p>
+        </div>
       </div>
     )
   }
@@ -128,116 +125,114 @@ export default function BookingQRPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#114A65]/10 to-blue-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        <Card className="shadow-lg">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-4 mb-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.back()}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Назад
-              </Button>
-            </div>
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <QrCode className="h-6 w-6 text-[#114A65]" />
-              <CardTitle className="text-2xl">Бронирование переговорной комнаты</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Информация об офисе */}
-            {office && (
-              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                <div className="flex items-start gap-3">
-                  <Building2 className="h-5 w-5 text-[#114A65] mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 mb-1">{office.name}</h3>
-                    {office.address && (
-                      <div className="flex items-start gap-2 text-gray-600">
-                        <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm">{office.address}</p>
-                      </div>
-                    )}
-                    {office.city && (
-                      <p className="text-sm text-gray-500 mt-1">{office.city}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+    <div className="flex flex-col min-h-screen bg-black">
+      {/* Header */}
+      <div className="pt-12 px-3 pb-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-white/80 hover:text-white mb-4"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm font-medium">Назад</span>
+        </button>
+        <div className="flex items-center gap-2 mb-2">
+          <QrCode className="h-6 w-6 text-[#F35713]" />
+          <h1 className="text-xl font-bold text-white">Бронирование переговорной комнаты</h1>
+        </div>
+      </div>
 
-            {/* Информация о бронировании */}
-            <div className="bg-white rounded-lg p-4 border border-gray-200 space-y-3">
-              {room && (
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">Комната:</span>
-                  <span className="font-semibold text-gray-900">{room.name}</span>
-                  {room.floor && (
-                    <span className="text-sm text-gray-500">(Этаж {room.floor})</span>
+      {/* Content */}
+      <div className="flex-1 px-3 pb-24 overflow-y-auto">
+        <div className="max-w-2xl mx-auto space-y-4">
+          {/* Информация об офисе */}
+          {office && (
+            <div className="bg-[#1C1C1E] rounded-[10px] p-4">
+              <div className="flex items-start gap-3">
+                <Building2 className="h-5 w-5 text-[#F35713] mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-white mb-1">{office.name}</h3>
+                  {office.address && (
+                    <div className="flex items-start gap-2 text-white/70">
+                      <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#F35713]" />
+                      <p className="text-sm">{office.address}</p>
+                    </div>
+                  )}
+                  {office.city && (
+                    <p className="text-sm text-white/50 mt-1">{office.city}</p>
                   )}
                 </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Дата:</span>
-                <span className="font-semibold text-gray-900">{formatDate(booking.start_time)}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">Время:</span>
-                <span className="font-semibold text-gray-900">
-                  {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                </span>
-              </div>
-              {booking.tables_remaining !== undefined && (
-                <div className="pt-2 border-t border-gray-200">
-                  <span className="text-sm text-gray-600">Столов осталось: </span>
-                  <span className="font-semibold text-[#114A65]">{booking.tables_remaining}</span>
-                </div>
-              )}
             </div>
+          )}
 
-            {/* QR код */}
-            <div className="flex flex-col items-center gap-4 bg-white rounded-lg p-6 border border-gray-200">
-              <div className="p-4 bg-white rounded-lg border-2 border-[#114A65]/20 shadow-sm">
-                <QRCodeSVG
-                  value={qrData}
-                  size={256}
-                  level="H"
-                  includeMargin={true}
-                />
+          {/* Информация о бронировании */}
+          <div className="bg-[#1C1C1E] rounded-[10px] p-4 space-y-3">
+            {room && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Building2 className="h-4 w-4 text-[#F35713] flex-shrink-0" />
+                <span className="text-sm text-white/70">Комната:</span>
+                <span className="font-semibold text-white">{room.name}</span>
+                {room.floor && (
+                  <span className="text-sm text-white/50">(Этаж {room.floor})</span>
+                )}
               </div>
-              <p className="text-sm text-center text-gray-600 max-w-xs">
-                Покажите этот QR код исполнителю для сканирования
-              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-[#F35713] flex-shrink-0" />
+              <span className="text-sm text-white/70">Дата:</span>
+              <span className="font-semibold text-white">{formatDate(booking.start_time)}</span>
             </div>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-[#F35713] flex-shrink-0" />
+              <span className="text-sm text-white/70">Время:</span>
+              <span className="font-semibold text-white">
+                {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
+              </span>
+            </div>
+            {booking.tables_remaining !== undefined && (
+              <div className="pt-3 border-t border-white/10">
+                <span className="text-sm text-white/70">Столов осталось: </span>
+                <span className="font-semibold text-[#F35713]">{booking.tables_remaining}</span>
+              </div>
+            )}
+          </div>
 
-            {/* Кнопки действий */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                onClick={handleCopyLink}
-                variant="outline"
-                className="flex-1 flex items-center justify-center gap-2"
-              >
-                <Copy className="h-4 w-4" />
-                Скопировать ссылку
-              </Button>
-              <Button
-                onClick={handleShare}
-                className="flex-1 bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D] flex items-center justify-center gap-2"
-              >
-                <Share2 className="h-4 w-4" />
-                Поделиться
-              </Button>
+          {/* QR код */}
+          <div className="flex flex-col items-center gap-4 bg-[#1C1C1E] rounded-[10px] p-6">
+            <div className="p-4 bg-white rounded-[10px] border-2 border-[#F35713]/30">
+              <QRCodeSVG
+                value={qrData}
+                size={256}
+                level="H"
+                includeMargin={true}
+              />
             </div>
-          </CardContent>
-        </Card>
+            <p className="text-sm text-center text-white/60 max-w-xs">
+              Покажите этот QR код исполнителю для сканирования
+            </p>
+          </div>
+
+          {/* Кнопки действий */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={handleCopyLink}
+              className="flex-1 py-3 rounded-[10px] bg-[#262626] text-white font-medium flex items-center justify-center gap-2 hover:bg-[#333] transition-colors border border-white/10"
+            >
+              <Copy className="h-4 w-4" />
+              Скопировать ссылку
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex-1 py-3 rounded-[10px] bg-[#F35713] text-white font-medium flex items-center justify-center gap-2 hover:bg-[#E24D0F] transition-colors"
+            >
+              <Share2 className="h-4 w-4" />
+              Поделиться
+            </button>
+          </div>
+        </div>
       </div>
+
+      {!isDesktop && <BottomNav activeTab="booking" />}
     </div>
   )
 }
