@@ -33,16 +33,21 @@ export default function AdminWorkerLayout({
 
         // On mobile: redirect /admin-worker to /admin-worker/management
         // Unless we have tab/requestId params (e.g. from requests page card click)
-        const hasRequestParams = searchParams?.get("tab") || searchParams?.get("requestId");
+        // Use window.location.search as fallback - searchParams may not be updated yet on navigation
+        const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+        const hasRequestParams =
+            searchParams?.get("tab") || searchParams?.get("requestId") ||
+            urlParams?.get("tab") || urlParams?.get("requestId");
         if (!isDesktop && pathname === "/admin-worker" && !hasRequestParams) {
             router.replace("/admin-worker/management");
         }
     }, [hydrated, user, router, clearAuth, isDesktop, pathname, searchParams]);
 
-    // Add body class for admin management mobile - enables dark theme for portaled Select/dropdown
+    // Add body class for admin mobile (management + requests) - enables dark theme for portaled Select/dropdown
     useEffect(() => {
         const isManagement = pathname?.startsWith("/admin-worker/management");
-        if (!isDesktop && isManagement) {
+        const isRequests = pathname?.startsWith("/admin-worker/requests");
+        if (!isDesktop && (isManagement || isRequests)) {
             document.body.classList.add("admin-management-mobile");
         } else {
             document.body.classList.remove("admin-management-mobile");
@@ -56,7 +61,7 @@ export default function AdminWorkerLayout({
 
     return (
         <div
-            className={`min-h-screen pb-[calc(90px+env(safe-area-inset-bottom,0px))] md:pb-0 ${
+            className={`min-h-screen pb-[calc(110px+env(safe-area-inset-bottom,0px))] md:pb-0 ${
                 !isDesktop ? "bg-[#1C1C1E]" : "bg-[#F3F3F3]"
             }`}
         >

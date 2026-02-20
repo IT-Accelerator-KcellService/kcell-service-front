@@ -6,8 +6,7 @@ import Link from "next/link";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Building2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { sortRequests, useRequestStore } from "@/stores/useRequestStore";
 import { RequestGroup } from "@/stores/useRequestStore";
 import { RequestCard } from "@/components/RequestCard";
@@ -34,8 +33,8 @@ export default function AdminRequestsPage() {
   const [filterMyType, setFilterMyType] = useState("all");
   const [filterIncomingStatus, setFilterIncomingStatus] = useState("all");
   const [filterIncomingType, setFilterIncomingType] = useState("all");
+  const [activeTab, setActiveTab] = useState<"incoming" | "my-requests" | "recurring">("incoming");
   const [loading, setLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState<RequestGroup | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
@@ -151,18 +150,21 @@ export default function AdminRequestsPage() {
   );
 
   const handleCardClick = (request: RequestGroup) => {
-    setSelectedRequest(request);
-    router.push(`/admin-worker?tab=incoming&requestId=${request.id}`);
+    router.push(`/admin-worker/requests/${request.id}`);
   };
 
   if (isDesktop) return null;
 
+  const handleMyCardClick = (request: RequestGroup) => {
+    router.push(`/admin-worker/requests/${request.id}`);
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-6">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold text-[#040404]">Заявки</h1>
+        <h1 className="text-2xl font-bold text-white">Заявки</h1>
         <Link href="/create-request">
-          <Button className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]">
+          <Button className="h-12 px-5 bg-[#F35713] hover:bg-[#E04A0A] text-white font-semibold rounded-2xl">
             <Plus className="h-4 w-4 mr-2" />
             Создать
           </Button>
@@ -170,116 +172,171 @@ export default function AdminRequestsPage() {
       </div>
 
       <PullToRefresh onRefresh={handleRefresh}>
-        <Tabs defaultValue="incoming" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="incoming">Входящие</TabsTrigger>
-            <TabsTrigger value="my-requests">Мои</TabsTrigger>
-            <TabsTrigger value="recurring">Повторяющиеся</TabsTrigger>
-          </TabsList>
+        <div className="space-y-4">
+          {/* Tab switcher - как у клиента */}
+          <div className="flex rounded-xl overflow-hidden bg-[#3D3D3D]">
+            <button
+              onClick={() => setActiveTab("incoming")}
+              className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 ${
+                activeTab === "incoming"
+                  ? "bg-[#5A5A5A] text-white"
+                  : "bg-transparent text-gray-400"
+              }`}
+            >
+              Входящие
+            </button>
+            <button
+              onClick={() => setActiveTab("my-requests")}
+              className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 ${
+                activeTab === "my-requests"
+                  ? "bg-[#5A5A5A] text-white"
+                  : "bg-transparent text-gray-400"
+              }`}
+            >
+              Мои
+            </button>
+            <button
+              onClick={() => setActiveTab("recurring")}
+              className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 ${
+                activeTab === "recurring"
+                  ? "bg-[#5A5A5A] text-white"
+                  : "bg-transparent text-gray-400"
+              }`}
+            >
+              Повторяющиеся
+            </button>
+          </div>
 
-          <TabsContent value="incoming">
-            <div className="flex flex-wrap gap-2 mb-4">
-              <Select value={filterIncomingStatus} onValueChange={setFilterIncomingStatus}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Статус" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все</SelectItem>
-                  <SelectItem value="in_progress">В обработке</SelectItem>
-                  <SelectItem value="awaiting_assignment">Ожидает</SelectItem>
-                  <SelectItem value="execution">Исполнение</SelectItem>
-                  <SelectItem value="completed">Завершено</SelectItem>
-                  <SelectItem value="overdue">Просрочено</SelectItem>
-                  <SelectItem value="rejected">Отклонено</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filterIncomingType} onValueChange={setFilterIncomingType}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Тип" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все</SelectItem>
-                  <SelectItem value="normal">Обычная</SelectItem>
-                  <SelectItem value="urgent">Экстренная</SelectItem>
-                  <SelectItem value="planned">Плановая</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {activeTab === "incoming" && (
             <div className="space-y-4">
-              {loading ? (
-                <div className="text-center py-8 text-gray-500">Загрузка...</div>
-              ) : (
-                filteredIncomingRequests.map((request) => (
-                  <RequestCard
-                    key={request.id}
-                    request={request}
-                    onCardClick={handleCardClick}
-                    renderCardHeader={renderCardHeader}
-                  />
-                ))
-              )}
+              <h2 className="text-lg font-bold text-white">Входящие заявки</h2>
+              <div className="flex gap-2">
+                <Select value={filterIncomingStatus} onValueChange={setFilterIncomingStatus}>
+                  <SelectTrigger className="flex-1 bg-[#2C2C2E] border-[#3A3A3C] text-white">
+                    <SelectValue placeholder="Статус" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#2C2C2E] border-[#3A3A3C]">
+                    <SelectItem value="all" className="text-white">Все</SelectItem>
+                    <SelectItem value="in_progress" className="text-white">В обработке</SelectItem>
+                    <SelectItem value="awaiting_assignment" className="text-white">Ожидает</SelectItem>
+                    <SelectItem value="execution" className="text-white">Исполнение</SelectItem>
+                    <SelectItem value="completed" className="text-white">Завершено</SelectItem>
+                    <SelectItem value="overdue" className="text-white">Просрочено</SelectItem>
+                    <SelectItem value="rejected" className="text-white">Отклонено</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterIncomingType} onValueChange={setFilterIncomingType}>
+                  <SelectTrigger className="flex-1 bg-[#2C2C2E] border-[#3A3A3C] text-white">
+                    <SelectValue placeholder="Тип" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#2C2C2E] border-[#3A3A3C]">
+                    <SelectItem value="all" className="text-white">Все</SelectItem>
+                    <SelectItem value="normal" className="text-white">Обычная</SelectItem>
+                    <SelectItem value="urgent" className="text-white">Экстренная</SelectItem>
+                    <SelectItem value="planned" className="text-white">Плановая</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-4 pb-40">
+                {loading ? (
+                  <div className="text-center py-8 text-gray-400">Загрузка...</div>
+                ) : (
+                  filteredIncomingRequests.map((request, index) => (
+                    <RequestCard
+                      key={request.id}
+                      request={request}
+                      onCardClick={handleCardClick}
+                      renderCardHeader={renderCardHeader}
+                      isLast={index === filteredIncomingRequests.length - 1}
+                      lastElementRef={lastElementRef}
+                      userRole="admin-worker"
+                      variant="compact"
+                    />
+                  ))
+                )}
+                {!loading && filteredIncomingRequests.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    <p>Нет входящих заявок</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="my-requests">
-            <div className="flex flex-wrap gap-2 mb-4">
-              <Select value={filterMyStatus} onValueChange={setFilterMyStatus}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Статус" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все</SelectItem>
-                  <SelectItem value="in_progress">В обработке</SelectItem>
-                  <SelectItem value="awaiting_assignment">Ожидает</SelectItem>
-                  <SelectItem value="execution">Исполнение</SelectItem>
-                  <SelectItem value="completed">Завершено</SelectItem>
-                  <SelectItem value="overdue">Просрочено</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={filterMyType} onValueChange={setFilterMyType}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Тип" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все</SelectItem>
-                  <SelectItem value="normal">Обычная</SelectItem>
-                  <SelectItem value="urgent">Экстренная</SelectItem>
-                  <SelectItem value="planned">Плановая</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {activeTab === "my-requests" && (
             <div className="space-y-4">
-              {loading ? (
-                <div className="text-center py-8 text-gray-500">Загрузка...</div>
-              ) : (
-                filteredMyRequests.map((request) => (
-                  <RequestCard
-                    key={request.id}
-                    request={request}
-                    onCardClick={handleCardClick}
-                    renderCardHeader={renderCardHeader}
-                  />
-                ))
-              )}
+              <h2 className="text-lg font-bold text-white">Мои заявки</h2>
+              <div className="flex gap-2">
+                <Select value={filterMyStatus} onValueChange={setFilterMyStatus}>
+                  <SelectTrigger className="flex-1 bg-[#2C2C2E] border-[#3A3A3C] text-white">
+                    <SelectValue placeholder="Статус" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#2C2C2E] border-[#3A3A3C]">
+                    <SelectItem value="all" className="text-white">Все</SelectItem>
+                    <SelectItem value="in_progress" className="text-white">В обработке</SelectItem>
+                    <SelectItem value="awaiting_assignment" className="text-white">Ожидает</SelectItem>
+                    <SelectItem value="execution" className="text-white">Исполнение</SelectItem>
+                    <SelectItem value="completed" className="text-white">Завершено</SelectItem>
+                    <SelectItem value="overdue" className="text-white">Просрочено</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterMyType} onValueChange={setFilterMyType}>
+                  <SelectTrigger className="flex-1 bg-[#2C2C2E] border-[#3A3A3C] text-white">
+                    <SelectValue placeholder="Тип" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#2C2C2E] border-[#3A3A3C]">
+                    <SelectItem value="all" className="text-white">Все</SelectItem>
+                    <SelectItem value="normal" className="text-white">Обычная</SelectItem>
+                    <SelectItem value="urgent" className="text-white">Экстренная</SelectItem>
+                    <SelectItem value="planned" className="text-white">Плановая</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-4 pb-12">
+                {loading ? (
+                  <div className="text-center py-8 text-gray-400">Загрузка...</div>
+                ) : (
+                  filteredMyRequests.map((request, index) => (
+                    <RequestCard
+                      key={request.id}
+                      request={request}
+                      onCardClick={handleMyCardClick}
+                      renderCardHeader={renderCardHeader}
+                      isLast={index === filteredMyRequests.length - 1}
+                      lastElementRef={lastElementRef}
+                      userRole="admin-worker"
+                      variant="compact"
+                    />
+                  ))
+                )}
+                {!loading && filteredMyRequests.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    <p>У вас пока нет заявок</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="recurring">
-            <RecurringTasksList
-              userRole="admin-worker"
-              isDesktop={false}
-              onShowMap={() => {}}
-              onDeleteTask={async (id) => {
-                try {
-                  await deleteRecurringTask(id);
-                  toast({ title: "Задача удалена" });
-                } catch {
-                  toast({ title: "Ошибка", variant: "destructive" });
-                }
-              }}
-            />
-          </TabsContent>
-        </Tabs>
+          {activeTab === "recurring" && (
+            <div className="space-y-4 admin-management-content">
+              <h2 className="text-lg font-bold text-white">Повторяющиеся задачи</h2>
+              <RecurringTasksList
+                userRole="admin-worker"
+                isDesktop={false}
+                onShowMap={() => {}}
+                onDeleteTask={async (id) => {
+                  try {
+                    await deleteRecurringTask(id);
+                    toast({ title: "Задача удалена" });
+                  } catch {
+                    toast({ title: "Ошибка", variant: "destructive" });
+                  }
+                }}
+              />
+            </div>
+          )}
+        </div>
       </PullToRefresh>
     </div>
   );

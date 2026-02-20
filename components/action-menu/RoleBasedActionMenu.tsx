@@ -38,6 +38,7 @@ interface RoleBasedActionMenuProps {
   isDesktop: boolean
   userRole: string
   isSubRequest?: boolean // Новый параметр для определения типа заявки
+  variant?: "default" | "admin" // Тёмный дизайн для админ мобилки
   onStartTask?: (id: string) => void
   onCompleteTask?: (request: any) => void
   onSkipTask?: (request: any) => void
@@ -67,6 +68,7 @@ export function RoleBasedActionMenu({
   isDesktop,
   userRole,
   isSubRequest = false,
+  variant = "default",
   onStartTask,
   onCompleteTask,
   onSkipTask,
@@ -640,6 +642,8 @@ export function RoleBasedActionMenu({
     }
   }, [open, isDesktop])
 
+  const isAdminDark = variant === "admin"
+
   // Мобильный ActionMenu через Portal
   const mobileActionMenu = open && !isDesktop && mounted ? createPortal(
     <div 
@@ -656,7 +660,9 @@ export function RoleBasedActionMenu({
       {/* Sheet Content */}
       <div
         ref={sheetRef}
-        className="relative w-full bg-white rounded-t-3xl shadow-2xl transform transition-all duration-300 ease-out max-h-[80vh] overflow-y-auto"
+        className={`relative w-full rounded-t-3xl shadow-2xl transform transition-all duration-300 ease-out max-h-[80vh] overflow-y-auto ${
+          isAdminDark ? "bg-[#1C1C1E]" : "bg-white"
+        }`}
         style={{
           transform: isDragging ? `translateY(${Math.max(0, currentY - startY)}px)` : 'translateY(0)',
         }}
@@ -666,15 +672,19 @@ export function RoleBasedActionMenu({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drag Handle */}
-        <div className="flex justify-center pt-4 pb-2 sticky top-0 bg-white rounded-t-3xl">
-          <div className="w-12 h-1 bg-gray-300 rounded-full" />
+        <div className={`flex justify-center pt-4 pb-2 sticky top-0 rounded-t-3xl ${
+          isAdminDark ? "bg-[#1C1C1E]" : "bg-white"
+        }`}>
+          <div className={`w-12 h-1 rounded-full ${isAdminDark ? "bg-gray-600" : "bg-gray-300"}`} />
         </div>
 
         {/* Header */}
-        <div className="px-6 pb-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Действия</h3>
-          <p className="text-sm text-gray-500 mt-1">Выберите действие для заявки № {isSubRequest ? getSubRequestDisplayId(request, requestGroup.id) : request.id}</p>
-          <p className="text-xs text-[#114A65] mt-1 font-medium">
+        <div className={`px-6 pb-4 border-b ${isAdminDark ? "border-gray-700" : "border-gray-100"}`}>
+          <h3 className={`text-lg font-semibold ${isAdminDark ? "text-white" : "text-gray-900"}`}>Действия</h3>
+          <p className={`text-sm mt-1 ${isAdminDark ? "text-gray-400" : "text-gray-500"}`}>
+            Выберите действие для заявки № {isSubRequest ? getSubRequestDisplayId(request, requestGroup?.id) : request.id}
+          </p>
+          <p className={`text-xs mt-1 font-medium ${isAdminDark ? "text-[#F35713]" : "text-[#114A65]"}`}>
             {userRole === "client" && "Клиент"}
             {userRole === "executor" && "Исполнитель"}
             {userRole === "manager" && "Руководитель"}
@@ -686,17 +696,24 @@ export function RoleBasedActionMenu({
         {/* Actions */}
         <div className="p-4 space-y-2">
           {actions.map((action, index) => (
-            <Button
+            <button
               key={index}
-              variant="ghost"
-              className={`w-full justify-start gap-4 h-14 text-left transition-all duration-200 rounded-xl ${
+              className={`w-full flex items-center justify-start gap-4 h-14 text-left transition-all duration-200 rounded-xl px-4 ${
                 action.variant === "destructive"
-                  ? "text-red-600 hover:text-red-700 hover:bg-red-50 active:bg-red-100"
+                  ? isAdminDark
+                    ? "text-red-400 hover:text-red-300 hover:bg-red-500/20 active:bg-red-500/30"
+                    : "text-red-600 hover:text-red-700 hover:bg-red-50 active:bg-red-100"
                   : action.longTerm
-                    ? "text-blue-600 hover:text-blue-700 hover:bg-blue-50 active:bg-blue-100"
+                    ? isAdminDark
+                      ? "text-blue-400 hover:text-blue-300 hover:bg-blue-500/20 active:bg-blue-500/30"
+                      : "text-blue-600 hover:text-blue-700 hover:bg-blue-50 active:bg-blue-100"
                     : action.primary
-                      ? "text-[#114A65] font-semibold hover:bg-[#114A65]/10 active:bg-[#114A65]/20"
-                      : "text-gray-700 hover:text-[#114A65] hover:bg-[#114A65]/10 active:bg-[#114A65]/20"
+                      ? isAdminDark
+                        ? "text-[#F35713] font-semibold hover:bg-[#F35713]/20 active:bg-[#F35713]/30"
+                        : "text-[#114A65] font-semibold hover:bg-[#114A65]/10 active:bg-[#114A65]/20"
+                      : isAdminDark
+                        ? "text-gray-200 hover:text-white hover:bg-gray-800 active:bg-gray-700"
+                        : "text-gray-700 hover:text-[#114A65] hover:bg-[#114A65]/10 active:bg-[#114A65]/20"
               }`}
               onClick={(e) => {
                 e.preventDefault()
@@ -704,19 +721,19 @@ export function RoleBasedActionMenu({
                 action.onClick()
               }}
             >
-              <div className={`p-2 rounded-lg ${
+              <div className={`p-2 rounded-lg flex-shrink-0 ${
                 action.primary 
-                  ? "bg-[#114A65]/10 text-[#114A65]" 
+                  ? isAdminDark ? "bg-[#F35713]/20 text-[#F35713]" : "bg-[#114A65]/10 text-[#114A65]"
                   : action.longTerm
-                    ? "bg-blue-100 text-blue-600"
+                    ? isAdminDark ? "bg-blue-500/20 text-blue-400" : "bg-blue-100 text-blue-600"
                     : action.variant === "destructive"
-                      ? "bg-red-100 text-red-600"
-                      : "bg-gray-100 text-gray-600"
+                      ? isAdminDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-600"
+                      : isAdminDark ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"
               }`}>
                 <action.icon className="h-5 w-5" />
               </div>
               <span className="font-medium">{action.label}</span>
-            </Button>
+            </button>
           ))}
         </div>
 
@@ -784,19 +801,21 @@ export function RoleBasedActionMenu({
   // Мобильная версия
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-8 w-8 p-0 bg-white hover:bg-[#114A65]/10 border border-[#114A65]/20 rounded-full transition-all duration-200 shadow-sm hover:shadow-md"
+      <button
+        className={`h-10 w-10 p-0 rounded-full transition-all duration-200 flex items-center justify-center ${
+          isAdminDark
+            ? "bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white"
+            : "bg-white hover:bg-[#114A65]/10 border border-[#114A65]/20 text-[#114A65] shadow-sm hover:shadow-md"
+        }`}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
           setOpen(true)
         }}
       >
-        <MoreHorizontal className="h-4 w-4 text-[#114A65]" />
+        <MoreHorizontal className="h-5 w-5" />
         <span className="sr-only">Открыть меню действий</span>
-      </Button>
+      </button>
       {mobileActionMenu}
     </>
   )
