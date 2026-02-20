@@ -7,11 +7,9 @@ import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useCategoryStore} from "@/stores/useCategoryStore";
-import { useMediaQuery } from "@/hooks/use-media-query";
 
 export default function LoginPage() {
   const router = useRouter()
-  const isMobile = useMediaQuery("(max-width: 767px)")
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
   const [phoneError, setPhoneError] = useState("")
@@ -23,14 +21,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (token && role) {
-      // Клиенты на мобильном переходят на личный кабинет
-      if (role.toLowerCase() === "client" && isMobile) {
+      // Клиенты всегда переходят в личный кабинет
+      if (role.toLowerCase() === "client") {
         router.replace('/cabinet')
       } else {
         router.replace(`/${role?.toLowerCase().replace(" ", "-") || ""}`)
       }
     }
-  }, [token, role, router, isMobile])
+  }, [token, role, router])
 
   // Автоматическое форматирование телефона
   const formatPhone = (value: string) => {
@@ -130,8 +128,8 @@ export default function LoginPage() {
       useStatsStore.getState().fetchStats(data.role)
       useCategoryStore.getState().fetchCategories(data.token)
       
-      // Клиенты на мобильном переходят на личный кабинет
-      if (role.toLowerCase() === "client" && isMobile) {
+      // Клиенты всегда переходят в личный кабинет
+      if (role.toLowerCase() === "client") {
         router.push('/cabinet')
       } else {
         router.push(`/${role.toLowerCase().replace(" ", "-")}`)

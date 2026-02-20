@@ -1,15 +1,17 @@
 import { User, MessageCircle, House, Wrench, LayoutGrid } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import React from "react";
-import {useAuthStore} from "@/stores/useAuthStore";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface BottomNavProps {
     activeTab?: 'home' | 'booking' | 'requests' | 'help' | 'profile' | 'history' | 'chat' | 'statistics';
     hidden?: boolean;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false }) => {
-    const {role} = useAuthStore()
+export const BottomNav: React.FC<BottomNavProps> = ({ activeTab: activeTabProp, hidden = false }) => {
+    const { role } = useAuthStore()
+    const pathname = usePathname()
 
     if (hidden) {
         return null;
@@ -22,10 +24,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false 
     const helpHref = '/chat-bot'
     const profileHref = '/profile'
 
-    // Цвета согласно дизайну
-    const activeColor = '#F9AB89'       // Персиковый для активной иконки (кроме requests)
-    const inactiveColor = 'rgba(255, 255, 255, 0.5)'  // Полупрозрачный белый
-    const requestsActiveColor = '#FFFFFF'  // Белый для активной "Заявки"
+    // Цвета: активная вкладка — ярко белая, неактивные — приглушённые (хорошо видно на оранжевом)
+    const activeColor = '#FFFFFF'
+    const inactiveColor = 'rgba(255, 255, 255, 0.55)'
 
     const navItems = [
         { 
@@ -65,7 +66,17 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false 
         },
     ]
 
-    // Маппинг старых значений activeTab на новые
+    // Определяем активную вкладку: из пропса или по текущему pathname (чтобы цвета не «залипали»)
+    const getActiveTabFromPath = (): string | undefined => {
+        const path = pathname?.split('?')[0] || ''
+        const isHomePath = path === '/cabinet' || path === '/home' || (role && path === `/${role}`)
+        if (isHomePath) return 'home'
+        if (path === bookingHref || path.startsWith('/meeting-rooms')) return 'booking'
+        if (path === requestsHref || path === '/requests' || path === '/create-request') return 'requests'
+        if (path === helpHref || path.startsWith('/chat-bot')) return 'help'
+        if (path === profileHref || path.startsWith('/profile')) return 'profile'
+        return undefined
+    }
     const normalizeActiveTab = (tab: string | undefined): string | undefined => {
         if (!tab) return undefined
         const mapping: Record<string, string> = {
@@ -75,14 +86,11 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, hidden = false 
         }
         return mapping[tab] || tab
     }
-
-    const normalizedActiveTab = normalizeActiveTab(activeTab)
+    const activeTab = normalizeActiveTab(activeTabProp) ?? getActiveTabFromPath()
+    const normalizedActiveTab = activeTab
 
     const getItemColor = (itemKey: string) => {
-        if (normalizedActiveTab === itemKey) {
-            return itemKey === 'requests' ? requestsActiveColor : activeColor
-        }
-        return inactiveColor
+        return normalizedActiveTab === itemKey ? activeColor : inactiveColor
     }
 
     return (

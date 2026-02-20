@@ -391,17 +391,17 @@ export function ActivityTrackerService() {
     
     if (vote) {
       postureVotesRef.current.push(vote)
-      if (postureVotesRef.current.length > 5) {
+      if (postureVotesRef.current.length > 7) {
         postureVotesRef.current.shift()
       }
-      
+
       const sittingCount = postureVotesRef.current.filter(v => v === 'sitting').length
       const standingCount = postureVotesRef.current.filter(v => v === 'standing').length
-      
-      // Требуем минимум 2 голоса из 5 для определения позы
-      if (sittingCount >= 2) {
+
+      // Требуем минимум 3 из 7 для смены позы (меньше дрожания на iOS при 10 Hz)
+      if (sittingCount >= 3) {
         return 'sitting'
-      } else if (standingCount >= 2) {
+      } else if (standingCount >= 3) {
         return 'standing'
       }
     }
@@ -457,19 +457,13 @@ export function ActivityTrackerService() {
     const now = Date.now()
     
     if (detectedPosture !== currentLastPosture && currentLastPosture !== 'unknown') {
-      // Поза изменилась
+      // Поза изменилась: только добавляем интервал и standUpCount.
+      // Секунды уже учитываются тиком раз в секунду — не дублируем totalSittingTime/totalStandingTime.
       if (currentPostureStartTime) {
         const duration = (now - currentPostureStartTime) / 1000
-        
+
         updateStatistics(prev => {
           const newStats = { ...prev }
-          
-          if (currentLastPosture === 'sitting') {
-            newStats.totalSittingTime += duration
-          } else if (currentLastPosture === 'standing') {
-            newStats.totalStandingTime += duration
-          }
-          
           if (currentLastPosture === 'sitting' || currentLastPosture === 'standing') {
             newStats.intervals.push({
               start: currentPostureStartTime,
@@ -478,16 +472,14 @@ export function ActivityTrackerService() {
               type: currentLastPosture
             })
           }
-          
           if (currentLastPosture === 'sitting' && detectedPosture === 'standing') {
             newStats.standUpCount += 1
             newStats.lastStandUpTime = now
           }
-          
           return newStats
         })
       }
-      
+
       setPostureStartTime(now)
     } else if (!currentPostureStartTime) {
       setPostureStartTime(now)
@@ -618,6 +610,12 @@ export function ActivityTrackerService() {
               const sensorData = typeof data === 'string' ? JSON.parse(data) : data
               if (sensorData.error) {
                 console.warn('⚠️ [Service] iOS motion error:', sensorData.error)
+                toast({
+                  title: 'Датчики движения недоступны',
+                  description: 'Запустите приложение на реальном iPhone или iPad (в симуляторе датчики не работают).',
+                  variant: 'destructive',
+                  duration: 6000,
+                })
                 return
               }
               const acceleration = sensorData.acceleration || { x: 0, y: 0, z: 0 }

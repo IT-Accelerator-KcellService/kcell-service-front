@@ -23,6 +23,9 @@ import {
   ChevronRight,
   Image as ImageIcon,
   ArrowLeft,
+  MessageCircle,
+  Calendar as CalendarLucid,
+  Star,
 } from "lucide-react"
 import api from "@/lib/api"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -39,6 +42,9 @@ import { RequestCard } from "@/components/RequestCard"
 import { getPreviewUrl } from '@/lib/imageOptimization'
 import { CommentsModal } from "@/components/CommentsModal"
 import SubRequestInfo from "@/components/SubRequestInfo"
+import Executors from "@/components/Executors"
+import { CompletedTaskReport } from "@/components/CompletedTaskReport"
+import { MapModal } from "@/components/MapModal"
 import PhotoModal from "@/components/photo/PhotoModal"
 
 interface Rating {
@@ -85,6 +91,9 @@ export default function RequestsPage() {
   const [expandedSubRequests, setExpandedSubRequests] = useState<Set<number>>(new Set())
   const [showCommentsModal, setShowCommentsModal] = useState(false)
   const [selectedSubRequestForComments, setSelectedSubRequestForComments] = useState<SubRequest | null>(null)
+  const [showMapModal, setShowMapModal] = useState(false)
+  const [mapLocation, setMapLocation] = useState({ lat: 0, lon: 0, accuracy: 0 })
+  const [showComments, setShowComments] = useState<number | null>(null)
   
   const observer = useRef<IntersectionObserver | null>(null)
   const lastRequestRef = useRef<HTMLDivElement>(null)
@@ -408,12 +417,13 @@ export default function RequestsPage() {
     setSelectedRequest(request)
   }, [])
 
-  // Request detail modal content
+  // Request detail modal content — все данные как на десктопе (client/page)
   const renderRequestDetail = () => {
     if (!selectedRequest) return null
     
     const subRequest = selectedRequest.requests[0]
     if (!subRequest) return null
+    const hasComments = showComments === subRequest.id
 
     return (
       <div className="fixed inset-0 z-50 bg-black">
@@ -421,24 +431,51 @@ export default function RequestsPage() {
           {/* Header */}
           <div className="flex items-center gap-3 p-4 border-b border-gray-800">
             <button 
-              onClick={() => setSelectedRequest(null)}
+              onClick={() => {
+                setSelectedRequest(null)
+                setShowComments(null)
+              }}
               className="p-2 rounded-full hover:bg-gray-800"
             >
               <ArrowLeft className="w-6 h-6 text-white" />
             </button>
-            <h1 className="text-xl font-bold text-white">Заявка #{selectedRequest.id}</h1>
+            <h1 className="text-xl font-bold text-white flex-1">Заявка #{selectedRequest.id}</h1>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  if (hasComments) setShowComments(null)
+                  else setShowComments(subRequest.id)
+                }}
+                className="p-2 rounded-full hover:bg-gray-800"
+              >
+                <MessageCircle className={`w-5 h-5 ${hasComments ? 'text-[#F35713]' : 'text-gray-400'}`} />
+              </button>
+              <RoleBasedActionMenu
+                request={subRequest}
+                requestGroup={selectedRequest}
+                isDesktop={false}
+                userRole="client"
+                isSubRequest={true}
+                onRateRequest={(subReq) => {
+                  setRequestToRate(subReq)
+                  setRatingValue(userRatings[subReq.id]?.rating || 0)
+                  setRatingComment("")
+                  setShowRatingModal(true)
+                }}
+                onDelete={() => {
+                  setRequestToDelete(selectedRequest)
+                  setShowDeleteRequestModal(true)
+                }}
+              />
+            </div>
           </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Status */}
-            <div className="flex items-center gap-2">
+            {/* Status + Type */}
+            <div className="flex items-center gap-2 flex-wrap">
               {getStatusIcon(selectedRequest.status)}
               <span className="text-white">{translateStatus(selectedRequest.status)}</span>
-            </div>
-
-            {/* Type badge */}
-            <div>
               <span className={`text-xs font-medium px-3 py-1 rounded-full ${
                 selectedRequest.request_type === 'urgent'
                   ? 'text-white bg-[#B8400E]'
@@ -448,10 +485,41 @@ export default function RequestsPage() {
               }`}>
                 {selectedRequest.request_type === 'urgent' ? 'Экстренная' : selectedRequest.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
+              {(subRequest.is_long_term || selectedRequest.requests?.some((r: SubRequest) => r.is_long_term)) && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full text-[#114A65] border border-[#114A65]">Долгосрочная</span>
+              )}
             </div>
 
-            {/* Category */}
-            {subRequest.category?.name && (
+            {/* Запланировано на (для плановых) */}
+            {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4 flex items-center gap-2">
+                <CalendarLucid className="w-4 h-4 text-[#114A65]" />
+                <div>
+                  <p className="text-gray-400 text-sm">Запланировано на</p>
+                  <p className="text-white">
+                    {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Заголовок подзаявки + категория */}
+            {subRequest.title && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4">
+                <p className="text-gray-400 text-sm mb-1">Заявка</p>
+                <p className="text-white font-medium">{subRequest.title}</p>
+                {subRequest.category?.name && (
+                  <p className="text-gray-400 text-sm mt-1">{subRequest.category.name}</p>
+                )}
+              </div>
+            )}
+
+            {/* Category (если нет title) */}
+            {!subRequest.title && subRequest.category?.name && (
               <div className="bg-[#1C1C1E] rounded-xl p-4">
                 <p className="text-gray-400 text-sm mb-1">Категория</p>
                 <p className="text-white">{subRequest.category.name}</p>
@@ -462,47 +530,90 @@ export default function RequestsPage() {
             {subRequest.description && (
               <div className="bg-[#1C1C1E] rounded-xl p-4">
                 <p className="text-gray-400 text-sm mb-1">Описание</p>
-                <p className="text-white">{subRequest.description}</p>
+                <p className="text-white whitespace-pre-wrap break-words">{subRequest.description}</p>
               </div>
             )}
 
-            {/* Location */}
-            {subRequest.location && (
+            {/* Сложность / SLA (SubRequestInfo) */}
+            {(subRequest.complexity || subRequest.sla) && (
               <div className="bg-[#1C1C1E] rounded-xl p-4">
+                <p className="text-gray-400 text-sm mb-2">Доп. информация</p>
+                <div className="flex flex-wrap gap-3 text-white text-sm">
+                  {subRequest.complexity && (
+                    <span>Сложность: {subRequest.complexity === 'complex' ? 'комплексный' : subRequest.complexity === 'simple' ? 'простой' : subRequest.complexity === 'medium' ? 'средний' : subRequest.complexity}</span>
+                  )}
+                  {subRequest.sla && <span>Срок: {subRequest.sla}</span>}
+                </div>
+              </div>
+            )}
+
+            {/* Исполнители */}
+            <div className="bg-[#1C1C1E] rounded-xl p-4">
+              {(subRequest.executors && subRequest.executors.length > 0) || subRequest.executor ? (
+                <Executors subRequest={subRequest} userRatings={userRatings} />
+              ) : (
+                <>
+                  <p className="text-gray-400 text-sm mb-1">Исполнители</p>
+                  <p className="text-white/80 text-sm">Исполнители не назначены</p>
+                </>
+              )}
+            </div>
+
+            {/* Отчёт о выполнении (для завершённых) */}
+            {subRequest.status === 'completed' && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4">
+                <CompletedTaskReport
+                  subRequest={subRequest}
+                  isDesktop={false}
+                  onPhotoClick={(url) => setSelectedPhoto({ url, created_at: undefined })}
+                />
+              </div>
+            )}
+
+            {/* Локация в офисе */}
+            {selectedRequest.location_detail && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4">
+                <p className="text-gray-400 text-sm mb-1">Локация в офисе</p>
+                <p className="text-white">{selectedRequest.location_detail}</p>
+              </div>
+            )}
+
+            {/* Location + Показать на карте */}
+            {selectedRequest.location && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-gray-400" />
-                  <p className="text-white">{subRequest.location}</p>
+                  <p className="text-white text-sm">Координаты заявки</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const locText = selectedRequest.location
+                    const latMatch = locText?.match(/Широта: (-?\d+\.\d+)/)
+                    const lonMatch = locText?.match(/Долгота: (-?\d+\.\d+)/)
+                    const accMatch = locText?.match(/±(\d+) м/)
+                    if (latMatch && lonMatch && accMatch) {
+                      setMapLocation({
+                        lat: parseFloat(latMatch[1]),
+                        lon: parseFloat(lonMatch[1]),
+                        accuracy: parseInt(accMatch[1], 10)
+                      })
+                      setShowMapModal(true)
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-[#262626] border border-gray-600 text-white text-sm font-medium active:bg-gray-700"
+                >
+                  <MapPin className="w-4 h-4" />
+                  Показать на карте
+                </button>
               </div>
             )}
 
-            {/* Photos */}
-            {subRequest.photos && subRequest.photos.length > 0 && (
-              <div className="bg-[#1C1C1E] rounded-xl p-4">
-                <p className="text-gray-400 text-sm mb-3">Фотографии</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {subRequest.photos.map((photo: any, idx: number) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedPhoto({ url: photo.photo_url, created_at: photo.created_at })}
-                      className="aspect-square rounded-lg overflow-hidden bg-gray-800"
-                    >
-                      <img 
-                        src={getPreviewUrl(photo.photo_url)} 
-                        alt={`Photo ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Date */}
-            <div className="bg-[#1C1C1E] rounded-xl p-4">
-              <p className="text-gray-400 text-sm mb-1">Дата создания</p>
+            {/* Дата создания */}
+            <div className="bg-[#1C1C1E] rounded-xl p-4 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-400" />
               <p className="text-white">
-                {new Date(selectedRequest.created_date).toLocaleDateString('ru-RU', {
+                {new Date(selectedRequest.created_date).toLocaleString('ru-RU', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric',
@@ -512,7 +623,89 @@ export default function RequestsPage() {
               </p>
             </div>
 
-            {/* Rate button for completed requests */}
+            {/* Фотографии до выполнения (группа заявок) */}
+            {selectedRequest.photos && selectedRequest.photos.filter((p: any) => p.type === 'before').length > 0 && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4">
+                <p className="text-gray-400 text-sm mb-3">Фотографии (до выполнения)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {selectedRequest.photos
+                    .filter((p: any) => p.type === 'before')
+                    .map((photo: any, idx: number) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedPhoto({ url: photo.photo_url, created_at: photo.created_at })}
+                        className="aspect-square rounded-lg overflow-hidden bg-gray-800"
+                      >
+                        <img src={getPreviewUrl(photo.photo_url)} alt={`До ${idx + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Фотографии после выполнения */}
+            {selectedRequest.photos && selectedRequest.photos.filter((p: any) => p.type === 'after').length > 0 && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4">
+                <p className="text-gray-400 text-sm mb-3">Фотографии (после выполнения)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {selectedRequest.photos
+                    .filter((p: any) => p.type === 'after')
+                    .slice(0, 10)
+                    .map((photo: any, idx: number) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedPhoto({ url: photo.photo_url, created_at: photo.created_at })}
+                        className="aspect-square rounded-lg overflow-hidden bg-gray-800"
+                      >
+                        <img src={getPreviewUrl(photo.photo_url)} alt={`После ${idx + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Если нет photos на группе — показываем с подзаявки */}
+            {(!selectedRequest.photos || selectedRequest.photos.length === 0) && subRequest.photos && subRequest.photos.length > 0 && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4">
+                <p className="text-gray-400 text-sm mb-3">Фотографии</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {subRequest.photos.map((photo: any, idx: number) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedPhoto({ url: photo.photo_url, created_at: photo.created_at })}
+                      className="aspect-square rounded-lg overflow-hidden bg-gray-800"
+                    >
+                      <img src={getPreviewUrl(photo.photo_url)} alt={`Фото ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Оценки от исполнителей (clientRatings) */}
+            {selectedRequest.status === 'completed' && clientRatings[selectedRequest.id] && Array.isArray(clientRatings[selectedRequest.id]) && clientRatings[selectedRequest.id].length > 0 && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Star className="w-5 h-5 text-yellow-400" />
+                  <p className="text-white font-medium">Оценки от исполнителей ({clientRatings[selectedRequest.id].length})</p>
+                </div>
+                <div className="space-y-3">
+                  {clientRatings[selectedRequest.id].map((rating: any, index: number) => (
+                    <div key={rating.id || index} className={index > 0 ? 'pt-3 border-t border-gray-700' : ''}>
+                      <div className="flex items-center gap-2 mb-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span key={star} className={`text-lg ${star <= rating.rating ? 'text-yellow-400' : 'text-gray-600'}`}>★</span>
+                        ))}
+                        <span className="text-gray-400 text-sm">{rating.rating} из 5</span>
+                      </div>
+                      {rating.comment && <p className="text-gray-300 text-sm break-words">"{rating.comment}"</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Кнопка оценить / ваша оценка */}
             {selectedRequest.status === 'completed' && !userRatings[subRequest.id] && (
               <Button
                 onClick={() => {
@@ -524,19 +717,12 @@ export default function RequestsPage() {
                 Оценить заявку
               </Button>
             )}
-
-            {/* Show rating if exists */}
             {userRatings[subRequest.id] && (
               <div className="bg-[#1C1C1E] rounded-xl p-4">
                 <p className="text-gray-400 text-sm mb-1">Ваша оценка</p>
                 <div className="flex items-center gap-1">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <span 
-                      key={star} 
-                      className={`text-xl ${star <= userRatings[subRequest.id].rating ? 'text-yellow-400' : 'text-gray-600'}`}
-                    >
-                      ★
-                    </span>
+                    <span key={star} className={`text-xl ${star <= userRatings[subRequest.id].rating ? 'text-yellow-400' : 'text-gray-600'}`}>★</span>
                   ))}
                 </div>
               </div>
@@ -812,6 +998,22 @@ export default function RequestsPage() {
           onClose={() => setSelectedPhoto(null)}
         />
       )}
+
+      {/* Map Modal */}
+      <MapModal
+        isOpen={showMapModal}
+        onClose={() => setShowMapModal(false)}
+        mapLocation={mapLocation}
+      />
+
+      {/* Comments Modal */}
+      <CommentsModal
+        isOpen={showComments !== null}
+        onClose={() => setShowComments(null)}
+        requestId={showComments}
+        currentUserId={user?.id ?? null}
+        isDesktop={false}
+      />
 
       {/* Rating Modal */}
       <RatingModal
