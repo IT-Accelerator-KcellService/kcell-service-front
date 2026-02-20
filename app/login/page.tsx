@@ -354,6 +354,22 @@ export default function LoginPage() {
                   Запросить регистрацию
                 </span>
               </button>
+
+              {/* Privacy Policy Button */}
+              <Link
+                href="/privacy"
+                className="w-full flex justify-center items-center py-2 text-center hover:opacity-80 transition-opacity"
+                style={{
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 400,
+                  fontSize: "16px",
+                  lineHeight: "24px",
+                  color: "#6E6E6E",
+                  textDecoration: "none"
+                }}
+              >
+                Политика конфиденциальности
+              </Link>
             </div>
           </div>
 
