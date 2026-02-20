@@ -593,10 +593,10 @@ export function ActivityTrackerService() {
           return
         }
       } else {
-        // В iOS WebView сначала запрашиваем разрешение через bridge
-        try {
-          const { ensureMotionPermission, iosBridge } = await import('@/lib/ios-bridge')
-          if (iosBridge.isIOSWebView()) {
+        // В iOS WebView: DeviceMotionEvent в WKWebView не приходит — данные идут через CoreMotion в handleIOSMotionData
+        const { ensureMotionPermission, iosBridge, startMotionUpdates, startBackgroundTracking } = await import('@/lib/ios-bridge')
+        if (iosBridge.isIOSWebView()) {
+          try {
             const hasPermission = await ensureMotionPermission()
             if (!hasPermission) {
               console.error('❌ [Service] Motion permission denied (iOS bridge)')
@@ -604,49 +604,71 @@ export function ActivityTrackerService() {
               isStartingRef.current = false
               return
             }
-          }
-        } catch (e) {
-          console.error('❌ [Service] Error requesting motion permission (bridge):', e)
-        }
-
-        // Стандартные Web API
-        if (typeof DeviceMotionEvent === 'undefined') {
-          console.error('❌ [Service] DeviceMotionEvent not supported')
-          setIsTracking(false)
-          isStartingRef.current = false
-          return
-        }
-
-        // Запрашиваем разрешения для iOS (если не запросили заранее из обработчика тапа)
-        if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
-          try {
-            const motionPermission = await (DeviceMotionEvent as any).requestPermission()
-            if (motionPermission !== 'granted') {
-              console.error('❌ [Service] Motion permission denied')
-              setIsTracking(false)
-              isStartingRef.current = false
-              return
-            }
-          } catch (err) {
-            console.error('❌ [Service] Error requesting motion permission:', err)
+          } catch (e) {
+            console.error('❌ [Service] Error requesting motion permission (bridge):', e)
             setIsTracking(false)
             isStartingRef.current = false
             return
           }
-        }
-
-        if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
-          try {
+          startBackgroundTracking()
+          ;(window as any).handleIOSMotionData = (data: string) => {
+            if (!isTrackingRef.current) return
+            try {
+              const sensorData = typeof data === 'string' ? JSON.parse(data) : data
+              if (sensorData.error) {
+                console.warn('⚠️ [Service] iOS motion error:', sensorData.error)
+                return
+              }
+              const acceleration = sensorData.acceleration || { x: 0, y: 0, z: 0 }
+              const rotationRate = sensorData.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
+              const orientation = sensorData.orientation || { beta: 0, gamma: 0 }
+              orientationRef.current = { beta: orientation.beta || 0, gamma: orientation.gamma || 0 }
+              const event = {
+                accelerationIncludingGravity: acceleration,
+                rotationRate: rotationRate
+              } as DeviceMotionEvent
+              handleDeviceMotion(event)
+            } catch (err) {
+              console.error('❌ [Service] Error processing iOS motion data:', err)
+            }
+          }
+          startMotionUpdates()
+          console.log('✅ [Service] iOS CoreMotion started for Activity Tracker')
+        } else {
+          // Стандартные Web API (Safari / не WebView)
+          if (typeof DeviceMotionEvent === 'undefined') {
+            console.error('❌ [Service] DeviceMotionEvent not supported')
+            setIsTracking(false)
+            isStartingRef.current = false
+            return
+          }
+          if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
+            try {
+              const motionPermission = await (DeviceMotionEvent as any).requestPermission()
+              if (motionPermission !== 'granted') {
+                console.error('❌ [Service] Motion permission denied')
+                setIsTracking(false)
+                isStartingRef.current = false
+                return
+              }
+            } catch (err) {
+              console.error('❌ [Service] Error requesting motion permission:', err)
+              setIsTracking(false)
+              isStartingRef.current = false
+              return
+            }
+          }
+          if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+            try {
               const orientationPermission = await (DeviceOrientationEvent as any).requestPermission()
               if (orientationPermission !== 'granted') {
                 console.warn('⚠️ [Service] Orientation permission denied')
-                // Ориентация не критична, не сбрасываем isTracking
               } else {
                 console.log('✅ [Service] Orientation permission granted')
               }
-          } catch (err) {
-            console.warn('⚠️ [Service] Orientation permission error:', err)
-            // Ориентация не критична
+            } catch (err) {
+              console.warn('⚠️ [Service] Orientation permission error:', err)
+            }
           }
         }
       }
@@ -726,6 +748,17 @@ export function ActivityTrackerService() {
         androidSensorCallbackRef.current = null
         delete (window as any).handleAndroidSensorData
       }
+
+      // Останавливаем iOS CoreMotion и фоновый режим
+      try {
+        const { iosBridge, stopMotionUpdates, stopBackgroundTracking } = await import('@/lib/ios-bridge')
+        if (iosBridge.isIOSWebView()) {
+          stopMotionUpdates()
+          stopBackgroundTracking()
+          delete (window as any).handleIOSMotionData
+          console.log('✅ [Service] iOS CoreMotion and background tracking stopped')
+        }
+      } catch (_) {}
       
       setIsTracking(false)
       
@@ -804,10 +837,27 @@ export function ActivityTrackerService() {
     if (!user || (user.role !== 'executor' && user.role !== 'client')) return // Для executor и client
     if (isTracking && !intervalRef.current) {
       console.log('🔄 [Service] Restoring tracking state...')
-      // Восстанавливаем обработчики событий
-      if (!isAndroidWebView.current) {
+      // Восстанавливаем обработчики событий (не для Android; для iOS — данные идут через handleIOSMotionData)
+      const isIOS = typeof (window as any).webkit?.messageHandlers?.permissionBridge !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+      if (!isAndroidWebView.current && !isIOS) {
         window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
         window.addEventListener('deviceorientation', handleDeviceOrientation as EventListener)
+      }
+      if (isIOS && (window as any).FCM?.startMotionUpdates) {
+        ;(window as any).FCM.startBackgroundTracking?.()
+        ;(window as any).handleIOSMotionData = (data: string) => {
+          if (!isTrackingRef.current) return
+          try {
+            const sensorData = typeof data === 'string' ? JSON.parse(data) : data
+            if (sensorData.error) return
+            const acceleration = sensorData.acceleration || { x: 0, y: 0, z: 0 }
+            const rotationRate = sensorData.rotationRate || { alpha: 0, beta: 0, gamma: 0 }
+            const orientation = sensorData.orientation || { beta: 0, gamma: 0 }
+            orientationRef.current = { beta: orientation.beta || 0, gamma: orientation.gamma || 0 }
+            handleDeviceMotion({ accelerationIncludingGravity: acceleration, rotationRate: rotationRate } as DeviceMotionEvent)
+          } catch (_) {}
+        }
+        ;(window as any).FCM.startMotionUpdates()
       }
       
       // Восстанавливаем интервалы
@@ -998,16 +1048,15 @@ export function ActivityTrackerService() {
     }
   }, [user?.id, user?.role, isTracking, manualStart, autoStartInWorkingHours])
 
-  // Обработчики событий для стандартных Web API
+  // Обработчики событий для стандартных Web API (не Android, не iOS WebView — там свои потоки)
   useEffect(() => {
     if (!user || (user.role !== 'executor' && user.role !== 'client')) {
-      // Удаляем обработчики, если пользователь не executor
       window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
       window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
       return
     }
-    
-    if (isTracking && !isAndroidWebView.current) {
+    const isIOS = typeof (window as any).webkit?.messageHandlers?.permissionBridge !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+    if (isTracking && !isAndroidWebView.current && !isIOS) {
       window.addEventListener('devicemotion', handleDeviceMotion as EventListener)
       window.addEventListener('deviceorientation', handleDeviceOrientation as EventListener)
     } else {

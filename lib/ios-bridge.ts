@@ -302,3 +302,27 @@ export async function ensureMotionPermission(): Promise<boolean> {
     if (status === 'denied') return false;
     return iosBridge.requestPermission('motion');
 }
+
+/** Запуск передачи данных CoreMotion в WebView (Activity Tracker). В WebView на iOS DeviceMotionEvent не приходит. */
+export function startMotionUpdates(): void {
+    if (typeof window === 'undefined' || !(window as any).FCM?.startMotionUpdates) return;
+    (window as any).FCM.startMotionUpdates();
+}
+
+/** Остановка передачи данных CoreMotion. */
+export function stopMotionUpdates(): void {
+    if (typeof window === 'undefined' || !(window as any).FCM?.stopMotionUpdates) return;
+    (window as any).FCM.stopMotionUpdates();
+}
+
+/** Включить фоновый режим для Activity Tracker (обновления геолокации держат приложение активным). */
+export function startBackgroundTracking(): void {
+    if (typeof window === 'undefined' || !(window as any).FCM?.startBackgroundTracking) return;
+    (window as any).FCM.startBackgroundTracking();
+}
+
+/** Выключить фоновый режим. */
+export function stopBackgroundTracking(): void {
+    if (typeof window === 'undefined' || !(window as any).FCM?.stopBackgroundTracking) return;
+    (window as any).FCM.stopBackgroundTracking();
+}
