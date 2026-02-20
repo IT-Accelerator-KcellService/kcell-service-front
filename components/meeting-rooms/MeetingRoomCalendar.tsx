@@ -17,7 +17,12 @@ import { ru } from "date-fns/locale";
 
 type CalendarMode = "day" | "week";
 
-export function MeetingRoomCalendar() {
+interface MeetingRoomCalendarProps {
+  variant?: "default" | "dark";
+}
+
+export function MeetingRoomCalendar({ variant = "default" }: MeetingRoomCalendarProps) {
+  const isDark = variant === "dark";
   const { toast } = useToast();
   const [mode, setMode] = useState<CalendarMode>("week");
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -85,8 +90,8 @@ export function MeetingRoomCalendar() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Загрузка календаря...</p>
+        <Loader2 className={`h-8 w-8 animate-spin mb-4 ${isDark ? "text-[#F35713]" : "text-primary"}`} />
+        <p className={isDark ? "text-gray-400" : "text-muted-foreground"}>Загрузка календаря...</p>
       </div>
     );
   }
@@ -100,27 +105,32 @@ export function MeetingRoomCalendar() {
     );
   }
 
+  const cardClass = isDark ? "rounded-xl bg-[#2C2C2E] border-[#3A3A3C]" : "";
+  const cardTitleClass = isDark ? "text-white" : "";
+  const mutedClass = isDark ? "text-gray-400" : "text-muted-foreground";
+  const borderClass = isDark ? "border-[#3A3A3C]" : "";
+
   return (
-    <Card>
+    <Card className={cardClass}>
       <CardHeader>
-        <CardTitle>Календарь загрузки комнат</CardTitle>
+        <CardTitle className={cardTitleClass}>Календарь загрузки комнат</CardTitle>
       </CardHeader>
       <CardContent>
         <Tabs value={mode} onValueChange={(value) => setMode(value as CalendarMode)}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="day">День</TabsTrigger>
-            <TabsTrigger value="week">Неделя</TabsTrigger>
+          <TabsList className={`mb-4 ${isDark ? "bg-[#3D3D3D] text-gray-400" : ""}`}>
+            <TabsTrigger value="day" className={isDark ? "data-[state=active]:bg-[#5A5A5A] data-[state=active]:text-white data-[state=inactive]:text-gray-400" : ""}>День</TabsTrigger>
+            <TabsTrigger value="week" className={isDark ? "data-[state=active]:bg-[#5A5A5A] data-[state=active]:text-white data-[state=inactive]:text-gray-400" : ""}>Неделя</TabsTrigger>
           </TabsList>
 
           <TabsContent value="day" className="space-y-4">
             <div className="flex items-center justify-between mb-4">
-              <Button variant="outline" size="sm" onClick={() => navigateDay("prev")}>
+              <Button variant="outline" size="sm" onClick={() => navigateDay("prev")} className={isDark ? "border-[#3A3A3C] text-white hover:bg-gray-700" : ""}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <h3 className="text-lg font-semibold">
+              <h3 className={`text-lg font-semibold ${isDark ? "text-white" : ""}`}>
                 {format(selectedDate, "d MMMM yyyy", { locale: ru })}
               </h3>
-              <Button variant="outline" size="sm" onClick={() => navigateDay("next")}>
+              <Button variant="outline" size="sm" onClick={() => navigateDay("next")} className={isDark ? "border-[#3A3A3C] text-white hover:bg-gray-700" : ""}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -128,10 +138,10 @@ export function MeetingRoomCalendar() {
             {dailyData && dailyData.rooms.length > 0 ? (
               <div className="space-y-4">
                 {dailyData.rooms.map((room) => (
-                  <div key={room.room_id} className="border rounded-lg p-4">
+                  <div key={room.room_id} className={`border rounded-lg p-4 ${borderClass}`}>
                     <div className="mb-2">
-                      <p className="font-medium">{room.room_name}</p>
-                      <p className="text-sm text-muted-foreground">{room.office_name}</p>
+                      <p className={`font-medium ${isDark ? "text-white" : ""}`}>{room.room_name}</p>
+                      <p className={`text-sm ${mutedClass}`}>{room.office_name}</p>
                     </div>
                     <div className="grid grid-cols-12 gap-1">
                       {Array.from({ length: 24 }, (_, i) => {
@@ -163,7 +173,7 @@ export function MeetingRoomCalendar() {
                           <div
                             key={i}
                             className={`h-8 rounded text-xs flex flex-col items-center justify-center relative group ${
-                              isBooked ? "bg-primary text-white" : "bg-muted"
+                              isBooked ? (isDark ? "bg-[#114A65] text-white" : "bg-primary text-white") : (isDark ? "bg-[#3A3A3C] text-gray-400" : "bg-muted")
                             }`}
                             title={tooltipText}
                           >
@@ -183,20 +193,20 @@ export function MeetingRoomCalendar() {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-8">Нет данных</p>
+              <p className={`text-center py-8 ${mutedClass}`}>Нет данных</p>
             )}
           </TabsContent>
 
           <TabsContent value="week" className="space-y-4">
             <div className="flex items-center justify-between mb-4">
-              <Button variant="outline" size="sm" onClick={() => navigateWeek("prev")}>
+              <Button variant="outline" size="sm" onClick={() => navigateWeek("prev")} className={isDark ? "border-[#3A3A3C] text-white hover:bg-gray-700" : ""}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <h3 className="text-lg font-semibold">
+              <h3 className={`text-lg font-semibold ${isDark ? "text-white" : ""}`}>
                 {format(startOfWeek(selectedDate, { weekStartsOn: 1 }), "d MMM", { locale: ru })}{" "}
                 - {format(addDays(startOfWeek(selectedDate, { weekStartsOn: 1 }), 6), "d MMM yyyy", { locale: ru })}
               </h3>
-              <Button variant="outline" size="sm" onClick={() => navigateWeek("next")}>
+              <Button variant="outline" size="sm" onClick={() => navigateWeek("next")} className={isDark ? "border-[#3A3A3C] text-white hover:bg-gray-700" : ""}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -204,10 +214,10 @@ export function MeetingRoomCalendar() {
             {weeklyData && weeklyData.rooms.length > 0 ? (
               <div className="space-y-4">
                 {weeklyData.rooms.map((room) => (
-                  <div key={room.room_id} className="border rounded-lg p-4">
+                  <div key={room.room_id} className={`border rounded-lg p-4 ${borderClass}`}>
                     <div className="mb-4">
-                      <p className="font-medium">{room.room_name}</p>
-                      <p className="text-sm text-muted-foreground">{room.office_name}</p>
+                      <p className={`font-medium ${isDark ? "text-white" : ""}`}>{room.room_name}</p>
+                      <p className={`text-sm ${mutedClass}`}>{room.office_name}</p>
                     </div>
                     <div className="grid grid-cols-7 gap-2">
                       {room.days.map((day, index) => {
@@ -230,10 +240,10 @@ export function MeetingRoomCalendar() {
                         
                         return (
                           <div key={index} className="space-y-2 relative group">
-                            <p className="text-xs font-medium text-center">
+                            <p className={`text-xs font-medium text-center ${isDark ? "text-white" : ""}`}>
                               {format(date, "EEE", { locale: ru })}
                             </p>
-                            <p className="text-xs text-muted-foreground text-center">
+                            <p className={`text-xs text-center ${mutedClass}`}>
                               {format(date, "d")}
                             </p>
                             <div
@@ -291,7 +301,7 @@ export function MeetingRoomCalendar() {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-8">Нет данных</p>
+              <p className={`text-center py-8 ${mutedClass}`}>Нет данных</p>
             )}
           </TabsContent>
         </Tabs>

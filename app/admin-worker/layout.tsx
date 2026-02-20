@@ -43,11 +43,12 @@ export default function AdminWorkerLayout({
         }
     }, [hydrated, user, router, clearAuth, isDesktop, pathname, searchParams]);
 
-    // Add body class for admin mobile (management + requests) - enables dark theme for portaled Select/dropdown
+    // Add body class for admin mobile (management + requests + statistics) - enables dark theme for portaled Select/dropdown
     useEffect(() => {
         const isManagement = pathname?.startsWith("/admin-worker/management");
         const isRequests = pathname?.startsWith("/admin-worker/requests");
-        if (!isDesktop && (isManagement || isRequests)) {
+        const isStatistics = pathname?.startsWith("/admin-worker/statistics");
+        if (!isDesktop && (isManagement || isRequests || isStatistics)) {
             document.body.classList.add("admin-management-mobile");
         } else {
             document.body.classList.remove("admin-management-mobile");

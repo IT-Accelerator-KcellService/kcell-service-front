@@ -11,7 +11,7 @@ const navItems = [
     { key: 'management', label: 'Управление', href: '/admin-worker/management', icon: House },
     { key: 'requests', label: 'Заявки', href: '/admin-worker/requests', icon: Wrench },
     { key: 'statistics', label: 'Статистика', href: '/admin-worker/statistics', icon: BarChart3 },
-    { key: 'account', label: 'Аккаунт', href: '/admin-worker/account', icon: User },
+    { key: 'account', label: 'Аккаунт', href: '/profile', icon: User },
 ];
 
 export const AdminBottomNav: React.FC<AdminBottomNavProps> = ({ hidden = false }) => {
@@ -28,7 +28,7 @@ export const AdminBottomNav: React.FC<AdminBottomNavProps> = ({ hidden = false }
         if (pathname?.startsWith('/admin-worker/management')) return 'management';
         if (pathname?.startsWith('/admin-worker/requests')) return 'requests';
         if (pathname?.startsWith('/admin-worker/statistics')) return 'statistics';
-        if (pathname?.startsWith('/admin-worker/account')) return 'account';
+        if (pathname?.startsWith('/profile')) return 'account';
         return null;
     };
 
