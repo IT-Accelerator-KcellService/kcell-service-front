@@ -29,8 +29,10 @@ export function findNearestOffice(
   let minDistance = Infinity;
 
   for (const office of offices) {
-    if (office.lat !== null && office.lon !== null) {
-      const distance = calculateDistance(userLat, userLon, office.lat, office.lon);
+    const lat = office.lat ?? null
+    const lon = office.lon ?? null
+    if (lat != null && lon != null) {
+      const distance = calculateDistance(userLat, userLon, lat, lon);
       if (distance < minDistance) {
         minDistance = distance;
         nearestOffice = office;
@@ -105,4 +107,33 @@ export async function getLocationByIP(): Promise<{lat: number, lon: number} | nu
   
   console.error('Все API для определения местоположения по IP не сработали');
   return null;
+}
+
+/**
+ * Запрос разрешений для датчиков движения/ориентации (iOS).
+ * Вызывайте из обработчика клика/тапа перед запуском трекера активности.
+ */
+export async function requestMotionAndOrientationPermission(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  if (typeof (window as any).AndroidSensors !== 'undefined') return true
+  if (typeof DeviceMotionEvent === 'undefined') return false
+
+  const DevMotion = DeviceMotionEvent as any
+  const DevOrientation = DeviceOrientationEvent as any
+  if (typeof DevMotion.requestPermission !== 'function') return true
+
+  try {
+    if ((await DevMotion.requestPermission()) !== 'granted') return false
+  } catch {
+    return false
+  }
+
+  if (typeof DevOrientation.requestPermission === 'function') {
+    try {
+      await DevOrientation.requestPermission()
+    } catch {
+      // ориентация опциональна
+    }
+  }
+  return true
 }
