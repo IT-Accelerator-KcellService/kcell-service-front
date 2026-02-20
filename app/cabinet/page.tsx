@@ -10,7 +10,7 @@ import PullToRefresh from "@/components/pull-to-refresh"
 import { Home, Heart, Settings, Lightbulb, Clock, TrendingUp, BarChart2, Activity, Play, Pause, Power, Loader2, ChevronDown } from "lucide-react"
 import api, { getClientRoomSubscriptions, getRoomDevicesForClient, controlDevice, type YandexDevice, type ControlDeviceRequest } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
-import { requestMotionAndOrientationPermission } from "@/lib/activity-tracker-permissions"
+import { requestMotionAndOrientationPermission } from "../../lib/activity-tracker-permissions"
 
 type TabType = "home" | "health" | "settings"
 
