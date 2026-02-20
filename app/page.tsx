@@ -12,9 +12,10 @@ export default function Home() {
 
     useEffect(() => {
         if (role && !hasRedirected) {
-            const formattedRole = role.toLowerCase().replace(/\s+/g, '-')
             const queryString = searchParams.toString()
-            const url = queryString ? `/${formattedRole}?${queryString}` : `/${formattedRole}`
+            const url = role.toLowerCase() === 'client'
+                ? (queryString ? `/cabinet?${queryString}` : '/cabinet')
+                : (queryString ? `/${role.toLowerCase().replace(/\s+/g, '-')}?${queryString}` : `/${role.toLowerCase().replace(/\s+/g, '-')}`)
             setHasRedirected(true)
             router.replace(url)
         } else if (!role && !hasRedirected) {
