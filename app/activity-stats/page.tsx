@@ -20,6 +20,9 @@ export default function ActivityStatsPage() {
 
     if (!user) {
       router.push('/login')
+    } else if (user.role === 'executor') {
+      // Исполнителю недоступны умный дом и health-уведомления
+      router.replace('/executor')
     }
   }, [hydrated, user, router])
 

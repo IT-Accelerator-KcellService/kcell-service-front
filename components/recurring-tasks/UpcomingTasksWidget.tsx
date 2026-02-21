@@ -12,9 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 
 interface UpcomingTasksWidgetProps {
   refreshTrigger?: number;
+  variant?: 'default' | 'themed';
 }
 
-export function UpcomingTasksWidget({ refreshTrigger = 0 }: UpcomingTasksWidgetProps) {
+export function UpcomingTasksWidget({ refreshTrigger = 0, variant = 'default' }: UpcomingTasksWidgetProps) {
   const [tasks, setTasks] = useState<TaskInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -94,8 +95,23 @@ export function UpcomingTasksWidget({ refreshTrigger = 0 }: UpcomingTasksWidgetP
     return location;
   };
 
+  const themed = variant === 'themed';
+
   if (loading) {
-    return (
+    return themed ? (
+      <div className="rounded-2xl overflow-hidden p-6" style={{ background: '#D94F15' }}>
+        <h3 className="flex items-center gap-2 font-bold mb-4 text-white">
+          <Calendar className="h-5 w-5" />
+          Предстоящие задачи
+        </h3>
+        <div className="flex justify-center py-8">
+          <div className="flex items-center gap-2 text-white/80">
+            <div className="w-4 h-4 border-2 border-[#E25B21] border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm">Загрузка...</span>
+          </div>
+        </div>
+      </div>
+    ) : (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -112,6 +128,67 @@ export function UpcomingTasksWidget({ refreshTrigger = 0 }: UpcomingTasksWidgetP
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  if (themed) {
+    return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: '#D94F15' }}>
+      <div className="p-6 text-white">
+        <h3 className="flex items-center gap-2 font-bold mb-4">
+          <Calendar className="h-5 w-5" />
+          Предстоящие задачи
+          {tasks.length > 0 && (
+            <Badge variant="secondary" className="ml-auto bg-white/20 text-white">
+              {tasks.length}
+            </Badge>
+          )}
+        </h3>
+        {tasks.length === 0 ? (
+          <div className="text-center py-8">
+            <Calendar className="h-12 w-12 mx-auto mb-4 text-white/40" />
+            <p className="text-white/80">Предстоящих задач нет</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {tasks.map((task) => (
+              <div
+                key={task.id}
+                className="flex items-center justify-between p-3 rounded-lg transition-colors bg-white/10 hover:bg-white/20"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  {getPriorityIcon(task.due_date)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <span className="font-medium truncate text-white">
+                        {task.recurringTaskGroup?.recurrence_type === 'weekly' && 'Еженедельная задача'}
+                        {task.recurringTaskGroup?.recurrence_type === 'daily' && 'Ежедневная задача'}
+                        {task.recurringTaskGroup?.recurrence_type === 'monthly' && 'Ежемесячная задача'}
+                        {task.recurringTaskGroup?.recurrence_type === 'yearly' && 'Ежегодная задача'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="h-3 w-3 text-white/70" />
+                      <span className="text-white/80">
+                        {getDateText(task.due_date)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                                 <div className="flex items-center gap-2">
+                   <Badge variant="outline" className="text-xs hidden sm:inline-flex border-white/30 text-white">
+                     {task.recurringTaskGroup?.recurrence_type === 'weekly' && 'Еженедельно'}
+                     {task.recurringTaskGroup?.recurrence_type === 'daily' && 'Ежедневно'}
+                     {task.recurringTaskGroup?.recurrence_type === 'monthly' && 'Ежемесячно'}
+                     {task.recurringTaskGroup?.recurrence_type === 'yearly' && 'Ежегодно'}
+                   </Badge>
+                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
     );
   }
 
@@ -160,19 +237,18 @@ export function UpcomingTasksWidget({ refreshTrigger = 0 }: UpcomingTasksWidgetP
                     </div>
                   </div>
                 </div>
-                                 <div className="flex items-center gap-2">
-                   <Badge variant="outline" className="text-xs hidden sm:inline-flex">
-                     {task.recurringTaskGroup?.recurrence_type === 'weekly' && 'Еженедельно'}
-                     {task.recurringTaskGroup?.recurrence_type === 'daily' && 'Ежедневно'}
-                     {task.recurringTaskGroup?.recurrence_type === 'monthly' && 'Ежемесячно'}
-                     {task.recurringTaskGroup?.recurrence_type === 'yearly' && 'Ежегодно'}
-                   </Badge>
-                 </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs hidden sm:inline-flex">
+                    {task.recurringTaskGroup?.recurrence_type === 'weekly' && 'Еженедельно'}
+                    {task.recurringTaskGroup?.recurrence_type === 'daily' && 'Ежедневно'}
+                    {task.recurringTaskGroup?.recurrence_type === 'monthly' && 'Ежемесячно'}
+                    {task.recurringTaskGroup?.recurrence_type === 'yearly' && 'Ежегодно'}
+                  </Badge>
+                </div>
               </div>
             ))}
           </div>
         )}
-
       </CardContent>
     </Card>
   );

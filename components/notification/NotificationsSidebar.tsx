@@ -67,6 +67,7 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick, vari
     // Получить иконку для типа уведомления
     const getNotificationIcon = (title: string) => {
         if (title.toLowerCase().includes('принята') || title.toLowerCase().includes('одобрена')) {
+<<<<<<< HEAD
             return <CheckCircle className={`w-4 h-4 ${isDark ? 'text-[#F35713]' : 'text-[#114A65]'}`} />;
         }
         if (title.toLowerCase().includes('завершена') || title.toLowerCase().includes('выполнена')) {
@@ -74,6 +75,15 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick, vari
         }
         if (title.toLowerCase().includes('просрочена') || title.toLowerCase().includes('отклонена')) {
             return <AlertCircle className="w-4 h-4 text-[#F35713]" />;
+=======
+            return <CheckCircle className="w-4 h-4 text-[#1A9A8A]" />;
+        }
+        if (title.toLowerCase().includes('завершена') || title.toLowerCase().includes('выполнена')) {
+            return <CheckCircle className="w-4 h-4 text-[#1A9A8A]" />;
+        }
+        if (title.toLowerCase().includes('просрочена') || title.toLowerCase().includes('отклонена')) {
+            return <AlertCircle className="w-4 h-4 text-[#E25B21]" />;
+>>>>>>> 83b8d17 (execut)
         }
         return <Clock className={`w-4 h-4 ${isDark ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`} />;
     }
@@ -86,15 +96,15 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick, vari
         }
         if (isRead) return 'bg-gradient-to-r from-[#F3F3F3] to-[#C4C4CE]/30 border-[#C4C4CE] backdrop-blur-sm';
         if (title.toLowerCase().includes('принята') || title.toLowerCase().includes('одобрена')) {
-            return 'bg-gradient-to-r from-[#114A65]/20 via-[#114A65]/10 to-[#114A65]/20 border-[#114A65]/30 backdrop-blur-md';
+            return 'bg-gradient-to-r from-[#1A9A8A]/20 via-[#1A9A8A]/10 to-[#1A9A8A]/20 border-[#1A9A8A]/30 backdrop-blur-md';
         }
         if (title.toLowerCase().includes('завершена') || title.toLowerCase().includes('выполнена')) {
-            return 'bg-gradient-to-r from-[#114A65]/20 via-[#B8400E]/10 to-[#114A65]/20 border-[#114A65]/30 backdrop-blur-md';
+            return 'bg-gradient-to-r from-[#1A9A8A]/20 via-[#E25B21]/10 to-[#1A9A8A]/20 border-[#1A9A8A]/30 backdrop-blur-md';
         }
         if (title.toLowerCase().includes('просрочена') || title.toLowerCase().includes('отклонена')) {
-            return 'bg-gradient-to-r from-[#B8400E]/20 via-[#B8400E]/10 to-[#B8400E]/20 border-[#B8400E]/30 backdrop-blur-md';
+            return 'bg-gradient-to-r from-[#E25B21]/20 via-[#E25B21]/10 to-[#E25B21]/20 border-[#E25B21]/30 backdrop-blur-md';
         }
-        return 'bg-gradient-to-r from-[#114A65]/15 via-[#B8400E]/10 to-[#114A65]/15 border-[#114A65]/30 backdrop-blur-md';
+        return 'bg-gradient-to-r from-[#E25B21]/15 via-[#D94F15]/10 to-[#E25B21]/15 border-[#E25B21]/30 backdrop-blur-md';
     }
 
     // Обработчик клика по ID заявки
@@ -118,7 +128,11 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick, vari
         <Card className={isDark ? "border border-[#3A3A3C] shadow-none bg-transparent" : "border-0 shadow-lg bg-white/95 backdrop-blur-sm"}>
             <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
+<<<<<<< HEAD
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDark ? 'bg-[#F35713]' : 'bg-[#114A65]'}`}>
+=======
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#E25B21' }}>
+>>>>>>> 83b8d17 (execut)
                         <Bell className="h-4 w-4 text-white" />
                     </div>
                     <CardTitle className={isDark ? "text-lg font-bold text-white" : "text-lg font-bold text-[#040404]"}>Уведомления</CardTitle>
@@ -127,8 +141,13 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick, vari
             <CardContent className="pt-0">
                 {notificationLoading ? (
                     <div className="flex justify-center py-8">
+<<<<<<< HEAD
                         <div className={`flex items-center gap-2 ${isDark ? 'text-[#8E8E93]' : 'text-gray-500'}`}>
                             <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${isDark ? 'border-[#F35713]' : 'border-[#114A65]'}`}></div>
+=======
+                        <div className="flex items-center gap-2 text-gray-500">
+                            <div className="w-4 h-4 border-2 border-[#E25B21] border-t-transparent rounded-full animate-spin"></div>
+>>>>>>> 83b8d17 (execut)
                             <span className="text-sm">Загрузка...</span>
                         </div>
                     </div>
@@ -160,7 +179,11 @@ export function NotificationsSidebar({ onNotificationClick, onRequestClick, vari
                                                 {n.title}
                                             </h3>
                                             {!n.is_read && (
+<<<<<<< HEAD
                                                 <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-[#F35713] bg-[#F35713]/20 rounded-full whitespace-nowrap">
+=======
+                                                <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium text-[#E25B21] bg-[#E25B21]/20 rounded-full whitespace-nowrap">
+>>>>>>> 83b8d17 (execut)
                                                     Новое
                                                 </span>
                                             )}

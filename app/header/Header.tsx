@@ -67,9 +67,9 @@ const Header: React.FC<HeaderProps> = ({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => router.push('/notifications')}
-                                className="relative h-11 w-11 rounded-xl border-2 border-[#B8400E]/20 bg-gradient-to-br from-white to-[#B8400E]/5 hover:from-[#B8400E]/10 hover:to-[#B8400E]/20 hover:border-[#B8400E]/40 transition-all duration-300 shadow-sm hover:shadow-md"
+                                className="relative h-11 w-11 rounded-xl border-2 border-[#E25B21]/20 bg-gradient-to-br from-white to-[#E25B21]/5 hover:from-[#E25B21]/10 hover:to-[#E25B21]/20 hover:border-[#E25B21]/40 transition-all duration-300 shadow-sm hover:shadow-md"
                             >
-                                <Bell className="w-5 h-5 text-[#B8400E]"/>
+                                <Bell className="w-5 h-5 text-[#E25B21]"/>
                                 {unreadNotificationCount > 0 && (
                                     <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center font-bold shadow-lg animate-pulse">
                                         {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
@@ -101,9 +101,9 @@ const Header: React.FC<HeaderProps> = ({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => router.push('/notifications')}
-                                className="relative h-11 w-11 rounded-xl border-2 border-[#B8400E]/20 bg-gradient-to-br from-white to-[#B8400E]/5 hover:from-[#B8400E]/10 hover:to-[#B8400E]/20 hover:border-[#B8400E]/40 transition-all duration-300 shadow-sm"
+                                className="relative h-11 w-11 rounded-xl border-2 border-[#E25B21]/20 bg-gradient-to-br from-white to-[#E25B21]/5 hover:from-[#E25B21]/10 hover:to-[#E25B21]/20 hover:border-[#E25B21]/40 transition-all duration-300 shadow-sm"
                             >
-                                <Bell className="w-5 h-5 text-[#B8400E]"/>
+                                <Bell className="w-5 h-5 text-[#E25B21]"/>
                                 {unreadNotificationCount > 0 && (
                                     <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center font-bold shadow-lg animate-pulse">
                                         {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}

@@ -77,9 +77,9 @@ export function ActivityTrackerService() {
   const isAndroidWebView = useRef<boolean>(false)
   const healthReminderIntervalRef = useRef<number | null>(null)
 
-  // Ранний выход, если пользователь не executor или client - сервис не должен работать для других ролей
+  // Ранний выход: сервис только для client (умный дом, health - недоступны исполнителю)
   useEffect(() => {
-    if (user && (user.role !== 'executor' && user.role !== 'client')) {
+    if (user && user.role !== 'client') {
       // Останавливаем все процессы, если они были запущены
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
@@ -105,7 +105,7 @@ export function ActivityTrackerService() {
 
   // Синхронизация ref с store
   useEffect(() => {
-    if (!user || (user.role !== 'executor' && user.role !== 'client')) return // Не обновляем ref для не-executor
+    if (!user || user.role !== 'client') return
     isTrackingRef.current = isTracking
   }, [isTracking, user])
 
@@ -300,8 +300,8 @@ export function ActivityTrackerService() {
   // Сохранение статистики на сервер
   const saveStatisticsToServer = async () => {
     // Проверка роли - только executor может сохранять статистику
-    if (!user || (user.role !== 'executor' && user.role !== 'client')) {
-      console.log('⏭️ [Service] Пропуск сохранения: пользователь не executor')
+    if (!user || user.role !== 'client') {
+      console.log('⏭️ [Service] Пропуск сохранения: сервис только для client')
       return
     }
     
@@ -522,8 +522,8 @@ export function ActivityTrackerService() {
   // Запуск трекера
   const startTracking = async () => {
     // Дополнительная проверка роли для безопасности
-    if (!user || (user.role !== 'executor' && user.role !== 'client')) {
-      console.warn('⚠️ [Service] Попытка запуска трекера для пользователя без роли executor')
+    if (!user || user.role !== 'client') {
+      console.warn('⚠️ [Service] Попытка запуска трекера для пользователя без роли client')
       return
     }
     
@@ -819,7 +819,7 @@ export function ActivityTrackerService() {
 
   // Реакция на изменения isTracking из store (запросы на запуск/остановку)
   useEffect(() => {
-    if (!user || (user.role !== 'executor' && user.role !== 'client')) return // Для executor и client
+    if (!user || user.role !== 'client') return
     if (isTracking && !intervalRef.current && !isStartingRef.current) {
       // Запускаем трекер, если он был запрошен
       console.log('🔄 [Service] Tracking requested, starting...')
@@ -833,7 +833,7 @@ export function ActivityTrackerService() {
 
   // Восстановление трекера при монтировании (если был запущен)
   useEffect(() => {
-    if (!user || (user.role !== 'executor' && user.role !== 'client')) return // Для executor и client
+    if (!user || user.role !== 'client') return
     if (isTracking && !intervalRef.current) {
       console.log('🔄 [Service] Restoring tracking state...')
       // Восстанавливаем обработчики событий (не для Android; для iOS — данные идут через handleIOSMotionData)
@@ -945,7 +945,7 @@ export function ActivityTrackerService() {
 
   // Автозапуск в рабочие часы
   useEffect(() => {
-    if (!user || (user.role !== 'executor' && user.role !== 'client')) return
+    if (!user || user.role !== 'client') return
 
     let componentMounted = true
     let isChecking = false
@@ -1049,7 +1049,7 @@ export function ActivityTrackerService() {
 
   // Обработчики событий для стандартных Web API (не Android, не iOS WebView — там свои потоки)
   useEffect(() => {
-    if (!user || (user.role !== 'executor' && user.role !== 'client')) {
+    if (!user || user.role !== 'client') {
       window.removeEventListener('devicemotion', handleDeviceMotion as EventListener)
       window.removeEventListener('deviceorientation', handleDeviceOrientation as EventListener)
       return
@@ -1086,8 +1086,8 @@ export function ActivityTrackerService() {
 
   // Health напоминания - проверка времени сидения
   useEffect(() => {
-    if (!user || (user.role !== 'executor' && user.role !== 'client')) {
-      // Очищаем интервал для не-executor
+    if (!user || user.role !== 'client') {
+      // Очищаем интервал — health только для client
       if (healthReminderIntervalRef.current) {
         clearInterval(healthReminderIntervalRef.current)
         healthReminderIntervalRef.current = null

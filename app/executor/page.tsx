@@ -25,7 +25,6 @@ import {
   XCircle,
   Zap,
   Building2,
-  Activity,
   QrCode,
   Camera,
 } from "lucide-react"
@@ -67,7 +66,7 @@ import { getPreviewUrl } from "@/lib/imageOptimization";
 import Executors from "@/components/Executors";
 import ClientRatingModal from "@/components/ClientRatingModal";
 import PhotoModal from "@/components/photo/PhotoModal";
-import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
+import { ExecutorRoomsRequestsView } from "@/components/meeting-rooms/ExecutorRoomsRequestsView";
 import {DeleteConfirmationModal} from "@/components/DeleteConfirmationModal";
 import { QRScanner } from "@/components/QRScanner";
 
@@ -109,7 +108,6 @@ export default function ExecutorDashboard() {
   const [userRatings, setUserRatings] = useState<Record<number, Rating>>({})
 
   const [activeTab, setActiveTab] = useState("meeting-rooms")
-  const [meetingRoomsTab, setMeetingRoomsTab] = useState<"book" | "my-bookings">("book")
   const [selectedPhoto, setSelectedPhoto] = useState<{url: string, created_at?: string} | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
@@ -137,7 +135,6 @@ export default function ExecutorDashboard() {
   const [modalStack, setModalStack] = useState<string[]>([]);
   const [isClosingProgrammatically, setIsClosingProgrammatically] = useState(false);
   const [offices, setOffices] = useState<any[]>([]);
-  const [selectedOffice, setSelectedOffice] = useState<any>(null);
 
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedRequestForReject, setSelectedRequestForReject] = useState<any>(null);
@@ -1659,12 +1656,12 @@ export default function ExecutorDashboard() {
               <div className="flex items-center gap-2 mt-1">
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                   isLongTerm 
-                    ? 'text-[#114A65] bg-[#114A65]/20' 
+                    ? 'text-white bg-[#1A9A8A]' 
                     : requestGroup.request_type === 'urgent'
-                      ? 'text-white bg-gradient-to-r from-[#B8400E] to-[#B8400E]/80'
+                      ? 'text-white bg-[#D94F15]'
                       : requestGroup.request_type === 'planned'
-                        ? 'text-white bg-gradient-to-r from-[#114A65] to-[#114A65]/80'
-                        : 'text-white bg-[#114A65]'
+                        ? 'text-white bg-[#1A9A8A]'
+                        : 'text-white bg-[#E25B21]'
                 }`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
@@ -1753,62 +1750,67 @@ export default function ExecutorDashboard() {
         />
 
       <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-gray-50">
+      <div 
+        className="min-h-screen relative z-10"
+        style={{ 
+          background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 25%, #E25B21 45%, #E25B21 70%, #4A2510 90%, #1C1C1E 100%)',
+          paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
+          <div 
+            className="rounded-t-[32px] px-4 pt-6 pb-8 lg:px-8"
+            style={{ 
+              background: 'linear-gradient(180deg, #E25B21 0%, #E25B21 60%, #4A2510 85%, #1C1C1E 100%)',
+              minHeight: isDesktop ? 'auto' : 'calc(100vh - 200px)',
+            }}
+          >
           {isDesktop ? (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-red-100 rounded-lg">
-                        <AlertTriangle className="w-6 h-6 text-red-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Просрочено</p>
-                        <p className="text-2xl font-bold text-gray-900">{stats?.overdue || 0}</p>
-                      </div>
+                <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-lg bg-white/20">
+                      <AlertTriangle className="w-6 h-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Clock className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">В работе</p>
-                        <p className="text-2xl font-bold text-gray-900">{stats?.inWork || 0}</p>
-                      </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-white/80">Просрочено</p>
+                      <p className="text-2xl font-bold text-white">{stats?.overdue || 0}</p>
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <CheckCircle className="w-6 h-6 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Завершено</p>
-                        <p className="text-2xl font-bold text-gray-900">{stats?.completed || 0}</p>
-                      </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-lg bg-white/20">
+                      <Clock className="w-6 h-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-yellow-100 rounded-lg">
-                        <Star className="w-6 h-6 text-yellow-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Рейтинг</p>
-                        <p className="text-2xl font-bold text-gray-900">{myRating}</p>
-                      </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-white/80">В работе</p>
+                      <p className="text-2xl font-bold text-white">{stats?.inWork || 0}</p>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
+                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-lg bg-white/20">
+                      <CheckCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-white/80">Завершено</p>
+                      <p className="text-2xl font-bold text-white">{stats?.completed || 0}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-lg bg-white/20">
+                      <Star className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-white/80">Рейтинг</p>
+                      <p className="text-2xl font-bold text-white">{myRating ?? '—'}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
           ):null}
 
@@ -1825,24 +1827,24 @@ export default function ExecutorDashboard() {
                   {/* на телефоне только табы */}
                   <div className="w-full mb-2 sm:hidden">
                     <div className="overflow-x-auto">
-                      <TabsList className="flex w-max min-w-full">
-                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                      <TabsList className="flex w-max min-w-full bg-[#3A3A3C] p-1 rounded-xl gap-1">
+                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <span className="sm:hidden flex items-center gap-1">
                             <Building2 className="h-3.5 w-3.5" />
                             Переговорные
                           </span>
                           <span className="hidden sm:inline">Переговорные</span>
                         </TabsTrigger>
-                        <TabsTrigger value="tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                        <TabsTrigger value="tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Мои задачи
                         </TabsTrigger>
-                        <TabsTrigger value="myTasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                        <TabsTrigger value="myTasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Мои заявки
                         </TabsTrigger>
-                        <TabsTrigger value="completed" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                        <TabsTrigger value="completed" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Завершенные
                         </TabsTrigger>
-                        <TabsTrigger value="scan-qr" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0">
+                        <TabsTrigger value="scan-qr" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <span className="sm:hidden flex items-center gap-1">
                             <QrCode className="h-3.5 w-3.5" />
                             Сканировать QR
@@ -1856,24 +1858,24 @@ export default function ExecutorDashboard() {
                   {/* на больших экранах */}
                   <div className="hidden sm:flex justify-between items-center gap-3">
                     <div className="flex-1 overflow-x-auto">
-                      <TabsList className="flex min-w-max gap-2">
-                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                      <TabsList className="flex min-w-max gap-2 bg-[#3A3A3C] p-1 rounded-xl">
+                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <Building2 className="h-4 w-4" />
                           Переговорные
                         </TabsTrigger>
-                        <TabsTrigger value="tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <TabsTrigger value="tasks" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Мои задачи
                         </TabsTrigger>
-                        <TabsTrigger value="myTasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <TabsTrigger value="myTasks" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Мои заявки
                         </TabsTrigger>
-                        <TabsTrigger value="completed" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <TabsTrigger value="completed" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Завершенные
                         </TabsTrigger>
-                        <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                        <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Статистика
                         </TabsTrigger>
-                        <TabsTrigger value="scan-qr" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                        <TabsTrigger value="scan-qr" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <QrCode className="h-4 w-4" />
                           Сканировать QR
                         </TabsTrigger>
@@ -1881,7 +1883,7 @@ export default function ExecutorDashboard() {
                     </div>
                     <Button
                         onClick={() => router.push('/create-request')}
-                        className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]"
+                        className="bg-[#E25B21] hover:bg-[#D94F15] text-white"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Создать заявку
@@ -2020,144 +2022,53 @@ export default function ExecutorDashboard() {
                 </TabsContent>
 
                 <TabsContent value="meeting-rooms" className="pt-2 sm:pt-0">
-                  {/* Кнопки переключения между бронированием и моими бронированиями - всегда видны */}
-                  <div className="mb-4 flex gap-2">
-                    <Button
-                      onClick={() => {
-                        setMeetingRoomsTab("book");
-                        // Если переключаемся на бронирование и офис не выбран, сбрасываем офис
-                        if (!selectedOffice && meetingRoomsTab === "my-bookings") {
-                          setSelectedOffice(null);
-                        }
-                      }}
-                      className={`flex-1 h-10 rounded-lg font-medium transition-all duration-300 ${
-                        meetingRoomsTab === "book"
-                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white"
-                          : "bg-gray-200 hover:bg-gray-300 text-gray-900"
-                      }`}
-                    >
-                      Бронировать
-                    </Button>
-                    <Button
-                      onClick={() => setMeetingRoomsTab("my-bookings")}
-                      className={`flex-1 h-10 rounded-lg font-medium ${
-                        meetingRoomsTab === "my-bookings"
-                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white"
-                          : "bg-gray-200 hover:bg-gray-300 text-gray-900"
-                      }`}
-                    >
-                      Мои бронирования
-                    </Button>
-                  </div>
-
-                  {meetingRoomsTab === "my-bookings" ? (
-                    // Показываем мои бронирования без выбора офиса
-                    <MeetingRoomsCatalog 
-                      initialOffice={null}
-                      onOfficeChange={(office) => setSelectedOffice(office)}
-                      initialTab="my-bookings"
-                      onTabChange={(tab) => setMeetingRoomsTab(tab === "book" ? "book" : "my-bookings")}
-                    />
-                  ) : (
-                    // Для бронирования нужен выбор офиса
-                    <>
-                      {!selectedOffice ? (
-                        <>
-                          {/* Секция выбора офиса */}
-                          <div className="space-y-3">
-                            <div>
-                              <h2 className="text-lg font-semibold text-gray-900">Выбрать офис</h2>
-                              <p className="text-sm text-gray-500">Выберите офис для бронирования переговорной комнаты</p>
-                            </div>
-                            <div className="overflow-x-auto -mx-2 px-2">
-                              <div className="flex gap-3 pb-2" style={{ scrollbarWidth: 'thin' }}>
-                                {offices.map((office: any) => (
-                                  <Card
-                                    key={office.id}
-                                    className="min-w-[280px] cursor-pointer transition-all hover:shadow-md active:scale-95 flex-shrink-0"
-                                    onClick={() => {
-                                      setSelectedOffice(office);
-                                    }}
-                                  >
-                                    <CardContent className="p-0">
-                                      <div className="relative aspect-[4/3] bg-gradient-to-br from-[#114A65]/10 to-[#114A65]/5 overflow-hidden rounded-t-lg">
-                                        {office.photo ? (
-                                          <Image
-                                            src={office.photo}
-                                            alt={office.name}
-                                            fill
-                                            sizes="280px"
-                                            className="object-cover"
-                                          />
-                                        ) : (
-                                          <div className="absolute inset-0 flex items-center justify-center">
-                                            <Building2 className="w-16 h-16 text-[#114A65]" />
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="p-4">
-                                        <h3 className="font-semibold text-gray-900">{office.name}</h3>
-                                        <p className="text-sm text-gray-600 mt-1">{office.city}</p>
-                                        <p className="text-sm text-gray-500">{office.address}</p>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <MeetingRoomsCatalog 
-                          initialOffice={selectedOffice}
-                          onOfficeChange={(office) => setSelectedOffice(office)}
-                          initialTab="book"
-                          onTabChange={(tab) => setMeetingRoomsTab(tab === "book" ? "book" : "my-bookings")}
-                        />
-                      )}
-                    </>
-                  )}
+                  <ExecutorRoomsRequestsView
+                    offices={offices}
+                    myRequests={myRequests}
+                    assignedRequests={assignedRequests}
+                    completedRequests={completedRequests}
+                    onRequestClick={(request) => {
+                      setSelectedRequest(request);
+                      openModal("requestDetails");
+                    }}
+                  />
                 </TabsContent>
 
 
           <TabsContent value="scan-qr" className="pt-2 sm:pt-0">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5" />
-                  Сканирование QR кода
-                </CardTitle>
-                <CardDescription>
-                  Отсканируйте QR код бронирования для уменьшения количества столов
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col items-center gap-4">
-                  <Button
-                    onClick={() => {
-                      setShowQRScanner(true)
-                      openModal('qrScanner')
-                    }}
-                    className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]"
-                    size="lg"
-                  >
+            <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
+              <h3 className="flex items-center gap-2 text-white font-semibold mb-2">
+                <QrCode className="h-5 w-5" />
+                Сканирование QR кода
+              </h3>
+              <p className="text-white/80 text-sm mb-4">
+                Отсканируйте QR код бронирования для уменьшения количества столов
+              </p>
+              <div className="flex flex-col items-center gap-4">
+                <Button
+                  onClick={() => {
+                    setShowQRScanner(true)
+                    openModal('qrScanner')
+                  }}
+                  className="bg-white text-[#D94F15] hover:bg-white/90"
+                  size="lg"
+                >
                     <Camera className="mr-2 h-5 w-5" />
                     Открыть сканер
                   </Button>
                   
-                  <p className="text-sm text-gray-600 text-center">
+                  <p className="text-sm text-white/70 text-center">
                     Отсканируйте QR код бронирования, чтобы уменьшить количество доступных столов
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+            </div>
           </TabsContent>
               </Tabs>
             </div>
 
             <div className="space-y-6 mb-20">
-              <Card className="overflow-hidden">
-                <CardContent className="p-0">
+              <div className="rounded-2xl overflow-hidden" style={{ background: '#D94F15' }}>
+                <div className="p-0">
                   <NotificationsSidebar 
                     onNotificationClick={handleNotificationClick}
                     onRequestClick={(requestId) => {
@@ -2173,29 +2084,24 @@ export default function ExecutorDashboard() {
                       return false; // Заявка не найдена
                     }}
                   />
-                </CardContent>
-              </Card>
-              <Card className="overflow-hidden">
-                <CardContent className="p-4">
-                  <Link href="/activity-stats" className="block">
-                    <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-[#114A65]/10 transition-colors cursor-pointer">
-                      <div className="p-2 bg-[#114A65]/10 rounded-lg">
-                        <Activity className="w-5 h-5 text-[#114A65]" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">Статистика активности</p>
-                        <p className="text-xs text-gray-500">Трекер и статистика</p>
-                      </div>
-                    </div>
-                  </Link>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
         </div>
 
       </div>
       </PullToRefresh>
+
+        {/* Black background extension for safe area */}
+        <div
+          className="fixed bottom-0 left-0 right-0 z-0"
+          style={{
+            height: 'calc(100px + env(safe-area-inset-bottom, 0px))',
+            background: '#1C1C1E',
+          }}
+        />
 
         {/* Модалка */}
         {isModalOpen && selectedNotification && (

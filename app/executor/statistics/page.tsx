@@ -100,64 +100,62 @@ export default function ExecutorStatisticsPage() {
         onRefresh={handleRefresh}
       />
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="min-h-screen bg-[#F3F3F3] pb-20">
+        <div 
+          className="min-h-screen pb-20"
+          style={{ background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 25%, #E25B21 45%, #E25B21 70%, #4A2510 90%, #1C1C1E 100%)' }}
+        >
           <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Моя статистика</CardTitle>
-                    <CardDescription>Показатели за весь период</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
+                  <h3 className="text-lg font-bold text-white">Моя статистика</h3>
+                  <p className="text-sm text-white/80 mb-4">Показатели за весь период</p>
+                  <div className="space-y-4">
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center text-white">
                         <span>Всего выполнено задач</span>
                         <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests): 0}</span>
                       </div>
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center text-white">
                         <span>Выполнено в срок</span>
-                        <span className="font-bold text-green-600">{stats && stats.onTime ? (stats.onTime): 0}</span>
+                        <span className="font-bold text-[#1A9A8A]">{stats && stats.onTime ? (stats.onTime): 0}</span>
                       </div>
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center text-white">
                         <span>Просрочено</span>
-                        <span className="font-bold text-red-600">{stats && stats.overdue ? (stats.overdue): 0}</span>
+                        <span className="font-bold">{stats && stats.overdue ? (stats.overdue): 0}</span>
                       </div>
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center text-white">
                         <span>Средняя оценка</span>
                         <span className="font-bold">{myRating ?? 0}/5</span>
                       </div>
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center text-white">
                         <span>Среднее время выполнения</span>
                         <span className="font-bold">{stats && stats.averageExecutionHours ? (stats.averageExecutionHours): 0} часа</span>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                </div>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Рейтинг и достижения</CardTitle>
-                    <CardDescription>Ваш текущий статус</CardDescription>
-                  </CardHeader>
-                  <CardContent>
+                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
+                  <h3 className="text-lg font-bold text-white">Рейтинг и достижения</h3>
+                  <p className="text-sm text-white/80 mb-4">Ваш текущий статус</p>
+                  <div className="[&_.text-gray-900]:text-white [&_.text-gray-600]:text-white/80">
                     <PerformerCard myRating={myRating ?? 0}/>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
-                        <span className="text-sm">Быстрое выполнение</span>
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
-                        <span className="text-sm">Качественная работа</span>
-                        <CheckCircle className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-[#114A65]/10 rounded-lg">
-                        <span className="text-sm">Надежный партнер</span>
-                        <CheckCircle className="w-5 h-5 text-[#114A65]" />
-                      </div>
+                  </div>
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-white/20">
+                      <span className="text-sm text-white">Быстрое выполнение</span>
+                      <CheckCircle className="w-5 h-5 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-white/20">
+                      <span className="text-sm text-white">Качественная работа</span>
+                      <CheckCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-white/20">
+                      <span className="text-sm text-white">Надежный партнер</span>
+                      <CheckCircle className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1198,12 +1198,12 @@ export default function DepartmentHeadDashboard() {
         return "bg-emerald-500 text-white border-emerald-500"
       case "in_progress":
       case "execution":
-        return "bg-[#114A65] text-white border-[#114A65]"
+        return "bg-[#E25B21] text-white border-[#E25B21]"
       case "awaiting_assignment":
       case "awaiting_sla":
         return "bg-amber-400 text-gray-900 border-amber-400"
       case "assigned":
-        return "bg-[#114A65] text-white border-[#114A65]"
+        return "bg-[#E25B21] text-white border-[#E25B21]"
       case "rejected":
         return "bg-red-500 text-white border-red-500"
       default:
@@ -1237,7 +1237,7 @@ export default function DepartmentHeadDashboard() {
       case "medium":
         return "bg-gradient-to-r from-orange-400 to-yellow-400 text-gray-900 border-orange-400"
       case "simple":
-        return "bg-gradient-to-r from-[#114A65] to-[#B8400E] text-white border-[#114A65]"
+        return "bg-[#E25B21] text-white border-[#E25B21]"
       default:
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white border-gray-400"
     }
@@ -1465,12 +1465,12 @@ export default function DepartmentHeadDashboard() {
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                 isLongTerm 
-                  ? 'text-[#114A65] bg-[#114A65]/20' 
+                  ? 'text-white bg-[#1A9A8A]' 
                   : requestGroup.request_type === 'urgent'
-                    ? 'text-white bg-gradient-to-r from-[#B8400E] to-[#B8400E]/80'
+                    ? 'text-white bg-[#D94F15]'
                     : requestGroup.request_type === 'planned'
-                      ? 'text-white bg-gradient-to-r from-[#114A65] to-[#114A65]/80'
-                      : 'text-white bg-[#114A65]'
+                      ? 'text-white bg-[#1A9A8A]'
+                      : 'text-white bg-[#E25B21]'
               }`}>
                 {requestGroup.request_type === 'urgent' ? 'Экстренная' : requestGroup.request_type === 'planned' ? 'Плановая' : 'Обычная'}
               </span>
@@ -1655,71 +1655,76 @@ export default function DepartmentHeadDashboard() {
             role="Офис менеджер"
         />
         <PullToRefresh onRefresh={handleRefresh}>
-      <div className="min-h-screen bg-gray-50">
+      <div 
+        className="min-h-screen relative z-10"
+        style={{ 
+          background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 25%, #E25B21 45%, #E25B21 70%, #4A2510 90%, #1C1C1E 100%)',
+          paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
           {/* Quick Stats */}
+          <div 
+            className="rounded-t-[32px] px-4 pt-6 pb-8 lg:px-8"
+            style={{ 
+              background: 'linear-gradient(180deg, #E25B21 0%, #E25B21 60%, #4A2510 85%, #1C1C1E 100%)',
+              minHeight: isDesktop ? 'auto' : 'calc(100vh - 200px)',
+            }}
+          >
           {isDesktop ? (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-yellow-100 rounded-lg">
-                        <Clock className="w-6 h-6 text-yellow-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Новые заявки</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {stats && stats.statusCounts && stats.statusCounts.new ? (stats.statusCounts.new) : 0}
-                        </p>
-                      </div>
+                <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-lg bg-white/20">
+                      <Clock className="w-6 h-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Users className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">В работе</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
-                        </p>
-                      </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-white/80">Новые заявки</p>
+                      <p className="text-2xl font-bold text-white">
+                        {stats && stats.statusCounts && stats.statusCounts.new ? (stats.statusCounts.new) : 0}
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <CheckCircle className="w-6 h-6 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Завершено</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
-                        </p>
-                      </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-lg bg-white/20">
+                      <Users className="w-6 h-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-red-100 rounded-lg">
-                        <AlertTriangle className="w-6 h-6 text-red-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Просрочено</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
-                        </p>
-                      </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-white/80">В работе</p>
+                      <p className="text-2xl font-bold text-white">
+                        {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
+                      </p>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
+                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-lg bg-white/20">
+                      <CheckCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-white/80">Завершено</p>
+                      <p className="text-2xl font-bold text-white">
+                        {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
+                  <div className="flex items-center">
+                    <div className="p-2 rounded-lg bg-white/20">
+                      <AlertTriangle className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-white/80">Просрочено</p>
+                      <p className="text-2xl font-bold text-white">
+                        {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
           ): null}
 
@@ -1737,24 +1742,24 @@ export default function DepartmentHeadDashboard() {
                   {/* на телефоне только табы */}
                   <div className="w-full mb-2 sm:hidden">
                     <div className="overflow-x-auto">
-                      <TabsList className="flex w-max min-w-full">
-                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
+                      <TabsList className="flex w-max min-w-full bg-[#3A3A3C] p-1 rounded-xl gap-1">
+                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <span className="sm:hidden flex items-center gap-1">
                             <Building2 className="h-3.5 w-3.5" />
                             Переговорные
                           </span>
                           <span className="hidden sm:inline">Переговорные</span>
                         </TabsTrigger>
-                        <TabsTrigger value="incoming" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
+                        <TabsTrigger value="incoming" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <span className="sm:hidden">Входящие</span>
                         </TabsTrigger>
-                        <TabsTrigger value="my-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
+                        <TabsTrigger value="my-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <span className="sm:hidden">Мои</span>
                         </TabsTrigger>
-                        <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
+                        <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <span className="sm:hidden">Повторяющиеся</span>
                         </TabsTrigger>
-                        <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2">
+                        <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <span className="sm:hidden flex items-center gap-1">
                             <LayoutGrid className="h-3.5 w-3.5" />
                             Управление
@@ -1768,24 +1773,24 @@ export default function DepartmentHeadDashboard() {
                   {/* на больших экранах */}
                   <div className="hidden sm:flex justify-between items-center gap-3">
                     <div className="flex-1 overflow-x-auto">
-                      <TabsList className="flex min-w-max gap-2">
-                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                      <TabsList className="flex min-w-max gap-2 bg-[#3A3A3C] p-1 rounded-xl">
+                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <Building2 className="h-4 w-4" />
                           Переговорные
                         </TabsTrigger>
-                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap">
+                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Входящие заявки
                       </TabsTrigger>
-                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap">
+                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Мои заявки
                       </TabsTrigger>
-                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap">
+                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           Повторяющиеся
                       </TabsTrigger>
-                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap">
+                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                         Статистика
                       </TabsTrigger>
-                        <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2">
+                        <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <LayoutGrid className="h-4 w-4" />
                           Управление
                       </TabsTrigger>
@@ -1793,7 +1798,7 @@ export default function DepartmentHeadDashboard() {
                     </div>
                     <Button
                         onClick={() => router.push('/create-request')}
-                        className="bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#A3390D]"
+                        className="bg-[#E25B21] hover:bg-[#D94F15] text-white"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       Создать заявку
@@ -1910,8 +1915,8 @@ export default function DepartmentHeadDashboard() {
                       }}
                       className={`flex-1 h-10 rounded-lg font-medium transition-all duration-300 ${
                         meetingRoomsTab === "book"
-                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white"
-                          : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                          ? "bg-[#D94F15] hover:bg-[#C44712] text-white"
+                          : "bg-white/20 hover:bg-white/30 text-white"
                       }`}
                     >
                       Бронировать
@@ -1920,8 +1925,8 @@ export default function DepartmentHeadDashboard() {
                       onClick={() => setMeetingRoomsTab("my-bookings")}
                       className={`flex-1 h-10 rounded-lg font-medium ${
                         meetingRoomsTab === "my-bookings"
-                          ? "bg-gradient-to-r from-[#114A65] to-[#B8400E] hover:from-[#0d3a4f] hover:to-[#9a360c] text-white"
-                          : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                          ? "bg-[#D94F15] hover:bg-[#C44712] text-white"
+                          : "bg-white/20 hover:bg-white/30 text-white"
                       }`}
                     >
                       Мои бронирования
@@ -1944,42 +1949,41 @@ export default function DepartmentHeadDashboard() {
                           {/* Секция выбора офиса */}
                           <div className="space-y-3">
                             <div>
-                              <h2 className="text-lg font-semibold text-gray-900">Выбрать офис</h2>
-                              <p className="text-sm text-gray-500">Выберите офис для бронирования переговорной комнаты</p>
+                              <h2 className="text-lg font-semibold text-white">Выбрать офис</h2>
+                              <p className="text-sm text-white/80">Выберите офис для бронирования переговорной комнаты</p>
                             </div>
                             <div className="overflow-x-auto -mx-2 px-2">
                               <div className="flex gap-3 pb-2" style={{ scrollbarWidth: 'thin' }}>
                                 {offices.map((office: any) => (
-                                  <Card
+                                  <div
                                     key={office.id}
-                                    className="min-w-[280px] cursor-pointer transition-all hover:shadow-md active:scale-95 flex-shrink-0"
+                                    className="min-w-[280px] cursor-pointer transition-all hover:shadow-md active:scale-95 flex-shrink-0 rounded-2xl overflow-hidden"
+                                    style={{ background: '#D94F15' }}
                                     onClick={() => {
                                       setSelectedOffice(office);
                                     }}
                                   >
-                                    <CardContent className="p-0">
-                                      <div className="relative aspect-[4/3] bg-gradient-to-br from-[#114A65]/10 to-[#114A65]/5 overflow-hidden rounded-t-lg">
-                                        {office.photo ? (
-                                          <Image
-                                            src={office.photo}
-                                            alt={office.name}
-                                            fill
-                                            sizes="280px"
-                                            className="object-cover"
-                                          />
-                                        ) : (
-                                          <div className="absolute inset-0 flex items-center justify-center">
-                                            <Building2 className="w-16 h-16 text-[#114A65]" />
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="p-4">
-                                        <h3 className="font-semibold text-gray-900">{office.name}</h3>
-                                        <p className="text-sm text-gray-600 mt-1">{office.city}</p>
-                                        <p className="text-sm text-gray-500">{office.address}</p>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
+                                    <div className="relative aspect-[4/3] bg-white/10 overflow-hidden">
+                                      {office.photo ? (
+                                        <Image
+                                          src={office.photo}
+                                          alt={office.name}
+                                          fill
+                                          sizes="280px"
+                                          className="object-cover"
+                                        />
+                                      ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <Building2 className="w-16 h-16 text-white" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="p-4">
+                                      <h3 className="font-semibold text-white">{office.name}</h3>
+                                      <p className="text-sm text-white/80 mt-1">{office.city}</p>
+                                      <p className="text-sm text-white/60">{office.address}</p>
+                                    </div>
+                                  </div>
                                 ))}
                               </div>
                             </div>
@@ -2107,9 +2111,9 @@ export default function DepartmentHeadDashboard() {
             </div>
 
             <div className="space-y-6 mb-20">
-              <UpcomingTasksWidget refreshTrigger={upcomingTasksRefreshTrigger} />
-              <Card className="overflow-hidden">
-                <CardContent className="p-0">
+              <UpcomingTasksWidget refreshTrigger={upcomingTasksRefreshTrigger} variant="themed" />
+              <div className="rounded-2xl overflow-hidden" style={{ background: '#D94F15' }}>
+                <div className="p-0">
                   <NotificationsSidebar 
                     onNotificationClick={handleNotificationClick}
                     onRequestClick={(requestId) => {
@@ -2125,13 +2129,23 @@ export default function DepartmentHeadDashboard() {
                       return false; // Заявка не найдена
                     }}
                   />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
+          </div>
           </div>
         </div>
       </div>
       </PullToRefresh>
+
+        {/* Black background extension for safe area */}
+        <div
+          className="fixed bottom-0 left-0 right-0 z-0"
+          style={{
+            height: 'calc(100px + env(safe-area-inset-bottom, 0px))',
+            background: '#1C1C1E',
+          }}
+        />
 
         {/* Модалка */}
         {isModalOpen && selectedNotification && (
@@ -2241,7 +2255,7 @@ export default function DepartmentHeadDashboard() {
                   </div>
                                     <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
                                       <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
-                                        <span className="w-2 h-2 bg-[#114A65] rounded-full"></span>
+                                        <span className="w-2 h-2 bg-[#E25B21] rounded-full"></span>
                                         {subRequest.category?.name || 'Без категории'}
                                       </span>
                                     </div>
@@ -2254,7 +2268,7 @@ export default function DepartmentHeadDashboard() {
                       <Button
                                         variant="ghost"
                           size="sm"
-                                        className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-[#114A65]/10`}
+                                        className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-[#E25B21]/10`}
                           onClick={() => {
                                           if (hasComments) {
                                             setShowComments(null);
@@ -2263,7 +2277,7 @@ export default function DepartmentHeadDashboard() {
                             }
                           }}
                       >
-                                      <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-[#114A65]' : 'text-gray-500'}`} />
+                                      <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-[#E25B21]' : 'text-gray-500'}`} />
                       </Button>
 
                                     <RoleBasedActionMenu
@@ -2417,7 +2431,7 @@ export default function DepartmentHeadDashboard() {
                                       key={index}
                                       src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#114A65] transition-border duration-150"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#E25B21] transition-border duration-150"
                                   onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
@@ -2443,7 +2457,7 @@ export default function DepartmentHeadDashboard() {
                                       key={index}
                                       src={getPreviewUrl(photo.photo_url)}
                                       alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#114A65] transition-border duration-150"
+                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#E25B21] transition-border duration-150"
                             onClick={() => {
                                         setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
                                         openModal('photoPreview');
@@ -2651,7 +2665,7 @@ export default function DepartmentHeadDashboard() {
         />}
         {isDesktop && <Link
             href="/chat-bot"
-            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-[#114A65]/10 text-[#114A65] rounded-full shadow-lg hover:bg-[#114A65]/20 transition"
+            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-[#E25B21]/10 text-[#E25B21] rounded-full shadow-lg hover:bg-[#E25B21]/20 transition"
         >
           <MessageCircle className="w-7 h-7" />
 

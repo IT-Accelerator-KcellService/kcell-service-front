@@ -103,73 +103,68 @@ export default function DepartmentHeadStatisticsPage() {
         onRefresh={handleRefresh}
       />
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="min-h-screen bg-[#F3F3F3] pb-20">
+        <div 
+          className="min-h-screen pb-20"
+          style={{ background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 25%, #E25B21 45%, #E25B21 70%, #4A2510 90%, #1C1C1E 100%)' }}
+        >
           <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="w-full">
-                  <CardHeader>
-                    <CardTitle className="text-base sm:text-lg break-words">Статистика по заявкам</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4 text-sm sm:text-base">
-                      <div className="flex justify-between items-center flex-wrap gap-1">
-                        <span className="break-words">Ожидает назначения</span>
-                        <span className="font-bold">{stats && stats.statusCounts && stats.statusCounts.awaitingAssignment ? (stats.statusCounts.awaitingAssignment) : 0}</span>
-                      </div>
-                      <div className="flex justify-between items-center flex-wrap gap-1">
-                        <span className="break-words">Всего заявок</span>
-                        <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests) : 0}</span>
-                      </div>
-                      <div className="flex justify-between items-center flex-wrap gap-1">
-                        <span className="break-words">Завершено</span>
-                        <span className="font-bold text-green-600">
-                          {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center flex-wrap gap-1">
-                        <span className="break-words">В работе</span>
-                        <span className="font-bold text-blue-600">
-                          {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center flex-wrap gap-1">
-                        <span className="break-words">Просрочено</span>
-                        <span className="font-bold text-red-600">
-                          {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
-                        </span>
-                      </div>
+                <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
+                  <h3 className="text-base sm:text-lg font-bold text-white mb-4">Статистика по заявкам</h3>
+                  <div className="space-y-4 text-sm sm:text-base">
+                    <div className="flex justify-between items-center flex-wrap gap-1 text-white">
+                      <span className="break-words">Ожидает назначения</span>
+                      <span className="font-bold">{stats && stats.statusCounts && stats.statusCounts.awaitingAssignment ? (stats.statusCounts.awaitingAssignment) : 0}</span>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex justify-between items-center flex-wrap gap-1 text-white">
+                      <span className="break-words">Всего заявок</span>
+                      <span className="font-bold">{stats && stats.totalRequests ? (stats.totalRequests) : 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center flex-wrap gap-1 text-white">
+                      <span className="break-words">Завершено</span>
+                      <span className="font-bold text-[#1A9A8A]">
+                        {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center flex-wrap gap-1 text-white">
+                      <span className="break-words">В работе</span>
+                      <span className="font-bold">
+                        {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center flex-wrap gap-1 text-white">
+                      <span className="break-words">Просрочено</span>
+                      <span className="font-bold">
+                        {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                <Card className="w-full">
-                  <CardHeader>
-                    <CardTitle className="text-base sm:text-lg break-words">По типам заявок</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4 text-sm sm:text-base">
-                      <div className="flex justify-between items-center flex-wrap gap-1">
-                        <span className="break-words">Обычные</span>
-                        <span className="font-bold">
-                          {stats && stats.requestTypeSummary && stats.requestTypeSummary.normal ? (stats.requestTypeSummary.normal) : 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center flex-wrap gap-1">
-                        <span className="break-words">Экстренные</span>
-                        <span className="font-bold">
-                          {stats && stats.requestTypeSummary && stats.requestTypeSummary.urgent ? (stats.requestTypeSummary.urgent) : 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center flex-wrap gap-1">
-                        <span className="break-words">Плановые</span>
-                        <span className="font-bold">
-                          {stats && stats.requestTypeSummary && stats.requestTypeSummary.planned ? (stats.requestTypeSummary.planned) : 0}
-                        </span>
-                      </div>
+                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
+                  <h3 className="text-base sm:text-lg font-bold text-white mb-4">По типам заявок</h3>
+                  <div className="space-y-4 text-sm sm:text-base">
+                    <div className="flex justify-between items-center flex-wrap gap-1 text-white">
+                      <span className="break-words">Обычные</span>
+                      <span className="font-bold">
+                        {stats && stats.requestTypeSummary && stats.requestTypeSummary.normal ? (stats.requestTypeSummary.normal) : 0}
+                      </span>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex justify-between items-center flex-wrap gap-1 text-white">
+                      <span className="break-words">Экстренные</span>
+                      <span className="font-bold">
+                        {stats && stats.requestTypeSummary && stats.requestTypeSummary.urgent ? (stats.requestTypeSummary.urgent) : 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center flex-wrap gap-1 text-white">
+                      <span className="break-words">Плановые</span>
+                      <span className="font-bold">
+                        {stats && stats.requestTypeSummary && stats.requestTypeSummary.planned ? (stats.requestTypeSummary.planned) : 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

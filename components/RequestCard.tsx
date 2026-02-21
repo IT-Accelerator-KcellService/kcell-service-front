@@ -178,8 +178,8 @@ function RequestCardComponent({
   const cardClassName = useMemo(() => {
     return `hover:shadow-xl transition-all duration-300 border-0 shadow-md relative overflow-hidden cursor-pointer will-change-transform backdrop-blur-sm ${
       request.is_long_term && request.request_type !== 'recurring'
-        ? 'bg-gradient-to-r from-[#114A65]/10 via-white to-[#114A65]/5 hover:from-[#114A65]/15 hover:via-white hover:to-[#114A65]/10 border-l-4 border-[#114A65] backdrop-blur-md' 
-        : 'bg-gradient-to-br from-white via-[#F3F3F3] to-white hover:shadow-[#C4C4CE]/40'
+        ? 'bg-gradient-to-r from-[#E25B21]/10 via-white to-[#1A9A8A]/5 hover:from-[#E25B21]/15 hover:via-white hover:to-[#1A9A8A]/10 border-l-4 border-[#1A9A8A] backdrop-blur-md' 
+        : 'bg-gradient-to-br from-white via-[#F3F3F3] to-white hover:shadow-[#E25B21]/20'
     }`
   }, [request.is_long_term, request.request_type])
   
@@ -198,13 +198,13 @@ function RequestCardComponent({
       <CardContent className="px-5 pb-5 pt-0 space-y-3">
         {/* Основная информация в сетке */}
         <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="flex items-center gap-2 text-[#040404] bg-gradient-to-r from-[#114A65]/10 to-[#B8400E]/10 backdrop-blur-sm border border-[#114A65]/20 p-2 rounded-lg shadow-sm">
-            <MapPin className="w-4 h-4 flex-shrink-0 text-[#114A65]" />
+          <div className="flex items-center gap-2 text-[#040404] bg-gradient-to-r from-[#E25B21]/10 to-[#D94F15]/10 backdrop-blur-sm border border-[#E25B21]/20 p-2 rounded-lg shadow-sm">
+            <MapPin className="w-4 h-4 flex-shrink-0 text-[#E25B21]" />
             <span className="truncate font-medium">{request.location_detail}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-[#040404] bg-gradient-to-r from-[#B8400E]/10 to-[#114A65]/10 backdrop-blur-sm border border-[#B8400E]/20 p-2 rounded-lg shadow-sm">
-            <CalendarLucid className="w-4 h-4 flex-shrink-0 text-[#114A65]" />
+          <div className="flex items-center gap-2 text-[#040404] bg-gradient-to-r from-[#D94F15]/10 to-[#E25B21]/10 backdrop-blur-sm border border-[#D94F15]/20 p-2 rounded-lg shadow-sm">
+            <CalendarLucid className="w-4 h-4 flex-shrink-0 text-[#E25B21]" />
             <span className="truncate font-medium">{formattedDate}</span>
           </div>
         </div>
@@ -213,7 +213,7 @@ function RequestCardComponent({
         {request.photos && request.photos.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-[#114A65]" />
+              <ImageIcon className="w-4 h-4 text-[#E25B21]" />
               <span className="text-sm font-medium text-[#040404]">{request.photos.length} фото</span>
             </div>
             <div className="flex gap-2 overflow-x-auto">
@@ -226,7 +226,7 @@ function RequestCardComponent({
                 />
               ))}
               {request.photos.length > 2 && (
-                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-[#114A65] border-2 border-[#C4C4CE] flex items-center justify-center shadow-sm">
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-[#E25B21] border-2 border-[#C4C4CE] flex items-center justify-center shadow-sm">
                   <span className="text-xs font-bold text-white">+{request.photos.length - 2}</span>
                 </div>
               )}
