@@ -9,16 +9,18 @@ interface CommentsModalProps {
   isOpen: boolean;
   onClose: () => void;
   requestId: number | null;
-  currentUserId: number | null;
-  isDesktop: boolean;
+  currentUserId?: number | null;
+  isDesktop?: boolean;
+  variant?: "default" | "admin";
 }
 
 export const CommentsModal: React.FC<CommentsModalProps> = ({
   isOpen,
   onClose,
   requestId,
-  currentUserId,
-  isDesktop,
+  currentUserId = null,
+  isDesktop = false,
+  variant = "default",
 }) => {
   const { user } = useAuthStore();
   const {
@@ -103,9 +105,77 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
 
   if (!isOpen || !requestId) return null;
 
+  // Админ мобилка: full-screen тёмный дизайн, навбар скрыт под модалкой (z-[60])
+  if (variant === "admin" && !isDesktop) {
+    return (
+      <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-800 flex-shrink-0">
+          <h3 className="font-semibold text-lg text-white">Комментарии</h3>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-gray-800 text-white"
+            aria-label="Закрыть"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Список комментариев */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading[requestId || 0] ? (
+            <div className="text-center py-8">
+              <p className="text-gray-400 text-sm">Загрузка комментариев...</p>
+            </div>
+          ) : (comments[requestId || 0] || []).length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-400 text-sm">Комментариев пока нет</p>
+            </div>
+          ) : (
+            <CommentList
+              comments={comments[requestId || 0] || []}
+              currentUserId={currentUserId}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              variant="dark"
+            />
+          )}
+        </div>
+
+        {/* Поле ввода — с отступом под safe-area, навбар не виден */}
+        <div className="p-4 pt-3 border-t border-gray-800 bg-[#1C1C1E] pb-[env(safe-area-inset-bottom,0px)]">
+          <div className="flex items-end gap-2">
+            <div className="flex-1 min-w-0">
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                onKeyPress={handleKeyPress}
+                onInput={handleInput}
+                placeholder="Написать комментарий..."
+                className="w-full min-h-[44px] max-h-[120px] p-3 rounded-lg text-sm bg-[#262626] border border-gray-600 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#F35713] focus:border-transparent resize-none"
+                style={{
+                  height: "auto",
+                  minHeight: "44px",
+                  maxHeight: "120px",
+                }}
+              />
+            </div>
+            <button
+              onClick={() => handleSend(requestId)}
+              disabled={!comment.trim()}
+              className="flex-shrink-0 p-3 rounded-lg bg-[#F35713] hover:bg-[#E04A0A] disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Мобильная версия */}
+      {/* Мобильная версия (default) */}
       {!isDesktop && (
         <div className="fixed inset-0 z-50 flex items-end safe-area-bottom">
           {/* Overlay */}

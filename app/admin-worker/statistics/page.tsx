@@ -2,7 +2,6 @@
 
 import "@/lib/android-bridge"
 import React, {useEffect, useState, useCallback, useMemo} from "react"
-import {Card, CardContent, CardHeader, CardTitle, CardDescription} from "@/components/ui/card"
 import {Button} from "@/components/ui/button"
 import {Label} from "@/components/ui/label"
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
@@ -12,11 +11,11 @@ import {format} from "date-fns"
 import {ru} from "date-fns/locale"
 import {LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer} from "recharts"
 import {AlertTriangle, BarChart3, Calendar as CalendarLucid, Download} from "lucide-react"
+import {Card, CardContent} from "@/components/ui/card";
 import Header from "@/app/header/Header";
 import api from "@/lib/api";
 import {useRouter} from "next/navigation";
 import {useMediaQuery} from "@/hooks/use-media-query";
-import {BottomNav} from "@/components/BottomNav";
 import PullToRefresh from "@/components/pull-to-refresh";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useStatsStore} from "@/stores/statsStore";
@@ -66,6 +65,11 @@ export default function AdminWorkerStatisticsPage() {
   const [period, setPeriod] = useState("month")
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [endDate, setEndDate] = useState<Date | undefined>(undefined)
+  const [notificationStats, setNotificationStats] = useState<{
+    totalLogs: number;
+    statusStats: Record<string, number>;
+    deliveryMethodStats: Record<string, number>;
+  } | null>(null)
   
   const {
     adminWorkerStats,
@@ -112,12 +116,34 @@ export default function AdminWorkerStatisticsPage() {
     }
   }, []);
 
+  const fetchNotificationStats = useCallback(async () => {
+    try {
+      const res = await api.get("/notification-logs/statistics");
+      const raw = res.data?.data ?? res.data;
+      if (raw && typeof raw.totalLogs === "number") {
+        setNotificationStats({
+          totalLogs: raw.totalLogs ?? 0,
+          statusStats: raw.statusStats ?? {},
+          deliveryMethodStats: raw.deliveryMethodStats ?? {},
+        });
+      }
+    } catch (error) {
+      console.error("Notification stats:", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!stats && token) {
       fetchStatsData()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  useEffect(() => {
+    if (token && user?.role === "admin-worker") {
+      fetchNotificationStats();
+    }
+  }, [token, user?.role, fetchNotificationStats]);
 
   const chartData: ChartData[] = useMemo(() => {
     if (user?.role !== 'admin-worker') return [];
@@ -409,6 +435,7 @@ export default function AdminWorkerStatisticsPage() {
       await Promise.all([
         fetchStatsData(),
         fetchStats('admin-worker'),
+        fetchNotificationStats(),
         // Пытаемся загрузить manager stats, игнорируем 403 ошибку
         fetchStats('manager').catch(err => {
           if (err?.response?.status !== 403) {
@@ -513,267 +540,469 @@ export default function AdminWorkerStatisticsPage() {
     }
   };
 
-  const Stat = ({ label, value }: { label: string; value: number | string }) => (
-    <div className="rounded-lg border bg-white">
-      <div className="p-3">
-        <div className="text-xs text-neutral-500">{label}</div>
-        <div className="mt-1 text-2xl font-semibold tracking-tight">{value}</div>
-      </div>
+  const Stat = ({ label, value, dark }: { label: string; value: number | string; dark?: boolean }) => (
+    <div className={`rounded-xl border p-4 ${dark ? "bg-[#2C2C2E] border-[#3A3A3C]" : "bg-white"}`}>
+      <div className={`text-xs ${dark ? "text-gray-400" : "text-neutral-500"}`}>{label}</div>
+      <div className={`mt-1 text-2xl font-semibold tracking-tight ${dark ? "text-white" : ""}`}>{value}</div>
     </div>
   )
 
-  return (
-    <>
-      <Header
-        handleLogout={handleLogout}
-        notificationCount={0}
-        role="Администратор офиса"
-        onRefresh={handleRefresh}
-      />
-      <PullToRefresh onRefresh={handleRefresh}>
-        <div className="min-h-screen bg-[#F3F3F3] pb-20">
-          <div className="w-full max-w-screen-sm mx-auto px-3">
-            {/* Summary Stats */}
-            <section className="pt-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Stat label="Всего" value={summary.total} />
-                <Stat label="Новые" value={summary.newRequests ?? adminWorkerStats?.statusCounts?.new ?? 0} />
-                <Stat label="В работе" value={summary.inWork ?? 0} />
-                <Stat label="Завершено" value={`${summary.completed} (${summary.completionRate}%)`} />
-                <Stat label="Просрочено" value={`${summary.overdue} (${summary.overdueRate}%)`} />
-                <Stat label="В день (ср.)" value={summary.avgPerDay} />
-              </div>
-            </section>
+  // Десктоп — светлый дизайн с Header
+  if (isDesktop) {
+    return (
+      <>
+        <Header
+          handleLogout={handleLogout}
+          notificationCount={0}
+          role="Администратор офиса"
+        />
+        <PullToRefresh onRefresh={handleRefresh}>
+          <div className="min-h-screen bg-[#F3F3F3] pb-20">
+            <div className="w-full max-w-screen-sm mx-auto px-3">
+              <section className="pt-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <Stat label="Всего" value={summary.total} />
+                  <Stat label="Новые" value={summary.newRequests ?? adminWorkerStats?.statusCounts?.new ?? 0} />
+                  <Stat label="В работе" value={summary.inWork ?? 0} />
+                  <Stat label="Завершено" value={`${summary.completed} (${summary.completionRate}%)`} />
+                  <Stat label="Просрочено" value={`${summary.overdue} (${summary.overdueRate}%)`} />
+                  <Stat label="В день (ср.)" value={summary.avgPerDay} />
+                </div>
+              </section>
 
-            {/* Controls */}
-            <section className="pt-3">
-              <Card className="border bg-white">
-                <CardContent className="flex flex-col gap-3 p-3">
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <div className="h-10 w-full flex items-center px-3 py-2 border border-input bg-background rounded-md text-sm">
-                        {user?.office?.name || "Офис"}
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
-                        <SelectTrigger className="h-10 w-full">
-                          <SelectValue placeholder="Период" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="week">Неделя</SelectItem>
-                          <SelectItem value="month">Месяц</SelectItem>
-                          <SelectItem value="year">Год</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            {/* Chart */}
-            <section className="pt-3">
-              <Card className="border bg-white">
-                <CardContent className="p-3">
-                  <div className="mb-3">
-                    <div className="text-sm font-medium">Динамика по дням</div>
-                    <div className="text-xs text-neutral-500">Количество заявок по дням</div>
-                  </div>
-
-                  {/* Date filters */}
-                  <div className="mb-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm font-medium">Фильтр по дате:</Label>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={resetDateFilters}
-                        className="text-xs"
-                      >
-                        Сбросить
-                      </Button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label className="text-xs text-gray-600">От:</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-left font-normal"
-                            >
-                              <CalendarLucid className="mr-2 h-4 w-4" />
-                              {startDate ? format(startDate, "dd.MM", { locale: ru }) : "От"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={startDate}
-                              onSelect={setStartDate}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-xs text-gray-600">До:</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full justify-start text-left font-normal"
-                            >
-                              <CalendarLucid className="mr-2 h-4 w-4" />
-                              {endDate ? format(endDate, "dd.MM", { locale: ru }) : "До"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={endDate}
-                              onSelect={setEndDate}
-                              disabled={(date) => startDate ? date < startDate : false}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="h-48">
-                    {chartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData}>
-                          <defs>
-                            <linearGradient id="kcellGradientHome" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#114A65" stopOpacity={1} />
-                              <stop offset="100%" stopColor="#B8400E" stopOpacity={0.8} />
-                            </linearGradient>
-                          </defs>
-
-                          <CartesianGrid strokeDasharray="3 3" stroke="#C4C4CE" />
-                          <XAxis dataKey="date" stroke="#040404" />
-                          <YAxis allowDecimals={false} stroke="#040404" />
-                          <Tooltip />
-                          <Line
-                            type="monotone"
-                            dataKey="count"
-                            stroke="url(#kcellGradientHome)"
-                            strokeWidth={2.5}
-                            dot={{ r: 4, stroke: '#114A65', strokeWidth: 1.5, fill: '#fff' }}
-                            activeDot={{ r: 6 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="text-gray-500 text-center py-16">Нет данных для отображения</div>
-                    )}
-                  </div>
-
-                  {/* Export buttons */}
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="text-sm font-medium mb-3">Экспорт данных</div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleExport("xlsx")}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Excel
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleExport("pbix")}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Power BI
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            {/* Overview */}
-            {distribution && (
               <section className="pt-3">
                 <Card className="border bg-white">
-                  <CardContent className="p-3">
-                    <div className="mb-2">
-                      <div className="text-sm font-medium">Краткий обзор</div>
-                      <div className="text-xs text-neutral-500">
-                        Всего заявок: {summary.total}, в работе: {summary.inWork}, выполнено: {summary.completed} ({summary.completionRate}%), просрочено: {summary.overdue} ({summary.overdueRate}%)
+                  <CardContent className="flex flex-col gap-3 p-3">
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <div className="h-10 w-full flex items-center px-3 py-2 border border-input bg-background rounded-md text-sm">
+                          {user?.office?.name || "Офис"}
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-3">
-                      {[
-                        {
-                          key: "normal",
-                          label: "Обычные",
-                          pctKey: "normalPercent",
-                          icon: <BarChart3 className="h-4 w-4 text-[#114A65]" />,
-                        },
-                        {
-                          key: "urgent",
-                          label: "Экстренные",
-                          pctKey: "urgentPercent",
-                          icon: <AlertTriangle className="h-4 w-4 text-[#B8400E]" />,
-                        },
-                        {
-                          key: "planned",
-                          label: "Плановые",
-                          pctKey: "plannedPercent",
-                          icon: <CalendarLucid className="h-4 w-4 text-[#114A65]" />,
-                        },
-                      ].map((row) => {
-                        const totalKey = row.key as "normal" | "urgent" | "planned"
-                        const pctKey = row.pctKey as "normalPercent" | "urgentPercent" | "plannedPercent"
-                        return (
-                          <div key={row.key} className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-2">
-                                {row.icon}
-                                <span>{row.label}</span>
-                              </div>
-                              <span className="font-medium">
-                                {distribution[totalKey]} ({distribution[pctKey]}%)
-                              </span>
-                            </div>
-                            <div className="h-2 w-full overflow-hidden rounded bg-[#C4C4CE]/30">
-                              <div
-                                className="h-full bg-gradient-to-r from-[#114A65] to-[#B8400E] transition-all"
-                                style={{ width: `${distribution[pctKey]}%` }}
-                              />
-                            </div>
-                          </div>
-                        )
-                      })}
+                      <div className="flex-1">
+                        <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+                          <SelectTrigger className="h-10 w-full">
+                            <SelectValue placeholder="Период" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="week">Неделя</SelectItem>
+                            <SelectItem value="month">Месяц</SelectItem>
+                            <SelectItem value="year">Год</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
               </section>
-            )}
 
-            {/* Meeting Room Statistics */}
-            <section className="pt-3">
-              <MeetingRoomStatistics />
-            </section>
+              <section className="pt-3">
+                <Card className="border bg-white">
+                  <CardContent className="p-3">
+                    <div className="mb-3">
+                      <div className="text-sm font-medium">Динамика по дням</div>
+                      <div className="text-xs text-neutral-500">Количество заявок по дням</div>
+                    </div>
+                    <div className="mb-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm font-medium">Фильтр по дате:</Label>
+                        <Button variant="outline" size="sm" onClick={resetDateFilters} className="text-xs">Сбросить</Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-gray-600">От:</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                <CalendarLucid className="mr-2 h-4 w-4" />
+                                {startDate ? format(startDate, "dd.MM", { locale: ru }) : "От"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-600">До:</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                <CalendarLucid className="mr-2 h-4 w-4" />
+                                {endDate ? format(endDate, "dd.MM", { locale: ru }) : "До"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar mode="single" selected={endDate} onSelect={setEndDate} disabled={(date) => startDate ? date < startDate : false} initialFocus />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="h-48">
+                      {chartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData}>
+                            <defs>
+                              <linearGradient id="kcellGradientDesktop" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#114A65" stopOpacity={1} />
+                                <stop offset="100%" stopColor="#B8400E" stopOpacity={0.8} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#C4C4CE" />
+                            <XAxis dataKey="date" stroke="#040404" />
+                            <YAxis allowDecimals={false} stroke="#040404" />
+                            <Tooltip />
+                            <Line type="monotone" dataKey="count" stroke="url(#kcellGradientDesktop)" strokeWidth={2.5} dot={{ r: 4, stroke: "#114A65", strokeWidth: 1.5, fill: "#fff" }} activeDot={{ r: 6 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="text-gray-500 text-center py-16">Нет данных для отображения</div>
+                      )}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="text-sm font-medium mb-3">Экспорт данных</div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleExport("xlsx")}>
+                          <Download className="w-4 h-4 mr-2" /> Excel
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleExport("pbix")}>
+                          <Download className="w-4 h-4 mr-2" /> Power BI
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
+
+              {distribution && (
+                <section className="pt-3">
+                  <Card className="border bg-white">
+                    <CardContent className="p-3">
+                      <div className="mb-2">
+                        <div className="text-sm font-medium">Краткий обзор</div>
+                        <div className="text-xs text-neutral-500">
+                          Всего заявок: {summary.total}, в работе: {summary.inWork}, выполнено: {summary.completed} ({summary.completionRate}%), просрочено: {summary.overdue} ({summary.overdueRate}%)
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        {[
+                          { key: "normal", label: "Обычные", pctKey: "normalPercent", icon: <BarChart3 className="h-4 w-4 text-[#114A65]" /> },
+                          { key: "urgent", label: "Экстренные", pctKey: "urgentPercent", icon: <AlertTriangle className="h-4 w-4 text-[#B8400E]" /> },
+                          { key: "planned", label: "Плановые", pctKey: "plannedPercent", icon: <CalendarLucid className="h-4 w-4 text-[#114A65]" /> },
+                        ].map((row) => {
+                          const totalKey = row.key as "normal" | "urgent" | "planned";
+                          const pctKey = row.pctKey as "normalPercent" | "urgentPercent" | "plannedPercent";
+                          return (
+                            <div key={row.key} className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2">
+                                  {row.icon}
+                                  <span>{row.label}</span>
+                                </div>
+                                <span className="font-medium">{distribution[totalKey]} ({distribution[pctKey]}%)</span>
+                              </div>
+                              <div className="h-2 w-full overflow-hidden rounded bg-[#C4C4CE]/30">
+                                <div className="h-full bg-gradient-to-r from-[#114A65] to-[#B8400E] transition-all" style={{ width: `${distribution[pctKey]}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </section>
+              )}
+
+              <section className="pt-3">
+                <MeetingRoomStatistics />
+              </section>
+            </div>
           </div>
+        </PullToRefresh>
+      </>
+    );
+  }
+
+  // Админ мобилка — тёмный дизайн как в заявках
+  return (
+    <div className="w-full max-w-7xl mx-auto px-4 py-6">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-white">Статистика</h1>
+      </div>
+
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="space-y-4 pb-28">
+          {/* Summary Stats */}
+          <section>
+            <div className="grid grid-cols-2 gap-3">
+              <Stat label="Всего" value={summary.total} dark />
+              <Stat label="Новые" value={summary.newRequests ?? adminWorkerStats?.statusCounts?.new ?? 0} dark />
+              <Stat label="В работе" value={summary.inWork ?? 0} dark />
+              <Stat label="Завершено" value={`${summary.completed} (${summary.completionRate}%)`} dark />
+              <Stat label="Просрочено" value={`${summary.overdue} (${summary.overdueRate}%)`} dark />
+              <Stat label="В день (ср.)" value={summary.avgPerDay} dark />
+            </div>
+          </section>
+
+          {/* Controls */}
+          <section>
+            <div className="rounded-xl bg-[#2C2C2E] border border-[#3A3A3C] p-4">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <div className="h-10 w-full flex items-center px-3 py-2 rounded-lg bg-[#1C1C1E] border border-[#3A3A3C] text-white text-sm">
+                    {user?.office?.name || "Офис"}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+                    <SelectTrigger className="h-10 w-full bg-[#2C2C2E] border-[#3A3A3C] text-white">
+                      <SelectValue placeholder="Период" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#2C2C2E] border-[#3A3A3C]">
+                      <SelectItem value="week" className="text-white">Неделя</SelectItem>
+                      <SelectItem value="month" className="text-white">Месяц</SelectItem>
+                      <SelectItem value="year" className="text-white">Год</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Chart */}
+          <section>
+            <div className="rounded-xl bg-[#2C2C2E] border border-[#3A3A3C] p-4">
+              <div className="mb-3">
+                <div className="text-sm font-medium text-white">Динамика по дням</div>
+                <div className="text-xs text-gray-400">Количество заявок по дням</div>
+              </div>
+
+              {/* Date filters */}
+              <div className="mb-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-medium text-gray-300">Фильтр по дате:</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetDateFilters}
+                    className="text-xs border-[#3A3A3C] text-gray-300 hover:bg-gray-700"
+                  >
+                    Сбросить
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs text-gray-400">От:</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal bg-[#1C1C1E] border-[#3A3A3C] text-white hover:bg-gray-800"
+                        >
+                          <CalendarLucid className="mr-2 h-4 w-4" />
+                          {startDate ? format(startDate, "dd.MM", { locale: ru }) : "От"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-[#2C2C2E] border-[#3A3A3C]" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={setStartDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-xs text-gray-400">До:</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal bg-[#1C1C1E] border-[#3A3A3C] text-white hover:bg-gray-800"
+                        >
+                          <CalendarLucid className="mr-2 h-4 w-4" />
+                          {endDate ? format(endDate, "dd.MM", { locale: ru }) : "До"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-[#2C2C2E] border-[#3A3A3C]" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={setEndDate}
+                          disabled={(date) => startDate ? date < startDate : false}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-48">
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <defs>
+                        <linearGradient id="kcellGradientHome" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#114A65" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#B8400E" stopOpacity={0.8} />
+                        </linearGradient>
+                      </defs>
+
+                      <CartesianGrid strokeDasharray="3 3" stroke="#3A3A3C" />
+                      <XAxis dataKey="date" stroke="#9CA3AF" tick={{ fill: "#9CA3AF" }} />
+                      <YAxis allowDecimals={false} stroke="#9CA3AF" tick={{ fill: "#9CA3AF" }} />
+                      <Tooltip contentStyle={{ backgroundColor: "#3A3A3C", border: "1px solid #4B5563" }} />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="url(#kcellGradientHome)"
+                        strokeWidth={2.5}
+                        dot={{ r: 4, stroke: "#114A65", strokeWidth: 1.5, fill: "#1C1C1E" }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-gray-400 text-center py-16">Нет данных для отображения</div>
+                )}
+              </div>
+
+              {/* Export buttons */}
+              <div className="mt-4 pt-4 border-t border-[#3A3A3C]">
+                <div className="text-sm font-medium text-white mb-3">Экспорт данных</div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-[#3A3A3C] text-white hover:bg-gray-700"
+                    onClick={() => handleExport("xlsx")}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Excel
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-[#3A3A3C] text-white hover:bg-gray-700"
+                    onClick={() => handleExport("pbix")}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Power BI
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Overview */}
+          {distribution && (
+            <section>
+              <div className="rounded-xl bg-[#2C2C2E] border border-[#3A3A3C] p-4">
+                <div className="mb-2">
+                  <div className="text-sm font-medium text-white">Краткий обзор</div>
+                  <div className="text-xs text-gray-400">
+                    Всего заявок: {summary.total}, в работе: {summary.inWork}, выполнено: {summary.completed} ({summary.completionRate}%), просрочено: {summary.overdue} ({summary.overdueRate}%)
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    {
+                      key: "normal",
+                      label: "Обычные",
+                      pctKey: "normalPercent",
+                      icon: <BarChart3 className="h-4 w-4 text-[#114A65]" />,
+                    },
+                    {
+                      key: "urgent",
+                      label: "Экстренные",
+                      pctKey: "urgentPercent",
+                      icon: <AlertTriangle className="h-4 w-4 text-[#B8400E]" />,
+                    },
+                    {
+                      key: "planned",
+                      label: "Плановые",
+                      pctKey: "plannedPercent",
+                      icon: <CalendarLucid className="h-4 w-4 text-[#114A65]" />,
+                    },
+                  ].map((row) => {
+                    const totalKey = row.key as "normal" | "urgent" | "planned"
+                    const pctKey = row.pctKey as "normalPercent" | "urgentPercent" | "plannedPercent"
+                    return (
+                      <div key={row.key} className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2 text-gray-200">
+                            {row.icon}
+                            <span>{row.label}</span>
+                          </div>
+                          <span className="font-medium text-white">
+                            {distribution[totalKey]} ({distribution[pctKey]}%)
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded bg-[#3A3A3C]">
+                          <div
+                            className="h-full bg-gradient-to-r from-[#114A65] to-[#B8400E] transition-all"
+                            style={{ width: `${distribution[pctKey]}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Notification / Health stats */}
+          {notificationStats && (
+            <section>
+              <div className="rounded-xl bg-[#2C2C2E] border border-[#3A3A3C] p-4">
+                <div className="mb-3">
+                  <div className="text-sm font-medium text-white">Статистика уведомлений</div>
+                  <div className="text-xs text-gray-400">Доставка и статусы уведомлений</div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Stat label="Всего логов" value={notificationStats.totalLogs} dark />
+                  <Stat
+                    label="Доставлено"
+                    value={notificationStats.statusStats?.delivered ?? 0}
+                    dark
+                  />
+                  <Stat
+                    label="Отправлено"
+                    value={notificationStats.statusStats?.sent ?? 0}
+                    dark
+                  />
+                  <Stat
+                    label="Ошибки"
+                    value={notificationStats.statusStats?.failed ?? 0}
+                    dark
+                  />
+                  <Stat
+                    label="Push"
+                    value={notificationStats.deliveryMethodStats?.push ?? 0}
+                    dark
+                  />
+                  <Stat
+                    label="In-app"
+                    value={notificationStats.deliveryMethodStats?.in_app ?? 0}
+                    dark
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Meeting Room Statistics */}
+          <section>
+            <MeetingRoomStatistics variant="dark" />
+          </section>
         </div>
       </PullToRefresh>
-      {!isDesktop && <BottomNav
-        activeTab="statistics"
-        hidden={false}
-      />}
-    </>
+    </div>
   )
 }

@@ -111,6 +111,7 @@ interface Statistics {
 interface LogsViewerProps {
   userRole: string
   isDesktop: boolean
+  dark?: boolean
 }
 
 const actionTypeColors: Record<string, string> = {
@@ -155,7 +156,7 @@ const deliveryMethodLabels: Record<string, string> = {
   in_app: "В приложении",
 }
 
-export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
+export function LogsViewer({ userRole, isDesktop, dark = false }: LogsViewerProps) {
   const [activeTab, setActiveTab] = useState("requests")
   
   // Логи заявок
@@ -483,20 +484,37 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
     }
   }
 
+  const cardClasses = dark ? "border-[#3A3A3C] bg-[#2C2C2E]" : "";
+  const cardTitleClasses = dark ? "text-white" : "";
+  const cardDescClasses = dark ? "text-[#8E8E93]" : "";
+  const selectTriggerClasses = dark ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : "";
+  const selectContentClasses = dark ? "bg-[#2C2C2E] border-[#3A3A3C]" : "";
+  const selectItemClasses = dark ? "text-white focus:bg-[#3A3A3C]" : "";
+  const inputClasses = dark ? "bg-[#1C1C1E] border-[#3A3A3C] text-white placeholder:text-[#6E6E6E]" : "";
+  const labelClasses = dark ? "text-[#E5E5EA]" : "";
+  const dateBtnClasses = dark ? "bg-[#1C1C1E] border-[#3A3A3C] text-white hover:bg-[#3A3A3C]" : "";
+  const popoverClasses = dark ? "bg-[#2C2C2E] border-[#3A3A3C]" : "";
+  const primaryBtnClasses = dark ? "bg-[#F35713] hover:bg-[#e04f10] text-white" : "";
+  const outlineBtnClasses = dark ? "border-[#3A3A3C] text-[#E5E5EA] hover:bg-[#3A3A3C]" : "";
+  const logItemClasses = dark ? "border-[#3A3A3C] hover:bg-[#3A3A3C] text-white" : "border-gray-200 hover:bg-gray-50";
+  const logTextClasses = dark ? "text-[#E5E5EA]" : "";
+  const logMutedClasses = dark ? "text-[#8E8E93]" : "text-gray-500";
+  const logGrayClasses = dark ? "text-[#8E8E93]" : "text-gray-600";
+
   return (
     <div className="space-y-6 w-full max-w-full overflow-hidden">
       {/* Табы */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="requests" className="flex items-center gap-2">
+        <TabsList className={`grid w-full grid-cols-3 ${dark ? "bg-[#2C2C2E] border-[#3A3A3C]" : ""}`}>
+          <TabsTrigger value="requests" className={`flex items-center gap-2 ${dark ? "text-[#8E8E93] data-[state=active]:bg-[#F35713] data-[state=active]:text-white" : ""}`}>
             <Activity className="w-4 h-4" />
             Заявки
           </TabsTrigger>
-          <TabsTrigger value="ratings" className="flex items-center gap-2">
+          <TabsTrigger value="ratings" className={`flex items-center gap-2 ${dark ? "text-[#8E8E93] data-[state=active]:bg-[#F35713] data-[state=active]:text-white" : ""}`}>
             <Star className="w-4 h-4" />
             Рейтинги
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
+          <TabsTrigger value="notifications" className={`flex items-center gap-2 ${dark ? "text-[#8E8E93] data-[state=active]:bg-[#F35713] data-[state=active]:text-white" : ""}`}>
             <Bell className="w-4 h-4" />
             Уведомления
           </TabsTrigger>
@@ -507,7 +525,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
           {loading && !statistics ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="w-full">
+            <Card key={i} className={`w-full ${cardClasses}`}>
               <CardContent className="p-3 md:p-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
@@ -522,23 +540,23 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
         </div>
       ) : statistics ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full">
-          <Card className="w-full">
+          <Card className={`w-full ${cardClasses}`}>
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs md:text-sm font-medium text-gray-600">Всего логов</p>
-                  <p className="text-lg md:text-2xl font-bold text-gray-900">{statistics?.totalLogs || 0}</p>
+                  <p className={`text-xs md:text-sm font-medium ${dark ? "text-[#8E8E93]" : "text-gray-600"}`}>Всего логов</p>
+                  <p className={`text-lg md:text-2xl font-bold ${dark ? "text-white" : "text-gray-900"}`}>{statistics?.totalLogs || 0}</p>
                 </div>
                 <Activity className="w-6 h-6 md:w-8 md:h-8 text-blue-500" />
               </div>
             </CardContent>
           </Card>
           
-          <Card className="w-full">
+          <Card className={`w-full ${cardClasses}`}>
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs md:text-sm font-medium text-gray-600">Сегодня</p>
+                  <p className={`text-xs md:text-sm font-medium ${dark ? "text-[#8E8E93]" : "text-gray-600"}`}>Сегодня</p>
                   <p className="text-lg md:text-2xl font-bold text-green-600">{statistics?.todayLogs || 0}</p>
                 </div>
                 <Clock className="w-6 h-6 md:w-8 md:h-8 text-green-500" />
@@ -546,11 +564,11 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
             </CardContent>
           </Card>
           
-          <Card className="w-full">
+          <Card className={`w-full ${cardClasses}`}>
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs md:text-sm font-medium text-gray-600">За неделю</p>
+                  <p className={`text-xs md:text-sm font-medium ${dark ? "text-[#8E8E93]" : "text-gray-600"}`}>За неделю</p>
                   <p className="text-lg md:text-2xl font-bold text-[#114A65]">{statistics?.thisWeekLogs || 0}</p>
                 </div>
                 <RefreshCw className="w-6 h-6 md:w-8 md:h-8 text-[#114A65]" />
@@ -558,11 +576,11 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
             </CardContent>
           </Card>
           
-          <Card className="w-full">
+          <Card className={`w-full ${cardClasses}`}>
             <CardContent className="p-3 md:p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs md:text-sm font-medium text-gray-600">Типы действий</p>
+                  <p className={`text-xs md:text-sm font-medium ${dark ? "text-[#8E8E93]" : "text-gray-600"}`}>Типы действий</p>
                   <p className="text-lg md:text-2xl font-bold text-orange-600">{statistics?.actionTypeStats?.length || 0}</p>
                 </div>
                 <Filter className="w-6 h-6 md:w-8 md:h-8 text-orange-500" />
@@ -573,9 +591,9 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
       ) : null}
 
       {/* Фильтры */}
-      <Card className="w-full">
+      <Card className={`w-full ${cardClasses}`}>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+          <CardTitle className={`flex items-center gap-2 text-base md:text-lg ${cardTitleClasses}`}>
             <Filter className="w-4 h-4 md:w-5 md:h-5" />
             Фильтры логов
           </CardTitle>
@@ -583,84 +601,87 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
         <CardContent>
           <div className="grid grid-cols-1 gap-4 w-full">
             <div>
-              <Label htmlFor="actionType">Тип действия</Label>
+              <Label htmlFor="actionType" className={labelClasses}>Тип действия</Label>
               <Select value={actionType || "all"} onValueChange={setActionType}>
-                <SelectTrigger>
+                <SelectTrigger className={selectTriggerClasses}>
                   <SelectValue placeholder="Все типы" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Все типы</SelectItem>
+                <SelectContent className={selectContentClasses}>
+                  <SelectItem value="all" className={selectItemClasses}>Все типы</SelectItem>
                   {Object.entries(actionTypeLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                    <SelectItem key={key} value={key} className={selectItemClasses}>{label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label>Дата начала</Label>
+              <Label className={labelClasses}>Дата начала</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Button variant="outline" className={`w-full justify-start text-left font-normal ${dateBtnClasses}`}>
                     {startDate ? format(startDate, "dd.MM.yyyy", { locale: ru }) : "Выберите дату"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className={`w-auto p-0 ${popoverClasses}`}>
                   <Calendar
                     mode="single"
                     selected={startDate}
                     onSelect={setStartDate}
                     initialFocus
                     locale={ru}
+                    className={dark ? "bg-[#2C2C2E] text-white [&_button]:text-white [&_button:hover]:bg-[#3A3A3C]" : ""}
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
             <div>
-              <Label>Дата окончания</Label>
+              <Label className={labelClasses}>Дата окончания</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Button variant="outline" className={`w-full justify-start text-left font-normal ${dateBtnClasses}`}>
                     {endDate ? format(endDate, "dd.MM.yyyy", { locale: ru }) : "Выберите дату"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className={`w-auto p-0 ${popoverClasses}`}>
                   <Calendar
                     mode="single"
                     selected={endDate}
                     onSelect={setEndDate}
                     initialFocus
                     locale={ru}
+                    className={dark ? "bg-[#2C2C2E] text-white [&_button]:text-white [&_button:hover]:bg-[#3A3A3C]" : ""}
                   />
                 </PopoverContent>
               </Popover>
             </div>
             
             <div>
-              <Label className="text-xs text-gray-500 flex items-center gap-1">
+              <Label className={`text-xs flex items-center gap-1 ${dark ? "text-[#8E8E93]" : "text-gray-500"}`}>
                 <span className="text-yellow-500">⚠️</span>
                 Фильтр по датам работает только при указании обеих дат
               </Label>
             </div>
 
             <div>
-              <Label htmlFor="search">Поиск</Label>
+              <Label htmlFor="search" className={labelClasses}>Поиск</Label>
               <Input
                 id="search"
                 placeholder="Поиск по описанию..."
                 value={searchQuery || ""}
                 onChange={(e) => setSearchQuery(e.target.value || "")}
+                className={inputClasses}
               />
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 mt-4 w-full">
-            <Button onClick={handleRefresh} disabled={loading} className="flex-1 sm:flex-none">
+            <Button onClick={handleRefresh} disabled={loading} className={`flex-1 sm:flex-none ${primaryBtnClasses}`}>
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Обновить
             </Button>
-            <Button variant="outline" onClick={clearFilters} className="flex-1 sm:flex-none">
+            <Button variant="outline" onClick={clearFilters} className={`flex-1 sm:flex-none ${outlineBtnClasses}`}>
               Очистить фильтры
             </Button>
           </div>
@@ -668,45 +689,45 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
       </Card>
 
       {/* Логи */}
-      <Card className="w-full">
+      <Card className={`w-full ${cardClasses}`}>
         <CardHeader className="pb-3">
-                     <CardTitle className="text-base md:text-lg">Логи заявок</CardTitle>
-           <CardDescription className="text-sm">
-             Показано {logs.length} из {total} записей (loading: {loading.toString()})
-           </CardDescription>
+          <CardTitle className={`text-base md:text-lg ${cardTitleClasses}`}>Логи заявок</CardTitle>
+          <CardDescription className={`text-sm ${cardDescClasses}`}>
+            Показано {logs.length} из {total} записей (loading: {loading.toString()})
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className={`flex items-center justify-center py-8 ${logMutedClasses}`}>
               <RefreshCw className="w-6 h-6 animate-spin mr-2" />
               Загрузка логов...
             </div>
           ) : logs.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className={`text-center py-8 ${logMutedClasses}`}>
               Логи не найдены
             </div>
           ) : (
             <div className="space-y-4 w-full">
               {logs.map((log) => (
-                <div key={log.id} className="border rounded-lg p-3 md:p-4 hover:bg-gray-50 transition-colors w-full break-words">
+                <div key={log.id} className={`border rounded-lg p-3 md:p-4 transition-colors w-full break-words ${logItemClasses}`}>
                   <div className="flex items-start justify-between w-full">
                     <div className="flex-1 min-w-0 max-w-full">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         {getActionIcon(log.action_type)}
                         <Badge 
                           variant="outline" 
-                          className={`text-xs ${actionTypeColors[log.action_type] || "bg-gray-100 text-gray-800 border-gray-200"}`}
+                          className={`text-xs ${actionTypeColors[log.action_type] || (dark ? "bg-[#3A3A3C] text-[#E5E5EA] border-[#3A3A3C]" : "bg-gray-100 text-gray-800 border-gray-200")}`}
                         >
                           {actionTypeLabels[log.action_type] || log.action_type}
                         </Badge>
-                        <span className="text-xs md:text-sm text-gray-500">
+                        <span className={`text-xs md:text-sm ${logMutedClasses}`}>
                           {formatDate(log.created_at)}
                         </span>
                       </div>
                       
-                      <p className="text-sm font-medium mb-1 break-words max-w-full overflow-hidden">{log.action_description}</p>
+                      <p className={`text-sm font-medium mb-1 break-words max-w-full overflow-hidden ${logTextClasses}`}>{log.action_description}</p>
                       
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-600 w-full">
+                      <div className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm w-full ${logGrayClasses}`}>
                         <div className="flex items-center gap-1 min-w-0 flex-1">
                           <User className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                           <span className="truncate">{log.user.full_name} ({log.user.role})</span>
@@ -717,7 +738,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                       </div>
 
                       {(log.old_values || log.new_values) && (
-                        <div className="mt-2 text-xs text-gray-500 w-full">
+                        <div className={`mt-2 text-xs w-full ${logMutedClasses}`}>
                           {log.old_values && (
                             <div className="break-all">Было: {JSON.stringify(log.old_values)}</div>
                           )}
@@ -736,7 +757,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
           {/* Пагинация */}
           {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 w-full">
-              <div className="text-sm text-gray-500 text-center sm:text-left">
+              <div className={`text-sm text-center sm:text-left ${logMutedClasses}`}>
                 Страница {page} из {totalPages}
               </div>
               <div className="flex gap-2">
@@ -745,7 +766,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                   size="sm"
                   onClick={() => setPage(page - 1)}
                   disabled={page === 1}
-                  className="px-3 py-1 text-xs"
+                  className={`px-3 py-1 text-xs ${outlineBtnClasses}`}
                 >
                   Назад
                 </Button>
@@ -754,7 +775,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                   size="sm"
                   onClick={() => setPage(page + 1)}
                   disabled={page === totalPages}
-                  className="px-3 py-1 text-xs"
+                  className={`px-3 py-1 text-xs ${outlineBtnClasses}`}
                 >
                   Вперед
                 </Button>
@@ -767,9 +788,9 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
 
         <TabsContent value="ratings" className="space-y-6">
           {/* Фильтры для рейтингов */}
-          <Card className="w-full">
+          <Card className={`w-full ${cardClasses}`}>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <CardTitle className={`flex items-center gap-2 text-base md:text-lg ${cardTitleClasses}`}>
                 <Filter className="w-4 h-4 md:w-5 md:h-5" />
                 Фильтры логов рейтингов
               </CardTitle>
@@ -777,30 +798,30 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
             <CardContent>
               <div className="grid grid-cols-1 gap-4 w-full">
                 <div>
-                  <Label htmlFor="ratingType">Тип рейтинга</Label>
+                  <Label htmlFor="ratingType" className={labelClasses}>Тип рейтинга</Label>
                   <Select value={ratingType || "all"} onValueChange={setRatingType}>
-                    <SelectTrigger>
+                    <SelectTrigger className={selectTriggerClasses}>
                       <SelectValue placeholder="Все типы" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Все типы</SelectItem>
+                    <SelectContent className={selectContentClasses}>
+                      <SelectItem value="all" className={selectItemClasses}>Все типы</SelectItem>
                       {Object.entries(ratingTypeLabels).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                        <SelectItem key={key} value={key} className={selectItemClasses}>{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
-                  <Label htmlFor="actionType">Тип действия</Label>
+                  <Label htmlFor="actionType" className={labelClasses}>Тип действия</Label>
                   <Select value={actionType || "all"} onValueChange={setActionType}>
-                    <SelectTrigger>
+                    <SelectTrigger className={selectTriggerClasses}>
                       <SelectValue placeholder="Все действия" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Все действия</SelectItem>
+                    <SelectContent className={selectContentClasses}>
+                      <SelectItem value="all" className={selectItemClasses}>Все действия</SelectItem>
                       {Object.entries(actionTypeLabelsForRating).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                        <SelectItem key={key} value={key} className={selectItemClasses}>{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -810,41 +831,41 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
           </Card>
 
           {/* Логи рейтингов */}
-          <Card className="w-full">
+          <Card className={`w-full ${cardClasses}`}>
             <CardHeader className="pb-3">
-                             <CardTitle className="text-base md:text-lg">Логи рейтингов</CardTitle>
-               <CardDescription className="text-sm">
-                 Показано {ratingLogs?.length || 0} из {ratingTotal} записей
-               </CardDescription>
+              <CardTitle className={`text-base md:text-lg ${cardTitleClasses}`}>Логи рейтингов</CardTitle>
+              <CardDescription className={`text-sm ${cardDescClasses}`}>
+                Показано {ratingLogs?.length || 0} из {ratingTotal} записей
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {ratingLoading ? (
-                <div className="flex items-center justify-center py-8">
+                <div className={`flex items-center justify-center py-8 ${logMutedClasses}`}>
                   <RefreshCw className="w-6 h-6 animate-spin mr-2" />
                   Загрузка логов рейтингов...
                 </div>
-                             ) : ratingLogs?.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+              ) : ratingLogs?.length === 0 ? (
+                <div className={`text-center py-8 ${logMutedClasses}`}>
                   Логи рейтингов не найдены
                 </div>
               ) : (
-                                 <div className="space-y-4 w-full">
-                   {ratingLogs?.map((log) => (
-                    <div key={log.id} className="border rounded-lg p-3 md:p-4 hover:bg-gray-50 transition-colors w-full break-words">
+                <div className="space-y-4 w-full">
+                  {ratingLogs?.map((log) => (
+                    <div key={log.id} className={`border rounded-lg p-3 md:p-4 transition-colors w-full break-words ${logItemClasses}`}>
                       <div className="flex items-start justify-between w-full">
                         <div className="flex-1 min-w-0 max-w-full">
                           <div className="flex flex-wrap items-center gap-2 mb-2">
                             <Star className="w-4 h-4" />
                             <Badge 
                               variant="outline" 
-                              className={`text-xs ${actionTypeColors[log.action_type] || "bg-gray-100 text-gray-800 border-gray-200"}`}
+                              className={`text-xs ${actionTypeColors[log.action_type] || (dark ? "bg-[#3A3A3C] text-[#E5E5EA] border-[#3A3A3C]" : "bg-gray-100 text-gray-800 border-gray-200")}`}
                             >
                               {actionTypeLabels[log.action_type] || log.action_type}
                             </Badge>
-                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-200">
+                            <Badge variant="outline" className={`text-xs ${dark ? "bg-[#3A3A3C] text-blue-300 border-[#3A3A3C]" : "bg-blue-100 text-blue-800 border-blue-200"}`}>
                               {ratingTypeLabels[log.rating_type] || log.rating_type}
                             </Badge>
-                            <span className="text-xs md:text-sm text-gray-500">
+                            <span className={`text-xs md:text-sm ${logMutedClasses}`}>
                               {formatDate(log.created_at)}
                             </span>
                           </div>
@@ -864,7 +885,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                            </div>
 
                           {(log.old_values || log.new_values) && (
-                            <div className="mt-2 text-xs text-gray-500 w-full">
+                            <div className={`mt-2 text-xs w-full ${logMutedClasses}`}>
                               {log.old_values && (
                                 <div className="break-all">Было: {JSON.stringify(log.old_values)}</div>
                               )}
@@ -883,7 +904,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
               {/* Пагинация для рейтингов */}
               {ratingTotalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 w-full">
-                  <div className="text-sm text-gray-500 text-center sm:text-left">
+                  <div className={`text-sm text-center sm:text-left ${logMutedClasses}`}>
                     Страница {ratingPage} из {ratingTotalPages}
                   </div>
                   <div className="flex gap-2">
@@ -892,7 +913,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                       size="sm"
                       onClick={() => setRatingPage(ratingPage - 1)}
                       disabled={ratingPage === 1}
-                      className="px-3 py-1 text-xs"
+                      className={`px-3 py-1 text-xs ${outlineBtnClasses}`}
                     >
                       Назад
                     </Button>
@@ -901,7 +922,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                       size="sm"
                       onClick={() => setRatingPage(ratingPage + 1)}
                       disabled={ratingPage === ratingTotalPages}
-                      className="px-3 py-1 text-xs"
+                      className={`px-3 py-1 text-xs ${outlineBtnClasses}`}
                     >
                       Вперед
                     </Button>
@@ -914,9 +935,9 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
 
         <TabsContent value="notifications" className="space-y-6">
           {/* Фильтры для уведомлений */}
-          <Card className="w-full">
+          <Card className={`w-full ${cardClasses}`}>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <CardTitle className={`flex items-center gap-2 text-base md:text-lg ${cardTitleClasses}`}>
                 <Filter className="w-4 h-4 md:w-5 md:h-5" />
                 Фильтры логов уведомлений
               </CardTitle>
@@ -924,15 +945,15 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
             <CardContent>
               <div className="grid grid-cols-1 gap-4 w-full">
                 <div>
-                  <Label htmlFor="notificationStatus">Статус уведомления</Label>
+                  <Label htmlFor="notificationStatus" className={labelClasses}>Статус уведомления</Label>
                   <Select value={notificationStatus || "all"} onValueChange={setNotificationStatus}>
-                    <SelectTrigger>
+                    <SelectTrigger className={selectTriggerClasses}>
                       <SelectValue placeholder="Все статусы" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Все статусы</SelectItem>
+                    <SelectContent className={selectContentClasses}>
+                      <SelectItem value="all" className={selectItemClasses}>Все статусы</SelectItem>
                       {Object.entries(notificationStatusLabels).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                        <SelectItem key={key} value={key} className={selectItemClasses}>{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -942,27 +963,27 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
           </Card>
 
           {/* Логи уведомлений */}
-          <Card className="w-full">
+          <Card className={`w-full ${cardClasses}`}>
             <CardHeader className="pb-3">
-                             <CardTitle className="text-base md:text-lg">Логи уведомлений</CardTitle>
-               <CardDescription className="text-sm">
-                 Показано {notificationLogs?.length || 0} из {notificationTotal} записей
-               </CardDescription>
+              <CardTitle className={`text-base md:text-lg ${cardTitleClasses}`}>Логи уведомлений</CardTitle>
+              <CardDescription className={`text-sm ${cardDescClasses}`}>
+                Показано {notificationLogs?.length || 0} из {notificationTotal} записей
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {notificationLoading ? (
-                <div className="flex items-center justify-center py-8">
+                <div className={`flex items-center justify-center py-8 ${logMutedClasses}`}>
                   <RefreshCw className="w-6 h-6 animate-spin mr-2" />
                   Загрузка логов уведомлений...
                 </div>
-                             ) : notificationLogs?.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+              ) : notificationLogs?.length === 0 ? (
+                <div className={`text-center py-8 ${logMutedClasses}`}>
                   Логи уведомлений не найдены
                 </div>
               ) : (
                 <div className="space-y-4 w-full">
                   {notificationLogs?.map((log) => (
-                    <div key={log.id} className="border rounded-lg p-3 md:p-4 hover:bg-gray-50 transition-colors w-full break-words">
+                    <div key={log.id} className={`border rounded-lg p-3 md:p-4 transition-colors w-full break-words ${logItemClasses}`}>
                       <div className="flex items-start justify-between w-full">
                         <div className="flex-1 min-w-0 max-w-full">
                           <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -970,27 +991,34 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                             <Badge 
                               variant="outline" 
                               className={`text-xs ${
-                                log.status === 'delivered' ? 'bg-green-100 text-green-800 border-green-200' :
-                                log.status === 'failed' ? 'bg-red-100 text-red-800 border-red-200' :
-                                log.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                'bg-gray-100 text-gray-800 border-gray-200'
+                                dark ? (
+                                  log.status === 'delivered' ? 'bg-green-900/30 text-green-400 border-green-700' :
+                                  log.status === 'failed' ? 'bg-red-900/30 text-red-400 border-red-700' :
+                                  log.status === 'pending' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-700' :
+                                  'bg-[#3A3A3C] text-[#E5E5EA] border-[#3A3A3C]'
+                                ) : (
+                                  log.status === 'delivered' ? 'bg-green-100 text-green-800 border-green-200' :
+                                  log.status === 'failed' ? 'bg-red-100 text-red-800 border-red-200' :
+                                  log.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                  'bg-gray-100 text-gray-800 border-gray-200'
+                                )
                               }`}
                             >
                               {notificationStatusLabels[log.status] || log.status}
                             </Badge>
-                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-200">
+                            <Badge variant="outline" className={`text-xs ${dark ? "bg-[#3A3A3C] text-blue-300 border-[#3A3A3C]" : "bg-blue-100 text-blue-800 border-blue-200"}`}>
                               {deliveryMethodLabels[log.delivery_method] || log.delivery_method}
                             </Badge>
-                            <span className="text-xs md:text-sm text-gray-500">
+                            <span className={`text-xs md:text-sm ${logMutedClasses}`}>
                               {formatDate(log.created_at)}
                             </span>
                           </div>
                           
-                          <p className="text-sm font-medium mb-1 break-words max-w-full overflow-hidden">
+                          <p className={`text-sm font-medium mb-1 break-words max-w-full overflow-hidden ${logTextClasses}`}>
                             {log.notification_type} - {log.recipient_email || 'Email не указан'}
                           </p>
                           
-                                                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-600 w-full">
+                          <div className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm w-full ${logGrayClasses}`}>
                              <div className="flex items-center gap-1 min-w-0 flex-1">
                                <User className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
                                <span className="truncate">
@@ -1017,7 +1045,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
               {/* Пагинация для уведомлений */}
               {notificationTotalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 w-full">
-                  <div className="text-sm text-gray-500 text-center sm:text-left">
+                  <div className={`text-sm text-center sm:text-left ${logMutedClasses}`}>
                     Страница {notificationPage} из {notificationTotalPages}
                   </div>
                   <div className="flex gap-2">
@@ -1026,7 +1054,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                       size="sm"
                       onClick={() => setNotificationPage(notificationPage - 1)}
                       disabled={notificationPage === 1}
-                      className="px-3 py-1 text-xs"
+                      className={`px-3 py-1 text-xs ${outlineBtnClasses}`}
                     >
                       Назад
                     </Button>
@@ -1035,7 +1063,7 @@ export function LogsViewer({ userRole, isDesktop }: LogsViewerProps) {
                       size="sm"
                       onClick={() => setNotificationPage(notificationPage + 1)}
                       disabled={notificationPage === notificationTotalPages}
-                      className="px-3 py-1 text-xs"
+                      className={`px-3 py-1 text-xs ${outlineBtnClasses}`}
                     >
                       Вперед
                     </Button>

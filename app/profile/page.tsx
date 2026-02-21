@@ -19,6 +19,10 @@ import {useAuthStore} from "@/stores/useAuthStore"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { ProfileModal } from "@/components/ProfileModal"
 import { useToast } from "@/hooks/use-toast"
+import { NotificationsSidebar } from "@/components/notification/NotificationsSidebar"
+import { createClickableRequestIds } from "@/lib/notificationUtils"
+import { LogsViewer } from "@/components/logs-viewer"
+import { AdminBottomNav } from "@/components/AdminBottomNav"
 
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
@@ -53,8 +57,12 @@ export default function ProfilePage() {
     const [isVerifying, setIsVerifying] = useState(false)
     const [emailError, setEmailError] = useState("")
     const [emailSuccess, setEmailSuccess] = useState("")
-    const {clearNotifications, notifications} = useNotificationStore()
-    const {clearRequests} = useRequestStore()
+    const [selectedNotification, setSelectedNotification] = useState<any>(null)
+    const { clearNotifications, setNotifications, appendNotifications, updateNotification, setNotificationLoading } = useNotificationStore()
+    const { clearRequests } = useRequestStore()
+    const [notifPage, setNotifPage] = useState(1)
+    const [notifTotalPages, setNotifTotalPages] = useState(1)
+    const [notifLoadingMore, setNotifLoadingMore] = useState(false)
 
     // Инициализация email при монтировании
     useEffect(() => {
@@ -62,6 +70,49 @@ export default function ProfilePage() {
             setEmail(user.email)
         }
     }, [user?.email])
+
+    const PAGE_SIZE = 10
+
+    // Загрузка уведомлений при открытии профиля (первая страница)
+    useEffect(() => {
+        if (!user?.id) return
+        let cancelled = false
+        setNotificationLoading(true)
+        api.get(`/notifications/me?page=1&pageSize=${PAGE_SIZE}`)
+            .then((res) => {
+                if (!cancelled) {
+                    const list = res.data?.notifications ?? []
+                    setNotifications(list)
+                    const total = res.data?.totalPages ?? (list.length >= PAGE_SIZE ? 2 : 1)
+                    setNotifTotalPages(total)
+                    setNotifPage(1)
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setNotifications([])
+            })
+            .finally(() => {
+                if (!cancelled) setNotificationLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [user?.id])
+
+    const loadMoreNotifications = async () => {
+        if (notifLoadingMore || notifPage >= notifTotalPages) return
+        setNotifLoadingMore(true)
+        try {
+            const nextPage = notifPage + 1
+            const res = await api.get(`/notifications/me?page=${nextPage}&pageSize=${PAGE_SIZE}`)
+            appendNotifications(res.data?.notifications ?? [])
+            setNotifPage(nextPage)
+        } catch {
+            // ignore
+        } finally {
+            setNotifLoadingMore(false)
+        }
+    }
 
     // Обработка изменения телефона с форматированием
     function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -192,6 +243,35 @@ export default function ProfilePage() {
         }
     }
 
+    const handleNotificationClick = async (notification: any) => {
+        if (!notification.is_read) {
+            updateNotification(notification.id, { is_read: true })
+            setSelectedNotification({ ...notification, is_read: true })
+            try {
+                await api.patch(`/notifications/${notification.id}/read`)
+            } catch {
+                updateNotification(notification.id, { is_read: false })
+                setSelectedNotification({ ...notification, is_read: false })
+            }
+        } else {
+            setSelectedNotification(notification)
+        }
+    }
+
+    const handleRequestClick = (requestId: string) => {
+        const parsedId = parseInt(requestId.split("/")[0], 10)
+        if (role === "admin-worker") {
+            if (!isDesktop) router.push(`/admin-worker/requests/${parsedId}`)
+            else router.push(`/admin-worker?tab=incoming&requestId=${parsedId}`)
+        } else if (role === "department-head") router.push(`/department-head?requestId=${parsedId}`)
+        else if (role === "client") router.push(`/client?requestId=${parsedId}`)
+        else if (role === "executor") router.push(`/executor?requestId=${parsedId}`)
+        else if (role === "manager") router.push(`/manager?requestId=${parsedId}`)
+        else router.push(`/client?requestId=${parsedId}`)
+        setSelectedNotification(null)
+        return true
+    }
+
     useEffect(() => {
         if (!user) {
             router.push('/login')
@@ -221,47 +301,62 @@ export default function ProfilePage() {
     const inputClass = "h-12 rounded-lg border border-[#212121] bg-transparent px-4 text-base text-white placeholder:text-[#6E6E6E] focus-visible:ring-2 focus-visible:ring-[#212121] focus-visible:ring-offset-0 focus-visible:ring-offset-[#040404]"
     const labelClass = "text-[15px] font-medium text-white"
 
+    const isAdminMobile = !isDesktop && role === "admin-worker"
+
+    const tabListClass = isAdminMobile
+        ? "grid w-full rounded-xl border border-[#3A3A3C] bg-[#2C2C2E]/80 p-1"
+        : "grid w-full rounded-xl border border-[#212121] bg-transparent p-1"
+    const tabTriggerClass = isAdminMobile
+        ? "rounded-lg text-sm font-medium text-[#8E8E93] transition-colors data-[state=active]:bg-[#F35713] data-[state=active]:text-white"
+        : "rounded-lg text-sm font-medium text-[#7F7F7F] transition-colors data-[state=active]:bg-[#212121] data-[state=active]:text-white"
+    const gridCols = ["admin-worker", "department-head", "manager"].includes(role || "") ? "grid-cols-4" : "grid-cols-3"
+
     return (
-        <div className="min-h-screen pb-20" style={{ background: "#040404" }}>
+        <div
+            className="min-h-screen"
+            style={{
+                background: isAdminMobile ? "#040404" : "#040404",
+                paddingBottom: isAdminMobile ? "calc(110px + env(safe-area-inset-bottom, 0px))" : "5rem",
+            }}
+        >
             <div className="mx-auto w-full max-w-[420px] px-5 pt-8 md:pt-[72px]" style={{ gap: "32px" }}>
-                {/* Заголовок в стиле login */}
+                {/* Заголовок */}
                 <div className="flex flex-col" style={{ gap: "8px" }}>
                     <h1 className="text-white" style={{ fontFamily: "'SF Pro Text', sans-serif", fontWeight: 600, fontSize: "28px", lineHeight: "40px" }}>
                         Профиль
                     </h1>
-                    <p className="text-[#7F7F7F]" style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: "16px", lineHeight: "24px" }}>
+                    <p className={isAdminMobile ? "text-[#8E8E93]" : "text-[#7F7F7F]"} style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: "16px", lineHeight: "24px" }}>
                         Личные данные и настройки
                     </p>
                 </div>
 
                 <Tabs defaultValue="profile" className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-3 rounded-xl border border-[#212121] bg-transparent p-1">
-                        <TabsTrigger
-                            value="profile"
-                            className="rounded-lg text-sm font-medium text-[#7F7F7F] transition-colors data-[state=active]:bg-[#212121] data-[state=active]:text-white"
-                        >
+                    <TabsList className={`${tabListClass} ${gridCols}`}>
+                        <TabsTrigger value="profile" className={tabTriggerClass}>
                             Профиль
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="password"
-                            className="rounded-lg text-sm font-medium text-[#7F7F7F] transition-colors data-[state=active]:bg-[#212121] data-[state=active]:text-white"
-                        >
+                        <TabsTrigger value="password" className={tabTriggerClass}>
                             Пароль
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="notifications"
-                            className="rounded-lg text-sm font-medium text-[#7F7F7F] transition-colors data-[state=active]:bg-[#212121] data-[state=active]:text-white"
-                        >
+                        <TabsTrigger value="notifications" className={tabTriggerClass}>
                             Уведомления
                         </TabsTrigger>
+                        {["admin-worker", "department-head", "manager"].includes(role || "") && (
+                            <TabsTrigger value="logs" className={tabTriggerClass}>
+                                Логи
+                            </TabsTrigger>
+                        )}
                     </TabsList>
 
                     {/* Вкладка: Профиль */}
                     <TabsContent value="profile" className="space-y-6 mt-0">
-                        <div className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5" style={{ gap: "20px" }}>
+                        <div
+                            className={`flex flex-col rounded-xl border p-5 ${isAdminMobile ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            style={{ gap: "20px" }}
+                        >
                             <div>
                                 <h2 className="text-lg font-semibold text-white">Данные клиента</h2>
-                                <p className="mt-0.5 text-sm text-[#7F7F7F]">Редактирование профиля</p>
+                                <p className={`mt-0.5 text-sm ${isAdminMobile ? "text-[#8E8E93]" : "text-[#7F7F7F]"}`}>Редактирование профиля</p>
                             </div>
                             <div className="flex flex-col" style={{ gap: "16px" }}>
                                 <div className="flex flex-col" style={{ gap: "8px" }}>
@@ -424,7 +519,10 @@ export default function ProfilePage() {
 
                     {/* Вкладка: Пароль */}
                     <TabsContent value="password" className="mt-0 space-y-6">
-                        <div className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5" style={{ gap: "20px" }}>
+                        <div
+                            className={`flex flex-col rounded-xl border p-5 ${isAdminMobile ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            style={{ gap: "20px" }}
+                        >
                             <h2 className="text-lg font-semibold text-white">Смена пароля</h2>
                             <div className="flex flex-col" style={{ gap: "16px" }}>
                                 <div className="flex flex-col" style={{ gap: "8px" }}>
@@ -454,31 +552,34 @@ export default function ProfilePage() {
 
                     {/* Вкладка: Уведомления */}
                     <TabsContent value="notifications" className="mt-0 space-y-6">
-                        <div className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5" style={{ gap: "20px" }}>
-                            <h2 className="text-lg font-semibold text-white">Уведомления</h2>
+                        <div
+                            className={`flex flex-col rounded-xl border p-5 ${!isDesktop ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            style={{ gap: "20px" }}
+                        >
+                            <h2 className="text-lg font-semibold text-white">Настройки уведомлений</h2>
                             <div className="flex flex-col" style={{ gap: "12px" }}>
-                                <div className="flex items-center justify-between rounded-lg border border-[#212121] px-4 py-3">
+                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${!isDesktop ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
                                     <Label className={labelClass}>Email уведомления</Label>
                                     <Switch
                                         checked={user?.email_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, email_notifications: checked } : null)}
-                                        className="data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"
+                                        className={!isDesktop ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between rounded-lg border border-[#212121] px-4 py-3">
+                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${!isDesktop ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
                                     <Label className={labelClass}>Безопасность</Label>
                                     <Switch
                                         checked={user?.security_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, security_notifications: checked } : null)}
-                                        className="data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"
+                                        className={!isDesktop ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between rounded-lg border border-[#212121] px-4 py-3">
+                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${!isDesktop ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
                                     <Label className={labelClass}>Маркетинг</Label>
                                     <Switch
                                         checked={user?.marketing_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, marketing_notifications: checked } : null)}
-                                        className="data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"
+                                        className={!isDesktop ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
                                     />
                                 </div>
                             </div>
@@ -492,10 +593,73 @@ export default function ProfilePage() {
                             </Button>
                             {notificationError && <p className="text-sm text-[#F35713]">{notificationError}</p>}
                         </div>
+
+                        {/* Все уведомления — список внизу настроек */}
+                        <div
+                            className={`flex flex-col rounded-xl border p-5 ${!isDesktop ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            style={{ gap: "16px" }}
+                        >
+                            <h2 className="text-lg font-semibold text-white">Все уведомления</h2>
+                            <NotificationsSidebar
+                                variant={!isDesktop ? "dark" : "light"}
+                                onNotificationClick={handleNotificationClick}
+                                onRequestClick={handleRequestClick}
+                                limit={0}
+                                hasMore={notifPage < notifTotalPages}
+                                loadingMore={notifLoadingMore}
+                                onLoadMore={loadMoreNotifications}
+                            />
+                        </div>
                     </TabsContent>
+
+                    {/* Вкладка: Логи действий (только для admin-worker, department-head, manager) */}
+                    {["admin-worker", "department-head", "manager"].includes(role || "") && (
+                        <TabsContent value="logs" className="mt-0 space-y-6">
+                            <div
+                                className={`flex flex-col rounded-xl border p-5 ${isAdminMobile ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                                style={{ gap: "16px" }}
+                            >
+                                <h2 className="text-lg font-semibold text-white">Логи действий</h2>
+                                <p className={isAdminMobile ? "text-sm text-[#8E8E93]" : "text-sm text-[#7F7F7F]"}>История операций</p>
+                                <LogsViewer userRole={role || "admin-worker"} isDesktop={false} dark={!isDesktop} />
+                            </div>
+                        </TabsContent>
+                    )}
                 </Tabs>
             </div>
-            {!isDesktop && <BottomNav activeTab="profile" />}
+
+            {/* Модалка просмотра уведомления */}
+            {selectedNotification && (
+                <div
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+                    onClick={() => setSelectedNotification(null)}
+                >
+                    <div
+                        className={`rounded-xl shadow-lg max-w-md w-full p-6 border ${!isDesktop ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-[#040404]"}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-semibold text-white">{selectedNotification.title}</h2>
+                            <button
+                                className="text-[#8E8E93] hover:text-white text-2xl"
+                                onClick={() => setSelectedNotification(null)}
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className={`text-sm whitespace-pre-line ${isAdminMobile ? "text-[#E5E5EA]" : "text-[#C4C4CE]"}`}>
+                            {createClickableRequestIds(selectedNotification.content, (requestId) => {
+                                handleRequestClick(requestId);
+                            })}
+                        </div>
+                        <p className={`text-xs mt-4 ${isAdminMobile ? "text-[#8E8E93]" : "text-[#7F7F7F]"}`}>
+                            {new Date(selectedNotification.created_at).toLocaleString()}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {!isDesktop && (role === "admin-worker" ? <AdminBottomNav /> : <BottomNav activeTab="profile" />)}
         </div>
     )
 }

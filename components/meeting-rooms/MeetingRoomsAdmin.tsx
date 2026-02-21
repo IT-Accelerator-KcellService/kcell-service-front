@@ -388,13 +388,16 @@ export function MeetingRoomsAdmin() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="rounded-full px-4 py-1 text-sm">
+          <Badge variant="outline" className={`rounded-full px-4 py-1 text-sm ${isMobile ? "border-[#3A3A3C] text-white" : ""}`}>
             Всего: {filteredRooms.length}
           </Badge>
-          <Badge variant="outline" className="rounded-full px-4 py-1 text-sm">
+          <Badge variant="outline" className={`rounded-full px-4 py-1 text-sm ${isMobile ? "border-[#3A3A3C] text-white" : ""}`}>
             Активных: {filteredRooms.filter((room) => room.isActive).length}
           </Badge>
-          <Button className="gap-2" onClick={handleAddRoomClick}>
+          <Button
+            className={isMobile ? "gap-2 bg-[#F35713] hover:bg-[#E04D0F]" : "gap-2"}
+            onClick={handleAddRoomClick}
+          >
             <Plus className="h-4 w-4" />
             Добавить комнату
           </Button>
@@ -406,10 +409,10 @@ export function MeetingRoomsAdmin() {
                 value={selectedOfficeId === "all" ? "all" : selectedOfficeId.toString()}
                 onValueChange={(value) => setSelectedOfficeId(value === "all" ? "all" : Number(value))}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className={`w-full ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}>
                   <SelectValue placeholder="Фильтр по офису" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className={isMobile ? "bg-[#2C2C2E] border-[#3A3A3C] text-white" : ""}>
                   <SelectItem value="all">Все офисы</SelectItem>
                   {offices.map((office) => (
                     <SelectItem key={office.id} value={office.id.toString()}>
@@ -427,10 +430,10 @@ export function MeetingRoomsAdmin() {
                 setRoomTypeFilter(value as MeetingRoomType | "all")
               }
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className={`w-full ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}>
                 <SelectValue placeholder="Тип комнаты" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className={isMobile ? "bg-[#2C2C2E] border-[#3A3A3C] text-white" : ""}>
                 <SelectItem value="all">Все типы</SelectItem>
                 <SelectItem value="meeting">Переговорные</SelectItem>
                 <SelectItem value="cabinet">Кабинеты</SelectItem>
@@ -461,6 +464,7 @@ export function MeetingRoomsAdmin() {
                         onChange={(event) =>
                           setFormState((prev) => ({ ...prev, name: event.target.value }))
                         }
+                        className={isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}
                       />
                       {touched && errors.name ? (
                         <p className="text-xs text-red-500">{errors.name}</p>
@@ -478,10 +482,10 @@ export function MeetingRoomsAdmin() {
                             setFormState((prev) => ({ ...prev, floor: Number(value) }))
                           }
                         >
-                          <SelectTrigger id="meeting-room-floor">
+                          <SelectTrigger id="meeting-room-floor" className={isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}>
                             <SelectValue placeholder="Выберите этаж" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className={isMobile ? "bg-[#2C2C2E] border-[#3A3A3C] text-white" : ""}>
                             {floorsRange.map((floor) => (
                               <SelectItem key={floor} value={String(floor)}>
                                 {floor}
@@ -506,6 +510,7 @@ export function MeetingRoomsAdmin() {
                               capacity: event.target.value === "" ? "" : Number(event.target.value),
                             }))
                           }
+                          className={isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}
                         />
                         {touched && errors.capacity ? (
                           <p className="text-xs text-red-500">{errors.capacity}</p>
@@ -573,6 +578,7 @@ export function MeetingRoomsAdmin() {
                         accept=".jpg,.jpeg,.png"
                         multiple
                         onChange={handlePhotoInputChange}
+                        className={isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}
                       />
                         <p className="text-xs text-muted-foreground">
                           Поддерживаются форматы JPG и PNG. Максимум {MAX_PHOTOS} фото, размер каждого ≤ 2MB.
@@ -627,6 +633,7 @@ export function MeetingRoomsAdmin() {
                         setFormState((prev) => ({ ...prev, description: event.target.value }))
                       }
                       rows={5}
+                      className={isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}
                     />
                   </div>
 
@@ -705,6 +712,7 @@ export function MeetingRoomsAdmin() {
                 isExpanded={expandedRooms.has(room.id)}
                 onToggleExpand={() => toggleRoomExpand(room.id)}
                 showOffice={true}
+                darkTheme={isMobile}
                 footer={
                   <div className="flex flex-wrap items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => handleEdit(room)}>

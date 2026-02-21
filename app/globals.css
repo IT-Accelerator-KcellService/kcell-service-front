@@ -97,6 +97,186 @@ html {
   background: linear-gradient(135deg, #114A65 0%, #114A65 50%, #B8400E 100%);
 }
 
+/* Admin management dark theme on mobile */
+@media (max-width: 767px) {
+  .admin-management-content .rounded-lg.border,
+  .admin-management-content .bg-white,
+  .admin-management-content [class*="bg-card"],
+  .admin-management-content [class*="bg-gradient"] {
+    background-color: #2C2C2E !important;
+    background-image: none !important;
+    border-color: #3A3A3C !important;
+  }
+  .admin-management-content .bg-muted,
+  .admin-management-content [class*="bg-muted"] {
+    background-color: #1C1C1E !important;
+  }
+  .admin-management-content .text-gray-900,
+  .admin-management-content .text-gray-800,
+  .admin-management-content .text-card-foreground {
+    color: #ffffff !important;
+  }
+  .admin-management-content .text-gray-600,
+  .admin-management-content .text-gray-500,
+  .admin-management-content .text-gray-400,
+  .admin-management-content .text-muted-foreground {
+    color: #8E8E93 !important;
+  }
+  .admin-management-content .text-gray-700 {
+    color: #ffffff !important;
+  }
+  .admin-management-content .text-gray-300 {
+    color: #8E8E93 !important;
+  }
+  .admin-management-content .text-blue-600,
+  .admin-management-content .text-blue-700,
+  .admin-management-content .text-blue-800,
+  .admin-management-content .text-yellow-600,
+  .admin-management-content .text-yellow-800,
+  .admin-management-content .text-red-600,
+  .admin-management-content .text-red-800 {
+    color: #F35713 !important;
+  }
+  .admin-management-content .text-green-600,
+  .admin-management-content .text-green-800 {
+    color: #4CAF50 !important;
+  }
+  .admin-management-content .text-primary {
+    color: #F35713 !important;
+  }
+  .admin-management-content .border-gray-200,
+  .admin-management-content .border-gray-100,
+  .admin-management-content .border-blue-200,
+  .admin-management-content .border-green-200,
+  .admin-management-content .border-yellow-200,
+  .admin-management-content .border-red-200,
+  .admin-management-content .border {
+    border-color: #3A3A3C !important;
+  }
+  .admin-management-content .border-l-blue-500 {
+    border-left-color: #F35713 !important;
+  }
+  .admin-management-content .bg-gray-50,
+  .admin-management-content .bg-gray-100,
+  .admin-management-content [class*="bg-gray-50"],
+  .admin-management-content [class*="bg-gray-100"] {
+    background-color: #2C2C2E !important;
+  }
+  .admin-management-content .bg-blue-50,
+  .admin-management-content .bg-green-50,
+  .admin-management-content .bg-yellow-50,
+  .admin-management-content .bg-red-50,
+  .admin-management-content [class*="bg-blue-50"],
+  .admin-management-content [class*="bg-green-50"],
+  .admin-management-content [class*="bg-yellow-50"],
+  .admin-management-content [class*="bg-red-50"] {
+    background-color: rgba(243, 87, 19, 0.15) !important;
+    border-color: #3A3A3C !important;
+  }
+  .admin-management-content .bg-gray-200,
+  .admin-management-content .bg-gray-300 {
+    background-color: #3A3A3C !important;
+  }
+  .admin-management-content .bg-blue-500,
+  .admin-management-content .bg-blue-600,
+  .admin-management-content .bg-green-600,
+  .admin-management-content [class*="bg-blue-600"],
+  .admin-management-content [class*="bg-green-600"] {
+    background-color: #F35713 !important;
+  }
+  .admin-management-content .bg-blue-500:hover,
+  .admin-management-content .bg-blue-600:hover,
+  .admin-management-content .bg-green-600:hover,
+  .admin-management-content [class*="bg-blue-600"]:hover,
+  .admin-management-content [class*="bg-green-600"]:hover,
+  .admin-management-content [class*="bg-blue-700"],
+  .admin-management-content [class*="bg-green-700"] {
+    background-color: #E04D0F !important;
+  }
+  .admin-management-content button:not([class*="bg-blue-600"]):not([class*="bg-green-600"]):hover {
+    background-color: #3A3A3C !important;
+  }
+  .admin-management-content button[class*="bg-blue-600"]:hover,
+  .admin-management-content button[class*="bg-green-600"]:hover {
+    background-color: #E04D0F !important;
+  }
+  .admin-management-content .text-yellow-500 {
+    color: #F35713 !important;
+  }
+  .admin-management-content input,
+  .admin-management-content select,
+  .admin-management-content textarea,
+  .admin-management-content [role="combobox"] {
+    background-color: #1C1C1E !important;
+    border-color: #3A3A3C !important;
+    color: #ffffff !important;
+  }
+  .admin-management-content select {
+    color-scheme: dark;
+  }
+  .admin-management-content input:focus,
+  .admin-management-content select:focus {
+    border-color: #F35713 !important;
+    outline: none;
+  }
+  .admin-management-content button[class*="hover:border-blue-300"]:hover {
+    border-color: #F35713 !important;
+  }
+  /* Primary buttons - orange accent */
+  .admin-management-content [class*="bg-primary"] {
+    background-color: #F35713 !important;
+  }
+  .admin-management-content [class*="bg-primary"]:hover {
+    background-color: #E04D0F !important;
+  }
+  /* Outline buttons/badges - dark theme */
+  .admin-management-content [class*="border-input"],
+  .admin-management-content button[class*="border"] {
+    border-color: #3A3A3C !important;
+  }
+  .admin-management-content button[class*="outline"]:not([class*="bg-primary"]) {
+    color: #ffffff !important;
+    background-color: transparent !important;
+  }
+  .admin-management-content button[class*="ghost"]:hover {
+    background-color: #3A3A3C !important;
+    color: #ffffff !important;
+  }
+  /* Date inputs - native picker dark theme */
+  .admin-management-content input[type="date"] {
+    color-scheme: dark;
+  }
+  /* Switch - dark theme */
+  .admin-management-content [role="switch"][data-state="checked"] {
+    background: #F35713 !important;
+    background-image: none !important;
+  }
+  .admin-management-content [role="switch"][data-state="unchecked"] {
+    background-color: #3A3A3C !important;
+  }
+  /* Separator */
+  .admin-management-content .bg-border {
+    background-color: #3A3A3C !important;
+  }
+}
+
+/* Portaled Select/dropdown in admin management - dark theme (SelectContent renders to body) */
+@media (max-width: 767px) {
+  body.admin-management-mobile {
+    --popover: 0 0% 17%;
+    --popover-foreground: 0 0% 100%;
+    --background: 240 2% 12%;
+    --input: 240 2% 23%;
+    --accent: 240 2% 23%;
+    --accent-foreground: 0 0% 100%;
+  }
+  /* SelectItem hover/focus in dark dropdown */
+  body.admin-management-mobile [data-radix-select-viewport] [data-highlighted] {
+    background-color: #3A3A3C !important;
+    color: #ffffff !important;
+  }
+}
+
 /* Prevent iOS zoom on input focus */
 input, textarea, select {
   font-size: 16px !important;

@@ -25,6 +25,8 @@ interface MeetingRoomCardProps {
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   showOffice?: boolean;
+  /** Dark theme for admin mobile */
+  darkTheme?: boolean;
 }
 
 const statusVariant: Record<MeetingRoom["status"], string> = {
@@ -40,6 +42,7 @@ export function MeetingRoomCard({
   isExpanded = false,
   onToggleExpand,
   showOffice = false,
+  darkTheme = false,
 }: MeetingRoomCardProps) {
   const coverPhoto = room.photos?.[0];
   const extraPhotos = room.photos?.length ? room.photos.length - 1 : 0;
@@ -48,12 +51,15 @@ export function MeetingRoomCard({
   return (
     <Card
       className={cn(
-        "overflow-hidden h-full flex flex-col bg-gradient-to-br from-white via-[#F3F3F3] to-white backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300",
+        "overflow-hidden h-full flex flex-col backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300",
+        darkTheme
+          ? "bg-[#2C2C2E] border-[#3A3A3C]"
+          : "bg-gradient-to-br from-white via-[#F3F3F3] to-white",
         highlightInactive && !room.isActive && "opacity-70",
         className,
       )}
     >
-      <div className="relative aspect-[4/3] bg-muted">
+      <div className={cn("relative aspect-[4/3]", darkTheme ? "bg-[#1C1C1E]" : "bg-muted")}>
         {coverPhoto ? (
           <Image
             src={coverPhoto}
@@ -64,7 +70,10 @@ export function MeetingRoomCard({
             priority={false}
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground gap-2">
+          <div className={cn(
+            "absolute inset-0 flex flex-col items-center justify-center gap-2",
+            darkTheme ? "text-[#8E8E93]" : "text-muted-foreground"
+          )}>
             <ImageIcon className="h-10 w-10" />
             <span className="text-sm">Фото не загружено</span>
           </div>
@@ -94,7 +103,7 @@ export function MeetingRoomCard({
 
       <CardHeader className="space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg font-semibold flex-1">{room.name}</CardTitle>
+          <CardTitle className={cn("text-lg font-semibold flex-1", darkTheme && "text-white")}>{room.name}</CardTitle>
           {hasExpandableContent && (
             <Button
               variant="ghost"
@@ -112,25 +121,25 @@ export function MeetingRoomCard({
           )}
         </div>
         {isExpanded && room.description && (
-          <p className="text-sm text-muted-foreground">{room.description}</p>
+          <p className={cn("text-sm", darkTheme ? "text-[#8E8E93]" : "text-muted-foreground")}>{room.description}</p>
         )}
       </CardHeader>
 
       <CardContent className="flex-1 space-y-4">
-        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+        <div className={cn("flex flex-wrap items-center gap-4 text-sm", darkTheme ? "text-[#8E8E93]" : "text-muted-foreground")}>
           <span className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-primary" />
+            <Building2 className={cn("h-4 w-4", darkTheme ? "text-[#F35713]" : "text-primary")} />
             {room.floor} этаж
           </span>
           {room.room_type !== "cabinet" && (
             <span className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
+              <Users className={cn("h-4 w-4", darkTheme ? "text-[#F35713]" : "text-primary")} />
               до {room.capacity} человек
             </span>
           )}
           {showOffice && room.office && (
             <span className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-primary" />
+              <MapPin className={cn("h-4 w-4", darkTheme ? "text-[#F35713]" : "text-primary")} />
               {room.office.name}
             </span>
           )}

@@ -606,46 +606,63 @@ export default function AdminWorkerDashboard() {
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [pendingSubRequestId, setPendingSubRequestId] = useState<string | null>(null);
 
+  // Устанавливаем активную вкладку из URL при переходе со страницы заявок
+  useEffect(() => {
+    const tab = searchParams.get("tab") || new URLSearchParams(window.location.search).get("tab");
+    if (tab === "incoming" || tab === "my-requests") {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
   // Обработка query параметров для открытия заявки
   useEffect(() => {
-    // Сначала пробуем получить из URL напрямую
-    const urlParams = new URLSearchParams(window.location.search);
-    const requestIdFromUrl = urlParams.get("requestId");
-    const subRequestIdFromUrl = urlParams.get("subRequestId");
-    
-    // Если в URL нет, пробуем из searchParams
-    const requestId = requestIdFromUrl || searchParams.get("requestId");
-    const subRequestId = subRequestIdFromUrl || searchParams.get("subRequestId");
+    const run = async () => {
+      // Сначала пробуем получить из URL напрямую
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestIdFromUrl = urlParams.get("requestId");
+      const subRequestIdFromUrl = urlParams.get("subRequestId");
+      
+      // Если в URL нет, пробуем из searchParams
+      const requestId = requestIdFromUrl || searchParams.get("requestId");
+      const subRequestId = subRequestIdFromUrl || searchParams.get("subRequestId");
 
-    // Сохраняем requestId в state, если он есть и еще не сохранен
-    if (requestId && !pendingRequestId) {
-      setPendingRequestId(requestId);
-      if (subRequestId) {
-        setPendingSubRequestId(subRequestId);
+      // Сохраняем requestId в state, если он есть и еще не сохранен
+      if (requestId && !pendingRequestId) {
+        setPendingRequestId(requestId);
+        if (subRequestId) {
+          setPendingSubRequestId(subRequestId);
+        }
       }
-    }
 
-    // Ждем, пока заявки загрузятся
-    if (loading) {
-      return;
-    }
+      // Ждем, пока заявки загрузятся (кроме случая когда заявка не в списке — тогда загрузим по ID)
+      if (loading) {
+        return;
+      }
 
-    // Проверяем, что заявки загружены
-    if (incomingRequests.length === 0 && myRequests.length === 0) {
-      return;
-    }
+      // Используем сохраненный requestId вместо текущего из URL
+      const idToUse = pendingRequestId || requestId;
+      const subIdToUse = pendingSubRequestId || subRequestId;
 
-    // Используем сохраненный requestId вместо текущего из URL
-    const idToUse = pendingRequestId || requestId;
-    const subIdToUse = pendingSubRequestId || subRequestId;
+      if (idToUse && !selectedRequest) {
+        // Объединяем все списки заявок
+        const allRequests = [...incomingRequests, ...myRequests];
+        let foundRequest = allRequests.find(r => r.id === parseInt(idToUse));
 
-    if (idToUse && !selectedRequest) {
-      // Объединяем все списки заявок
-      const allRequests = [...incomingRequests, ...myRequests];
-      
-      const foundRequest = allRequests.find(r => r.id === parseInt(idToUse));
-      
-      if (foundRequest) {
+        // Если заявка не найдена в списке — загружаем по ID (например, при переходе со страницы заявок)
+        if (!foundRequest) {
+          try {
+            const response = await api.get(`/request-groups/${idToUse}`);
+            const fetched = response.data as RequestGroup;
+            if (fetched) {
+              foundRequest = fetched;
+              setIncomingRequests(prev => prev.some(r => r.id === fetched.id) ? prev : [...prev, fetched]);
+            }
+          } catch (err) {
+            console.error("Ошибка загрузки заявки:", err);
+          }
+        }
+
+        if (foundRequest) {
         // Если указан subRequestId, фильтруем подзаявки
         if (subIdToUse) {
           const subRequest = foundRequest.requests.find((req: SubRequest) => req.id === parseInt(subIdToUse));
@@ -675,16 +692,18 @@ export default function AdminWorkerDashboard() {
         
         // Очищаем query параметры из URL
         window.history.replaceState({}, '', window.location.pathname);
-      } else if (idToUse) {
-        // Заявка не найдена
-        setNotFoundRequestId(idToUse);
-        setShowNotFoundModal(true);
-        setPendingRequestId(null);
-        setPendingSubRequestId(null);
-        // Очищаем query параметры из URL
-        window.history.replaceState({}, '', window.location.pathname);
+        } else if (idToUse) {
+          // Заявка не найдена
+          setNotFoundRequestId(idToUse);
+          setShowNotFoundModal(true);
+          setPendingRequestId(null);
+          setPendingSubRequestId(null);
+          // Очищаем query параметры из URL
+          window.history.replaceState({}, '', window.location.pathname);
+        }
       }
-    }
+    };
+    run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, incomingRequests, myRequests, selectedRequest, loading, pendingRequestId, pendingSubRequestId, openModal]);
 
@@ -4102,6 +4121,7 @@ export default function AdminWorkerDashboard() {
           requestId={showComments}
           currentUserId={currentUserId}
           isDesktop={isDesktop}
+          variant={!isDesktop ? "admin" : "default"}
         />
 
          {/* Create Request Modal */}
