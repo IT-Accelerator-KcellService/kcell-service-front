@@ -1759,6 +1759,10 @@ export default function DepartmentHeadDashboard() {
                         <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <span className="sm:hidden">Повторяющиеся</span>
                         </TabsTrigger>
+                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
+                          <span className="sm:hidden">Аналитика</span>
+                          <span className="hidden sm:inline">Аналитика</span>
+                        </TabsTrigger>
                         <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <span className="sm:hidden flex items-center gap-1">
                             <LayoutGrid className="h-3.5 w-3.5" />
@@ -1788,7 +1792,7 @@ export default function DepartmentHeadDashboard() {
                           Повторяющиеся
                       </TabsTrigger>
                       <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                        Статистика
+                        Аналитика
                       </TabsTrigger>
                         <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
                           <LayoutGrid className="h-4 w-4" />

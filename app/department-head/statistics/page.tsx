@@ -1,7 +1,6 @@
 "use client"
 
 import React, {useEffect, useState, useCallback} from "react"
-import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import Header from "@/app/header/Header";
 import api from "@/lib/api";
 import {useRouter} from "next/navigation";
@@ -10,6 +9,7 @@ import {BottomNav} from "@/components/BottomNav";
 import PullToRefresh from "@/components/pull-to-refresh";
 import {useAuthStore} from "@/stores/useAuthStore";
 import {useStatsStore} from "@/stores/statsStore";
+import DepartmentHeadAnalytics from "@/components/DepartmentHeadAnalytics";
 
 interface Stats {
   totalRequests: number,
@@ -123,7 +123,7 @@ export default function DepartmentHeadStatisticsPage() {
                     </div>
                     <div className="flex justify-between items-center flex-wrap gap-1 text-white">
                       <span className="break-words">Завершено</span>
-                      <span className="font-bold text-[#1A9A8A]">
+                      <span className="font-bold text-white">
                         {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
                       </span>
                     </div>
@@ -142,7 +142,7 @@ export default function DepartmentHeadStatisticsPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
+                <div className="rounded-2xl p-6" style={{ background: '#3A3A3C', border: '1px solid rgba(255,255,255,0.15)' }}>
                   <h3 className="text-base sm:text-lg font-bold text-white mb-4">По типам заявок</h3>
                   <div className="space-y-4 text-sm sm:text-base">
                     <div className="flex justify-between items-center flex-wrap gap-1 text-white">
@@ -165,6 +165,12 @@ export default function DepartmentHeadStatisticsPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Аналитика: SLA, Оценки, Детальная статистика */}
+              <div className="rounded-2xl p-4 sm:p-6" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                <h3 className="text-base sm:text-lg font-bold text-white mb-4">Аналитика</h3>
+                <DepartmentHeadAnalytics />
               </div>
             </div>
           </div>
