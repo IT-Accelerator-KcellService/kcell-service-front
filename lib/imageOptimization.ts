@@ -53,7 +53,7 @@ export function getThumbnailUrl(url: string | null | undefined): string {
   try {
     const optimizedUrl = url.replace(
       /\/upload\//,
-      `/upload/w_32,h_32,q_30,f_auto,c_fill/`
+      `/upload/w_300,h_300,q_40,f_auto,c_fill/`
     );
     
     return optimizedUrl;
@@ -66,7 +66,7 @@ export function getThumbnailUrl(url: string | null | undefined): string {
  * Оптимизированный URL для средних превью (96x96 для модальных окон)
  */
 export function getPreviewUrl(url: string | null | undefined): string {
-  return optimizeCloudinaryUrl(url, 96, 96);
+  return optimizeCloudinaryUrl(url, 800, 600, 90);
 }
 
 /**

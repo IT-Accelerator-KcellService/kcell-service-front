@@ -262,7 +262,7 @@ export default function CreateRequestPage() {
       handleClose();
     } catch (error: any) {
       console.error('Ошибка создания заявки:', error);
-      setFormErrors(error.response?.data?.message || 'Произошла ошибка при создании заявки');
+      setFormErrors(error.response?.data?.error || error.response?.data?.message || 'Произошла ошибка при создании заявки');
     } finally {
       setIsSubmitting(false);
     }

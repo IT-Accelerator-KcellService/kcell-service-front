@@ -1536,7 +1536,7 @@ export default function AdminWorkerDashboard() {
     } catch (error: any) {
       console.error("Ошибка при создании:", error);
       setFormErrors(
-          error.response?.data?.error || "Не удалось создать. Повторите попытку."
+          error.response?.data?.error || error.response?.data?.message || "Не удалось создать. Повторите попытку."
       );
     } finally {
       setIsSubmitting(false);

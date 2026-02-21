@@ -848,7 +848,7 @@ export default function ClientDashboard() {
     } catch (error: any) {
       console.error("Ошибка при создании группы заявок:", error);
       setFormErrors(
-          error.response?.data?.error || "Не удалось создать заявку. Повторите попытку."
+          error.response?.data?.error || error.response?.data?.message || "Не удалось создать заявку. Повторите попытку."
       );
     } finally {
       setIsSubmitting(false);
