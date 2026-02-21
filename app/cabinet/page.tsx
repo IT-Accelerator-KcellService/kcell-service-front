@@ -519,7 +519,7 @@ export default function CabinetPage() {
                 >
                   <p className="text-white font-medium mb-3">Интервал напоминаний</p>
                   <div className="flex gap-2 flex-wrap">
-                    {[30, 45, 60, 90, 120].map((mins) => (
+                    {[2, 30, 45, 60, 90, 120].map((mins) => (
                       <button
                         key={mins}
                         onClick={() => setHealthReminders({ sittingIntervalMinutes: mins })}
