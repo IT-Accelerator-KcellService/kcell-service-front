@@ -1020,6 +1020,15 @@ export default function ExecutorDashboard() {
     }
   }, [searchParams])
 
+  // Переключение вкладки из URL (для навигации с блоков)
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    const validTabs = ["meeting-rooms", "tasks", "myTasks", "completed", "scan-qr", "statistics"]
+    if (tab && validTabs.includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
+
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await api.get('notifications/me?page=1&pageSize=5')

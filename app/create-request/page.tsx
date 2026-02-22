@@ -297,7 +297,12 @@ export default function CreateRequestPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F3F3F3]">
+    <div
+      className="min-h-screen"
+      style={{
+        background: "linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 25%, #E25B21 45%, #E25B21 70%, #4A2510 90%, #1C1C1E 100%)",
+      }}
+    >
       <CreateRequestModal
         isOpen={isOpen}
         onClose={handleClose}
@@ -314,6 +319,7 @@ export default function CreateRequestPage() {
         onModeChange={setCreateMode}
         offices={offices}
         isFullScreen={!isDesktop}
+        isStandalonePage
       />
     </div>
   );

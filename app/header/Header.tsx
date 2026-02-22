@@ -41,7 +41,7 @@ const Header: React.FC<HeaderProps> = ({
                 html { scrollbar-gutter: stable; }
             `}</style>
 
-            <header className="bg-gradient-to-r from-white via-white to-gray-50/50 shadow-md border-b border-gray-200/50 backdrop-blur-sm">
+            <header className="hidden md:block bg-gradient-to-r from-white via-white to-gray-50/50 shadow-md border-b border-gray-200/50 backdrop-blur-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center space-x-3 group">

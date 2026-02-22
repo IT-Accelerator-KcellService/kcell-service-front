@@ -2,7 +2,8 @@
 
 import React, {useEffect, useState, useCallback} from "react"
 import {Card, CardContent, CardHeader, CardTitle, CardDescription} from "@/components/ui/card"
-import {CheckCircle} from "lucide-react"
+import { CheckCircle, ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import Header from "@/app/header/Header";
 import api from "@/lib/api";
 import {useRouter} from "next/navigation";
@@ -104,7 +105,14 @@ export default function ExecutorStatisticsPage() {
           className="min-h-screen pb-20"
           style={{ background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 25%, #E25B21 45%, #E25B21 70%, #4A2510 90%, #1C1C1E 100%)' }}
         >
-          <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
+          <div className="w-full max-w-7xl mx-auto px-4 py-6">
+            <Link
+              href="/executor/management"
+              className="inline-flex items-center gap-1 text-[#E25B21] md:text-[#D94F15] font-medium mb-4"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              Назад
+            </Link>
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
@@ -118,7 +126,7 @@ export default function ExecutorStatisticsPage() {
                       </div>
                       <div className="flex justify-between items-center text-white">
                         <span>Выполнено в срок</span>
-                        <span className="font-bold text-[#1A9A8A]">{stats && stats.onTime ? (stats.onTime): 0}</span>
+                        <span className="font-bold">{stats && stats.onTime ? (stats.onTime): 0}</span>
                       </div>
                       <div className="flex justify-between items-center text-white">
                         <span>Просрочено</span>
@@ -133,9 +141,10 @@ export default function ExecutorStatisticsPage() {
                         <span className="font-bold">{stats && stats.averageExecutionHours ? (stats.averageExecutionHours): 0} часа</span>
                       </div>
                     </div>
+                  </div>
                 </div>
 
-                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
+                <div className="rounded-2xl p-6" style={{ background: '#3A3A3C', border: '1px solid rgba(255,255,255,0.15)' }}>
                   <h3 className="text-lg font-bold text-white">Рейтинг и достижения</h3>
                   <p className="text-sm text-white/80 mb-4">Ваш текущий статус</p>
                   <div className="[&_.text-gray-900]:text-white [&_.text-gray-600]:text-white/80">

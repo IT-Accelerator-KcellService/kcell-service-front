@@ -4,6 +4,8 @@ import React, {useEffect, useState, useCallback} from "react"
 import Header from "@/app/header/Header";
 import api from "@/lib/api";
 import {useRouter} from "next/navigation";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {BottomNav} from "@/components/BottomNav";
 import PullToRefresh from "@/components/pull-to-refresh";
@@ -107,7 +109,14 @@ export default function DepartmentHeadStatisticsPage() {
           className="min-h-screen pb-20"
           style={{ background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 25%, #E25B21 45%, #E25B21 70%, #4A2510 90%, #1C1C1E 100%)' }}
         >
-          <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
+          <div className="w-full max-w-7xl mx-auto px-4 py-6">
+            <Link
+              href="/department-head/management"
+              className="inline-flex items-center gap-1 text-[#E25B21] md:text-[#D94F15] font-medium mb-4"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              Назад
+            </Link>
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>

@@ -29,6 +29,9 @@ import {
   FileSpreadsheet,
   Building2,
   LayoutGrid,
+  Home,
+  FolderTree,
+  BarChart3,
 } from "lucide-react"
 
 
@@ -71,6 +74,7 @@ import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-
 import { ImportExcelModal } from "@/components/ImportExcelModal";
 import PhotoModal from "@/components/photo/PhotoModal";
 import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
+import DepartmentHeadAnalytics from "@/components/DepartmentHeadAnalytics";
 
 interface User {
   id: number
@@ -1731,13 +1735,7 @@ export default function DepartmentHeadDashboard() {
           {/* Main Content */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-              <Tabs value={activeTab} onValueChange={(value) => {
-                if (value === "statistics") {
-                  router.push('/department-head/statistics');
-                } else {
-                  setActiveTab(value);
-                }
-              }}>
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <div className="mb-3">
                   {/* на телефоне только табы */}
                   <div className="w-full mb-2 sm:hidden">
@@ -1825,6 +1823,35 @@ export default function DepartmentHeadDashboard() {
                       />
                   ))}
             </div>
+                </TabsContent>
+
+                <TabsContent value="statistics" className="pt-2 sm:pt-0">
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                        <h3 className="text-base font-bold text-white mb-3">Статистика по заявкам</h3>
+                        <div className="space-y-2 text-sm text-white/90">
+                          <div className="flex justify-between"><span>Ожидает назначения</span><span className="font-bold">{stats?.statusCounts?.awaitingAssignment ?? 0}</span></div>
+                          <div className="flex justify-between"><span>Всего заявок</span><span className="font-bold">{stats?.totalRequests ?? 0}</span></div>
+                          <div className="flex justify-between"><span>Завершено</span><span className="font-bold">{stats?.statusCounts?.completed ?? 0}</span></div>
+                          <div className="flex justify-between"><span>В работе</span><span className="font-bold">{stats?.statusCounts?.inWork ?? 0}</span></div>
+                          <div className="flex justify-between"><span>Просрочено</span><span className="font-bold">{stats?.statusCounts?.overdue ?? 0}</span></div>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                        <h3 className="text-base font-bold text-white mb-3">По типам заявок</h3>
+                        <div className="space-y-2 text-sm text-white/90">
+                          <div className="flex justify-between"><span>Обычные</span><span className="font-bold">{stats?.requestTypeSummary?.normal ?? 0}</span></div>
+                          <div className="flex justify-between"><span>Экстренные</span><span className="font-bold">{stats?.requestTypeSummary?.urgent ?? 0}</span></div>
+                          <div className="flex justify-between"><span>Плановые</span><span className="font-bold">{stats?.requestTypeSummary?.planned ?? 0}</span></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl p-4 sm:p-6" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                      <h3 className="text-base sm:text-lg font-bold text-white mb-4">Аналитика</h3>
+                      <DepartmentHeadAnalytics />
+                    </div>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="recurring-tasks">
@@ -2007,108 +2034,67 @@ export default function DepartmentHeadDashboard() {
 
 
                 <TabsContent value="management" className="pt-2 sm:pt-0">
-                  <div className="space-y-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Управление сотрудниками</CardTitle>
-                        <CardDescription>Добавление и просмотр исполнителей</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/*<div className="grid grid-cols-1 md:grid-cols-2 gap-4">*/}
-                        {/*  <Input*/}
-                        {/*      placeholder="Имя и Фамилия исполнителя"*/}
-                        {/*      value={newExecutorName}*/}
-                        {/*      onChange={(e) => setNewExecutorName(e.target.value)}*/}
-                        {/*  />*/}
-                        {/*  {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}*/}
-                        {/*</div>*/}
-                        {/*<div className="grid grid-cols-1 md:grid-cols-2 gap-4">*/}
-                        {/*  <Input*/}
-                        {/*      placeholder="Номер телефона"*/}
-                        {/*      value={newExecutorPhone}*/}
-                        {/*      onChange={(e) => setNewExecutorPhone(e.target.value)}*/}
-                        {/*  />*/}
-                        {/*  {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}*/}
-                        {/*</div>*/}
-                        {/*<Button*/}
-                        {/*    onClick={handleAddExecutor}*/}
-                        {/*    disabled={!newExecutorName.trim() || !newExecutorEmail.trim() || !newExecutorPhone.trim()}*/}
-                        {/*>*/}
-                        {/*  Добавить исполнителя*/}
-                        {/*</Button>*/}
-                        {/* Поиск исполнителей */}
-                        <div className="mt-4">
-                          <Input
-                              placeholder="Поиск по имени"
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                        </div>
-
-                        {/* Список исполнителей */}
-                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-                          {filteredExecutors.length === 0 ? (
-                              <p className="text-sm text-gray-500">Нет подходящих исполнителей.</p>
-                          ) : (
-                              filteredExecutors.map((executor) => (
-                                  <div
-                                      key={executor.id}
-                                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border"
-                                  >
-                                    <div>
-                                      <p className="font-medium">{executor.user.full_name}</p>
-                                      <p className="text-sm text-gray-600">{executor.specialty}</p>
-                                      {executor.user.phone && (
-                                        <p className="text-sm text-gray-500">{executor.user.phone}</p>
-                                      )}
-                                      <div className="flex items-center mt-1">
-                                        {[...Array(5)].map((_, i) => (
-                                            <div
-                                                key={i}
-                                                className={`w-3 h-3 rounded-full mr-1 ${
-                                                    i < Math.floor(executor.rating)
-                                                        ? "bg-yellow-400"
-                                                        : "bg-gray-300"
-                                                }`}
-                                            />
-                                        ))}
-                                        <span className="text-sm text-gray-600 ml-2">
-                                          {Number(executor.rating).toFixed(2)}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex flex-col items-end space-y-2">
-                                      <div
-                                          className={`px-2 py-1 rounded-full text-xs ${
-                                              executor.workload <= 2
-                                                  ? "bg-green-100 text-green-800"
-                                                  : executor.workload <= 4
-                                                      ? "bg-yellow-100 text-yellow-800"
-                                                      : "bg-red-100 text-red-800"
-                                          }`}
-                                      >
-                                        {executor.workload} задач
-                                      </div>
-
-                                          <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => {
-                                                setExecutorToDelete(executor);
-                                            setShowDeleteExecutorModal(true);
-                                              }}
-                                              className="text-red-500 hover:text-red-700"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </Button>
-                                    </div>
-                                  </div>
-                              ))
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <Link
+                      href="/department-head/management/categories"
+                      className="block"
+                    >
+                      <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-white/20 bg-white/10 hover:bg-white/15">
+                        <CardContent className="p-4 flex flex-col">
+                          <FolderTree className="h-8 w-8 text-[#E25B21] mb-2" />
+                          <h3 className="font-semibold text-white text-sm leading-tight">Категории и подкатегории</h3>
+                          <p className="text-xs text-white/70 mt-1 line-clamp-2">Добавление и удаление категорий</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Link
+                      href="/department-head/management/users"
+                      className="block"
+                    >
+                      <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-white/20 bg-white/10 hover:bg-white/15">
+                        <CardContent className="p-4 flex flex-col">
+                          <Users className="h-8 w-8 text-[#E25B21] mb-2" />
+                          <h3 className="font-semibold text-white text-sm leading-tight">Пользователи</h3>
+                          <p className="text-xs text-white/70 mt-1 line-clamp-2">Роли и запросы на регистрацию</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Link
+                      href="/department-head/management/office"
+                      className="block"
+                    >
+                      <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-white/20 bg-white/10 hover:bg-white/15">
+                        <CardContent className="p-4 flex flex-col">
+                          <Building2 className="h-8 w-8 text-[#E25B21] mb-2" />
+                          <h3 className="font-semibold text-white text-sm leading-tight">Офис</h3>
+                          <p className="text-xs text-white/70 mt-1 line-clamp-2">Кабинеты, переговорные, адреса</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Link
+                      href="/department-head/management/smart-home"
+                      className="block"
+                    >
+                      <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-white/20 bg-white/10 hover:bg-white/15">
+                        <CardContent className="p-4 flex flex-col">
+                          <Home className="h-8 w-8 text-[#E25B21] mb-2" />
+                          <h3 className="font-semibold text-white text-sm leading-tight">Умный дом</h3>
+                          <p className="text-xs text-white/70 mt-1 line-clamp-2">Устройства и доступ</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                    <Link
+                      href="/department-head/statistics"
+                      className="block"
+                    >
+                      <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-white/20 bg-white/10 hover:bg-white/15">
+                        <CardContent className="p-4 flex flex-col">
+                          <BarChart3 className="h-8 w-8 text-[#E25B21] mb-2" />
+                          <h3 className="font-semibold text-white text-sm leading-tight">Аналитика</h3>
+                          <p className="text-xs text-white/70 mt-1 line-clamp-2">SLA, оценки, статистика по заявкам</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
                   </div>
                 </TabsContent>
               </Tabs>

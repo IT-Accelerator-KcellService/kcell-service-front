@@ -80,6 +80,7 @@ interface CreateRequestModalProps {
   onModeChange?: (mode: 'create' | 'createAndComplete') => void; // Функция изменения режима
   offices: Office[]; // Список офисов для всех ролей (обязательное поле)
   isFullScreen?: boolean; // Полноэкранный режим для мобильных устройств
+  isStandalonePage?: boolean; // Отдельная страница /create-request — стиль как у сайта
   onCreateRecurringTask?: () => void; // Функция для создания повторяющейся задачи
 }
 
@@ -99,6 +100,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   onModeChange,
   offices = [],
   isFullScreen = false,
+  isStandalonePage = false,
   onCreateRecurringTask,
 }) => {
   const [requestType, setRequestType] = useState("normal");
@@ -1650,11 +1652,13 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
   if (!isOpen) return null;
 
+  const overlayClass = isStandalonePage && isFullScreen
+    ? "fixed inset-0 bg-transparent flex items-center justify-center z-50"
+    : `fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${isFullScreen ? "p-0" : "p-4"}`;
+
   return (
     <div
-      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${
-        isFullScreen ? 'p-0' : 'p-4'
-      }`}
+      className={overlayClass}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1677,10 +1681,14 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onClose();
-                  resetForm();
+                  if (currentStep > 1) {
+                    handleBack();
+                  } else {
+                    onClose();
+                    resetForm();
+                  }
                 }}
-                className="absolute left-0 hover:bg-transparent text-white !p-0"
+                className={`absolute left-0 hover:bg-transparent !p-0 ${isStandalonePage ? "text-[#E25B21] hover:text-[#E25B21]" : "text-white"}`}
                 style={{ padding: 'clamp(4px, 0.5vh, 6px)' }}
               >
                 <ChevronLeft className="!w-6 !h-6 sm:!w-8 sm:!h-8" style={{ width: 'clamp(24px, 4vw, 30px)', height: 'clamp(24px, 4vw, 30px)' }} />
@@ -1705,38 +1713,42 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           )}
           {/* Выбор режима создания для executor */}
           {userRole === 'executor' && onModeChange && currentStep === 1 && (
-                              <div>
-              <Label className="flex items-center gap-1 mb-3">
-                Режим создания
-                                </Label>
+            <div>
+              <Label className="flex items-center gap-1 mb-3 text-white">Режим создания</Label>
               <div className="flex flex-col sm:flex-row gap-2">
-                <Button
+                <button
                   type="button"
-                  variant={createMode === 'create' ? 'default' : 'outline'}
                   onClick={() => onModeChange('create')}
-                  className="flex-1 text-sm sm:text-base"
+                  className={`flex-1 px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center gap-2 ${
+                    createMode === 'create'
+                      ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                      : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
+                  }`}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-4 h-4 shrink-0" />
                   <span className="hidden sm:inline">Создать заявку</span>
                   <span className="sm:hidden">Обычная</span>
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  variant={createMode === 'createAndComplete' ? 'default' : 'outline'}
                   onClick={() => onModeChange('createAndComplete')}
-                  className="flex-1 text-sm sm:text-base"
+                  className={`flex-1 px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg cursor-pointer transition-all text-center font-medium text-[12px] sm:text-[14px] border-2 inline-flex items-center justify-center gap-2 ${
+                    createMode === 'createAndComplete'
+                      ? 'bg-[#F35713] text-white border-[#F35713] shadow-md'
+                      : 'bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]'
+                  }`}
                 >
-                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <CheckCircle className="w-4 h-4 shrink-0" />
                   <span className="hidden sm:inline">Создать с завершением</span>
                   <span className="sm:hidden">С завершением</span>
-                </Button>
+                </button>
               </div>
               {createMode === 'createAndComplete' && (
-                <p className="text-xs text-gray-600 mt-2">
+                <p className="text-xs text-gray-400 mt-2">
                   Создайте заявку для уже выполненной работы с отчетом и фотографиями результата
                 </p>
-                                )}
-                              </div>
+              )}
+            </div>
           )}
 
           {/* Рендер текущего шага */}
@@ -1746,41 +1758,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
           {currentStep === 4 && renderStep4()}
 
           {formErrors && <p className="text-sm text-red-500">{formErrors}</p>}
-          {/* Выбор режима создания для executor */}
-          {userRole === 'executor' && onModeChange && (
-                              <div>
-              <Label className="flex items-center gap-1 mb-3 text-white">
-                Режим создания
-                                </Label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  type="button"
-                  variant={createMode === 'create' ? 'default' : 'outline'}
-                  onClick={() => onModeChange('create')}
-                  className="flex-1 text-sm sm:text-base"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Создать заявку</span>
-                  <span className="sm:hidden">Обычная</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant={createMode === 'createAndComplete' ? 'default' : 'outline'}
-                  onClick={() => onModeChange('createAndComplete')}
-                  className="flex-1 text-sm sm:text-base"
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Создать с завершением</span>
-                  <span className="sm:hidden">С завершением</span>
-                </Button>
-              </div>
-              {createMode === 'createAndComplete' && (
-                <p className="text-xs text-gray-400 mt-2">
-                  Создайте заявку для уже выполненной работы с отчетом и фотографиями результата
-                </p>
-                                )}
-                              </div>
-          )}
 
           {/* Навигационные кнопки */}
           <div className={`flex gap-3 mt-6 ${currentStep === 1 ? 'justify-end' : ''}`}>
