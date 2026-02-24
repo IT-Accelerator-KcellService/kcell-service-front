@@ -30,7 +30,7 @@ export const MapModal: React.FC<MapModalProps> = ({
       {/* Мобильная версия */}
       <div className="sm:hidden">
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end z-50"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end z-[100]"
           onClick={onClose}
         >
           <div
@@ -99,7 +99,7 @@ export const MapModal: React.FC<MapModalProps> = ({
       {/* Десктопная версия */}
       <div className="hidden sm:block">
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]"
           onClick={onClose}
         >
           <Card

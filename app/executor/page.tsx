@@ -2115,7 +2115,7 @@ export default function ExecutorDashboard() {
         {/* Модалка */}
         {isModalOpen && selectedNotification && (
             <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]"
                 onClick={() => {
                   setIsModalOpen(false);
                   closeModalWithHistory();
@@ -2164,7 +2164,7 @@ export default function ExecutorDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]" onClick={() => {
               setSelectedRequest(null)
               setShowComments(null)
             }}>
@@ -2616,7 +2616,7 @@ export default function ExecutorDashboard() {
 
         {/* Redirect Modal */}
         {showRedirectModal && selectedRequestForRedirect && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]">
             <Card className="w-full max-w-md">
               <CardHeader>
                   <CardTitle>Перенаправить заявку #{selectedRequestForRedirect.id}</CardTitle>

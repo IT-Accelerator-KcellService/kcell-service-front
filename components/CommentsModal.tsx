@@ -108,7 +108,7 @@ export const CommentsModal: React.FC<CommentsModalProps> = ({
   // Админ мобилка: full-screen тёмный дизайн, навбар скрыт под модалкой (z-[60])
   if (variant === "admin" && !isDesktop) {
     return (
-      <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+      <div className="fixed inset-0 z-[110] flex flex-col bg-black">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-800 flex-shrink-0">
           <h3 className="font-semibold text-lg text-white">Комментарии</h3>

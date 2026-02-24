@@ -5,46 +5,13 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
-  ClipboardList,
-  FileText,
-  CheckCircle,
-  Building2,
   QrCode,
   BarChart3,
-  Plus,
   ChevronLeft,
 } from "lucide-react";
 import Link from "next/link";
 
 const executorCards = [
-  {
-    key: "tasks",
-    title: "Мои задачи",
-    subtitle: "Назначенные задачи на выполнение",
-    icon: ClipboardList,
-    href: "/executor/management/tasks",
-  },
-  {
-    key: "myTasks",
-    title: "Мои заявки",
-    subtitle: "Заявки, созданные мной",
-    icon: FileText,
-    href: "/executor/management/my-tasks",
-  },
-  {
-    key: "completed",
-    title: "Завершенные",
-    subtitle: "Выполненные задачи",
-    icon: CheckCircle,
-    href: "/executor/management/completed",
-  },
-  {
-    key: "meeting-rooms",
-    title: "Переговорные",
-    subtitle: "Бронирование комнат",
-    icon: Building2,
-    href: "/executor/management/meeting-rooms",
-  },
   {
     key: "scan-qr",
     title: "QR сканер",
@@ -58,13 +25,6 @@ const executorCards = [
     subtitle: "Мои показатели и рейтинг",
     icon: BarChart3,
     href: "/executor/statistics",
-  },
-  {
-    key: "create",
-    title: "Создать заявку",
-    subtitle: "Новая заявка или задача",
-    icon: Plus,
-    href: "/create-request",
   },
 ];
 
@@ -83,7 +43,7 @@ export default function ExecutorManagementPage() {
       <div className="w-full max-w-7xl mx-auto px-4 py-6">
         <h1 className="text-xl font-bold text-white mb-6 md:text-[#040404]">Мой кабинет</h1>
 
-        <div className="grid grid-cols-2 gap-3 md:gap-6 md:grid-rows-4">
+        <div className="grid grid-cols-2 gap-3 md:gap-6 md:grid-rows-2">
           {executorCards.map((card) => {
             const Icon = card.icon;
             return (

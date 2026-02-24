@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { AdminBottomNav } from "@/components/AdminBottomNav";
+import { BottomNav } from "@/components/BottomNav";
 
 export default function AdminWorkerLayout({
     children,
@@ -67,7 +67,7 @@ export default function AdminWorkerLayout({
             }`}
         >
             {children}
-            {!isDesktop && <AdminBottomNav />}
+            {!isDesktop && <BottomNav />}
         </div>
     );
 }

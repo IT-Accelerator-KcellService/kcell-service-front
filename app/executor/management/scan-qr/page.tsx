@@ -40,7 +40,7 @@ export default function ExecutorScanQrPage() {
         </div>
 
         {showQRScanner && (
-          <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
+          <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center">
             <QRScanner isOpen={showQRScanner} onClose={() => setShowQRScanner(false)} />
           </div>
         )}

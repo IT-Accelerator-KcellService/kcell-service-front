@@ -702,6 +702,7 @@ export interface ClientRoomSubscription {
         id: number;
         name: string;
         office_id: number | null;
+        room_type?: 'meeting' | 'cabinet';
         office?: {
             id: number;
             name: string;

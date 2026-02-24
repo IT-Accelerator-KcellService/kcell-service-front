@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
-  FolderTree,
   Users,
-  Building2,
-  Home,
   ChevronLeft,
   BarChart3,
 } from "lucide-react";
@@ -16,32 +13,11 @@ import Link from "next/link";
 
 const managementCards = [
   {
-    key: "categories",
-    title: "Категории и подкатегории",
-    subtitle: "Добавление и удаление категорий",
-    icon: FolderTree,
-    href: "/department-head/management/categories",
-  },
-  {
     key: "users",
     title: "Пользователи",
     subtitle: "Роли и запросы на регистрацию",
     icon: Users,
     href: "/department-head/management/users",
-  },
-  {
-    key: "office",
-    title: "Офис",
-    subtitle: "Кабинеты, переговорные, адреса",
-    icon: Building2,
-    href: "/department-head/management/office",
-  },
-  {
-    key: "smart-home",
-    title: "Умный дом",
-    subtitle: "Устройства и доступ",
-    icon: Home,
-    href: "/department-head/management/smart-home",
   },
   {
     key: "analytics",
@@ -65,13 +41,6 @@ export default function DepartmentHeadManagementPage() {
   return (
     <div className="w-full min-h-[calc(100vh-90px)] bg-[#1C1C1E] md:bg-[#F3F3F3]">
       <div className="w-full max-w-7xl mx-auto px-4 py-6">
-        <Link
-          href="/department-head"
-          className="inline-flex items-center gap-1 text-[#E25B21] md:text-[#D94F15] font-medium mb-4"
-        >
-          <ChevronLeft className="h-5 w-5" />
-          Назад
-        </Link>
         <h1 className="text-xl font-bold text-white mb-6 md:text-[#040404]">Управление</h1>
 
         <div className="grid grid-cols-2 gap-3 md:gap-6 md:grid-rows-3">

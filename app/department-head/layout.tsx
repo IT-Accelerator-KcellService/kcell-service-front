@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { BottomNav } from "@/components/BottomNav";
 
 export default function DepartmentHeadLayout({
   children,
@@ -40,6 +41,19 @@ export default function DepartmentHeadLayout({
     }
   }, [hydrated, user, router, isDesktop, pathname, searchParams]);
 
+  // Тёмная тема для мобильных страниц (управление, заявки, статистика) — порталы Select
+  useEffect(() => {
+    const isManagement = pathname?.startsWith("/department-head/management");
+    const isRequests = pathname?.startsWith("/department-head/requests");
+    const isStatistics = pathname?.startsWith("/department-head/statistics");
+    if (!isDesktop && (isManagement || isRequests || isStatistics)) {
+      document.body.classList.add("admin-management-mobile");
+    } else {
+      document.body.classList.remove("admin-management-mobile");
+    }
+    return () => document.body.classList.remove("admin-management-mobile");
+  }, [pathname, isDesktop]);
+
   // Не рендерить главную страницу на мобильном при редиректе — избегаем мерцания десктоп-версии
   const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
   const hasParams =
@@ -51,5 +65,12 @@ export default function DepartmentHeadLayout({
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <div
+      className={`min-h-screen ${!isDesktop ? "pb-[calc(110px+env(safe-area-inset-bottom,0px))]" : "pb-0"} ${!isDesktop ? "bg-[#1C1C1E]" : ""}`}
+    >
+      {children}
+      {!isDesktop && <BottomNav />}
+    </div>
+  );
 }

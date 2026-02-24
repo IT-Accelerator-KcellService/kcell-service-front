@@ -183,7 +183,7 @@ export function ChangeExecutorsModal({
   if (!isOpen || !subRequest) return null
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-2 sm:p-3 md:p-4 z-50
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-2 sm:p-3 md:p-4 z-[100]
                     min-h-screen">
       <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-white shadow-xl border-0
                       min-w-[280px] sm:min-w-[320px]">
@@ -237,7 +237,7 @@ export function ChangeExecutorsModal({
                   <SelectTrigger className="w-full h-11 border-gray-200 focus:border-[#114A65] focus:ring-[#114A65]">
                     <SelectValue placeholder="Выберите исполнителя" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[110]">
                     {availableExecutors.length === 0 ? (
                       <SelectItem value="no-executors" disabled>
                         Все исполнители уже назначены
@@ -303,7 +303,7 @@ export function ChangeExecutorsModal({
                               <SelectTrigger className="w-24 h-8 text-xs border-gray-200">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="z-[110]">
                                 <SelectItem value="executor">Исполнитель</SelectItem>
                                 <SelectItem value="leader">Лидер</SelectItem>
                               </SelectContent>

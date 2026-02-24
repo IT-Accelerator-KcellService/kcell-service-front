@@ -199,7 +199,7 @@ export function AssignExecutorsModal({
   if (!isOpen || !subRequest) return null
 
   return (
-    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-2 sm:p-3 md:p-4 z-50">
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center p-2 sm:p-3 md:p-4 z-[100]">
       <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl h-[95vh] flex flex-col">
         <Card className="w-full h-full flex flex-col bg-white border border-gray-200 shadow-xl rounded-xl sm:rounded-2xl">
           {/* Header - фиксированный */}
@@ -266,7 +266,7 @@ export function AssignExecutorsModal({
                       <SelectTrigger className="h-9 sm:h-10 md:h-12 bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
                         <SelectValue placeholder="Выберите исполнителя" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-lg border border-gray-200 shadow-lg">
+                      <SelectContent className="z-[110] rounded-lg border border-gray-200 shadow-lg">
                         {availableExecutors.length === 0 ? (
                           <SelectItem value="no-executors" disabled className="text-gray-500">
                             Нет доступных исполнителей
@@ -344,7 +344,7 @@ export function AssignExecutorsModal({
                                     <SelectTrigger className="w-16 sm:w-20 md:w-24 h-7 sm:h-8 md:h-9 bg-white border border-gray-300 rounded-md hover:border-gray-400 transition-colors">
                                       <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent className="rounded-lg border border-gray-200 shadow-lg">
+                                    <SelectContent className="z-[110] rounded-lg border border-gray-200 shadow-lg">
                                       <SelectItem value="executor" className="rounded-md hover:bg-gray-50">
                                         Исполнитель
                                       </SelectItem>

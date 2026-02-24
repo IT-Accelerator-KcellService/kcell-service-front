@@ -3331,7 +3331,7 @@ export default function AdminWorkerDashboard() {
         {/* Мод алка */}
         {isModalOpen && selectedNotification && (
             <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]"
                 onClick={() => {
                   setIsModalOpen(false);
                   closeModalWithHistory();
@@ -3380,7 +3380,7 @@ export default function AdminWorkerDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]" onClick={() => {
               setSelectedRequest(null)
               setShowComments(null);
               setFormErrors(null);

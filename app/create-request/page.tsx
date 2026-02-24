@@ -7,7 +7,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useCategoryStore } from "@/stores/useCategoryStore";
 import { useRequestStore } from "@/stores/useRequestStore";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { api } from "@/lib/api";
+import { api, getClientRoomSubscriptions } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import FullScreenLoading from "@/components/FullScreenLoading";
 
@@ -51,6 +51,7 @@ export default function CreateRequestPage() {
   const [formErrors, setFormErrors] = useState<string | null>(null);
   const [executors, setExecutors] = useState<Executor[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
+  const [userCabinetRooms, setUserCabinetRooms] = useState<{ id: number; name: string; office_id: number }[]>([]);
   const [createMode, setCreateMode] = useState<'create' | 'createAndComplete'>('create');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -65,13 +66,30 @@ export default function CreateRequestPage() {
       try {
         await fetchCategories(token || '');
         
-        // Загружаем исполнителей для department-head
         if (user.role === 'department-head') {
           await fetchExecutors();
         }
         
-        // Загружаем офисы для всех ролей
         await fetchOffices();
+
+        // Кабинеты с умным домом для сотрудников (admin-worker, department-head, executor, manager)
+        if (["admin-worker", "department-head", "executor", "manager"].includes(user.role) && user.id) {
+          try {
+            const res = await getClientRoomSubscriptions(user.id);
+            const subs = res.data?.subscriptions ?? [];
+            const cabinets = subs
+              .filter((s: any) => s.meetingRoom?.room_type === "cabinet")
+              .map((s: any) => ({
+                id: s.meetingRoom.id,
+                name: s.meetingRoom.name,
+                office_id: s.meetingRoom.office_id ?? 0,
+              }))
+              .filter((c: any) => c.office_id > 0);
+            setUserCabinetRooms(cabinets);
+          } catch {
+            setUserCabinetRooms([]);
+          }
+        }
       } catch (error) {
         console.error('Ошибка загрузки данных:', error);
         toast({
@@ -318,6 +336,7 @@ export default function CreateRequestPage() {
         createMode={createMode}
         onModeChange={setCreateMode}
         offices={offices}
+        userCabinetRooms={userCabinetRooms}
         isFullScreen={!isDesktop}
         isStandalonePage
       />

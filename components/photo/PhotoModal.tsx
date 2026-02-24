@@ -14,7 +14,7 @@ export default function PhotoModal({ selectedPhoto, onClose }: PhotoModalProps) 
             {/* Модальное окно фото */}
             {selectedPhoto && (
                 <div
-                    className="fixed inset-0 bg-black/90 flex justify-center items-center z-[60] p-4"
+                    className="fixed inset-0 bg-black/90 flex justify-center items-center z-[110] p-4"
                     onClick={(e) => {
                       e.stopPropagation();
                       onClose();

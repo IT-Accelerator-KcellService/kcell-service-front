@@ -10,6 +10,7 @@ import {
   Building2,
   Home,
   ChevronLeft,
+  BarChart3,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -42,6 +43,13 @@ const managementCards = [
     icon: Home,
     href: "/admin-worker/management/smart-home",
   },
+  {
+    key: "statistics",
+    title: "Статистика",
+    subtitle: "Отчёты и аналитика по заявкам",
+    icon: BarChart3,
+    href: "/admin-worker/statistics",
+  },
 ];
 
 export default function ManagementPage() {
@@ -59,7 +67,7 @@ export default function ManagementPage() {
       <div className="w-full max-w-7xl mx-auto px-4 py-6">
       <h1 className="text-xl font-bold text-white mb-6 md:text-[#040404]">Управление</h1>
 
-      <div className="grid grid-cols-2 gap-3 md:gap-6 md:grid-rows-2">
+      <div className="grid grid-cols-2 gap-3 md:gap-6 md:grid-rows-3">
         {managementCards.map((card) => {
           const Icon = card.icon;
           return (

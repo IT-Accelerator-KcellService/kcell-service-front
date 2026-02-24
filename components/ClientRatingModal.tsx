@@ -35,7 +35,7 @@ export default function ClientRatingModal({
   const dark = variant === "dark";
 
   return (
-    <div className={`fixed inset-0 flex items-center justify-center p-4 z-50 ${dark ? "bg-black/60" : "bg-black/40"}`}>
+    <div className={`fixed inset-0 flex items-center justify-center p-4 z-[100] ${dark ? "bg-black/60" : "bg-black/40"}`}>
       <div className={`w-full max-w-md shadow-xl rounded-2xl overflow-hidden ${
         dark ? "bg-[#2C2C2E] border border-[#3A3A3C]" : "bg-white border-0"
       }`}>

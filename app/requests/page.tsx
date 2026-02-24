@@ -412,8 +412,12 @@ export default function RequestsPage() {
   }, [isDesktop, userRatings])
 
   const handleCardClick = useCallback((request: RequestGroup) => {
+    if (role === "client" && !isDesktop) {
+      router.push(`/client/requests/${request.id}`)
+      return
+    }
     setSelectedRequest(request)
-  }, [])
+  }, [role, isDesktop, router])
 
   // Request detail modal content — все данные как на десктопе (client/page)
   const renderRequestDetail = () => {
@@ -424,7 +428,7 @@ export default function RequestsPage() {
     const hasComments = showComments === subRequest.id
 
     return (
-      <div className="fixed inset-0 z-50 bg-black">
+      <div className="fixed inset-0 z-[100] bg-[#1C1C1E]" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center gap-3 p-4 border-b border-gray-800">
@@ -812,7 +816,7 @@ export default function RequestsPage() {
                     >
                       <SelectValue placeholder="Статус" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#262626] border-gray-700">
+                    <SelectContent className="z-[110] bg-[#262626] border-gray-700">
                       <SelectItem value="all" className="text-white">Все</SelectItem>
                       <SelectItem value="in_progress" className="text-white">В обработке</SelectItem>
                       <SelectItem value="awaiting_assignment" className="text-white">Ожидает</SelectItem>
@@ -831,7 +835,7 @@ export default function RequestsPage() {
                     >
                       <SelectValue placeholder="Тип" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#262626] border-gray-700">
+                    <SelectContent className="z-[110] bg-[#262626] border-gray-700">
                       <SelectItem value="all" className="text-white">Все</SelectItem>
                       <SelectItem value="normal" className="text-white">Обычная</SelectItem>
                       <SelectItem value="urgent" className="text-white">Экстренная</SelectItem>

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
-import { Camera, MapPin, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, Loader2, Calendar as CalendarLucid, CheckCircle, AlertTriangle, ArrowLeft, ArrowRight, FileSpreadsheet } from "lucide-react";
+import { Camera, MapPin, Plus, Trash2, ChevronUp, ChevronDown, ChevronRight, ChevronLeft, Loader2, Calendar as CalendarLucid, CheckCircle, AlertTriangle, ArrowLeft, ArrowRight, FileSpreadsheet, Home, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ImportExcelModal } from "./ImportExcelModal";
@@ -79,6 +79,8 @@ interface CreateRequestModalProps {
   createMode?: 'create' | 'createAndComplete'; // Режим создания для executor
   onModeChange?: (mode: 'create' | 'createAndComplete') => void; // Функция изменения режима
   offices: Office[]; // Список офисов для всех ролей (обязательное поле)
+  /** Кабинеты пользователя (с умным домом) — для выбора при создании заявки сотрудником */
+  userCabinetRooms?: { id: number; name: string; office_id: number }[];
   isFullScreen?: boolean; // Полноэкранный режим для мобильных устройств
   isStandalonePage?: boolean; // Отдельная страница /create-request — стиль как у сайта
   onCreateRecurringTask?: () => void; // Функция для создания повторяющейся задачи
@@ -99,6 +101,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   createMode = 'create',
   onModeChange,
   offices = [],
+  userCabinetRooms = [],
   isFullScreen = false,
   isStandalonePage = false,
   onCreateRecurringTask,
@@ -121,6 +124,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   const [completionComment, setCompletionComment] = useState("");
   const [completionDate, setCompletionDate] = useState<Date>(new Date());
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | null>(null);
+  const [locationSource, setLocationSource] = useState<'office' | 'cabinet'>('office');
+  const [selectedCabinetRoom, setSelectedCabinetRoom] = useState<{ id: number; name: string; office_id: number } | null>(null);
 
   // Состояния для нового функционала расположения в офисе
   const [selectedBlock, setSelectedBlock] = useState<string>("");
@@ -208,6 +213,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     setCompletionComment("");
     setCompletionDate(new Date());
     setSelectedOfficeId(null);
+    setLocationSource("office");
+    setSelectedCabinetRoom(null);
     setSelectedBlock("");
     setSelectedLocation("");
     setSelectedRoom("");
@@ -364,18 +371,20 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       newBasicFieldErrors.add('requestType');
     }
 
-    // Валидация офиса для всех ролей
-    if (!selectedOfficeId) {
-      newBasicFieldErrors.add('office');
+    // Валидация офиса или кабинета
+    if (locationSource === 'cabinet') {
+      if (!selectedCabinetRoom) newBasicFieldErrors.add('cabinet');
+    } else {
+      if (!selectedOfficeId) newBasicFieldErrors.add('office');
     }
 
-    // Валидация блока, местонахождения и помещения
-    if (!selectedBlock) {
+    // Валидация блока, местонахождения и помещения (только при выборе офиса)
+    if (locationSource === 'office' && !selectedBlock) {
       newBasicFieldErrors.add('block');
     }
 
-    // Проверка местонахождения
-    if (selectedBlock && selectedOfficeId) {
+    // Проверка местонахождения (только для офиса)
+    if (locationSource === 'office' && selectedBlock && selectedOfficeId) {
       const currentOffice = offices.find(o => o.id === selectedOfficeId);
       if (currentOffice) {
         const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
@@ -389,8 +398,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       }
     }
 
-    // Проверка помещения
-    if (selectedBlock && selectedLocation && selectedOfficeId) {
+    // Проверка помещения (только для офиса)
+    if (locationSource === 'office' && selectedBlock && selectedLocation && selectedOfficeId) {
       const currentOffice = offices.find(o => o.id === selectedOfficeId);
       if (currentOffice) {
         const hasRooms = hasRoomsForLocation(currentOffice.name, selectedBlock, selectedLocation === "Другое" ? "" : selectedLocation);
@@ -424,7 +433,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
 
     setBasicFieldErrors(newBasicFieldErrors);
-  }, [requestType, selectedBlock, selectedLocation, selectedRoom, customLocation, customRoom, photos, afterPhotos, completionComment, selectedOfficeId, userRole, createMode, hasAttemptedSubmit, offices]);
+  }, [requestType, selectedBlock, selectedLocation, selectedRoom, customLocation, customRoom, photos, afterPhotos, completionComment, selectedOfficeId, selectedCabinetRoom, locationSource, userRole, createMode, hasAttemptedSubmit, offices]);
 
   useEffect(() => {
     if (isOpen && !hasTriedLocationRef.current) {
@@ -515,18 +524,15 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       basicFieldErrors.push('тип заявки');
     }
 
-    // Валидация офиса для всех ролей
-    if (!selectedOfficeId) {
-      basicFieldErrors.push('офис');
+    if (locationSource === 'cabinet') {
+      if (!selectedCabinetRoom) basicFieldErrors.push('кабинет');
+    } else {
+      if (!selectedOfficeId) basicFieldErrors.push('офис');
+      if (!selectedBlock) basicFieldErrors.push('блок');
     }
 
-    // Валидация блока, местонахождения и помещения
-    if (!selectedBlock) {
-      basicFieldErrors.push('блок');
-    }
-
-    const currentOffice = offices.find(o => o.id === selectedOfficeId);
-    if (currentOffice && selectedBlock) {
+    const currentOffice = locationSource === 'office' ? offices.find(o => o.id === selectedOfficeId) : (selectedCabinetRoom ? { id: selectedCabinetRoom.office_id, name: '', lat: null, lon: null } : null);
+    if (locationSource === 'office' && currentOffice && selectedBlock) {
       // Проверка местонахождения
       const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
       if (hasLocations) {
@@ -648,14 +654,20 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     // Для повторяющихся задач устанавливаем request_type как 'recurring', иначе используем обычный requestType
     const finalRequestType = isRecurringTask ? 'recurring' : requestType;
     formData.append('request_type', finalRequestType);
-    formData.append('location', `Широта: ${currentOffice?.lat}, Долгота: ${currentOffice?.lon} (±${Math.round(1)} м)`);
+    const officeForLocation = locationSource === 'cabinet' && selectedCabinetRoom
+      ? offices.find(o => o.id === selectedCabinetRoom.office_id)
+      : currentOffice;
+    formData.append('location', `Широта: ${officeForLocation?.lat ?? ''}, Долгота: ${officeForLocation?.lon ?? ''} (±${Math.round(1)} м)`);
     
-    // Формируем location_detail из блока, местонахождения и помещения
-    const locationParts = [];
-    locationParts.push(`Блок: ${selectedBlock}`);
+    const locationParts: string[] = [];
+    if (locationSource === 'cabinet' && selectedCabinetRoom) {
+      locationParts.push(`Кабинет: ${selectedCabinetRoom.name}`);
+    } else {
+      locationParts.push(`Блок: ${selectedBlock}`);
+    }
     
-    // Добавляем местонахождение
-    if (currentOffice) {
+    // Добавляем местонахождение (только для офиса)
+    if (locationSource === 'office' && currentOffice) {
       const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
       if (hasLocations) {
         // Есть справочные местонахождения
@@ -671,8 +683,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       }
     }
     
-    // Добавляем помещение
-    if (currentOffice) {
+    // Добавляем помещение (только для офиса)
+    if (locationSource === 'office' && currentOffice) {
       const hasLocations = hasLocationsForBlock(currentOffice.name, selectedBlock);
       
       // Определяем текущее местонахождение для проверки помещений
@@ -705,8 +717,9 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     formData.append('location_detail', locationDetailsStr);
     formData.append('status', groupStatus);
     if (plannedDate) formData.append('planned_date', plannedDate);
-    if (selectedOfficeId) {
-      formData.append('office_id', String(selectedOfficeId));
+    const officeIdToSend = locationSource === 'cabinet' && selectedCabinetRoom ? selectedCabinetRoom.office_id : selectedOfficeId;
+    if (officeIdToSend) {
+      formData.append('office_id', String(officeIdToSend));
     }
 
             // Под заявки с их временем выполнения и сложностью
@@ -763,10 +776,12 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
 
   // Функции для валидации шагов
   const validateStep1 = (): boolean => {
+    if (locationSource === 'cabinet') return selectedCabinetRoom !== null;
     return selectedOfficeId !== null;
   };
 
   const validateStep2 = (): boolean => {
+    if (locationSource === 'cabinet') return true;
     if (!selectedBlock) return false;
     const currentOffice = offices.find(o => o.id === selectedOfficeId);
     if (!currentOffice) return false;
@@ -833,12 +848,82 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
     }
   };
 
-  // Рендер шага 1: Выбор офиса
+  // Рендер шага 1: Выбор офиса или кабинета
   const renderStep1 = () => {
     const currentOffice = offices.find(o => o.id === selectedOfficeId);
+    const isEmployee = ["admin-worker", "department-head", "executor", "manager"].includes(userRole);
+    const showCabinetOption = isEmployee && userCabinetRooms.length > 0;
 
   return (
       <div className="space-y-4 sm:space-y-6">
+        {showCabinetOption && (
+          <div>
+            <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-3 block text-white">Где находится заявка?</Label>
+            <div className="flex rounded-xl overflow-hidden bg-[#1E1E1E] border border-[#2A2A2A] mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setLocationSource("office");
+                  setSelectedCabinetRoom(null);
+                  setSelectedOfficeId(null);
+                }}
+                className={`flex-1 py-3 px-4 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                  locationSource === "office" ? "bg-[#F35713] text-white" : "text-[#8E8E93] hover:text-white"
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                Офис
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLocationSource("cabinet");
+                  setSelectedOfficeId(null);
+                  setSelectedBlock("");
+                  setSelectedLocation("");
+                  setSelectedRoom("");
+                  setCustomLocation("");
+                  setCustomRoom("");
+                }}
+                className={`flex-1 py-3 px-4 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                  locationSource === "cabinet" ? "bg-[#F35713] text-white" : "text-[#8E8E93] hover:text-white"
+                }`}
+              >
+                <Home className="w-4 h-4" />
+                Кабинет (умный дом)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {locationSource === "cabinet" ? (
+          <div>
+            <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Выбрать кабинет</Label>
+            <p className="text-sm text-[#8E8E93] mb-4">Кабинет, закреплённый за вами с умным домом</p>
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              {userCabinetRooms.map((room) => (
+                <div
+                  key={room.id}
+                  onClick={() => {
+                    setSelectedCabinetRoom(room);
+                    setSelectedOfficeId(room.office_id);
+                  }}
+                  className={`px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl cursor-pointer transition-all border-2 inline-flex items-center gap-2 ${
+                    selectedCabinetRoom?.id === room.id
+                      ? "bg-[#F35713] text-white border-[#F35713] shadow-md"
+                      : "bg-[#1E1E1E] text-white border-[#1E1E1E] hover:border-[#F35713]/50 hover:bg-[#2A2A2A]"
+                  }`}
+                >
+                  <Home className="w-4 h-4 shrink-0" />
+                  {room.name}
+                </div>
+              ))}
+            </div>
+            {hasAttemptedSubmit && !selectedCabinetRoom && (
+              <p className="text-xs text-red-500 mt-2">Пожалуйста, выберите кабинет</p>
+            )}
+          </div>
+        ) : (
         <div>
           <Label className="text-lg sm:text-xl font-medium sm:font-semibold mb-4 sm:mb-5 block text-white">Выбрать офис</Label>
           
@@ -922,12 +1007,26 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
             </div>
           )}
         </div>
+        )}
       </div>
     );
   };
 
-  // Рендер шага 2: Блок, местонахождение, помещение
+  // Рендер шага 2: Блок, местонахождение, помещение (или сводка по кабинету)
   const renderStep2 = () => {
+    if (locationSource === 'cabinet' && selectedCabinetRoom) {
+      return (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-[#2A2A2A] bg-[#1E1E1E] p-4 flex items-center gap-3">
+            <Home className="w-6 h-6 text-[#F35713]" />
+            <div>
+              <p className="text-sm text-[#8E8E93]">Выбран кабинет</p>
+              <p className="text-white font-medium">{selectedCabinetRoom.name}</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
     const currentOffice = offices.find(o => o.id === selectedOfficeId);
     if (!currentOffice) return null;
     
@@ -1550,7 +1649,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                   <SelectTrigger>
                                     <SelectValue placeholder="Выберите исполнителя для добавления" />
                                   </SelectTrigger>
-                                  <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                                  <SelectContent position="popper" className="z-[110] max-h-[300px] w-[var(--radix-select-trigger-width)]">
                                     {executors
                                       .filter(executor => !subRequest.executors?.some(e => e.id === executor.id))
                                       .map(executor => (
@@ -1616,7 +1715,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
                                             <SelectTrigger className="w-28 h-8 text-xs">
                                               <SelectValue />
                                             </SelectTrigger>
-                                            <SelectContent position="popper" className="max-h-[200px]">
+                                            <SelectContent position="popper" className="z-[110] max-h-[200px]">
                                               <SelectItem value="executor">Исполнитель</SelectItem>
                                               <SelectItem value="leader">Лидер</SelectItem>
                                             </SelectContent>
@@ -1653,8 +1752,8 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   if (!isOpen) return null;
 
   const overlayClass = isStandalonePage && isFullScreen
-    ? "fixed inset-0 bg-transparent flex items-center justify-center z-50"
-    : `fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${isFullScreen ? "p-0" : "p-4"}`;
+    ? "fixed inset-0 bg-transparent flex items-center justify-center z-[100]"
+    : `fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] ${isFullScreen ? "p-0" : "p-4"}`;
 
   return (
     <div

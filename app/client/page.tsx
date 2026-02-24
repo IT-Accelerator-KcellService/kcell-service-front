@@ -1,6 +1,7 @@
 "use client"
 
 import React, {useCallback, useEffect, useRef, useState, useMemo} from "react"
+import { createPortal } from "react-dom"
 import {Button} from "@/components/ui/button"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card"
 import {Label} from "@/components/ui/label"
@@ -72,6 +73,7 @@ import {NotificationsSidebar} from "@/components/notification/NotificationsSideb
 import {CompletedTaskReport} from "@/components/CompletedTaskReport";
 import SubRequestInfo from "@/components/SubRequestInfo";
 import Executors from "@/components/Executors";
+import { RequestDetails } from "@/components/RequestDetails";
 import PhotoModal from "@/components/photo/PhotoModal";
 import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
 import { MeetingRoomStatistics } from "@/components/meeting-rooms/MeetingRoomStatistics";
@@ -114,7 +116,6 @@ export default function ClientDashboard() {
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("meeting-rooms")
-  const [requestsTab, setRequestsTab] = useState<"create" | "my-requests">("create")
   const [showCreateRequest, setShowCreateRequest] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<RequestGroup | null>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
@@ -493,32 +494,29 @@ export default function ClientDashboard() {
       const foundRequest = requests.find(r => r.id === parseInt(idToUse));
       
       if (foundRequest) {
-        // Если указан subRequestId, фильтруем подзаявки
+        setPendingRequestId(null);
+        setPendingSubRequestId(null);
+        window.history.replaceState({}, '', window.location.pathname);
+        // На мобильном открываем отдельную страницу заявки (как у других ролей)
+        if (!isDesktop) {
+          router.push(`/client/requests/${foundRequest.id}`);
+          return;
+        }
+        // Десктоп: открываем модал
         if (subIdToUse) {
           const subRequest = foundRequest.requests.find((req: SubRequest) => req.id === parseInt(subIdToUse));
           if (subRequest) {
             setSelectedRequest(foundRequest);
             setExpandedSubRequests(new Set([subRequest.id]));
             openModal('requestDetails');
-            setPendingRequestId(null);
-            setPendingSubRequestId(null);
           } else {
-            // Подзаявка не найдена
             setNotFoundRequestId(`${idToUse}/${subIdToUse}`);
             setShowNotFoundModal(true);
-            setPendingRequestId(null);
-            setPendingSubRequestId(null);
           }
         } else {
-          // Открываем всю группу заявок
           setSelectedRequest(foundRequest);
           openModal('requestDetails');
-          setPendingRequestId(null);
-          setPendingSubRequestId(null);
         }
-        
-        // Очищаем query параметры из URL
-        window.history.replaceState({}, '', window.location.pathname);
       } else if (idToUse) {
         // Заявка не найдена
         setNotFoundRequestId(idToUse);
@@ -530,7 +528,7 @@ export default function ClientDashboard() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, requests, selectedRequest, loading, pendingRequestId, pendingSubRequestId, openModal]);
+  }, [searchParams, requests, selectedRequest, loading, pendingRequestId, pendingSubRequestId, openModal, isDesktop, router]);
 
   const fetchNotifications = async () => {
     try {
@@ -1167,9 +1165,13 @@ export default function ClientDashboard() {
   }, [isDesktop, userRatings, openModal]);
   
   const handleCardClick = useCallback((request: RequestGroup) => {
+    if (!isDesktop) {
+      router.push(`/client/requests/${request.id}`);
+      return;
+    }
     setSelectedRequest(request);
     openModal('requestDetails');
-  }, [openModal]);
+  }, [openModal, isDesktop, router]);
 
   return (
       <>
@@ -1183,7 +1185,7 @@ export default function ClientDashboard() {
         )}
       <PullToRefresh onRefresh={handleRefresh}>
       <div 
-        className={`min-h-screen pb-safe ${!isDesktop && activeTab === "requests" ? "bg-black" : "bg-[#F3F3F3]"}`}
+        className={`min-h-screen pb-safe ${!isDesktop && activeTab === "requests" ? "bg-[#1C1C1E]" : "bg-[#F3F3F3]"}`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
@@ -1646,100 +1648,67 @@ export default function ClientDashboard() {
                   {/* Мобильная версия */}
                   {!isDesktop && (
                     <div className="space-y-4">
-                      {/* Заголовок Сервисные заявки */}
-                      <h1 className="text-2xl font-bold text-white">Сервисные заявки</h1>
-                      
-                      {/* Переключатель вкладок */}
-                      <div className="flex rounded-xl overflow-hidden bg-[#3D3D3D]">
-                        <button
-                          onClick={() => setRequestsTab("create")}
-                          className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 ${
-                            requestsTab === "create"
-                              ? "bg-[#5A5A5A] text-white"
-                              : "bg-transparent text-gray-400"
-                          }`}
-                        >
-                          Создать заявку
-                        </button>
-                        <button
-                          onClick={() => setRequestsTab("my-requests")}
-                          className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 ${
-                            requestsTab === "my-requests"
-                              ? "bg-[#5A5A5A] text-white"
-                              : "bg-transparent text-gray-400"
-                          }`}
-                        >
-                          Мои заявки
-                        </button>
+                      {/* Заголовок и кнопка Создать — как у других ролей */}
+                      <div className="flex justify-between items-center mb-4">
+                        <h1 className="text-2xl font-bold text-white">Заявки</h1>
+                        <Link href="/create-request">
+                          <Button className="h-12 px-5 bg-[#F35713] hover:bg-[#E04A0A] text-white font-semibold rounded-2xl">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Создать
+                          </Button>
+                        </Link>
                       </div>
 
-                      {/* Контент в зависимости от выбранной вкладки */}
-                      {requestsTab === "create" ? (
-                        <div className="space-y-4">
-                          <h2 className="text-lg font-bold text-white">Все сценарий</h2>
-                          <Button
-                            onClick={() => router.push('/create-request')}
-                            className="w-full h-14 bg-[#F35713] hover:bg-[#E04A0A] text-white font-semibold rounded-2xl text-base"
-                          >
-                            Создать заявку
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <h2 className="text-lg font-bold text-white">Все заявки</h2>
-                          
-                          {/* Фильтры */}
-                          <div className="flex gap-2">
-                            <Select value={filterStatus} onValueChange={setFilterStatus}>
-                              <SelectTrigger className="flex-1 bg-[#2C2C2E] border-gray-700 text-white">
-                                <SelectValue placeholder="Статус" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-[#2C2C2E] border-gray-700">
-                                <SelectItem value="all" className="text-white">Все</SelectItem>
-                                <SelectItem value="in_progress" className="text-white">В обработке</SelectItem>
-                                <SelectItem value="awaiting_assignment" className="text-white">Ожидает</SelectItem>
-                                <SelectItem value="execution" className="text-white">Исполнение</SelectItem>
-                                <SelectItem value="completed" className="text-white">Завершено</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Select value={filterType} onValueChange={setFilterType}>
-                              <SelectTrigger className="flex-1 bg-[#2C2C2E] border-gray-700 text-white">
-                                <SelectValue placeholder="Тип" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-[#2C2C2E] border-gray-700">
-                                <SelectItem value="all" className="text-white">Все</SelectItem>
-                                <SelectItem value="normal" className="text-white">Обычная</SelectItem>
-                                <SelectItem value="urgent" className="text-white">Экстренная</SelectItem>
-                                <SelectItem value="planned" className="text-white">Плановая</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+                      {/* Фильтры */}
+                      <div className="flex gap-2">
+                        <Select value={filterStatus} onValueChange={setFilterStatus}>
+                          <SelectTrigger className="flex-1 bg-[#2C2C2E] border-gray-700 text-white">
+                            <SelectValue placeholder="Статус" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#2C2C2E] border-gray-700">
+                            <SelectItem value="all" className="text-white">Все</SelectItem>
+                            <SelectItem value="in_progress" className="text-white">В обработке</SelectItem>
+                            <SelectItem value="awaiting_assignment" className="text-white">Ожидает</SelectItem>
+                            <SelectItem value="execution" className="text-white">Исполнение</SelectItem>
+                            <SelectItem value="completed" className="text-white">Завершено</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={filterType} onValueChange={setFilterType}>
+                          <SelectTrigger className="flex-1 bg-[#2C2C2E] border-gray-700 text-white">
+                            <SelectValue placeholder="Тип" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#2C2C2E] border-gray-700">
+                            <SelectItem value="all" className="text-white">Все</SelectItem>
+                            <SelectItem value="normal" className="text-white">Обычная</SelectItem>
+                            <SelectItem value="urgent" className="text-white">Экстренная</SelectItem>
+                            <SelectItem value="planned" className="text-white">Плановая</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                          <div className="space-y-4 pb-24" style={{ contain: 'layout style paint' }}>
-                            {filteredRequests.slice(0, 50).map((requestGroup, index) => {
-                              const isLast = index === filteredRequests.length - 1;
-                              return (
-                                <RequestCard
-                                  key={`incoming-${index}`}
-                                  request={requestGroup}
-                                  onCardClick={handleCardClick}
-                                  renderCardHeader={renderCardHeader}
-                                  isLast={isLast}
-                                  lastElementRef={lastRequestRef}
-                                  clientRating={clientRatings[requestGroup.id]}
-                                  userRole="client"
-                                  variant="compact"
-                                />
-                              );
-                            })}
-                            {filteredRequests.length === 0 && (
-                              <div className="text-center py-8 text-gray-400">
-                                <p>У вас пока нет заявок</p>
-                              </div>
-                            )}
+                      <div className="space-y-4 pb-24" style={{ contain: 'layout style paint' }}>
+                        {filteredRequests.slice(0, 50).map((requestGroup, index) => {
+                          const isLast = index === filteredRequests.length - 1;
+                          return (
+                            <RequestCard
+                              key={`incoming-${index}`}
+                              request={requestGroup}
+                              onCardClick={handleCardClick}
+                              renderCardHeader={renderCardHeader}
+                              isLast={isLast}
+                              lastElementRef={lastRequestRef}
+                              clientRating={clientRatings[requestGroup.id]}
+                              userRole="client"
+                              variant="compact"
+                            />
+                          );
+                        })}
+                        {filteredRequests.length === 0 && (
+                          <div className="text-center py-8 text-gray-400">
+                            <p>У вас пока нет заявок</p>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -1866,10 +1835,13 @@ export default function ClientDashboard() {
                   <NotificationsSidebar 
                     onNotificationClick={handleNotificationClick}
                     onRequestClick={(requestId) => {
-                      // Парсим ID заявки (может быть в формате "123" или "123/1")
                       const parsedId = parseInt(requestId.split('/')[0]);
                       const request = requests.find(r => r.id === parsedId);
                       if (request) {
+                        if (!isDesktop) {
+                          router.push(`/client/requests/${request.id}`);
+                          return true;
+                        }
                         setSelectedRequest(request);
                         openModal('requestDetails');
                         return true;
@@ -1891,350 +1863,26 @@ export default function ClientDashboard() {
         hidden={showCreateRequest || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showDeleteRequestModal}
     />
   )}
-        {/* Request Details Modal */}
-        {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
-              setSelectedRequest(null)
-              setShowComments(null)
+        {/* Request Details — в портале, как у других ролей (полноэкранный тёмный стиль) */}
+        {selectedRequest && typeof document !== "undefined" && createPortal(
+          <RequestDetails
+            request={selectedRequest}
+            onClose={() => {
+              setSelectedRequest(null);
+              setShowComments(null);
               closeModal();
-            }}>
-              <Card className={`w-full ${isDesktop ? 'max-w-2xl' : 'max-w-full h-full'} max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
-                <CardHeader>
-                  <CardTitle className="font-medium text-gray-900">Заявка #{selectedRequest.id}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 pb-16">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="font-medium text-gray-900">Тип заявки </Label>
-                      <Badge className={getTypeColor(selectedRequest.request_type)}>{translateType(selectedRequest.request_type)}</Badge>
-                    </div>
-                    <div>
-                      <Label className="font-medium text-gray-900">Статус </Label>
-                      <Badge className={getStatusColor(selectedRequest.status)}>{translateStatus(selectedRequest.status)}</Badge>
-                    </div>
-                  </div>
-
-                  {/* Показываем запланированное время для плановых заявок */}
-                  {selectedRequest.request_type === 'planned' && selectedRequest.planned_date && (
-                      <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-[#114A65]/15 to-[#B8400E]/10 border border-[#114A65]/30 rounded-lg backdrop-blur-sm shadow-sm">
-                        <CalendarLucid className="w-4 h-4 text-[#114A65]" />
-                  <div>
-                          <Label className="text-sm font-medium text-[#114A65]">Запланировано на: </Label>
-                          <span className="text-sm text-[#040404]">
-                          {new Date(selectedRequest.planned_date).toLocaleDateString('ru-RU', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </span>
-                  </div>
-                      </div>
-                  )}
-
-                  {/* Заявка (теперь показываем только первый подзаявка как полноценный заявка) */}
-                  <div>
-                    <Label className={isDesktop ? '' : 'text-base font-medium'}>Заявка</Label>
-                    <div className={`space-y-3 mt-2 ${isDesktop ? '' : 'space-y-4'}`}>
-                      {selectedRequest.requests.slice(0, 1).map((subRequest: SubRequest) => {
-                        const isExpanded = expandedSubRequests.has(subRequest.id);
-                        const hasComments = showComments === subRequest.id;
-
-                        return (
-                            <div key={subRequest.id} className={`border rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow duration-200 will-change-transform ${isDesktop ? 'border-gray-200' : 'border-gray-200'}`}>
-                              {/* Заголовок под заявки */}
-                              <div className={`p-5 ${isDesktop ? '' : 'p-5'}`}>
-                                <div className="flex justify-between items-start mb-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <h4 className={`font-semibold text-gray-900 ${isDesktop ? 'text-base' : 'text-md'}`}>{subRequest.title}</h4>
-                                    </div>
-                                    <div className={`${isDesktop ? 'flex items-center gap-3' : 'flex flex-col gap-1'} text-gray-600 ${isDesktop ? 'text-sm' : 'text-base'}`}>
-                                      <span className={`${isDesktop ? 'truncate' : ''} flex items-center gap-1`}>
-                                        <span className="w-2 h-2 bg-[#B8400E] rounded-full"></span>
-                                        {subRequest.category?.name || 'Без категории'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    {renderStatusWithTooltip(subRequest.status)}
-                                    {renderLongTermWithTooltip(subRequest.is_long_term || false)}
-
-                                    {/* Кнопка комментариев */}
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className={`${isDesktop ? 'h-8 w-8' : 'h-10 w-10'} p-0 hover:bg-[#B8400E]/10`}
-                                        onClick={() => {
-                                          if (hasComments) {
-                                            setShowComments(null);
-                                          } else {
-                                            setShowComments(subRequest.id);
-                                          }
-                                        }}
-                                    >
-                                      <MessageCircle className={`${isDesktop ? 'h-4 w-4' : 'h-5 w-5'} ${hasComments ? 'text-[#114A65]' : 'text-gray-500'}`} />
-                                    </Button>
-
-                                    <RoleBasedActionMenu
-                                        request={subRequest}
-                                        requestGroup={selectedRequest}
-                                        isDesktop={isDesktop}
-                                        userRole="client"
-                                        isSubRequest={true}
-                                                                                  onRateRequest={(subReq) => {
-                                            setRequestToRate(subReq)
-                                            // Устанавливаем текущий рейтинг как начальное значение, если он существует
-                                            const currentRating = userRatings[subReq.id]?.rating || 0;
-                                            setRatingValue(currentRating);
-                                            setRatingComment(""); // Сбрасываем комментарий
-                                            setShowRatingModal(true)
-                                            openModal('ratingModal')
-                                          }}
-                                        onDelete={(subReq) => {
-                                          handleDeleteSubRequest(subReq);
-                                        }}
-                                    />
-                                  </div>
-                                </div>
-
-                                {/* Краткое описание */}
-                                <div className={`text-gray-600 mb-3 ${isDesktop ? 'text-sm' : 'text-base leading-relaxed'}`}>
-                                  {isDesktop ? (
-                                      <p className="line-clamp-2">{subRequest.description}</p>
-                                  ) : (
-                                      <p className="whitespace-pre-wrap break-words">{subRequest.description}</p>
-                                  )}
-                                </div>
-
-                                {/* Кнопка раскрытия */}
-                                {subRequest.status !== 'in_progress' && subRequest.status !== 'rejected' && (
-                                  <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className={`w-full justify-center ${isDesktop ? 'text-sm' : 'text-base py-2'}`}
-                                      onClick={() => {
-                                        const newExpanded = new Set(expandedSubRequests);
-                                        if (isExpanded) {
-                                          newExpanded.delete(subRequest.id);
-                                        } else {
-                                          newExpanded.add(subRequest.id);
-                                        }
-                                        setExpandedSubRequests(newExpanded);
-                                      }}
-                                  >
-                                      {isExpanded ? (
-                                          <>
-                                            <ChevronUp className="w-4 h-4 mr-2" />
-                                            Свернуть
-                                          </>
-                                      ) : (
-                                          <>
-                                            <ChevronDown className="w-4 h-4 mr-2" />
-                                            Подробнее
-                                          </>
-                                      )}
-                                  </Button>
-                                )}
-
-                              </div>
-
-                              {/* Раскрытая информация */}
-                              {isExpanded && (
-                                  <div className={`border-t bg-gradient-to-br from-gray-50 to-gray-100 ${isDesktop ? 'p-4' : 'p-5'}`}>
-                                    {/* Основная информация */}
-                                    <SubRequestInfo subRequest={subRequest} />
-
-                                    {/* Исполнители */}
-                                    <Executors subRequest={subRequest} userRatings={userRatings} />
-
-                                    {/* Отчет о выполнении для завершенных подзаявок */}
-                                    {subRequest.status === "completed" && (
-                                        <CompletedTaskReport
-                                            subRequest={subRequest}
-                                            isDesktop={isDesktop}
-                                            onPhotoClick={(photoUrl) => {
-                                              setSelectedPhoto({url: photoUrl});
-                                              openModal('photoPreview');
-                                            }}
-                                        />
-                                    )}
-                                  </div>
-                              )}
-                            </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Локация в офисе</Label>
-                    <p className="text-sm">{selectedRequest.location_detail}</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const locText = selectedRequest.location;
-                            const latMatch = locText.match(/Широта: (-?\d+\.\d+)/);
-                            const lonMatch = locText.match(/Долгота: (-?\d+\.\d+)/);
-                            const accMatch = locText.match(/±(\d+) м/);
-
-                            if (latMatch && lonMatch && accMatch) {
-                              setMapLocation({
-                                lat: parseFloat(latMatch[1]),
-                                lon: parseFloat(lonMatch[1]),
-                                accuracy: parseInt(accMatch[1])
-                              });
-                              setShowMapModal(true);
-                              openModal('mapModal');
-                            } else {
-                              alert("Не удалось определить координаты из локации");
-                            }
-                          }}
-                      >
-                        <MapPin className="w-4 h-4 mr-1" />
-                        Показать на карте
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">
-                    <Clock className="w-4 h-4 mr-1" />
-                    {new Date(selectedRequest.created_date).toLocaleString("ru-RU", {
-                      day: "2-digit",
-                      month: "long",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit"
-                    })}
-                  </div>
-
-                  {/* Фотографии группы заявок (только before) */}
-                  {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'before').length > 0 && (
-                        <div className="mt-4">
-                        <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Фотографии (до выполнения)</Label>
-                                <div className="flex space-x-2 mt-2 flex-wrap">
-                          {selectedRequest.photos
-                              .filter((photo: any) => photo.type === 'before')
-                              .map((photo: any, index: number) => (
-                                      <img
-                                          key={index}
-                                          src={getPreviewUrl(photo.photo_url)}
-                                      alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#B8400E] transition-border duration-150"
-                                      loading="lazy"
-                                      decoding="async"
-                                      onClick={() => {
-                                        setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
-                                        openModal('photoPreview');
-                                      }}
-                                      onError={(e) => {
-                                        e.currentTarget.src = "/placeholder.svg";
-                                      }}
-                                      />
-                                  ))}
-                                </div>
-                      </div>
-                  )}
-
-                  {/* Фотографии группы заявок (только before) */}
-                  {selectedRequest.photos && selectedRequest.photos.filter((photo: any) => photo.type === 'after').length > 0 && (
-                      <div className="mt-4">
-                        <Label className="font-medium text-sm sm:text-base mb-3 sm:mb-4 text-gray-900">Фотографии (после выполнения)</Label>
-                              <div className="flex space-x-2 mt-2 flex-wrap">
-                          {selectedRequest.photos
-                              .filter((photo: any) => photo.type === 'after')
-                              .slice(0, 10) // Ограничиваем количество для производительности
-                              .map((photo: any, index: number) => (
-                                    <img
-                                        key={index}
-                                        src={getPreviewUrl(photo.photo_url)}
-                                      alt={`Фото ${index + 1}`}
-                                      className="w-24 h-24 object-cover rounded-lg cursor-pointer border-2 border-gray-200 hover:border-[#B8400E] transition-border duration-150"
-                                      loading="lazy"
-                                      decoding="async"
-                                      onClick={() => {
-                                        setSelectedPhoto({url: photo.photo_url, created_at: photo.created_at});
-                                        openModal('photoPreview');
-                                      }}
-                                      onError={(e) => {
-                                        e.currentTarget.src = "/placeholder.svg";
-                                      }}
-                                    />
-                                ))}
-                              </div>
-                        </div>
-                  )}
-
-                  {/* Отображение рейтингов клиента */}
-                  {selectedRequest.status === "completed" && clientRatings[selectedRequest.id] && selectedRequest.client?.role === "client" && (
-                    <div className="p-4 bg-[#114A65]/10 border border-[#114A65]/20 rounded-lg">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Star className="w-5 h-5 text-[#114A65]" />
-                        <h4 className="font-semibold text-[#114A65]">
-                          Оценки от исполнителей ({clientRatings[selectedRequest.id].length})
-                        </h4>
-                      </div>
-                      
-                      {Array.isArray(clientRatings[selectedRequest.id]) ? (
-                        // Показываем все оценки
-                        clientRatings[selectedRequest.id].map((rating: any, index: number) => (
-                          <div key={rating.id} className={`mb-3 ${index > 0 ? 'pt-3 border-t border-[#114A65]/20' : ''}`}>
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="flex">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <span key={star} className={`text-xl ${star <= rating.rating ? 'text-[#B8400E]' : 'text-gray-300'}`}>
-                                    ★
-                                  </span>
-                                ))}
-                              </div>
-                              <span className="text-sm text-[#114A65]">
-                                {rating.rating} из 5
-                              </span>
-                            </div>
-                            {rating.comment && (
-                              <div className="mt-2">
-                                <p className="text-sm text-[#114A65] break-words">
-                                  "{rating.comment}"
-                                </p>
-                              </div>
-                            )}
-                            <div className="mt-2 text-xs text-[#114A65]">
-                              Оценка от: {rating.ratedByUser?.full_name || 'Исполнитель'}
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        // Обратная совместимость для старого формата (один рейтинг)
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <span key={star} className={`text-xl ${star <= clientRatings[selectedRequest.id].rating ? 'text-[#B8400E]' : 'text-gray-300'}`}>
-                                ★
-                              </span>
-                            ))}
-                          </div>
-                          <span className="text-sm text-[#114A65]">
-                            {clientRatings[selectedRequest.id].rating} из 5
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" onClick={() => {
-                      setSelectedRequest(null);
-                      closeModal();
-                    }}>
-                      Закрыть
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            }}
+            onRequestUpdated={() => {
+              setSelectedRequest(null);
+              closeModal();
+            }}
+            sourceTab="my-requests"
+            hideFullModeButton
+            userRole="client"
+            fullModeRedirectBase="/client"
+            onDelete={handleDeleteSubRequest}
+          />,
+          document.body
         )}
 
         {/* Модальное окно фото */}
@@ -2278,7 +1926,7 @@ export default function ClientDashboard() {
         {/* Модалка */}
         {isModalOpen && selectedNotification && (
             <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]"
                 onClick={closeModal}
             >
               <div

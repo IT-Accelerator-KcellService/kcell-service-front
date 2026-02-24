@@ -22,8 +22,6 @@ import { useToast } from "@/hooks/use-toast"
 import { NotificationsSidebar } from "@/components/notification/NotificationsSidebar"
 import { createClickableRequestIds } from "@/lib/notificationUtils"
 import { LogsViewer } from "@/components/logs-viewer"
-import { AdminBottomNav } from "@/components/AdminBottomNav"
-
 const roleTranslations: Record<string, string> = {
     client: "Клиент",
     "admin-worker": "Администратор офиса",
@@ -301,22 +299,15 @@ export default function ProfilePage() {
     const inputClass = "h-12 rounded-lg border border-[#212121] bg-transparent px-4 text-base text-white placeholder:text-[#6E6E6E] focus-visible:ring-2 focus-visible:ring-[#212121] focus-visible:ring-offset-0 focus-visible:ring-offset-[#040404]"
     const labelClass = "text-[15px] font-medium text-white"
 
-    const isAdminMobile = !isDesktop && role === "admin-worker"
-
-    const tabListClass = isAdminMobile
-        ? "grid w-full rounded-xl border border-[#3A3A3C] bg-[#2C2C2E]/80 p-1"
-        : "grid w-full rounded-xl border border-[#212121] bg-transparent p-1"
-    const tabTriggerClass = isAdminMobile
-        ? "rounded-lg text-sm font-medium text-[#8E8E93] transition-colors data-[state=active]:bg-[#F35713] data-[state=active]:text-white"
-        : "rounded-lg text-sm font-medium text-[#7F7F7F] transition-colors data-[state=active]:bg-[#212121] data-[state=active]:text-white"
     const gridCols = ["admin-worker", "department-head", "manager"].includes(role || "") ? "grid-cols-4" : "grid-cols-3"
+    const tabListClass = "grid w-full rounded-xl border border-[#212121] bg-transparent p-1"
+    const tabTriggerClass = "rounded-lg text-sm font-medium text-[#7F7F7F] transition-colors data-[state=active]:bg-[#212121] data-[state=active]:text-white"
 
     return (
         <div
-            className="min-h-screen"
+            className="min-h-screen bg-[#040404]"
             style={{
-                background: isAdminMobile ? "#040404" : "#040404",
-                paddingBottom: isAdminMobile ? "calc(110px + env(safe-area-inset-bottom, 0px))" : "5rem",
+                paddingBottom: !isDesktop ? "calc(110px + env(safe-area-inset-bottom, 0px))" : undefined,
             }}
         >
             <div className="mx-auto w-full max-w-[420px] px-5 pt-8 md:pt-[72px]" style={{ gap: "32px" }}>
@@ -325,7 +316,7 @@ export default function ProfilePage() {
                     <h1 className="text-white" style={{ fontFamily: "'SF Pro Text', sans-serif", fontWeight: 600, fontSize: "28px", lineHeight: "40px" }}>
                         Профиль
                     </h1>
-                    <p className={isAdminMobile ? "text-[#8E8E93]" : "text-[#7F7F7F]"} style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: "16px", lineHeight: "24px" }}>
+                    <p className="text-[#7F7F7F]" style={{ fontFamily: "'Inter', sans-serif", fontWeight: 400, fontSize: "16px", lineHeight: "24px" }}>
                         Личные данные и настройки
                     </p>
                 </div>
@@ -351,12 +342,12 @@ export default function ProfilePage() {
                     {/* Вкладка: Профиль */}
                     <TabsContent value="profile" className="space-y-6 mt-0">
                         <div
-                            className={`flex flex-col rounded-xl border p-5 ${isAdminMobile ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5"
                             style={{ gap: "20px" }}
                         >
                             <div>
                                 <h2 className="text-lg font-semibold text-white">Данные клиента</h2>
-                                <p className={`mt-0.5 text-sm ${isAdminMobile ? "text-[#8E8E93]" : "text-[#7F7F7F]"}`}>Редактирование профиля</p>
+                                <p className="mt-0.5 text-sm text-[#7F7F7F]">Редактирование профиля</p>
                             </div>
                             <div className="flex flex-col" style={{ gap: "16px" }}>
                                 <div className="flex flex-col" style={{ gap: "8px" }}>
@@ -520,7 +511,7 @@ export default function ProfilePage() {
                     {/* Вкладка: Пароль */}
                     <TabsContent value="password" className="mt-0 space-y-6">
                         <div
-                            className={`flex flex-col rounded-xl border p-5 ${isAdminMobile ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5"
                             style={{ gap: "20px" }}
                         >
                             <h2 className="text-lg font-semibold text-white">Смена пароля</h2>
@@ -553,33 +544,33 @@ export default function ProfilePage() {
                     {/* Вкладка: Уведомления */}
                     <TabsContent value="notifications" className="mt-0 space-y-6">
                         <div
-                            className={`flex flex-col rounded-xl border p-5 ${!isDesktop ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5"
                             style={{ gap: "20px" }}
                         >
                             <h2 className="text-lg font-semibold text-white">Настройки уведомлений</h2>
                             <div className="flex flex-col" style={{ gap: "12px" }}>
-                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${!isDesktop ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
+                                <div className="flex items-center justify-between rounded-lg px-4 py-3 border border-[#212121]">
                                     <Label className={labelClass}>Email уведомления</Label>
                                     <Switch
                                         checked={user?.email_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, email_notifications: checked } : null)}
-                                        className={!isDesktop ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
+                                        className="data-[state=unchecked]:bg-[#212121] [&>span]:bg-white data-[state=checked]:bg-[#F35713]"
                                     />
                                 </div>
-                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${!isDesktop ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
+                                <div className="flex items-center justify-between rounded-lg px-4 py-3 border border-[#212121]">
                                     <Label className={labelClass}>Безопасность</Label>
                                     <Switch
                                         checked={user?.security_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, security_notifications: checked } : null)}
-                                        className={!isDesktop ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
+                                        className="data-[state=unchecked]:bg-[#212121] [&>span]:bg-white data-[state=checked]:bg-[#F35713]"
                                     />
                                 </div>
-                                <div className={`flex items-center justify-between rounded-lg px-4 py-3 ${!isDesktop ? "border border-[#3A3A3C]" : "border border-[#212121]"}`}>
+                                <div className="flex items-center justify-between rounded-lg px-4 py-3 border border-[#212121]">
                                     <Label className={labelClass}>Маркетинг</Label>
                                     <Switch
                                         checked={user?.marketing_notifications ?? false}
                                         onCheckedChange={(checked) => updateUser((prev) => prev ? { ...prev, marketing_notifications: checked } : null)}
-                                        className={!isDesktop ? "data-[state=checked]:bg-[#F35713] data-[state=unchecked]:bg-[#3A3A3C] [&>span]:bg-white" : "data-[state=unchecked]:bg-[#212121] [&>span]:bg-white"}
+                                        className="data-[state=unchecked]:bg-[#212121] [&>span]:bg-white data-[state=checked]:bg-[#F35713]"
                                     />
                                 </div>
                             </div>
@@ -596,12 +587,12 @@ export default function ProfilePage() {
 
                         {/* Все уведомления — список внизу настроек */}
                         <div
-                            className={`flex flex-col rounded-xl border p-5 ${!isDesktop ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                            className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5"
                             style={{ gap: "16px" }}
                         >
                             <h2 className="text-lg font-semibold text-white">Все уведомления</h2>
                             <NotificationsSidebar
-                                variant={!isDesktop ? "dark" : "light"}
+                                variant="dark"
                                 onNotificationClick={handleNotificationClick}
                                 onRequestClick={handleRequestClick}
                                 limit={0}
@@ -616,12 +607,12 @@ export default function ProfilePage() {
                     {["admin-worker", "department-head", "manager"].includes(role || "") && (
                         <TabsContent value="logs" className="mt-0 space-y-6">
                             <div
-                                className={`flex flex-col rounded-xl border p-5 ${isAdminMobile ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-transparent"}`}
+                                className="flex flex-col rounded-xl border border-[#212121] bg-transparent p-5"
                                 style={{ gap: "16px" }}
                             >
                                 <h2 className="text-lg font-semibold text-white">Логи действий</h2>
-                                <p className={isAdminMobile ? "text-sm text-[#8E8E93]" : "text-sm text-[#7F7F7F]"}>История операций</p>
-                                <LogsViewer userRole={role || "admin-worker"} isDesktop={false} dark={!isDesktop} />
+                                <p className="text-sm text-[#7F7F7F]">История операций</p>
+                                <LogsViewer userRole={role || "admin-worker"} isDesktop={false} dark={true} />
                             </div>
                         </TabsContent>
                     )}
@@ -631,35 +622,35 @@ export default function ProfilePage() {
             {/* Модалка просмотра уведомления */}
             {selectedNotification && (
                 <div
-                    className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+                    className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]"
                     onClick={() => setSelectedNotification(null)}
                 >
                     <div
-                        className={`rounded-xl shadow-lg max-w-md w-full p-6 border ${!isDesktop ? "border-[#3A3A3C] bg-[#2C2C2E]" : "border-[#212121] bg-[#040404]"}`}
+                        className="rounded-xl shadow-lg max-w-md w-full p-6 border border-[#212121] bg-[#040404]"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-lg font-semibold text-white">{selectedNotification.title}</h2>
                             <button
-                                className="text-[#8E8E93] hover:text-white text-2xl"
+                                className="text-[#7F7F7F] hover:text-white text-2xl"
                                 onClick={() => setSelectedNotification(null)}
                             >
                                 ×
                             </button>
                         </div>
-                        <div className={`text-sm whitespace-pre-line ${isAdminMobile ? "text-[#E5E5EA]" : "text-[#C4C4CE]"}`}>
+                        <div className="text-sm whitespace-pre-line text-[#C4C4CE]">
                             {createClickableRequestIds(selectedNotification.content, (requestId) => {
                                 handleRequestClick(requestId);
                             })}
                         </div>
-                        <p className={`text-xs mt-4 ${isAdminMobile ? "text-[#8E8E93]" : "text-[#7F7F7F]"}`}>
+                        <p className="text-xs mt-4 text-[#7F7F7F]">
                             {new Date(selectedNotification.created_at).toLocaleString()}
                         </p>
                     </div>
                 </div>
             )}
 
-            {!isDesktop && (role === "admin-worker" ? <AdminBottomNav /> : <BottomNav activeTab="profile" />)}
+            {!isDesktop && <BottomNav activeTab="profile" />}
         </div>
     )
 }

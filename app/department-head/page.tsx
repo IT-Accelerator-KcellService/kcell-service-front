@@ -29,8 +29,6 @@ import {
   FileSpreadsheet,
   Building2,
   LayoutGrid,
-  Home,
-  FolderTree,
   BarChart3,
 } from "lucide-react"
 
@@ -2036,18 +2034,6 @@ export default function DepartmentHeadDashboard() {
                 <TabsContent value="management" className="pt-2 sm:pt-0">
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     <Link
-                      href="/department-head/management/categories"
-                      className="block"
-                    >
-                      <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-white/20 bg-white/10 hover:bg-white/15">
-                        <CardContent className="p-4 flex flex-col">
-                          <FolderTree className="h-8 w-8 text-[#E25B21] mb-2" />
-                          <h3 className="font-semibold text-white text-sm leading-tight">Категории и подкатегории</h3>
-                          <p className="text-xs text-white/70 mt-1 line-clamp-2">Добавление и удаление категорий</p>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                    <Link
                       href="/department-head/management/users"
                       className="block"
                     >
@@ -2056,30 +2042,6 @@ export default function DepartmentHeadDashboard() {
                           <Users className="h-8 w-8 text-[#E25B21] mb-2" />
                           <h3 className="font-semibold text-white text-sm leading-tight">Пользователи</h3>
                           <p className="text-xs text-white/70 mt-1 line-clamp-2">Роли и запросы на регистрацию</p>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                    <Link
-                      href="/department-head/management/office"
-                      className="block"
-                    >
-                      <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-white/20 bg-white/10 hover:bg-white/15">
-                        <CardContent className="p-4 flex flex-col">
-                          <Building2 className="h-8 w-8 text-[#E25B21] mb-2" />
-                          <h3 className="font-semibold text-white text-sm leading-tight">Офис</h3>
-                          <p className="text-xs text-white/70 mt-1 line-clamp-2">Кабинеты, переговорные, адреса</p>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                    <Link
-                      href="/department-head/management/smart-home"
-                      className="block"
-                    >
-                      <Card className="h-full transition-all hover:scale-[1.02] active:scale-[0.98] border-white/20 bg-white/10 hover:bg-white/15">
-                        <CardContent className="p-4 flex flex-col">
-                          <Home className="h-8 w-8 text-[#E25B21] mb-2" />
-                          <h3 className="font-semibold text-white text-sm leading-tight">Умный дом</h3>
-                          <p className="text-xs text-white/70 mt-1 line-clamp-2">Устройства и доступ</p>
                         </CardContent>
                       </Card>
                     </Link>
@@ -2140,7 +2102,7 @@ export default function DepartmentHeadDashboard() {
         {/* Модалка */}
         {isModalOpen && selectedNotification && (
             <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]"
                 onClick={() => {
                   setIsModalOpen(false);
                   closeModalWithHistory();
@@ -2189,7 +2151,7 @@ export default function DepartmentHeadDashboard() {
 
         {/* Request Details Modal */}
         {selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => {
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]" onClick={() => {
               setSelectedRequest(null)
               setShowComments(null)
             }}>
@@ -2564,7 +2526,7 @@ export default function DepartmentHeadDashboard() {
         />
         {/* Redirect Modal */}
         {showRedirectModal && selectedRequestForRedirect && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100]">
             <Card className="w-full max-w-md">
               <CardHeader>
                 <CardTitle>Перенаправить заявку #{selectedRequestForRedirect.id}</CardTitle>
@@ -2582,7 +2544,7 @@ export default function DepartmentHeadDashboard() {
                     <SelectTrigger>
                       <SelectValue placeholder="Выберите категорию" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[110]">
                       {categories
                         .filter(category => category.id !== selectedRequestForRedirect.category_id)
                         .map((category) => (
