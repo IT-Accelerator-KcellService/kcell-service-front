@@ -4226,11 +4226,10 @@ export default function AdminWorkerDashboard() {
             hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto}
         />}
         {isDesktop && <Link
-            href="/chat-bot"
+            href="/admin-worker/messages"
             className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-[#114A65]/10 text-[#114A65] rounded-full shadow-lg hover:bg-[#114A65]/20 transition"
         >
           <MessageCircle className="w-7 h-7" />
-
         </Link>}
 
         {/* Модальное окно информации об иконках */}

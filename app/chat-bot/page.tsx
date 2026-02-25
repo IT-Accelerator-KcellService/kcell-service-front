@@ -4,7 +4,7 @@ import { Send, Trash2, Copy, Building2, Wrench, Ruler, Bell, Home, BarChart3, Al
 import { BottomNav } from "@/components/BottomNav";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import axios, { AxiosError } from "axios";
-import api, { createSupportTicket, getSupportTicketMessages, sendSupportMessage, type SupportTicket, type SupportMessage } from "@/lib/api";
+import api, { createSupportTicket, getSupportTicketMessages, sendSupportMessage, getMySupportTickets, type SupportTicket, type SupportMessage } from "@/lib/api";
 import ReactMarkdown from 'react-markdown';
 import {useAuthStore} from "@/stores/useAuthStore";
 import { DeleteConfirmationModal } from "@/components/DeleteConfirmationModal";
@@ -14,6 +14,10 @@ import { createClickableRequestIds } from '@/lib/notificationUtils';
 type Message = {
     from: "user" | "bot";
     text: string;
+    /** Показать кнопку «Написать в техподдержку» (когда бот не смог ответить) */
+    suggestSupport?: boolean;
+    /** Текст вопроса пользователя — подставить в форму поддержки */
+    userMessage?: string;
 };
 type ApiError = {
     error?: string;
@@ -138,6 +142,8 @@ export default function ChatPage() {
     const {token} = useAuthStore()
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const [activeMessageTab, setActiveMessageTab] = useState<"chat" | "notifications">("chat")
+    /** Внутри чата: первая — чат-бот, вторая — техподдержка */
+    const [innerChatTab, setInnerChatTab] = useState<"bot" | "support">("bot")
     const [messages, setMessages] = useState<Message[]>([
         { from: "bot", text: "Выберите, с чем хотите работать 👉" },
     ]);
@@ -162,6 +168,8 @@ export default function ChatPage() {
     const supportInputRef = useRef<HTMLTextAreaElement>(null);
     const [supportInputValue, setSupportInputValue] = useState("");
     const [supportSending, setSupportSending] = useState(false);
+    const [myTickets, setMyTickets] = useState<SupportTicket[]>([]);
+    const [loadingTickets, setLoadingTickets] = useState(false);
 
     // Notifications state (local, like old page)
     const [allNotifications, setAllNotifications] = useState<any[]>([]);
@@ -345,7 +353,12 @@ export default function ChatPage() {
             });
 
             const botText = response.data?.answer ?? "Не получилось обработать ответ.";
-            setMessages((prev) => [...prev, { from: "bot", text: botText }]);
+            const isFallback = !botText || botText === "Не получилось обработать ответ." || /ошибка|попробуйте позже/i.test(botText);
+            setMessages((prev) => [
+                ...prev,
+                { from: "bot", text: botText },
+                ...(isFallback ? [{ from: "bot" as const, text: "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: true, userMessage: trimmed }] : [])
+            ]);
         } catch (err) {
             if (axios.isCancel(err)) {
                 return;
@@ -354,11 +367,21 @@ export default function ChatPage() {
             const error = err as AxiosError<ApiError>;
             const errorMessage = error.response?.data?.error || "Ошибка сервера. Попробуйте позже.";
             setError(errorMessage);
-            setMessages((prev) => [...prev, { from: "bot", text: errorMessage }]);
+            setMessages((prev) => [
+                ...prev,
+                { from: "bot", text: errorMessage },
+                { from: "bot", text: "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: true, userMessage: trimmed }
+            ]);
         } finally {
             setIsSending(false);
             setIsBotTyping(false);
         }
+    };
+
+    const handleGoToSupport = (userMessage?: string) => {
+        setInnerChatTab("support");
+        setSupportFormValue(userMessage?.trim() ?? "");
+        setShowSupportForm(true);
     };
 
     const handleClearChat = () => {
@@ -406,7 +429,12 @@ export default function ChatPage() {
             });
 
             const botText = response.data?.answer ?? "Не получилось обработать ответ.";
-            setMessages((prev) => [...prev, { from: "bot", text: botText }]);
+            const isFallback = !botText || botText === "Не получилось обработать ответ." || /ошибка|попробуйте позже/i.test(botText);
+            setMessages((prev) => [
+                ...prev,
+                { from: "bot", text: botText },
+                ...(isFallback ? [{ from: "bot" as const, text: "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: true, userMessage: question }] : [])
+            ]);
         } catch (err) {
             if (axios.isCancel(err)) {
                 return;
@@ -415,7 +443,11 @@ export default function ChatPage() {
             const error = err as AxiosError<ApiError>;
             const errorMessage = error.response?.data?.error || "Ошибка сервера. Попробуйте позже.";
             setError(errorMessage);
-            setMessages((prev) => [...prev, { from: "bot", text: errorMessage }]);
+            setMessages((prev) => [
+                ...prev,
+                { from: "bot", text: errorMessage },
+                { from: "bot", text: "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: true, userMessage: question }
+            ]);
         } finally {
             setIsSending(false);
             setIsBotTyping(false);
@@ -449,6 +481,8 @@ export default function ChatPage() {
                 setSupportChatView(true);
                 setShowSupportForm(false);
                 setSupportFormValue("");
+                setInnerChatTab("support");
+                setMyTickets((prev) => [ticket, ...prev.filter((t) => t.id !== ticket.id)]);
             }
         } catch (err: any) {
             const status = err?.response?.status;
@@ -473,6 +507,7 @@ export default function ChatPage() {
                 setSupportChatView(true);
                 setShowSupportForm(false);
                 setSupportFormValue("");
+                setInnerChatTab("support");
             } else {
                 setSupportError(err?.response?.data?.error || "Не удалось отправить заявку. Попробуйте позже.");
             }
@@ -538,6 +573,28 @@ export default function ChatPage() {
         if (supportChatView) supportMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [supportMessages, supportChatView]);
 
+    // Загрузка тикетов при открытии вкладки «Техподдержка»
+    useEffect(() => {
+        if (innerChatTab !== "support" || !token) return;
+        setLoadingTickets(true);
+        getMySupportTickets()
+            .then((res) => setMyTickets(res.data?.tickets ?? []))
+            .catch(() => setMyTickets([]))
+            .finally(() => setLoadingTickets(false));
+    }, [innerChatTab, token]);
+
+    const openSupportTicket = useCallback(async (ticket: SupportTicket) => {
+        setActiveSupportTicket(ticket);
+        setSupportMessages([]);
+        setSupportChatView(true);
+        try {
+            const res = await getSupportTicketMessages(ticket.id);
+            setSupportMessages(res.data?.messages ?? []);
+        } catch {
+            setSupportMessages([]);
+        }
+    }, []);
+
     const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -574,14 +631,14 @@ export default function ChatPage() {
             {/* Header с вкладками */}
             <header className="sticky top-0 z-10 bg-black pt-12 pb-4 px-4 safe-area-top">
                 <h1 className="text-2xl font-bold text-white mb-4">Сообщение</h1>
-                
-                {/* Переключатель вкладок: на мобилке только чат (уведомления — в Профиле) */}
-                {isDesktop && (
-                <div className="flex rounded-xl overflow-hidden bg-[#3D3D3D]">
+
+                {/* Внутри чата: две вкладки — Чат-бот и Техподдержка */}
+                {(isDesktop ? activeMessageTab === "chat" : true) && (
+                <div className="flex rounded-xl overflow-hidden bg-[#3D3D3D] mb-2">
                     <button
-                        onClick={() => setActiveMessageTab("chat")}
+                        onClick={() => setInnerChatTab("bot")}
                         className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
-                            activeMessageTab === "chat"
+                            innerChatTab === "bot"
                                 ? "bg-[#5A5A5A] text-white"
                                 : "bg-transparent text-gray-400"
                         }`}
@@ -590,8 +647,35 @@ export default function ChatPage() {
                         Чат-бот
                     </button>
                     <button
-                        onClick={() => setActiveMessageTab("notifications")}
+                        onClick={() => setInnerChatTab("support")}
                         className={`flex-1 py-3 px-4 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
+                            innerChatTab === "support"
+                                ? "bg-[#5A5A5A] text-white"
+                                : "bg-transparent text-gray-400"
+                        }`}
+                    >
+                        <Headphones className="w-4 h-4" />
+                        Техподдержка
+                    </button>
+                </div>
+                )}
+
+                {/* На десктопе: третья вкладка — Уведомления */}
+                {isDesktop && (
+                <div className="flex rounded-xl overflow-hidden bg-[#3D3D3D]">
+                    <button
+                        onClick={() => setActiveMessageTab("chat")}
+                        className={`flex-1 py-2.5 px-3 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
+                            activeMessageTab === "chat"
+                                ? "bg-[#5A5A5A] text-white"
+                                : "bg-transparent text-gray-400"
+                        }`}
+                    >
+                        Чат
+                    </button>
+                    <button
+                        onClick={() => setActiveMessageTab("notifications")}
+                        className={`flex-1 py-2.5 px-3 text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
                             activeMessageTab === "notifications"
                                 ? "bg-[#5A5A5A] text-white"
                                 : "bg-transparent text-gray-400"
@@ -612,8 +696,9 @@ export default function ChatPage() {
             {/* Контент: на мобилке только чат, на десктопе — по вкладке */}
             {(isDesktop ? activeMessageTab === "chat" : true) ? (
                 <>
-                    {/* Support chat view */}
-                    {supportChatView && activeSupportTicket ? (
+                    {/* Вкладка «Техподдержка»: чат с поддержкой или список тикетов */}
+                    {innerChatTab === "support" && (
+                    supportChatView && activeSupportTicket ? (
                         <div className="flex flex-col flex-1 min-h-0">
                             <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800 bg-[#1C1C1E]">
                                 <button onClick={handleCloseSupportChat} className="p-2 -ml-2 rounded-lg text-gray-400 hover:text-white hover:bg-[#2C2C2E]">
@@ -655,7 +740,7 @@ export default function ChatPage() {
                                 )}
                                 <div ref={supportMessagesEndRef} aria-hidden />
                             </main>
-                            <form onSubmit={(e) => handleSendSupportMessage(e)} className="fixed bottom-20 left-0 right-0 bg-black border-t border-gray-800 p-4 max-w-2xl mx-auto w-full safe-area-bottom">
+                            <form onSubmit={(e) => handleSendSupportMessage(e)} className="fixed left-0 right-0 bg-black border-t border-gray-800 p-4 max-w-2xl mx-auto w-full md:bottom-20 bottom-[calc(90px+env(safe-area-inset-bottom,0px))]" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
                                 <div className="flex items-end gap-2">
                                     <textarea
                                         ref={supportInputRef}
@@ -674,6 +759,90 @@ export default function ChatPage() {
                             </form>
                         </div>
                     ) : (
+                    /* Список обращений в поддержку и кнопка «Написать» */
+                    <div className="flex flex-col flex-1 min-h-0">
+                        <main className="flex-1 overflow-y-auto p-4 space-y-3 max-w-2xl mx-auto w-full pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-32">
+                            <button
+                                type="button"
+                                onClick={() => setShowSupportForm(true)}
+                                className="w-full rounded-xl p-4 border border-gray-700 bg-[#1C1C1E] hover:border-[#F35713] hover:bg-[#1C1C1E]/90 transition-all text-left flex items-center gap-3"
+                            >
+                                <div className="w-10 h-10 rounded-full bg-[#F35713]/20 flex items-center justify-center shrink-0">
+                                    <Headphones className="w-5 h-5 text-[#F35713]" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-white">Написать в поддержку</p>
+                                    <p className="text-xs text-gray-400">Опишите проблему — ответим в чате</p>
+                                </div>
+                            </button>
+                            {loadingTickets ? (
+                                <div className="flex justify-center py-8">
+                                    <Loader2 className="w-8 h-8 animate-spin text-[#F35713]" />
+                                </div>
+                            ) : myTickets.length > 0 ? (
+                                <div className="space-y-2">
+                                    <p className="text-xs text-gray-500 font-medium">Мои обращения</p>
+                                    {myTickets.map((t) => (
+                                        <button
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => openSupportTicket(t)}
+                                            className="w-full rounded-xl p-3 border border-gray-700 bg-[#2C2C2E] hover:border-[#F35713]/50 text-left flex items-center justify-between gap-2"
+                                        >
+                                            <span className="text-white text-sm truncate">
+                                                #{t.id} · {t.status === "closed" ? "Закрыт" : t.status === "in_progress" ? "В работе" : "Открыт"}
+                                            </span>
+                                            <ChevronRight className="w-5 h-5 text-gray-500 shrink-0" />
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
+                        </main>
+                        {/* Support form modal — тот же, что в теме «ошибки» */}
+                        {showSupportForm && (
+                            <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center" onClick={() => !supportFormSubmitting && setShowSupportForm(false)}>
+                                <div className="bg-[#1C1C1E] w-full max-w-lg rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto pb-[calc(24px+env(safe-area-inset-bottom,0px)+80px)] md:pb-6" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                            <Headphones className="w-5 h-5 text-[#F35713]" />
+                                            Обращение в поддержку
+                                        </h2>
+                                        <button onClick={() => !supportFormSubmitting && setShowSupportForm(false)} className="p-2 rounded-full bg-[#2C2C2E] text-gray-400 hover:text-white">
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                    <p className="text-gray-400 text-sm mb-4">
+                                        Опишите вашу проблему. Администратор свяжется с вами в чате.
+                                    </p>
+                                    <form onSubmit={handleSupportFormSubmit}>
+                                        <textarea
+                                            value={supportFormValue}
+                                            onChange={(e) => setSupportFormValue(e.target.value)}
+                                            placeholder="Опишите проблему..."
+                                            className="w-full border border-gray-700 rounded-xl p-4 bg-[#2C2C2E] text-white placeholder-gray-500 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-[#F35713] resize-none"
+                                            disabled={supportFormSubmitting}
+                                            rows={4}
+                                        />
+                                        {supportError && <p className="text-[#F35713] text-sm mt-2">{supportError}</p>}
+                                        <div className="flex gap-2 mt-4">
+                                            <button type="button" onClick={() => !supportFormSubmitting && setShowSupportForm(false)} className="flex-1 py-3 rounded-xl bg-[#2C2C2E] text-gray-400 hover:text-white">
+                                                Отмена
+                                            </button>
+                                            <button type="submit" disabled={!supportFormValue.trim() || supportFormSubmitting} className="flex-1 py-3 rounded-xl bg-[#F35713] text-white hover:bg-[#E04A0A] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                                                {supportFormSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                                                Отправить
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    )
+                    )}
+
+                    {/* Вкладка «Чат-бот»: темы, диалог с ботом */}
+                    {innerChatTab === "bot" && (
                     <>
                     {/* Chat Messages */}
                     <main className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full pb-40">
@@ -727,7 +896,7 @@ export default function ChatPage() {
                                         ))}
                                         {selectedTopic === "errors" && (
                                             <button
-                                                onClick={() => setShowSupportForm(true)}
+                                                onClick={() => { setInnerChatTab("support"); setShowSupportForm(true); }}
                                                 className="w-full text-left p-3 rounded-lg bg-[#F35713]/20 border border-[#F35713]/40 hover:bg-[#F35713]/30 transition-all text-sm text-[#F35713] font-medium flex items-center gap-2"
                                             >
                                                 <Headphones className="w-4 h-4" />
@@ -735,46 +904,6 @@ export default function ChatPage() {
                                             </button>
                                         )}
                                     </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Support form modal */}
-                        {showSupportForm && (
-                            <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center" onClick={() => !supportFormSubmitting && setShowSupportForm(false)}>
-                                <div className="bg-[#1C1C1E] w-full max-w-lg rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto" style={{ paddingBottom: "calc(24px + env(safe-area-inset-bottom, 0px))" }} onClick={(e) => e.stopPropagation()}>
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                            <Headphones className="w-5 h-5 text-[#F35713]" />
-                                            Обращение в поддержку
-                                        </h2>
-                                        <button onClick={() => !supportFormSubmitting && setShowSupportForm(false)} className="p-2 rounded-full bg-[#2C2C2E] text-gray-400 hover:text-white">
-                                            <X className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                    <p className="text-gray-400 text-sm mb-4">
-                                        Опишите вашу проблему. Администратор свяжется с вами в чате.
-                                    </p>
-                                    <form onSubmit={handleSupportFormSubmit}>
-                                        <textarea
-                                            value={supportFormValue}
-                                            onChange={(e) => setSupportFormValue(e.target.value)}
-                                            placeholder="Опишите проблему..."
-                                            className="w-full border border-gray-700 rounded-xl p-4 bg-[#2C2C2E] text-white placeholder-gray-500 min-h-[120px] focus:outline-none focus:ring-2 focus:ring-[#F35713] resize-none"
-                                            disabled={supportFormSubmitting}
-                                            rows={4}
-                                        />
-                                        {supportError && <p className="text-[#F35713] text-sm mt-2">{supportError}</p>}
-                                        <div className="flex gap-2 mt-4">
-                                            <button type="button" onClick={() => !supportFormSubmitting && setShowSupportForm(false)} className="flex-1 py-3 rounded-xl bg-[#2C2C2E] text-gray-400 hover:text-white">
-                                                Отмена
-                                            </button>
-                                            <button type="submit" disabled={!supportFormValue.trim() || supportFormSubmitting} className="flex-1 py-3 rounded-xl bg-[#F35713] text-white hover:bg-[#E04A0A] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                                                {supportFormSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                                                Отправить
-                                            </button>
-                                        </div>
-                                    </form>
                                 </div>
                             </div>
                         )}
@@ -806,6 +935,16 @@ export default function ChatPage() {
                                         }}>
                                             {msg.text}
                                         </ReactMarkdown>
+                                        {msg.suggestSupport && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleGoToSupport(msg.userMessage)}
+                                                className="mt-3 w-full py-2.5 rounded-xl bg-[#F35713]/20 border border-[#F35713]/50 hover:bg-[#F35713]/30 text-[#F35713] font-medium text-sm flex items-center justify-center gap-2"
+                                            >
+                                                <Headphones className="w-4 h-4" />
+                                                Написать в техподдержку
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 

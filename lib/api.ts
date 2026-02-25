@@ -738,10 +738,14 @@ export const getRoomSubscriptions = (meeting_room_id: number) =>
 export interface SupportTicket {
     id: number;
     user_id: number;
-    message: string;
+    message?: string;
     status: 'open' | 'in_progress' | 'closed';
     created_at: string;
     updated_at?: string;
+    assigned_admin_id?: number | null;
+    client_name?: string;
+    assigned_admin_name?: string;
+    client?: { id: number; full_name: string };
 }
 
 export interface SupportMessage {
@@ -756,9 +760,11 @@ export interface SupportMessage {
 export const createSupportTicket = (message: string) =>
     api.post<{ ticket: SupportTicket }>('/support-tickets', { message });
 
-// Получить мои заявки в поддержку
+// Получить мои заявки (клиент) или чаты клиентов (админ — только клиенты, без бота)
 export const getMySupportTickets = () =>
     api.get<{ tickets: SupportTicket[] }>('/support-tickets');
+
+export const getSupportTickets = getMySupportTickets;
 
 // Получить сообщения чата поддержки
 export const getSupportTicketMessages = (ticketId: number) =>
