@@ -250,6 +250,28 @@ export function RequestDetails({
     }
   };
 
+  const handleAdminCompleteRequest = async () => {
+    try {
+      setIsSubmitting(true);
+      setFormErrors(null);
+      // Complete all sub-requests in the group
+      for (const subReq of selectedRequest.requests) {
+        if (['in_progress', 'awaiting_assignment', 'assigned'].includes(subReq.status)) {
+          await api.patch(`/requests/${subReq.id}/admin-complete`, {
+            comment: rejectionReason || "Завершено администратором"
+          });
+        }
+      }
+      toast({ title: "Заявка завершена администратором" });
+      onRequestUpdated?.();
+      onClose();
+    } catch (err: any) {
+      setFormErrors(err?.response?.data?.message || "Ошибка при завершении заявки");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleRateExecutor = async () => {
     if (!requestToRate || ratingValue <= 0) return;
     try {
@@ -342,6 +364,12 @@ export function RequestDetails({
   const showAcceptReject =
     isAdminOrDepartmentHead &&
     selectedRequest.status === "in_progress" &&
+    hideFullModeButton;
+
+  // Показывать кнопку завершения для admin-worker когда задача в статусе awaiting_assignment или assigned
+  const showAdminComplete =
+    userRoleProp === "admin-worker" &&
+    ["awaiting_assignment", "assigned"].includes(selectedRequest.status) &&
     hideFullModeButton;
 
   if (!hideFullModeButton) {
@@ -752,10 +780,68 @@ export function RequestDetails({
                     )}
                   </Button>
                 </div>
+                {/* Кнопка завершения задачи администратором напрямую */}
+                {userRoleProp === "admin-worker" && (
+                  <div className="pt-2 border-t border-gray-700">
+                    <Button
+                      onClick={handleAdminCompleteRequest}
+                      disabled={isSubmitting}
+                      className="w-full bg-[#114A65] hover:bg-[#0d3a4f] text-white"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Завершить задачу (без исполнителя)
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-gray-500 text-xs mt-2 text-center">
+                      Нажмите, чтобы завершить задачу сразу без назначения исполнителя
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
-            {selectedRequest.photos?.filter((p: any) => p.type === "before").length > 0 && (
+            {/* Блок завершения задачи админом для awaiting_assignment/assigned статусов */}
+            {showAdminComplete && (
+              <div className="bg-[#1C1C1E] rounded-xl p-4 space-y-4 border border-[#3A3A3C]">
+                <h3 className="text-white font-medium">Завершение задачи администратором</h3>
+                <div>
+                  <Label className="text-xs text-gray-400">Комментарий (опционально)</Label>
+                  <Textarea
+                    placeholder="Укажите комментарий к завершению..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="mt-1 bg-[#1C1C1E] border-[#3A3A3C] text-white placeholder:text-gray-500 min-h-[80px]"
+                  />
+                </div>
+                {formErrors && (
+                  <p className="text-[#F35713] text-sm">{formErrors}</p>
+                )}
+                <Button
+                  onClick={handleAdminCompleteRequest}
+                  disabled={isSubmitting}
+                  className="w-full bg-[#114A65] hover:bg-[#0d3a4f] text-white"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Завершить задачу (без исполнителя)
+                    </>
+                  )}
+                </Button>
+                <p className="text-gray-500 text-xs text-center">
+                  Завершите задачу сразу без назначения исполнителя и отправки руководителю
+                </p>
+              </div>
+            )}
+
+            {selectedRequest.photos && selectedRequest.photos.filter((p: any) => p.type === "before").length > 0 && (
               <div className="bg-[#1C1C1E] rounded-xl p-4">
                 <p className="text-gray-400 text-sm mb-3">Фотографии (до выполнения)</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -783,7 +869,7 @@ export function RequestDetails({
               </div>
             )}
 
-            {selectedRequest.photos?.filter((p: any) => p.type === "after").length > 0 && (
+            {selectedRequest.photos && selectedRequest.photos.filter((p: any) => p.type === "after").length > 0 && (
               <div className="bg-[#1C1C1E] rounded-xl p-4">
                 <p className="text-gray-400 text-sm mb-3">Фотографии (после выполнения)</p>
                 <div className="grid grid-cols-3 gap-2">
@@ -853,9 +939,10 @@ export function RequestDetails({
 
       {showIconInfo && (
         <IconInfoModal
-          type={showIconInfo.type}
-          value={showIconInfo.value}
+          isOpen={!!showIconInfo}
+          iconInfo={showIconInfo}
           onClose={() => setShowIconInfo(null)}
+          isDesktop={false}
         />
       )}
 
