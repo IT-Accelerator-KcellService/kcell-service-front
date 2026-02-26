@@ -418,9 +418,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       }
     }
 
-    if (photos.length === 0) {
-      newBasicFieldErrors.add('photos');
-    }
+    // Фото опциональны — заявку можно создать без фото
 
     // Валидация для режима создания с завершением
     if (userRole === 'executor' && createMode === 'createAndComplete') {
@@ -565,9 +563,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
       }
     }
 
-    if (photos.length === 0) {
-      basicFieldErrors.push('фотографии (минимум 1)');
-    }
+    // Фото опциональны — заявку можно создать без фото
 
     // Валидация для режима создания с завершением
     if (userRole === 'executor' && createMode === 'createAndComplete') {
@@ -817,7 +813,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = ({
   };
 
   const validateStep4 = (): boolean => {
-    if (photos.length === 0) return false;
     const subRequest = subRequests[0];
     if (!subRequest.description.trim()) return false;
     return true;
