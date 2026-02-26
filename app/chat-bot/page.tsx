@@ -139,7 +139,7 @@ const topics: Topic[] = [
 ];
 
 export default function ChatPage() {
-    const {token} = useAuthStore()
+    const { token, isGuest } = useAuthStore()
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const [activeMessageTab, setActiveMessageTab] = useState<"chat" | "notifications">("chat")
     /** Внутри чата: первая — чат-бот, вторая — техподдержка */
@@ -357,7 +357,7 @@ export default function ChatPage() {
             setMessages((prev) => [
                 ...prev,
                 { from: "bot", text: botText },
-                ...(isFallback ? [{ from: "bot" as const, text: "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: true, userMessage: trimmed }] : [])
+                ...(isFallback ? [{ from: "bot" as const, text: isGuest ? "К сожалению, не нашёл подходящего ответа на ваш вопрос." : "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: !isGuest, userMessage: trimmed }] : [])
             ]);
         } catch (err) {
             if (axios.isCancel(err)) {
@@ -370,7 +370,7 @@ export default function ChatPage() {
             setMessages((prev) => [
                 ...prev,
                 { from: "bot", text: errorMessage },
-                { from: "bot", text: "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: true, userMessage: trimmed }
+                { from: "bot", text: isGuest ? "К сожалению, не нашёл подходящего ответа на ваш вопрос." : "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: !isGuest, userMessage: trimmed }
             ]);
         } finally {
             setIsSending(false);
@@ -433,7 +433,7 @@ export default function ChatPage() {
             setMessages((prev) => [
                 ...prev,
                 { from: "bot", text: botText },
-                ...(isFallback ? [{ from: "bot" as const, text: "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: true, userMessage: question }] : [])
+                ...(isFallback ? [{ from: "bot" as const, text: isGuest ? "К сожалению, не нашёл подходящего ответа на ваш вопрос." : "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: !isGuest, userMessage: question }] : [])
             ]);
         } catch (err) {
             if (axios.isCancel(err)) {
@@ -446,7 +446,7 @@ export default function ChatPage() {
             setMessages((prev) => [
                 ...prev,
                 { from: "bot", text: errorMessage },
-                { from: "bot", text: "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: true, userMessage: question }
+                { from: "bot", text: isGuest ? "К сожалению, не нашёл подходящего ответа на ваш вопрос." : "Можете обратиться в техподдержку — во вкладке «Техподдержка» опишите вопрос, мы ответим в чате.", suggestSupport: !isGuest, userMessage: question }
             ]);
         } finally {
             setIsSending(false);
@@ -468,10 +468,35 @@ export default function ChatPage() {
         navigator.clipboard.writeText(text);
     };
 
-    // Support: try API first, fallback to local state (works before backend is ready)
+    // Support: try API first, fallback to local state (works before backend is ready). Для гостя API не вызываем.
     const loadOrCreateSupportTicket = useCallback(async (initialMessage: string) => {
         setSupportFormSubmitting(true);
         setSupportError(null);
+        if (isGuest) {
+            const fallbackTicket: SupportTicket = {
+                id: Date.now(),
+                user_id: 0,
+                message: initialMessage,
+                status: "open",
+                created_at: new Date().toISOString(),
+            };
+            const fallbackMsg: SupportMessage = { id: 0, ticket_id: fallbackTicket.id, sender: "user", message: initialMessage, created_at: fallbackTicket.created_at };
+            const adminReply: SupportMessage = {
+                id: 1,
+                ticket_id: fallbackTicket.id,
+                sender: "admin",
+                message: "В демо-режиме техподдержка недоступна. Ваше обращение не отправлено.",
+                created_at: new Date().toISOString(),
+            };
+            setActiveSupportTicket(fallbackTicket);
+            setSupportMessages([fallbackMsg, adminReply]);
+            setSupportChatView(true);
+            setShowSupportForm(false);
+            setSupportFormValue("");
+            setInnerChatTab("support");
+            setSupportFormSubmitting(false);
+            return;
+        }
         try {
             const res = await createSupportTicket(initialMessage);
             const ticket = res.data?.ticket || res.data;
@@ -514,7 +539,7 @@ export default function ChatPage() {
         } finally {
             setSupportFormSubmitting(false);
         }
-    }, []);
+    }, [isGuest]);
 
     const handleSupportFormSubmit = (e: FormEvent) => {
         e.preventDefault();
@@ -547,6 +572,21 @@ export default function ChatPage() {
         setSupportInputValue("");
         setSupportSending(true);
 
+        if (isGuest) {
+            setSupportMessages((prev) => [
+                ...prev,
+                {
+                    id: prev.length + 1,
+                    ticket_id: activeSupportTicket.id,
+                    sender: "admin" as const,
+                    message: "В демо-режиме сообщения в техподдержку не отправляются.",
+                    created_at: new Date().toISOString(),
+                },
+            ]);
+            setSupportSending(false);
+            return;
+        }
+
         try {
             await sendSupportMessage(activeSupportTicket.id, trimmed);
             const res = await getSupportTicketMessages(activeSupportTicket.id);
@@ -575,13 +615,16 @@ export default function ChatPage() {
 
     // Загрузка тикетов при открытии вкладки «Техподдержка»
     useEffect(() => {
-        if (innerChatTab !== "support" || !token) return;
+        if (innerChatTab !== "support" || !token || isGuest) {
+            if (isGuest) setMyTickets([]);
+            return;
+        }
         setLoadingTickets(true);
         getMySupportTickets()
             .then((res) => setMyTickets(res.data?.tickets ?? []))
             .catch(() => setMyTickets([]))
             .finally(() => setLoadingTickets(false));
-    }, [innerChatTab, token]);
+    }, [innerChatTab, token, isGuest]);
 
     const openSupportTicket = useCallback(async (ticket: SupportTicket) => {
         setActiveSupportTicket(ticket);
@@ -935,7 +978,7 @@ export default function ChatPage() {
                                         }}>
                                             {msg.text}
                                         </ReactMarkdown>
-                                        {msg.suggestSupport && (
+                                        {msg.suggestSupport && !isGuest && (
                                             <button
                                                 type="button"
                                                 onClick={() => handleGoToSupport(msg.userMessage)}

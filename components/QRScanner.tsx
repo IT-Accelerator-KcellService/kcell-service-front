@@ -305,12 +305,23 @@ export function QRScanner({ isOpen, onClose, onScanSuccess }: QRScannerProps) {
         bookingData = { bookingId: parseInt(qrData) }
       }
 
-      const bookingId = bookingData.bookingId || bookingData.id
-      if (!bookingId) {
+      const bookingId = bookingData.bookingId ?? bookingData.id
+      if (bookingId === undefined && !bookingData.demo) {
         throw new Error('Неверный формат QR кода')
       }
 
-      const response = await scanBookingQRCode(bookingId)
+      const isDemo = bookingData.demo === true || (typeof bookingId === 'number' && bookingId < 0)
+      if (isDemo) {
+        toast({
+          title: "Демо",
+          description: "Сканирование прошло успешно (демо-режим)",
+        })
+        onScanSuccess?.({ booking: null, tables_remaining: 0 })
+        onClose()
+        return
+      }
+
+      const response = await scanBookingQRCode(Number(bookingId))
       
       toast({
         title: "Успешно!",

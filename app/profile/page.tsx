@@ -31,7 +31,7 @@ const roleTranslations: Record<string, string> = {
 }
 
 export default function ProfilePage() {
-    const {clearAuth, user, updateUser, role} = useAuthStore()
+    const { clearAuth, user, updateUser, role, isGuest } = useAuthStore()
     const router = useRouter()
     const isDesktop = useMediaQuery("(min-width: 768px)")
     const { toast } = useToast()
@@ -73,7 +73,12 @@ export default function ProfilePage() {
 
     // Загрузка уведомлений при открытии профиля (первая страница)
     useEffect(() => {
-        if (!user?.id) return
+        if (!user?.id && !isGuest) return
+        if (isGuest) {
+            setNotifications([])
+            setNotificationLoading(false)
+            return
+        }
         let cancelled = false
         setNotificationLoading(true)
         api.get(`/notifications/me?page=1&pageSize=${PAGE_SIZE}`)
@@ -95,10 +100,10 @@ export default function ProfilePage() {
         return () => {
             cancelled = true
         }
-    }, [user?.id])
+    }, [user?.id, isGuest])
 
     const loadMoreNotifications = async () => {
-        if (notifLoadingMore || notifPage >= notifTotalPages) return
+        if (notifLoadingMore || notifPage >= notifTotalPages || isGuest) return
         setNotifLoadingMore(true)
         try {
             const nextPage = notifPage + 1

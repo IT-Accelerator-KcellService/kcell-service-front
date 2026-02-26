@@ -10,6 +10,9 @@ import { ru } from "date-fns/locale";
 import { getRoomDailyAvailability, getMyBookings, cancelMeetingRoomBooking, MeetingRoomBooking } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useGuestDemoStore } from "@/stores/useGuestDemoStore";
+import { useToast } from "@/hooks/use-toast";
 
 type Office = {
   id: number;
@@ -53,9 +56,15 @@ const TIME_SLOTS = generateTimeSlots();
 // Preset height options for the calculator
 const HEIGHT_OPTIONS = [150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200];
 
+const MOCK_OFFICES: Office[] = [{ id: 1, name: "Офис (демо)", address: "ул. Демо, 1", city: "Алматы" }];
+const MOCK_ROOMS: Room[] = [{ id: 1, name: "Переговорная 1 (демо)", floor: 1, capacity: 6, photos: [], status: "active", isActive: true, office_id: 1 }];
+
 export default function MeetingRoomsPage() {
   const router = useRouter();
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const isGuest = useAuthStore((s) => s.isGuest);
+  const { toast } = useToast();
+  const { guestBookings, addGuestBooking, removeGuestBooking } = useGuestDemoStore();
   const [activeTab, setActiveTab] = useState<"book" | "my-bookings">("book");
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("offices");
   const [offices, setOffices] = useState<Office[]>([]);
@@ -98,14 +107,20 @@ export default function MeetingRoomsPage() {
     if (activeTab === "my-bookings") {
       fetchBookings();
     }
-  }, [activeTab]);
+  }, [activeTab, isGuest, guestBookings]);
   
   const fetchBookings = async () => {
     try {
       setLoadingBookings(true);
+      if (isGuest) {
+        const sorted = [...guestBookings].sort(
+          (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+        setBookings(sorted as MeetingRoomBooking[]);
+        return;
+      }
       const response = await getMyBookings();
       const bookingsData = Array.isArray(response.data) ? response.data : response.data || [];
-      // Sort by date
       const sortedBookings = bookingsData.sort((a: MeetingRoomBooking, b: MeetingRoomBooking) => {
         const dateA = new Date(a.start_time);
         const dateB = new Date(b.start_time);
@@ -123,6 +138,13 @@ export default function MeetingRoomsPage() {
   const handleCancelBooking = async (bookingId: number) => {
     try {
       setCancellingId(bookingId);
+      if (isGuest) {
+        removeGuestBooking(bookingId);
+        await fetchBookings();
+        toast({ title: "Демо", description: "Бронирование отменено" });
+        setCancellingId(null);
+        return;
+      }
       await cancelMeetingRoomBooking(bookingId);
       await fetchBookings();
     } catch (error) {
@@ -178,6 +200,10 @@ export default function MeetingRoomsPage() {
 
   const fetchOffices = async () => {
     try {
+      if (isGuest) {
+        setOffices(MOCK_OFFICES);
+        return;
+      }
       const response = await api.get("/offices");
       setOffices(response.data || []);
     } catch (error) {
@@ -190,8 +216,11 @@ export default function MeetingRoomsPage() {
   const fetchRooms = async (officeId: number) => {
     setLoadingRooms(true);
     try {
+      if (isGuest) {
+        setRooms(MOCK_ROOMS);
+        return;
+      }
       const response = await api.get(`/meeting-rooms?office_id=${officeId}`);
-      // Filter only active rooms
       const activeRooms = (response.data || []).filter((room: Room) => room.isActive);
       setRooms(activeRooms);
     } catch (error) {
@@ -204,45 +233,38 @@ export default function MeetingRoomsPage() {
 
   // Загружаем занятые слоты при выборе даты
   useEffect(() => {
-    if (selectedDate && selectedRoom) {
-      const dateString = format(selectedDate, "yyyy-MM-dd");
-      setLoadingAvailability(true);
-      getRoomDailyAvailability(selectedRoom.id, dateString, 60)
-        .then((response) => {
-          const booked = new Set<string>();
-          
-          if (response.data.bookings && Array.isArray(response.data.bookings)) {
-            response.data.bookings.forEach((booking: any) => {
-              const bookingDateFromString = booking.start_time.substring(0, 10);
-              
-              if (bookingDateFromString === dateString) {
-                const timePart = booking.start_time.substring(11, 13);
-                const endTimePart = booking.end_time.substring(11, 13);
-                
-                const startHour = parseInt(timePart, 10);
-                const endHour = parseInt(endTimePart, 10);
-                
-                for (let h = startHour; h < endHour; h++) {
-                  const hourStr = h.toString().padStart(2, "0");
-                  booked.add(`${hourStr}:00`);
-                }
-              }
-            });
-          }
-          
-          setBookedSlots(booked);
-        })
-        .catch((error) => {
-          console.error("Ошибка при загрузке доступности:", error);
-          setBookedSlots(new Set());
-        })
-        .finally(() => {
-          setLoadingAvailability(false);
-        });
-    } else {
+    if (!selectedDate || !selectedRoom) {
       setBookedSlots(new Set());
+      return;
     }
-  }, [selectedDate, selectedRoom]);
+    if (isGuest) {
+      setBookedSlots(new Set());
+      return;
+    }
+    const dateString = format(selectedDate, "yyyy-MM-dd");
+    setLoadingAvailability(true);
+    getRoomDailyAvailability(selectedRoom.id, dateString, 60)
+      .then((response) => {
+        const booked = new Set<string>();
+        if (response.data.bookings && Array.isArray(response.data.bookings)) {
+          response.data.bookings.forEach((booking: any) => {
+            const bookingDateFromString = booking.start_time.substring(0, 10);
+            if (bookingDateFromString === dateString) {
+              const timePart = booking.start_time.substring(11, 13);
+              const endTimePart = booking.end_time.substring(11, 13);
+              const startHour = parseInt(timePart, 10);
+              const endHour = parseInt(endTimePart, 10);
+              for (let h = startHour; h < endHour; h++) {
+                booked.add(`${h.toString().padStart(2, "0")}:00`);
+              }
+            }
+          });
+        }
+        setBookedSlots(booked);
+      })
+      .catch(() => setBookedSlots(new Set()))
+      .finally(() => setLoadingAvailability(false));
+  }, [selectedDate, selectedRoom, isGuest]);
 
   const handleOfficeClick = (office: Office) => {
     setSelectedOffice(office);
@@ -258,44 +280,55 @@ export default function MeetingRoomsPage() {
 
   const handleBookRoom = async () => {
     if (!selectedRoom || !selectedDate || !selectedTimeSlot) return;
-    
     const timeSlot = TIME_SLOTS.find((slot) => slot.label === selectedTimeSlot);
     if (!timeSlot) return;
-    
-    // Проверка, что время не в прошлом
     const now = new Date();
     const isDateToday = isSameDay(selectedDate, now);
     const slotDateTime = new Date(selectedDate);
     const [hour] = timeSlot.start.split(':');
     slotDateTime.setHours(parseInt(hour), 0, 0, 0);
-    
     if (isDateToday && slotDateTime < now) {
       alert("Нельзя бронировать время, которое уже прошло");
       return;
     }
-    
     setIsBooking(true);
     try {
-      const startTimeFormatted = `${timeSlot.start}:00`;
-      const endTimeFormatted = `${timeSlot.end}:00`;
-      
+      if (isGuest && selectedRoom) {
+        const dateStr = format(selectedDate, "yyyy-MM-dd");
+        const startTime = `${dateStr}T${timeSlot.start}:00`;
+        const endTime = `${dateStr}T${timeSlot.end}:00`;
+        const newBookingId = addGuestBooking({
+          meeting_room_id: selectedRoom.id,
+          start_time: startTime,
+          end_time: endTime,
+          status: "scheduled",
+          company_name: bookingComment || null,
+          meeting_room: { id: selectedRoom.id, name: selectedRoom.name },
+        });
+        toast({ title: "Демо", description: "Бронирование создано локально" });
+        setSelectedRoom(null);
+        setSelectedOffice(null);
+        setSelectedDate(null);
+        setSelectedTimeSlot(null);
+        setBookingComment("");
+        setActiveTab("my-bookings");
+        router.push(`/booking/${newBookingId}`);
+        setIsBooking(false);
+        return;
+      }
       const response = await api.post("/meeting-room-bookings", {
         meeting_room_id: selectedRoom.id,
         date: format(selectedDate, "yyyy-MM-dd"),
-        start_time: startTimeFormatted,
-        end_time: endTimeFormatted,
+        start_time: `${timeSlot.start}:00`,
+        end_time: `${timeSlot.end}:00`,
         company_name: bookingComment || null,
       });
-      
       const booking = response.data;
-      
-      // Success - close modals and redirect to booking page
       setSelectedRoom(null);
       setSelectedOffice(null);
       setSelectedDate(null);
       setSelectedTimeSlot(null);
       setBookingComment("");
-      
       router.push(`/booking/${booking.id}`);
     } catch (error: any) {
       console.error("Error booking room:", error);

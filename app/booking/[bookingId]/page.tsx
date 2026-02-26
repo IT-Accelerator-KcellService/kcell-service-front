@@ -8,6 +8,7 @@ import { getPublicBooking, type MeetingRoomBooking } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { BottomNav } from "@/components/BottomNav"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { useGuestDemoStore } from "@/stores/useGuestDemoStore"
 
 export default function BookingQRPage() {
   const params = useParams()
@@ -18,10 +19,35 @@ export default function BookingQRPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
+  const guestBookings = useGuestDemoStore((s) => s.guestBookings)
 
   useEffect(() => {
-    if (!bookingId) {
+    if (!bookingId || isNaN(bookingId)) {
       setError("Неверный ID бронирования")
+      setLoading(false)
+      return
+    }
+
+    if (bookingId < 0) {
+      const guestBooking = guestBookings.find((b) => b.id === bookingId)
+      if (guestBooking) {
+        setBooking({
+          id: guestBooking.id,
+          meeting_room_id: guestBooking.meeting_room_id,
+          start_time: guestBooking.start_time,
+          end_time: guestBooking.end_time,
+          status: guestBooking.status,
+          company_name: guestBooking.company_name ?? null,
+          meeting_room: guestBooking.meeting_room
+            ? { id: guestBooking.meeting_room.id, name: guestBooking.meeting_room.name }
+            : undefined,
+          meetingRoom: guestBooking.meeting_room
+            ? { id: guestBooking.meeting_room.id, name: guestBooking.meeting_room.name }
+            : undefined,
+        } as MeetingRoomBooking)
+      } else {
+        setError("Бронирование не найдено (демо)")
+      }
       setLoading(false)
       return
     }
@@ -39,7 +65,7 @@ export default function BookingQRPage() {
     }
 
     fetchBooking()
-  }, [bookingId])
+  }, [bookingId, guestBookings])
 
   const bookingUrl = typeof window !== "undefined" ? window.location.href : ""
   

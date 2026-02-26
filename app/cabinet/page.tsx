@@ -16,7 +16,7 @@ type TabType = "home" | "health" | "settings"
 
 export default function CabinetPage() {
   const router = useRouter()
-  const { user, role, token } = useAuthStore()
+  const { user, role, token, isGuest } = useAuthStore()
   const isDesktop = useMediaQuery("(min-width: 768px)")
   
   // Activity Tracker Store
@@ -50,12 +50,12 @@ export default function CabinetPage() {
     }
   }, [isDesktop, role, router])
 
-  // Redirect if not client
+  // Redirect if not client (guest counts as client for demo)
   useEffect(() => {
-    if (user && user.role !== 'client') {
+    if (user && user.role !== 'client' && !isGuest) {
       router.push('/login')
     }
-  }, [user, router])
+  }, [user, isGuest, router])
 
   const handleRefresh = async () => {
     setLoading(true)
@@ -96,9 +96,23 @@ export default function CabinetPage() {
     }
   }
 
+  // Mock data for guest demo
+  const MOCK_SUBSCRIPTIONS = [
+    { meeting_room_id: 1, meetingRoom: { id: 1, name: "Кабинет 101 (демо)", office_id: 1 } },
+  ]
+  const MOCK_DEVICES: YandexDevice[] = [
+    { id: "demo-lamp-1", name: "Свет (демо)", type: "devices.types.light", capabilities: [{ type: "devices.capabilities.on_off", state: { value: false } }] },
+    { id: "demo-lamp-2", name: "Кондиционер (демо)", type: "devices.types.thermostat.ac", capabilities: [{ type: "devices.capabilities.on_off", state: { value: true } }] },
+  ]
+
   // Load Smart Home Subscriptions
   useEffect(() => {
     const loadSubscriptions = async () => {
+      if (isGuest) {
+        setSubscriptions(MOCK_SUBSCRIPTIONS)
+        setSelectedRoomId(1)
+        return
+      }
       if (!user?.id) return
       try {
         setLoading(true)
@@ -114,12 +128,16 @@ export default function CabinetPage() {
       }
     }
     loadSubscriptions()
-  }, [user?.id])
+  }, [user?.id, isGuest])
 
   // Load Devices when room changes
   useEffect(() => {
     const loadDevices = async () => {
       if (!selectedRoomId) return
+      if (isGuest) {
+        setDevices(MOCK_DEVICES)
+        return
+      }
       try {
         setIsLoadingDevices(true)
         const response = await getRoomDevicesForClient(selectedRoomId)
@@ -131,29 +149,25 @@ export default function CabinetPage() {
       }
     }
     loadDevices()
-  }, [selectedRoomId])
+  }, [selectedRoomId, isGuest])
 
   // Control device
   const handleControlDevice = async (device: YandexDevice, value: boolean) => {
     try {
       setIsControlling(device.id)
-      const request: ControlDeviceRequest = {
-        device_id: device.id,
-        action_type: "devices.capabilities.on_off",
-        action_state: {
-          instance: "on",
-          value: value
+      if (!isGuest) {
+        const request: ControlDeviceRequest = {
+          device_id: device.id,
+          action_type: "devices.capabilities.on_off",
+          action_state: { instance: "on", value }
         }
+        await controlDevice(request)
       }
-      await controlDevice(request)
-      
       toast({
         title: "Успешно",
-        description: `${device.name} ${value ? "включено" : "выключено"}`,
+        description: isGuest ? `(Демо) ${device.name} ${value ? "включено" : "выключено"}` : `${device.name} ${value ? "включено" : "выключено"}`,
         duration: 2000
       })
-
-      // Update local state
       setDevices(prevDevices =>
         prevDevices.map(d => {
           if (d.id === device.id) {

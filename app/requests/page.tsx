@@ -58,6 +58,7 @@ export default function RequestsPage() {
   const role = useAuthStore(state => state.role)
   const token = useAuthStore(state => state.token)
   const user = useAuthStore(state => state.user)
+  const isGuest = useAuthStore(state => state.isGuest)
   const requests = useRequestStore(state => state.requests)
   const addRequests = useRequestStore(state => state.addRequests)
   const clearRequests = useRequestStore(state => state.clearRequests)
@@ -153,31 +154,29 @@ export default function RequestsPage() {
 
   // Fetch requests
   const fetchRequests = useCallback(async (pageNum: number = 1) => {
+    if (isGuest) {
+      setLoading(true)
+      if (pageNum === 1) {
+        // Не очищаем стор — показываем локально созданные заявки гостя
+      }
+      setHasMore(false)
+      setPage(1)
+      setLoading(false)
+      return
+    }
     if (!token) return
-    
     try {
       setLoading(true)
       const response = await api.get(`/request-groups?page=${pageNum}&pageSize=20`)
-      
-      if (pageNum === 1) {
-        clearRequests()
-      }
-      
+      if (pageNum === 1) clearRequests()
       const newRequests = response.data.requests || []
       addRequests(newRequests)
-      
-      // Process client ratings from response
       processClientRatings(newRequests)
-      
-      // Check user ratings for completed requests
       newRequests.forEach((requestGroup: RequestGroup) => {
         requestGroup.requests.forEach((subRequest: SubRequest) => {
-          if (subRequest.status === "completed") {
-            checkUserRating(subRequest.id)
-          }
+          if (subRequest.status === "completed") checkUserRating(subRequest.id)
         })
       })
-      
       setHasMore(newRequests.length === 20)
       setPage(pageNum)
     } catch (error) {
@@ -185,16 +184,15 @@ export default function RequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [token, addRequests, clearRequests, processClientRatings, checkUserRating])
+  }, [token, isGuest, addRequests, clearRequests, processClientRatings, checkUserRating])
 
   useEffect(() => {
-    if (user?.role !== 'client') {
+    if (user?.role !== 'client' && !isGuest) {
       router.push('/login')
       return
     }
-    
     fetchRequests(1)
-  }, [user, router, fetchRequests])
+  }, [user, isGuest, router, fetchRequests])
 
   // Infinite scroll observer
   useEffect(() => {
@@ -313,9 +311,14 @@ export default function RequestsPage() {
 
   const confirmDeleteRequest = async () => {
     if (!requestToDelete) return
-    
     setDeleteLoading(true)
     try {
+      if (isGuest) {
+        removeRequest(requestToDelete.id)
+        setShowDeleteRequestModal(false)
+        setRequestToDelete(null)
+        return
+      }
       await api.delete(`/request-groups/${requestToDelete.id}`)
       removeRequest(requestToDelete.id)
       setShowDeleteRequestModal(false)
@@ -412,12 +415,12 @@ export default function RequestsPage() {
   }, [isDesktop, userRatings])
 
   const handleCardClick = useCallback((request: RequestGroup) => {
-    if (role === "client" && !isDesktop) {
+    if (role === "client" && !isDesktop && !isGuest) {
       router.push(`/client/requests/${request.id}`)
       return
     }
     setSelectedRequest(request)
-  }, [role, isDesktop, router])
+  }, [role, isDesktop, isGuest, router])
 
   // Request detail modal content — все данные как на десктопе (client/page)
   const renderRequestDetail = () => {

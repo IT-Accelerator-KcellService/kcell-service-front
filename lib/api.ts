@@ -21,15 +21,12 @@ if (typeof window !== 'undefined') {
     }, error => Promise.reject(error));
 }
 
-// Обработка ответов - если получаем 401, очищаем токен и перенаправляем на логин
+// Обработка ответов - если получаем 401, очищаем токен и перенаправляем на логин (кроме гостевого демо)
 api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
-            // Очищаем store
+        if (error.response?.status === 401 && !useAuthStore.getState().isGuest) {
             useAuthStore.getState().clearAuth();
-
-            // Перенаправляем на страницу входа, если мы не уже на ней
             if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
                 window.location.href = '/login';
             }

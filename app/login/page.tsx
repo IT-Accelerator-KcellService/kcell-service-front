@@ -1,7 +1,7 @@
 "use client"
 
 import {useEffect, useState} from "react"
-import { UserPlus, Eye, EyeOff } from "lucide-react"
+import { UserPlus, Eye, EyeOff, User } from "lucide-react"
 import {useRouter} from "next/navigation";
 import Link from "next/link";
 import {useStatsStore} from "@/stores/statsStore";
@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [formError, setFormError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const {role, token} = useAuthStore()
+  const { role, token, setGuestAuth } = useAuthStore()
 
   useEffect(() => {
     if (token && role) {
@@ -352,6 +352,53 @@ export default function LoginPage() {
                   Запросить регистрацию
                 </span>
               </button>
+
+              {/* Guest Demo Button */}
+              <button
+                onClick={() => {
+                  setGuestAuth()
+                  router.push("/cabinet")
+                }}
+                className="w-full flex justify-center items-center"
+                style={{
+                  height: "48px",
+                  padding: "12px 54px",
+                  gap: "16px",
+                  background: "transparent",
+                  border: "1px solid #3A3A3C",
+                  borderRadius: "8px"
+                }}
+              >
+                <User className="w-6 h-6" style={{ color: "#7F7F7F" }} />
+                <span
+                  style={{
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 400,
+                    fontSize: "16px",
+                    lineHeight: "24px",
+                    color: "#7F7F7F",
+                    textAlign: "center"
+                  }}
+                >
+                  Войти как гость
+                </span>
+              </button>
+
+              {/* Demo QR link */}
+              <Link
+                href="/demo-qr"
+                className="w-full flex justify-center items-center py-2 text-center hover:opacity-80 transition-opacity"
+                style={{
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 400,
+                  fontSize: "14px",
+                  lineHeight: "24px",
+                  color: "#7F7F7F",
+                  textDecoration: "none"
+                }}
+              >
+                Демо QR для сканера
+              </Link>
 
               {/* Privacy Policy Button */}
               <Link

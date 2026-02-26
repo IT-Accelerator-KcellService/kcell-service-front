@@ -6,9 +6,10 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
-import { RequestGroup } from "@/stores/useRequestStore";
+import { RequestGroup, useRequestStore } from "@/stores/useRequestStore";
 import { SubRequest } from "@/stores/useRequestStore";
 import { RequestDetails } from "@/components/RequestDetails";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function ClientRequestDetailPage() {
   const router = useRouter();
@@ -18,6 +19,9 @@ export default function ClientRequestDetailPage() {
   const [request, setRequest] = useState<RequestGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requests = useRequestStore((s) => s.requests);
+  const isGuest = useAuthStore((s) => s.isGuest);
+  const removeRequest = useRequestStore((s) => s.removeRequest);
 
   useEffect(() => {
     if (isDesktop) {
@@ -28,6 +32,14 @@ export default function ClientRequestDetailPage() {
 
   useEffect(() => {
     if (!id || isDesktop) return;
+    const numId = parseInt(id, 10);
+    if (numId < 0) {
+      const found = requests.find((r) => r.id === numId);
+      setRequest(found ?? null);
+      setError(found ? null : "Заявка не найдена");
+      setLoading(false);
+      return;
+    }
     const fetchRequest = async () => {
       setLoading(true);
       setError(null);
@@ -42,24 +54,29 @@ export default function ClientRequestDetailPage() {
       }
     };
     fetchRequest();
-  }, [id, isDesktop]);
+  }, [id, isDesktop, requests]);
 
   const handleClose = () => {
-    router.push("/client?tab=requests");
+    router.push(isGuest ? "/requests" : "/client?tab=requests");
   };
 
   const handleRequestUpdated = () => {
-    router.push("/client?tab=requests");
+    router.push(isGuest ? "/requests" : "/client?tab=requests");
   };
 
   const handleDelete = useCallback(async (subRequest: SubRequest) => {
+    if (isGuest && request) {
+      removeRequest(request.id);
+      router.push("/requests");
+      return;
+    }
     try {
       await api.delete(`/requests/${subRequest.id}`);
       router.push("/client?tab=requests");
     } catch {
       // ошибка обрабатывается в RequestDetails / toast
     }
-  }, [router]);
+  }, [router, isGuest, request, removeRequest]);
 
   if (isDesktop) return null;
 
@@ -77,7 +94,7 @@ export default function ClientRequestDetailPage() {
         <Button
           variant="ghost"
           className="text-white mb-4"
-          onClick={() => router.push("/client?tab=requests")}
+          onClick={() => router.push(isGuest ? "/requests" : "/client?tab=requests")}
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
           Назад

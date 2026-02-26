@@ -6,6 +6,7 @@ import { CreateRequestModal } from "@/components/CreateRequestModal";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useCategoryStore } from "@/stores/useCategoryStore";
 import { useRequestStore } from "@/stores/useRequestStore";
+import type { RequestGroup, SubRequest } from "@/stores/useRequestStore";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api, getClientRoomSubscriptions } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
@@ -43,8 +44,9 @@ export default function CreateRequestPage() {
   const searchParams = useSearchParams();
   const isDesktop = useMediaQuery("(min-width: 768px)");
   
-  const { user, clearAuth, token } = useAuthStore();
-  const { categories, fetchCategories } = useCategoryStore();
+  const { user, clearAuth, token, isGuest } = useAuthStore();
+  const { categories, fetchCategories, updateCategories } = useCategoryStore();
+  const addRequests = useRequestStore((s) => s.addRequests);
   
   const [isOpen, setIsOpen] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,15 +66,24 @@ export default function CreateRequestPage() {
     const loadData = async () => {
       setIsLoading(true);
       try {
+        if (isGuest) {
+          updateCategories([
+            { id: 1, name: "Уборка", subcategories: [{ id: 1, name: "Ежедневная", category_id: 1 }] },
+            { id: 2, name: "IT", subcategories: [{ id: 2, name: "Компьютер", category_id: 2 }] },
+          ]);
+          // Имя офиса должно совпадать с address в office-locations.ts, чтобы отображались блоки/этажи/помещения
+          setOffices([
+            { id: 1, name: "Teniz Towers", city: "Алматы", address: "Teniz Towers (демо)" },
+          ]);
+          setUserCabinetRooms([]);
+          setIsLoading(false);
+          return;
+        }
         await fetchCategories(token || '');
-        
         if (user.role === 'department-head') {
           await fetchExecutors();
         }
-        
         await fetchOffices();
-
-        // Кабинеты с умным домом для сотрудников (admin-worker, department-head, executor, manager)
         if (["admin-worker", "department-head", "executor", "manager"].includes(user.role) && user.id) {
           try {
             const res = await getClientRoomSubscriptions(user.id);
@@ -103,7 +114,7 @@ export default function CreateRequestPage() {
     };
 
     loadData();
-  }, [user]);
+  }, [user, isGuest]);
 
   const fetchExecutors = async () => {
     try {
@@ -126,6 +137,47 @@ export default function CreateRequestPage() {
   const handleSubmit = async (formData: FormData) => {
     if (!user) {
       setFormErrors('Пользователь не авторизован');
+      return;
+    }
+    if (isGuest) {
+      const requestType = (formData.get("request_type") as string) || "normal";
+      const location = (formData.get("location") as string) || "";
+      const locationDetail = (formData.get("location_detail") as string) || "";
+      const status = (formData.get("status") as string) || "in_progress";
+      const officeId = formData.get("office_id");
+      const subRequestsJson = formData.get("sub_requests") as string;
+      let subRequestsData: Array<{ title: string; description: string; category_id: number; status: string }> = [];
+      try {
+        subRequestsData = JSON.parse(subRequestsJson || "[]");
+      } catch {
+        subRequestsData = [];
+      }
+      const now = new Date().toISOString();
+      const groupId = -Date.now();
+      const mockGroup: RequestGroup = {
+        id: groupId,
+        client_id: 0,
+        office_id: officeId ? parseInt(String(officeId), 10) : 0,
+        location,
+        location_detail: locationDetail,
+        status,
+        request_type: requestType,
+        created_date: now,
+        requests: subRequestsData.map((sub, i) => ({
+          id: groupId * 100 - i,
+          title: sub.title,
+          description: sub.description,
+          status: sub.status || "in_progress",
+          category_id: sub.category_id,
+          created_date: now,
+        })) as SubRequest[],
+      };
+      addRequests([mockGroup]);
+      toast({
+        title: "Демо",
+        description: "Заявка создана локально и отображается в списке заявок",
+      });
+      handleClose();
       return;
     }
 
