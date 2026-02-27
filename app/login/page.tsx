@@ -383,23 +383,6 @@ export default function LoginPage() {
                   Войти как гость
                 </span>
               </button>
-
-              {/* Demo QR link */}
-              <Link
-                href="/demo-qr"
-                className="w-full flex justify-center items-center py-2 text-center hover:opacity-80 transition-opacity"
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  fontWeight: 400,
-                  fontSize: "14px",
-                  lineHeight: "24px",
-                  color: "#7F7F7F",
-                  textDecoration: "none"
-                }}
-              >
-                Демо QR для сканера
-              </Link>
-
               {/* Privacy Policy Button */}
               <Link
                 href="/privacy"
