@@ -12,7 +12,6 @@ import { api } from '@/lib/api';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {useAuthStore} from "@/stores/useAuthStore";
-import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface RegistrationRequest {
     id: number;
@@ -32,9 +31,13 @@ interface Office {
     photo?: string | null;
 }
 
-export default function RegistrationRequestsManager() {
+interface RegistrationRequestsManagerProps {
+    variant?: "default" | "dark";
+}
+
+export default function RegistrationRequestsManager({ variant = "default" }: RegistrationRequestsManagerProps) {
     const {role} = useAuthStore();
-    const isMobile = useMediaQuery("(max-width: 767px)");
+    const isDark = variant === "dark";
     const [requests, setRequests] = useState<RegistrationRequest[]>([]);
     const [offices, setOffices] = useState<Office[]>([]);
     const [loading, setLoading] = useState(false);
@@ -138,25 +141,25 @@ export default function RegistrationRequestsManager() {
 
     return (
         <div className="space-y-6">
-            <Card>
+            <Card className={isDark ? "border-white/15 bg-[#2C2C2E]" : ""}>
                 <CardHeader>
-                    <CardTitle className="text-lg md:text-xl">Управление запросами на регистрацию</CardTitle>
-                    <p className="text-xs md:text-sm text-muted-foreground">
+                    <CardTitle className={`text-lg md:text-xl ${isDark ? "text-white" : ""}`}>Управление запросами на регистрацию</CardTitle>
+                    <p className={`text-xs md:text-sm ${isDark ? "text-white/60" : "text-muted-foreground"}`}>
                         Внимание: отклоненные и одобренные заявки автоматически удаляются каждые 7 дней
                     </p>
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                         <div className="space-y-2">
-                            <Label className="text-xs md:text-sm">Статус</Label>
+                            <Label className={`text-xs md:text-sm ${isDark ? "text-white/80" : ""}`}>Статус</Label>
                             <Select
                                 value={filters.status}
                                 onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === "all" ? "" : value }))}
                             >
-                                <SelectTrigger className={`text-xs md:text-sm ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}>
+                                <SelectTrigger className={`text-xs md:text-sm ${isDark ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}>
                                     <SelectValue placeholder="Все статусы" />
                                 </SelectTrigger>
-                                <SelectContent className={isMobile ? "bg-[#2C2C2E] border-[#3A3A3C] text-white" : ""}>
+                                <SelectContent className={isDark ? "bg-[#2C2C2E] border-[#3A3A3C] text-white" : ""}>
                                     <SelectItem value="all">Все статусы</SelectItem>
                                     <SelectItem value="pending">Ожидает</SelectItem>
                                     <SelectItem value="approved">Одобрено</SelectItem>
@@ -167,15 +170,15 @@ export default function RegistrationRequestsManager() {
 
                         {role === "manager" && (
                             <div className="space-y-2">
-                                <Label className="text-xs md:text-sm">Офис</Label>
+                                <Label className={`text-xs md:text-sm ${isDark ? "text-white/80" : ""}`}>Офис</Label>
                                 <Select
                                     value={filters.office_id}
                                     onValueChange={(value) => setFilters(prev => ({ ...prev, office_id: value === "all" ? "" : value }))}
                                 >
-                                    <SelectTrigger className={`text-xs md:text-sm ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}>
+                                    <SelectTrigger className={`text-xs md:text-sm ${isDark ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}>
                                         <SelectValue placeholder="Все офисы" />
                                     </SelectTrigger>
-                                    <SelectContent className={isMobile ? "bg-[#2C2C2E] border-[#3A3A3C] text-white" : ""}>
+                                    <SelectContent className={isDark ? "bg-[#2C2C2E] border-[#3A3A3C] text-white" : ""}>
                                         <SelectItem value="all">Все офисы</SelectItem>
                                         {offices.map((office) => (
                                             <SelectItem key={office.id} value={office.id.toString()}>
@@ -188,41 +191,41 @@ export default function RegistrationRequestsManager() {
                         )}
 
                         <div className="space-y-2">
-                            <Label className="text-xs md:text-sm">Дата от</Label>
+                            <Label className={`text-xs md:text-sm ${isDark ? "text-white/80" : ""}`}>Дата от</Label>
                             <Input
                                 type="date"
                                 value={filters.date_from}
                                 onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
-                                className={`text-xs md:text-sm ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}
+                                className={`text-xs md:text-sm ${isDark ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-xs md:text-sm">Дата до</Label>
+                            <Label className={`text-xs md:text-sm ${isDark ? "text-white/80" : ""}`}>Дата до</Label>
                             <Input
                                 type="date"
                                 value={filters.date_to}
                                 onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
-                                className={`text-xs md:text-sm ${isMobile ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}
+                                className={`text-xs md:text-sm ${isDark ? "bg-[#1C1C1E] border-[#3A3A3C] text-white" : ""}`}
                             />
                         </div>
                     </div>
 
                     {loading ? (
-                        <div className="text-center py-8 text-sm md:text-base">Загрузка...</div>
+                        <div className={`text-center py-8 text-sm md:text-base ${isDark ? "text-white/70" : ""}`}>Загрузка...</div>
                     ) : requests.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground text-sm md:text-base">
+                        <div className={`text-center py-8 text-sm md:text-base ${isDark ? "text-white/60" : "text-muted-foreground"}`}>
                             Запросы не найдены
                         </div>
                     ) : (
                         <div className="space-y-4">
                             {requests.map((request) => (
-                                <Card key={request.id}>
+                                <Card key={request.id} className={isDark ? "border-white/15 bg-[#2C2C2E]" : ""}>
                                     <CardContent className="pt-6">
                                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between space-y-4 lg:space-y-0">
                                             <div className="space-y-2 flex-1">
                                                 <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                                                    <h3 className="font-semibold text-sm md:text-base">{request.full_name}</h3>
+                                                    <h3 className={`font-semibold text-sm md:text-base ${isDark ? "text-white" : ""}`}>{request.full_name}</h3>
                                                     {getStatusBadge(request.status)}
                                                     {request.role === 'executor' && (
                                                         <Badge variant="outline" className="text-xs">
@@ -230,7 +233,7 @@ export default function RegistrationRequestsManager() {
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs md:text-sm text-muted-foreground">
+                                                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs md:text-sm ${isDark ? "text-white/70" : "text-muted-foreground"}`}>
                                                     <p>Телефон: {request.phone}</p>
                                                     <p>Офис: {request.office.name}</p>
                                                     <p>Роль: {getRoleLabel(request.role)}</p>
@@ -247,8 +250,8 @@ export default function RegistrationRequestsManager() {
                                                         onClick={() => handleApprove(request.id)}
                                                         size="sm"
                                                         className={
-                                                            isMobile
-                                                                ? "bg-[#F35713] hover:bg-[#E04D0F] text-white text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
+                                                            isDark
+                                                                ? "bg-[#E25B21] hover:bg-[#D94F15] text-white text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
                                                                 : "bg-green-600 hover:bg-green-700 text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
                                                         }
                                                     >
@@ -259,7 +262,7 @@ export default function RegistrationRequestsManager() {
                                                         size="sm"
                                                         variant="destructive"
                                                         className={
-                                                            isMobile
+                                                            isDark
                                                                 ? "bg-[#8E2B2B] hover:bg-[#A33030] text-white text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
                                                                 : "text-xs md:text-sm px-3 md:px-4 py-1 md:py-2"
                                                         }

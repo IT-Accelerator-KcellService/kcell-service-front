@@ -5,6 +5,7 @@ import "../lib/fcm"
 import BridgeInit from "@/components/BridgeInit"
 import { ActivityTrackerService } from "@/components/ActivityTrackerService"
 import { NotificationPermissionRequest } from "@/components/NotificationPermissionRequest"
+import { NotificationsModal } from "@/components/NotificationsModal"
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({
         {children}
         <ActivityTrackerService />
         <NotificationPermissionRequest />
+        <NotificationsModal />
         <Toaster />
       </body>
     </html>

@@ -1,22 +1,11 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import React from "react";
 import { ManagementCategoriesContent } from "@/components/management/ManagementCategoriesContent";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 export default function DepartmentHeadManagementCategoriesPage() {
-  const router = useRouter();
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-
-  useEffect(() => {
-    if (isDesktop) {
-      router.push("/department-head");
-    }
-  }, [isDesktop, router]);
-
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-6">
       <Link

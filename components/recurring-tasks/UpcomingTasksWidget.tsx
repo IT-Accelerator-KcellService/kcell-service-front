@@ -99,7 +99,7 @@ export function UpcomingTasksWidget({ refreshTrigger = 0, variant = 'default' }:
 
   if (loading) {
     return themed ? (
-      <div className="rounded-2xl overflow-hidden p-6" style={{ background: '#D94F15' }}>
+      <div className="rounded-2xl overflow-hidden p-6" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
         <h3 className="flex items-center gap-2 font-bold mb-4 text-white">
           <Calendar className="h-5 w-5" />
           Предстоящие задачи
@@ -133,9 +133,9 @@ export function UpcomingTasksWidget({ refreshTrigger = 0, variant = 'default' }:
 
   if (themed) {
     return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: '#D94F15' }}>
-      <div className="p-6 text-white">
-        <h3 className="flex items-center gap-2 font-bold mb-4">
+    <div className="rounded-2xl overflow-hidden p-4 sm:p-6" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
+      <div className="text-white">
+        <h3 className="flex items-center gap-2 text-base font-semibold text-white mb-4">
           <Calendar className="h-5 w-5" />
           Предстоящие задачи
           {tasks.length > 0 && (
@@ -147,14 +147,14 @@ export function UpcomingTasksWidget({ refreshTrigger = 0, variant = 'default' }:
         {tasks.length === 0 ? (
           <div className="text-center py-8">
             <Calendar className="h-12 w-12 mx-auto mb-4 text-white/40" />
-            <p className="text-white/80">Предстоящих задач нет</p>
+            <p className="text-white/60">Предстоящих задач нет</p>
           </div>
         ) : (
           <div className="space-y-3">
             {tasks.map((task) => (
               <div
                 key={task.id}
-                className="flex items-center justify-between p-3 rounded-lg transition-colors bg-white/10 hover:bg-white/20"
+                className="flex items-center justify-between p-3 rounded-lg transition-colors bg-white/5 hover:bg-white/10 border border-white/10"
               >
                 <div className="flex items-center gap-3 flex-1">
                   {getPriorityIcon(task.due_date)}

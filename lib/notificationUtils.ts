@@ -45,11 +45,13 @@ export function hasRequestIds(content: string): boolean {
  * Создает JSX элементы с кликабельными ID заявок
  * @param content - контент уведомления
  * @param onRequestIdClick - обработчик клика по ID заявки
+ * @param linkClassName - опциональный класс для ссылок (для тёмной темы)
  * @returns JSX элементы с кликабельными ID
  */
 export function createClickableRequestIds(
   content: string, 
-  onRequestIdClick: (requestId: string) => void
+  onRequestIdClick: (requestId: string) => void,
+  linkClassName?: string
 ): React.ReactNode[] {
   if (!content) return [content];
   
@@ -81,7 +83,7 @@ export function createClickableRequestIds(
         const requestId = match[1];
         return React.createElement('span', {
           key: index,
-          className: "text-blue-600 underline cursor-pointer hover:text-blue-800",
+          className: linkClassName ?? "text-blue-600 underline cursor-pointer hover:text-blue-800",
           onClick: (e: React.MouseEvent) => {
             e.stopPropagation();
             onRequestIdClick(requestId);

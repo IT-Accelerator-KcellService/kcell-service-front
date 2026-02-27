@@ -58,6 +58,12 @@
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
     min-height: 100%;
     min-height: -webkit-fill-available;
+    /* Скрываем системные скроллбары страницы, прокрутка остаётся */
+    scrollbar-width: none; /* Firefox */
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Edge */
   }
   
   /* Safe area padding */
@@ -260,6 +266,114 @@ html {
   }
 }
 
+/* Department-head management: dark theme on ALL viewports */
+body.department-head-management .admin-management-content .rounded-lg.border,
+body.department-head-management .admin-management-content .bg-white,
+body.department-head-management .admin-management-content [class*="bg-card"],
+body.department-head-management .admin-management-content [class*="bg-gradient"],
+body.department-head-management .admin-management-content .border {
+  background-color: #2C2C2E !important;
+  background-image: none !important;
+  border-color: #3A3A3C !important;
+}
+body.department-head-management .admin-management-content .bg-muted,
+body.department-head-management .admin-management-content [class*="bg-muted"] {
+  background-color: #1C1C1E !important;
+}
+body.department-head-management .admin-management-content .text-gray-900,
+body.department-head-management .admin-management-content .text-gray-800,
+body.department-head-management .admin-management-content .text-card-foreground,
+body.department-head-management .admin-management-content .text-foreground {
+  color: #ffffff !important;
+}
+body.department-head-management .admin-management-content .text-gray-600,
+body.department-head-management .admin-management-content .text-gray-500,
+body.department-head-management .admin-management-content .text-gray-400,
+body.department-head-management .admin-management-content .text-muted-foreground {
+  color: #8E8E93 !important;
+}
+body.department-head-management .admin-management-content .text-gray-700 {
+  color: #ffffff !important;
+}
+body.department-head-management .admin-management-content .text-gray-300 {
+  color: #8E8E93 !important;
+}
+body.department-head-management .admin-management-content input,
+body.department-head-management .admin-management-content select,
+body.department-head-management .admin-management-content textarea,
+body.department-head-management .admin-management-content [role="combobox"] {
+  background-color: #1C1C1E !important;
+  border-color: #3A3A3C !important;
+  color: #ffffff !important;
+}
+body.department-head-management .admin-management-content input:focus,
+body.department-head-management .admin-management-content select:focus {
+  border-color: #E25B21 !important;
+  outline: none;
+}
+body.department-head-management .admin-management-content [class*="bg-primary"],
+body.department-head-management .admin-management-content .bg-green-600 {
+  background-color: #E25B21 !important;
+  color: #ffffff !important;
+}
+/* Все кнопки с оранжевым фоном — белый текст */
+body.department-head-management .admin-management-content button[class*="E25B21"],
+body.department-head-management .admin-management-content button[class*="e25b21"],
+body.department-head-management .admin-management-content button[class*="D94F15"],
+body.department-head-management .admin-management-content button[class*="d94f15"],
+body.department-head-management .admin-management-content button[class*="F35713"],
+body.department-head-management .admin-management-content button[class*="f35713"] {
+  color: #ffffff !important;
+}
+body.department-head-management .admin-management-content [class*="bg-primary"]:hover,
+body.department-head-management .admin-management-content .bg-green-600:hover {
+  background-color: #D94F15 !important;
+  color: #ffffff !important;
+}
+body.department-head-management .admin-management-content button[class*="outline"] {
+  border-color: #3A3A3C !important;
+  color: #ffffff !important;
+}
+body.department-head-management .admin-management-content select {
+  color-scheme: dark;
+}
+body.department-head-management .admin-management-content input[type="date"] {
+  color-scheme: dark;
+}
+body.department-head-management .admin-management-content [role="switch"][data-state="checked"] {
+  background: #E25B21 !important;
+}
+body.department-head-management .admin-management-content [role="switch"][data-state="unchecked"] {
+  background-color: #3A3A3C !important;
+}
+body.department-head-management .admin-management-content label {
+  color: #8E8E93 !important;
+}
+body.department-head-management .admin-management-content .border-gray-200,
+body.department-head-management .admin-management-content .border {
+  border-color: #3A3A3C !important;
+}
+body.department-head-management .admin-management-content .border-gray-200.border,
+body.department-head-management .admin-management-content [class*="border-input"] {
+  border-color: #3A3A3C !important;
+}
+
+/* Portaled Select/dropdown - dark theme for department-head management (all viewports) */
+body.department-head-management {
+  --popover: 0 0% 17%;
+  --popover-foreground: 0 0% 100%;
+  --background: 240 2% 12%;
+  --input: 240 2% 23%;
+  --accent: 240 2% 23%;
+  --accent-foreground: 0 0% 100%;
+  --primary: 18 77% 50%;
+  --primary-foreground: 0 0% 100%;
+}
+body.department-head-management [data-radix-select-viewport] [data-highlighted] {
+  background-color: #3A3A3C !important;
+  color: #ffffff !important;
+}
+
 /* Portaled Select/dropdown in admin management - dark theme (SelectContent renders to body) */
 @media (max-width: 767px) {
   body.admin-management-mobile {
@@ -317,22 +431,88 @@ input, textarea, select {
 
 /* кастомный скроллбар под белый фон */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #ffffff; /* белый фон для трека */
+  background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #a78bfa; /* насыщенный фиолетовый для ползунка */
-  border-radius: 8px;
+  background: rgba(120, 120, 130, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 130, 0.55);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 /* для Firefox */
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #a78bfa #ffffff;
+  scrollbar-color: rgba(120, 120, 130, 0.55) transparent;
+}
+
+/* Кастомный скроллбар для тёмной темы */
+.custom-scrollbar-dark::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar-dark::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar-dark::-webkit-scrollbar-thumb {
+  background: rgba(232, 93, 43, 0.55);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 93, 43, 0.8);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.custom-scrollbar-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 93, 43, 0.7) transparent;
+}
+
+/* Глобальный (аккуратный) стиль скроллбаров по всему сайту */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 120, 130, 0.55) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 130, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 130, 0.55);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Утилита: полностью скрыть скроллбар (если нужно точечно) */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
 /* Privacy policy card scrollbar (white background) */

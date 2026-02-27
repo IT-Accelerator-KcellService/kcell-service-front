@@ -1,10 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { BottomNav } from "@/components/BottomNav";
+import { DepartmentHeadSidebar } from "@/components/DepartmentHeadSidebar";
+import { MessageCircle } from "lucide-react";
 
 export default function DepartmentHeadLayout({
   children,
@@ -60,6 +63,8 @@ export default function DepartmentHeadLayout({
     searchParams?.get("tab") || searchParams?.get("requestId") || searchParams?.get("createRequest") ||
     urlParams?.get("tab") || urlParams?.get("requestId") || urlParams?.get("createRequest");
   const isRedirecting = hydrated && pathname === "/department-head" && !isDesktop && !hasParams;
+  const isManagement = pathname?.startsWith("/department-head/management");
+  const showBottomNav = !isDesktop && !isManagement;
 
   if (isRedirecting) {
     return null;
@@ -67,10 +72,21 @@ export default function DepartmentHeadLayout({
 
   return (
     <div
-      className={`min-h-screen ${!isDesktop ? "pb-[calc(110px+env(safe-area-inset-bottom,0px))]" : "pb-0"} ${!isDesktop ? "bg-[#1C1C1E]" : ""}`}
+      className={`min-h-screen ${showBottomNav ? "pb-[calc(110px+env(safe-area-inset-bottom,0px))]" : !isDesktop ? "pb-6" : "pb-0"} ${!isDesktop ? "bg-[#1C1C1E]" : ""}`}
+      style={isDesktop ? { background: "#1A1A1A" } : undefined}
     >
-      {children}
-      {!isDesktop && <BottomNav />}
+      {isDesktop && <DepartmentHeadSidebar />}
+      <main className={isDesktop ? "md:pl-[240px] flex-1" : ""}>
+        {children}
+      </main>
+      {showBottomNav && <BottomNav />}
+      <Link
+        href="/chat-bot"
+        className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-[#E25B21]/10 text-[#E25B21] rounded-full shadow-lg hover:bg-[#E25B21]/20 transition active:scale-95"
+        style={showBottomNav ? { bottom: "calc(1rem + 80px + env(safe-area-inset-bottom, 0px))" } : undefined}
+      >
+        <MessageCircle className="w-7 h-7" />
+      </Link>
     </div>
   );
 }

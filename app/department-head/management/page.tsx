@@ -1,72 +1,81 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Users,
-  ChevronLeft,
-  BarChart3,
+  ChevronRight,
+  Building2,
+  Settings,
+  UserCog,
 } from "lucide-react";
 import Link from "next/link";
 
 const managementCards = [
   {
     key: "users",
-    title: "Пользователи",
-    subtitle: "Роли и запросы на регистрацию",
+    title: "Список пользователей",
+    subtitle: "Просмотр и управление пользователями офиса",
     icon: Users,
-    href: "/department-head/management/users",
+    href: "/department-head/management/users?tab=management",
   },
   {
-    key: "analytics",
-    title: "Аналитика",
-    subtitle: "SLA, оценки, статистика по заявкам",
-    icon: BarChart3,
-    href: "/department-head/statistics",
+    key: "roles",
+    title: "Назначение ролей",
+    subtitle: "Запросы на регистрацию, смена ролей",
+    icon: UserCog,
+    href: "/department-head/management/users?tab=requests",
+  },
+  {
+    key: "office",
+    title: "Управление офисами",
+    subtitle: "Офисы и переговорные комнаты",
+    icon: Building2,
+    href: "/department-head/management/office",
+  },
+  {
+    key: "settings",
+    title: "Настройки системы",
+    subtitle: "Умный дом и интеграции",
+    icon: Settings,
+    href: "/department-head/management/smart-home",
   },
 ];
 
 export default function DepartmentHeadManagementPage() {
-  const router = useRouter();
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-
-  useEffect(() => {
-    if (isDesktop) {
-      router.push("/department-head");
-    }
-  }, [isDesktop, router]);
-
   return (
-    <div className="w-full min-h-[calc(100vh-90px)] bg-[#1C1C1E] md:bg-[#F3F3F3]">
-      <div className="w-full max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-xl font-bold text-white mb-6 md:text-[#040404]">Управление</h1>
+    <div className="w-full min-h-[calc(100vh-90px)] bg-[#1C1C1E]">
+      <div className="w-full max-w-4xl mx-auto px-4 py-6">
+        <h1 className="text-2xl font-bold text-white mb-8">Управление</h1>
 
-        <div className="grid grid-cols-2 gap-3 md:gap-6 md:grid-rows-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {managementCards.map((card) => {
             const Icon = card.icon;
             return (
               <Link
                 key={card.key}
                 href={card.href}
-                className="block aspect-square min-h-0 md:aspect-auto md:min-h-[160px]"
+                className="block group"
               >
                 <Card
-                  className="relative h-full overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] border-0 md:border-2 md:border-gray-200 shadow-lg bg-[#2C2C2E] md:bg-gradient-to-br md:from-white md:to-gray-50 group hover:bg-[#3A3A3C] md:hover:border-[#E25B21]/30"
+                  className="relative h-full overflow-hidden cursor-pointer transition-all duration-200 border border-white/15 bg-[#2C2C2E] hover:bg-[#353538] hover:border-[#E25B21]/40 active:scale-[0.99]"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#E25B21]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 md:from-[#E25B21]/5" />
-                  <CardContent className="p-4 relative z-10 flex flex-col h-full min-h-[120px]">
-                    <div className="mb-2 transform group-hover:scale-110 transition-transform duration-300 shrink-0">
-                      <Icon className="h-8 w-8 text-[#E25B21] md:text-[#D94F15]" />
+                  <CardContent className="p-5 flex items-center gap-4">
+                    <div
+                      className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-colors group-hover:bg-[#E25B21]/20"
+                      style={{ backgroundColor: "rgba(226, 91, 33, 0.15)" }}
+                    >
+                      <Icon className="h-6 w-6 text-[#E25B21]" />
                     </div>
-                    <h3 className="font-semibold text-white text-sm leading-tight mb-1 md:text-[#040404] line-clamp-2">
-                      {card.title}
-                    </h3>
-                    <p className="text-xs text-[#8E8E93] leading-tight md:text-[#C4C4CE] line-clamp-2 flex-1">
-                      {card.subtitle}
-                    </p>
-                    <ChevronLeft className="absolute top-4 right-4 h-5 w-5 text-[#E25B21] rotate-180 md:text-[#D94F15] shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-white text-base mb-0.5">
+                        {card.title}
+                      </h3>
+                      <p className="text-sm text-white/60 line-clamp-2">
+                        {card.subtitle}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-white/40 group-hover:text-[#E25B21] shrink-0 transition-colors" />
                   </CardContent>
                 </Card>
               </Link>

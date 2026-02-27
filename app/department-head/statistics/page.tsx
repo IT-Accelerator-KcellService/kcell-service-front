@@ -5,7 +5,7 @@ import Header from "@/app/header/Header";
 import api from "@/lib/api";
 import {useRouter} from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Download } from "lucide-react";
 import {useMediaQuery} from "@/hooks/use-media-query";
 import {BottomNav} from "@/components/BottomNav";
 import PullToRefresh from "@/components/pull-to-refresh";
@@ -96,13 +96,70 @@ export default function DepartmentHeadStatisticsPage() {
     }
   }
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://workflow-back-zpk4.onrender.com/api";
+
+  const handleExport = async (format: "xlsx" | "pbix") => {
+    try {
+      const params = new URLSearchParams();
+      params.append("format", format);
+
+      if (typeof window !== "undefined" && (window as any).androidApp) {
+        const response = await fetch(`${API_BASE}/analytics/export?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          const base64data = (reader.result as string)?.split(",")[1] || "";
+          const mimeType =
+            blob.type || (format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "application/octet-stream");
+          (window as any).androidApp?.saveFileBase64(`analytics.${format}`, base64data, mimeType);
+        };
+        reader.readAsDataURL(blob);
+      } else if (typeof window !== "undefined" && (window as any).webkit?.messageHandlers?.saveFile) {
+        const response = await fetch(`${API_BASE}/analytics/export?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          const base64data = (reader.result as string)?.split(",")[1] || "";
+          const mimeType =
+            blob.type || (format === "xlsx" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "application/octet-stream");
+          (window as any).webkit.messageHandlers.saveFile.postMessage({
+            filename: `analytics.${format}`,
+            base64Data: base64data,
+            mimeType: mimeType,
+          });
+        };
+        reader.readAsDataURL(blob);
+      } else {
+        const res = await fetch(`${API_BASE}/analytics/export?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `analytics.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error("Ошибка при экспорте файла:", error);
+      alert("Не удалось экспортировать файл");
+    }
+  };
+
   return (
     <>
       <Header
         handleLogout={handleLogout}
         notificationCount={0}
         role="Офис менеджер"
-        onRefresh={handleRefresh}
+        theme="dark"
       />
       <PullToRefresh onRefresh={handleRefresh}>
         <div 
@@ -180,6 +237,32 @@ export default function DepartmentHeadStatisticsPage() {
               <div className="rounded-2xl p-4 sm:p-6" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
                 <h3 className="text-base sm:text-lg font-bold text-white mb-4">Аналитика</h3>
                 <DepartmentHeadAnalytics />
+              </div>
+
+              {/* Экспорт отчётов */}
+              <div className="rounded-2xl p-4 sm:p-6" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                <h3 className="text-base sm:text-lg font-bold text-white mb-4">Экспорт отчётов</h3>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleExport("xlsx")}
+                    className="inline-flex items-center px-4 py-2.5 rounded-xl font-medium text-white transition-opacity hover:opacity-90"
+                    style={{ background: "#1A9A8A" }}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Excel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExport("pbix")}
+                    className="inline-flex items-center px-4 py-2.5 rounded-xl font-medium text-white border border-white/30 hover:bg-white/10 transition-colors"
+                    style={{ background: "rgba(255,255,255,0.1)" }}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Power BI
+                  </button>
+                </div>
+                <p className="text-sm text-white/60 mt-2">Скачать отчёт в формате Excel или Power BI для дальнейшего анализа</p>
               </div>
             </div>
           </div>

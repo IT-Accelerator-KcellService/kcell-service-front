@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +29,6 @@ export default function DepartmentHeadRequestDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params?.id as string;
-  const isDesktop = useMediaQuery("(min-width: 768px)");
   const { user, token } = useAuthStore();
   const { categories, fetchCategories } = useCategoryStore();
   const { toast } = useToast();
@@ -64,18 +62,11 @@ export default function DepartmentHeadRequestDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (isDesktop) {
-      router.replace(`/department-head?tab=incoming&requestId=${id}`);
-      return;
-    }
-  }, [isDesktop, router, id]);
-
-  useEffect(() => {
-    if (!id || isDesktop) return;
+    if (!id) return;
     setLoading(true);
     setError(null);
     fetchRequest();
-  }, [id, isDesktop, fetchRequest]);
+  }, [id, fetchRequest]);
 
   useEffect(() => {
     if (token) fetchCategories(token);
@@ -90,8 +81,8 @@ export default function DepartmentHeadRequestDetailPage() {
         console.error("Ошибка загрузки исполнителей:", e);
       }
     };
-    if (!isDesktop) loadExecutors();
-  }, [isDesktop]);
+    loadExecutors();
+  }, []);
 
   const handleClose = () => {
     router.push("/department-head/requests");
@@ -174,8 +165,6 @@ export default function DepartmentHeadRequestDetailPage() {
     }
   };
 
-  if (isDesktop) return null;
-
   if (loading && !request) {
     return (
       <div className="min-h-screen bg-[#1C1C1E] flex items-center justify-center">
@@ -213,6 +202,7 @@ export default function DepartmentHeadRequestDetailPage() {
         onAssignExecutor={handleAssignExecutors}
         onRedirectToOtherDepartment={handleOpenRedirectModal}
         onChangeExecutors={handleChangeExecutors}
+        displayMode="modal"
       />
 
       <AssignExecutorsModal

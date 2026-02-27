@@ -72,7 +72,11 @@ import { RecurringTasksList, UpcomingTasksWidget } from "@/components/recurring-
 import { ImportExcelModal } from "@/components/ImportExcelModal";
 import PhotoModal from "@/components/photo/PhotoModal";
 import { MeetingRoomsCatalog } from "@/components/meeting-rooms/MeetingRoomsCatalog";
+import { AllBookingsView } from "@/components/meeting-rooms/AllBookingsView";
+import { MeetingRoomStatistics } from "@/components/meeting-rooms/MeetingRoomStatistics";
+import { MeetingRoomCalendar } from "@/components/meeting-rooms/MeetingRoomCalendar";
 import DepartmentHeadAnalytics from "@/components/DepartmentHeadAnalytics";
+import { DepartmentHeadDashboard as DashboardContent } from "@/components/DepartmentHeadDashboard";
 
 interface User {
   id: number
@@ -113,8 +117,8 @@ export default function DepartmentHeadDashboard() {
   const { toast } = useToast()
   const rejectModal = useRejectRequestModal()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState("meeting-rooms")
-  const [meetingRoomsTab, setMeetingRoomsTab] = useState<"book" | "my-bookings">("book")
+  const [activeTab, setActiveTab] = useState("dashboard")
+  const [meetingRoomsTab, setMeetingRoomsTab] = useState<"book" | "my-bookings" | "all-bookings" | "analytics" | "heatmap">("book")
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [showCreateRequestModal, setShowCreateRequestModal] = useState(false)
   const [showNotFoundModal, setShowNotFoundModal] = useState(false)
@@ -419,6 +423,15 @@ export default function DepartmentHeadDashboard() {
       fetchNotifications()
     }
   }, [isLoggedIn])
+
+  // Синхронизация activeTab с URL (для sidebar "Бронь" -> ?tab=meeting-rooms)
+  useEffect(() => {
+    const tabParam = searchParams.get("tab")
+    const validTabs = ["dashboard", "meeting-rooms", "incoming", "my-requests", "recurring-tasks", "statistics", "management"]
+    if (tabParam && validTabs.includes(tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const create = searchParams.get("createRequest")
@@ -1655,12 +1668,13 @@ export default function DepartmentHeadDashboard() {
             handleLogout={handleLogout}
             notificationCount={3}
             role="Офис менеджер"
+            theme="dark"
         />
         <PullToRefresh onRefresh={handleRefresh}>
       <div 
         className="min-h-screen relative z-10"
         style={{ 
-          background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 25%, #E25B21 45%, #E25B21 70%, #4A2510 90%, #1C1C1E 100%)',
+          background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 100%)',
           paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         }}
       >
@@ -1669,143 +1683,26 @@ export default function DepartmentHeadDashboard() {
           <div 
             className="rounded-t-[32px] px-4 pt-6 pb-8 lg:px-8"
             style={{ 
-              background: 'linear-gradient(180deg, #E25B21 0%, #E25B21 60%, #4A2510 85%, #1C1C1E 100%)',
+              background: 'linear-gradient(180deg, #1C1C1E 0%, #2C2C2E 100%)',
               minHeight: isDesktop ? 'auto' : 'calc(100vh - 200px)',
             }}
           >
-          {isDesktop ? (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
-                  <div className="flex items-center">
-                    <div className="p-2 rounded-lg bg-white/20">
-                      <Clock className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-white/80">Новые заявки</p>
-                      <p className="text-2xl font-bold text-white">
-                        {stats && stats.statusCounts && stats.statusCounts.new ? (stats.statusCounts.new) : 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
-                  <div className="flex items-center">
-                    <div className="p-2 rounded-lg bg-white/20">
-                      <Users className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-white/80">В работе</p>
-                      <p className="text-2xl font-bold text-white">
-                        {stats && stats.statusCounts && stats.statusCounts.inWork ? (stats.statusCounts.inWork) : 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-2xl p-6" style={{ background: '#1A9A8A' }}>
-                  <div className="flex items-center">
-                    <div className="p-2 rounded-lg bg-white/20">
-                      <CheckCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-white/80">Завершено</p>
-                      <p className="text-2xl font-bold text-white">
-                        {stats && stats.statusCounts && stats.statusCounts.completed ? (stats.statusCounts.completed) : 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-2xl p-6" style={{ background: '#D94F15' }}>
-                  <div className="flex items-center">
-                    <div className="p-2 rounded-lg bg-white/20">
-                      <AlertTriangle className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-white/80">Просрочено</p>
-                      <p className="text-2xl font-bold text-white">
-                        {stats && stats.statusCounts && stats.statusCounts.overdue ? (stats.statusCounts.overdue) : 0}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-          ): null}
-
           {/* Main Content */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <div className="mb-3">
-                  {/* на телефоне только табы */}
-                  <div className="w-full mb-2 sm:hidden">
-                    <div className="overflow-x-auto">
-                      <TabsList className="flex w-max min-w-full bg-[#3A3A3C] p-1 rounded-xl gap-1">
-                        <TabsTrigger value="meeting-rooms" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          <span className="sm:hidden flex items-center gap-1">
-                            <Building2 className="h-3.5 w-3.5" />
-                            Переговорные
-                          </span>
-                          <span className="hidden sm:inline">Переговорные</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="incoming" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          <span className="sm:hidden">Входящие</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="my-requests" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          <span className="sm:hidden">Мои</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="recurring-tasks" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          <span className="sm:hidden">Повторяющиеся</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="statistics" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          <span className="sm:hidden">Аналитика</span>
-                          <span className="hidden sm:inline">Аналитика</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="management" className="text-xs sm:text-sm px-2 sm:px-3 whitespace-nowrap flex-shrink-0 gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          <span className="sm:hidden flex items-center gap-1">
-                            <LayoutGrid className="h-3.5 w-3.5" />
-                            Управление
-                          </span>
-                          <span className="hidden sm:inline">Управление</span>
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
-                  </div>
-
-                  {/* на больших экранах */}
-                  <div className="hidden sm:flex justify-between items-center gap-3">
-                    <div className="flex-1 overflow-x-auto">
-                      <TabsList className="flex min-w-max gap-2 bg-[#3A3A3C] p-1 rounded-xl">
-                        <TabsTrigger value="meeting-rooms" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          <Building2 className="h-4 w-4" />
-                          Переговорные
-                        </TabsTrigger>
-                      <TabsTrigger value="incoming" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          Входящие заявки
-                      </TabsTrigger>
-                      <TabsTrigger value="my-requests" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          Мои заявки
-                      </TabsTrigger>
-                      <TabsTrigger value="recurring-tasks" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          Повторяющиеся
-                      </TabsTrigger>
-                      <TabsTrigger value="statistics" className="text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                        Аналитика
-                      </TabsTrigger>
-                        <TabsTrigger value="management" className="text-sm px-3 py-2 whitespace-nowrap flex items-center gap-2 data-[state=active]:bg-[#E25B21] data-[state=active]:text-white text-white/80 rounded-lg">
-                          <LayoutGrid className="h-4 w-4" />
-                          Управление
-                      </TabsTrigger>
-                    </TabsList>
-                    </div>
-                    <Button
-                        onClick={() => router.push('/create-request')}
-                        className="bg-[#E25B21] hover:bg-[#D94F15] text-white"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Создать заявку
-                    </Button>
-                  </div>
-                </div>
-
+                <TabsContent value="dashboard" className="pt-2 sm:pt-0">
+                  <DashboardContent
+                    stats={stats}
+                    onCreateRequest={() => {
+                      setShowCreateRequestModal(true);
+                      setModalStack(['createRequest']);
+                      window.history.pushState({ modal: 'createRequest' }, '', window.location.pathname);
+                    }}
+                    onBook={() => router.replace("/department-head?tab=meeting-rooms")}
+                    isDesktop={isDesktop}
+                  />
+                </TabsContent>
 
                 <TabsContent value="my-requests" className="pt-2 sm:pt-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1932,17 +1829,14 @@ export default function DepartmentHeadDashboard() {
 
 
                 <TabsContent value="meeting-rooms" className="pt-2 sm:pt-0">
-                  {/* Кнопки переключения между бронированием и моими бронированиями - всегда видны */}
-                  <div className="mb-4 flex gap-2">
+                  {/* Кнопки переключения */}
+                  <div className="mb-4 flex flex-wrap gap-2">
                     <Button
                       onClick={() => {
                         setMeetingRoomsTab("book");
-                        // Если переключаемся на бронирование и офис не выбран, сбрасываем офис
-                        if (!selectedOffice && meetingRoomsTab === "my-bookings") {
-                          setSelectedOffice(null);
-                        }
+                        if (!selectedOffice && meetingRoomsTab === "my-bookings") setSelectedOffice(null);
                       }}
-                      className={`flex-1 h-10 rounded-lg font-medium transition-all duration-300 ${
+                      className={`h-10 rounded-lg font-medium transition-all duration-300 ${
                         meetingRoomsTab === "book"
                           ? "bg-[#D94F15] hover:bg-[#C44712] text-white"
                           : "bg-white/20 hover:bg-white/30 text-white"
@@ -1952,7 +1846,7 @@ export default function DepartmentHeadDashboard() {
                     </Button>
                     <Button
                       onClick={() => setMeetingRoomsTab("my-bookings")}
-                      className={`flex-1 h-10 rounded-lg font-medium ${
+                      className={`h-10 rounded-lg font-medium ${
                         meetingRoomsTab === "my-bookings"
                           ? "bg-[#D94F15] hover:bg-[#C44712] text-white"
                           : "bg-white/20 hover:bg-white/30 text-white"
@@ -1960,15 +1854,52 @@ export default function DepartmentHeadDashboard() {
                     >
                       Мои бронирования
                     </Button>
+                    <Button
+                      onClick={() => setMeetingRoomsTab("all-bookings")}
+                      className={`h-10 rounded-lg font-medium ${
+                        meetingRoomsTab === "all-bookings"
+                          ? "bg-[#D94F15] hover:bg-[#C44712] text-white"
+                          : "bg-white/20 hover:bg-white/30 text-white"
+                      }`}
+                    >
+                      Все бронирования
+                    </Button>
+                    <Button
+                      onClick={() => setMeetingRoomsTab("analytics")}
+                      className={`h-10 rounded-lg font-medium ${
+                        meetingRoomsTab === "analytics"
+                          ? "bg-[#D94F15] hover:bg-[#C44712] text-white"
+                          : "bg-white/20 hover:bg-white/30 text-white"
+                      }`}
+                    >
+                      Аналитика
+                    </Button>
+                    <Button
+                      onClick={() => setMeetingRoomsTab("heatmap")}
+                      className={`h-10 rounded-lg font-medium ${
+                        meetingRoomsTab === "heatmap"
+                          ? "bg-[#D94F15] hover:bg-[#C44712] text-white"
+                          : "bg-white/20 hover:bg-white/30 text-white"
+                      }`}
+                    >
+                      Пики занятости
+                    </Button>
                   </div>
 
-                  {meetingRoomsTab === "my-bookings" ? (
+                  {meetingRoomsTab === "all-bookings" ? (
+                    <AllBookingsView offices={offices} variant="dark" />
+                  ) : meetingRoomsTab === "analytics" ? (
+                    <MeetingRoomStatistics variant="dark" />
+                  ) : meetingRoomsTab === "heatmap" ? (
+                    <MeetingRoomCalendar variant="dark" />
+                  ) : meetingRoomsTab === "my-bookings" ? (
                     // Показываем мои бронирования без выбора офиса
                     <MeetingRoomsCatalog 
                       initialOffice={null}
                       onOfficeChange={(office) => setSelectedOffice(office)}
                       initialTab="my-bookings"
                       onTabChange={(tab) => setMeetingRoomsTab(tab === "book" ? "book" : "my-bookings")}
+                      variant="dark"
                     />
                   ) : (
                     // Для бронирования нужен выбор офиса
@@ -1976,45 +1907,44 @@ export default function DepartmentHeadDashboard() {
                       {!selectedOffice ? (
                         <>
                           {/* Секция выбора офиса */}
-                          <div className="space-y-3">
+                          <div className="space-y-5">
                             <div>
-                              <h2 className="text-lg font-semibold text-white">Выбрать офис</h2>
-                              <p className="text-sm text-white/80">Выберите офис для бронирования переговорной комнаты</p>
+                              <h2 className="text-xl font-semibold text-white">Выбрать офис</h2>
+                              <p className="text-sm text-white/70 mt-1">Выберите офис для бронирования переговорной комнаты</p>
                             </div>
-                            <div className="overflow-x-auto -mx-2 px-2">
-                              <div className="flex gap-3 pb-2" style={{ scrollbarWidth: 'thin' }}>
-                                {offices.map((office: any) => (
-                                  <div
-                                    key={office.id}
-                                    className="min-w-[280px] cursor-pointer transition-all hover:shadow-md active:scale-95 flex-shrink-0 rounded-2xl overflow-hidden"
-                                    style={{ background: '#D94F15' }}
-                                    onClick={() => {
-                                      setSelectedOffice(office);
-                                    }}
-                                  >
-                                    <div className="relative aspect-[4/3] bg-white/10 overflow-hidden">
-                                      {office.photo ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                              {offices.map((office: any) => (
+                                <button
+                                  key={office.id}
+                                  type="button"
+                                  onClick={() => setSelectedOffice(office)}
+                                  className="group text-left w-full rounded-2xl overflow-hidden border border-white/15 bg-[#2C2C2E] hover:bg-[#353535] hover:border-[#E85D2B]/40 transition-all duration-300 hover:shadow-xl hover:shadow-[#E85D2B]/10 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#E85D2B]/50 focus:ring-offset-2 focus:ring-offset-[#1C1C1E]"
+                                >
+                                  <div className="relative aspect-[4/3] min-h-[200px] overflow-hidden">
+                                    {office.photo ? (
+                                      <>
                                         <Image
                                           src={office.photo}
                                           alt={office.name}
                                           fill
-                                          sizes="280px"
-                                          className="object-cover"
+                                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                          className="object-cover transition-transform duration-300 group-hover:scale-105"
                                         />
-                                      ) : (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                          <Building2 className="w-16 h-16 text-white" />
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="p-4">
-                                      <h3 className="font-semibold text-white">{office.name}</h3>
-                                      <p className="text-sm text-white/80 mt-1">{office.city}</p>
-                                      <p className="text-sm text-white/60">{office.address}</p>
-                                    </div>
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                      </>
+                                    ) : (
+                                      <div className="absolute inset-0 flex items-center justify-center bg-[#3A3A3C]">
+                                        <Building2 className="w-20 h-20 text-white/50" />
+                                      </div>
+                                    )}
                                   </div>
-                                ))}
-                              </div>
+                                  <div className="p-5">
+                                    <h3 className="text-lg font-semibold text-white truncate">{office.name}</h3>
+                                    <p className="text-sm text-white/70 mt-1 truncate">{office.city}</p>
+                                    <p className="text-sm text-white/50 mt-0.5 line-clamp-2">{office.address}</p>
+                                  </div>
+                                </button>
+                              ))}
                             </div>
                           </div>
                         </>
@@ -2024,6 +1954,7 @@ export default function DepartmentHeadDashboard() {
                           onOfficeChange={(office) => setSelectedOffice(office)}
                           initialTab="book"
                           onTabChange={(tab) => setMeetingRoomsTab(tab === "book" ? "book" : "my-bookings")}
+                          variant="dark"
                         />
                       )}
                     </>
@@ -2064,9 +1995,10 @@ export default function DepartmentHeadDashboard() {
 
             <div className="space-y-6 mb-20">
               <UpcomingTasksWidget refreshTrigger={upcomingTasksRefreshTrigger} variant="themed" />
-              <div className="rounded-2xl overflow-hidden" style={{ background: '#D94F15' }}>
+              <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(226, 91, 33, 0.15) 0%, rgba(217, 79, 21, 0.1) 100%)' }}>
                 <div className="p-0">
                   <NotificationsSidebar 
+                    variant="themed"
                     onNotificationClick={handleNotificationClick}
                     onRequestClick={(requestId) => {
                       // Парсим ID заявки (может быть в формате "123" или "123/1")
@@ -2089,15 +2021,6 @@ export default function DepartmentHeadDashboard() {
         </div>
       </div>
       </PullToRefresh>
-
-        {/* Black background extension for safe area */}
-        <div
-          className="fixed bottom-0 left-0 right-0 z-0"
-          style={{
-            height: 'calc(100px + env(safe-area-inset-bottom, 0px))',
-            background: '#1C1C1E',
-          }}
-        />
 
         {/* Модалка */}
         {isModalOpen && selectedNotification && (
@@ -2615,13 +2538,6 @@ export default function DepartmentHeadDashboard() {
             activeTab="history"
             hidden={showCreateRequestModal || !!selectedRequest || showMapModal || showRatingModal || isModalOpen || !!selectedPhoto || showRedirectModal || showAssignExecutorsModal || showChangeExecutorsModal}
         />}
-        {isDesktop && <Link
-            href="/chat-bot"
-            className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-14 h-14 bg-[#E25B21]/10 text-[#E25B21] rounded-full shadow-lg hover:bg-[#E25B21]/20 transition"
-        >
-          <MessageCircle className="w-7 h-7" />
-
-        </Link>}
 
         {/* Модальное окно информации об иконках */}
         <IconInfoModal

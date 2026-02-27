@@ -26,7 +26,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab: activeTabProp, 
         : role === 'department-head' ? '/department-head/requests'
         : role === 'executor' ? '/executor/requests'
         : '/create-request'
-    const helpHref = role === 'admin-worker' ? '/admin-worker/messages' : '/chat-bot'
+    const helpHref = role === 'admin-worker' ? '/admin-worker/messages' : role === 'department-head' ? '/department-head/messages' : '/chat-bot'
     const profileHref = '/profile'
 
     // Цвета: активная вкладка — ярко белая, неактивные — приглушённые (хорошо видно на оранжевом)
@@ -83,7 +83,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab: activeTabProp, 
         if (isHomePath) return 'home'
         if (path === bookingHref || path.startsWith('/meeting-rooms')) return 'booking'
         if (path === requestsHref || path === '/requests' || path === '/create-request' || path.startsWith('/admin-worker/requests') || path.startsWith('/department-head/requests') || path.startsWith('/executor/requests')) return 'requests'
-        if (path === helpHref || path.startsWith('/chat-bot') || path.startsWith('/admin-worker/messages')) return 'help'
+        if (path === helpHref || path.startsWith('/chat-bot') || path.startsWith('/admin-worker/messages') || path.startsWith('/department-head/messages')) return 'help'
         if (path === profileHref || path.startsWith('/profile')) return 'profile'
         return undefined
     }
@@ -105,12 +105,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab: activeTabProp, 
 
     return (
         <>
-        {/* Фон под навбаром и safe area — тёмный, чтобы не было белой полосы на iOS */}
+        {/* Фон под навбаром и safe area — прозрачный */}
         <div 
-            className="md:hidden fixed bottom-0 left-0 right-0 z-40"
+            className="md:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-none"
             style={{
                 height: 'calc(73px + env(safe-area-inset-bottom, 0px))',
-                background: '#1C1C1E',
+                background: 'transparent',
             }}
         />
         <nav 

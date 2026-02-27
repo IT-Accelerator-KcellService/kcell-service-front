@@ -19,7 +19,7 @@ interface Notification {
 interface Props {
     onNotificationClick: (notification: Notification) => void
     onRequestClick?: (requestId: string) => boolean
-    variant?: 'light' | 'dark'
+    variant?: 'light' | 'dark' | 'themed'
     limit?: number
     hasMore?: boolean
     loadingMore?: boolean
@@ -43,6 +43,8 @@ export function NotificationsSidebar({
     const [notFoundRequestId, setNotFoundRequestId] = useState<string>('')
 
     const isDark = variant === 'dark'
+    const isThemed = variant === 'themed'
+    const isDarkLike = isDark || isThemed
 
     useEffect(() => {
         const sorted = [...notifications].sort(
@@ -81,7 +83,7 @@ export function NotificationsSidebar({
         if (lowerTitle.includes('принята') || lowerTitle.includes('одобрена')) {
             return (
                 <CheckCircle
-                    className={`w-4 h-4 ${isDark ? 'text-[#F35713]' : 'text-[#114A65]'}`}
+                    className={`w-4 h-4 ${isDarkLike ? 'text-[#2A9D8F]' : 'text-[#114A65]'}`}
                 />
             )
         }
@@ -89,20 +91,20 @@ export function NotificationsSidebar({
         if (lowerTitle.includes('завершена') || lowerTitle.includes('выполнена')) {
             return (
                 <CheckCircle
-                    className={`w-4 h-4 ${isDark ? 'text-[#F35713]' : 'text-[#114A65]'}`}
+                    className={`w-4 h-4 ${isDarkLike ? 'text-[#E85D2B]' : 'text-[#114A65]'}`}
                 />
             )
         }
 
         if (lowerTitle.includes('просрочена') || lowerTitle.includes('отклонена')) {
             return (
-                <AlertCircle className="w-4 h-4 text-[#F35713]" />
+                <AlertCircle className={`w-4 h-4 ${isDarkLike ? 'text-red-400' : 'text-[#F35713]'}`} />
             )
         }
 
         return (
             <Clock
-                className={`w-4 h-4 ${isDark ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`}
+                className={`w-4 h-4 ${isDarkLike ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`}
             />
         )
     }
@@ -110,9 +112,9 @@ export function NotificationsSidebar({
     const getNotificationBgColor = (title: string, isRead: boolean) => {
         const lowerTitle = title.toLowerCase()
 
-        if (isDark) {
-            if (isRead) return 'bg-[#3A3A3C]/50 border-[#3A3A3C]'
-            return 'bg-[#3A3A3C] border-[#F35713]/30'
+        if (isDarkLike) {
+            if (isRead) return 'bg-white/5 border-white/10'
+            return 'bg-gradient-to-r from-[#E85D2B]/16 via-[#2A9D8F]/10 to-[#E85D2B]/14 border-[#E85D2B]/30 backdrop-blur-md'
         }
 
         if (isRead)
@@ -127,10 +129,10 @@ export function NotificationsSidebar({
         }
 
         if (lowerTitle.includes('просрочена') || lowerTitle.includes('отклонена')) {
-            return 'bg-gradient-to-r from-[#E25B21]/20 via-[#E25B21]/10 to-[#E25B21]/20 border-[#E25B21]/30 backdrop-blur-md'
+            return 'bg-gradient-to-r from-[#E25B21]/25 via-[#E25B21]/15 to-[#E25B21]/25 border-[#E25B21]/35 backdrop-blur-md'
         }
 
-        return 'bg-gradient-to-r from-[#E25B21]/15 via-[#D94F15]/10 to-[#E25B21]/15 border-[#E25B21]/30 backdrop-blur-md'
+        return 'bg-gradient-to-r from-[#E25B21]/20 via-[#D94F15]/14 to-[#E25B21]/20 border-[#E25B21]/35 backdrop-blur-md'
     }
 
     const handleRequestIdClick = (requestId: string) => {
@@ -149,18 +151,20 @@ export function NotificationsSidebar({
         <>
             <Card className={isDark
                 ? "border border-[#3A3A3C] shadow-none bg-transparent"
-                : "border-0 shadow-lg bg-white/95 backdrop-blur-sm"}>
+                : isThemed
+                    ? "border-0 shadow-none bg-transparent"
+                    : "border-0 shadow-lg bg-white/95 backdrop-blur-sm"}>
 
                 <CardHeader className="pb-3">
                     <div className="flex items-center gap-3">
                         <div
                             className="w-8 h-8 rounded-lg flex items-center justify-center"
-                            style={{ background: isDark ? '#E25B21' : '#D94F15' }}>
+                            style={{ background: (isDark || isThemed) ? '#E25B21' : '#D94F15' }}>
                             <Bell className="h-4 w-4 text-white" />
                         </div>
 
                         <CardTitle
-                            className={isDark
+                            className={isDark || isThemed
                                 ? "text-lg font-bold text-white"
                                 : "text-lg font-bold text-[#040404]"}>
 
@@ -173,25 +177,25 @@ export function NotificationsSidebar({
                     {notificationLoading ? (
                         <div className="flex justify-center py-8">
                             <div
-                                className={`flex items-center gap-2 ${isDark ? 'text-[#8E8E93]' : 'text-gray-500'}`}>
+                                className={`flex items-center gap-2 ${(isDark || isThemed) ? 'text-[#8E8E93]' : 'text-gray-500'}`}>
                                 <div
-                                    className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${isDark ? 'border-[#F35713]' : 'border-[#114A65]'}`} />
+                                    className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${(isDark || isThemed) ? 'border-[#F35713]' : 'border-[#114A65]'}`} />
                                 <span className="text-sm">Загрузка...</span>
                             </div>
                         </div>
                     ) : displayedNotifications.length === 0 ? (
                         <div className="text-center py-8">
                             <div
-                                className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${isDark ? 'bg-[#3A3A3C]' : 'bg-[#F3F3F3]'}`}>
+                                className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${(isDark || isThemed) ? 'bg-[#3A3A3C]' : 'bg-[#F3F3F3]'}`}>
                                 <Bell
-                                    className={`h-6 w-6 ${isDark ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`} />
+                                    className={`h-6 w-6 ${(isDark || isThemed) ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`} />
                             </div>
 
-                            <p className={`font-medium text-sm ${isDark ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`}>
+                            <p className={`font-medium text-sm ${(isDark || isThemed) ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`}>
                                 Нет уведомлений
                             </p>
 
-                            <p className={`text-xs mt-1 ${isDark ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`}>
+                            <p className={`text-xs mt-1 ${(isDark || isThemed) ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`}>
                                 Новые уведомления появятся здесь
                             </p>
                         </div>
@@ -211,7 +215,7 @@ export function NotificationsSidebar({
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-start justify-between gap-2">
                                                 <h3
-                                                    className={`text-sm font-semibold line-clamp-2 leading-tight ${isDark ? 'text-white' : 'text-[#040404]'}`}>
+                                                    className={`text-sm font-semibold line-clamp-2 leading-tight ${(isDark || isThemed) ? 'text-white' : 'text-[#040404]'}`}>
                                                     {n.title}
                                                 </h3>
 
@@ -224,13 +228,13 @@ export function NotificationsSidebar({
                                             </div>
 
                                             <p
-                                                className={`text-xs mt-1 flex items-center gap-1 ${isDark ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`}>
+                                                className={`text-xs mt-1 flex items-center gap-1 ${(isDark || isThemed) ? 'text-[#8E8E93]' : 'text-[#C4C4CE]'}`}>
                                                 <Clock className="w-3 h-3" />
                                                 {formatTimeAgo(n.created_at)}
                                             </p>
 
                                             <p
-                                                className={`text-sm mt-2 leading-relaxed line-clamp-2 ${isDark ? 'text-[#E5E5EA]' : 'text-[#040404]'}`}>
+                                                className={`text-sm mt-2 leading-relaxed line-clamp-2 ${(isDark || isThemed) ? 'text-[#E5E5EA]' : 'text-[#040404]'}`}>
                                                 {createClickableRequestIds(n.content, handleRequestIdClick)}
                                             </p>
                                         </div>
@@ -244,7 +248,7 @@ export function NotificationsSidebar({
                                         type="button"
                                         onClick={onLoadMore}
                                         disabled={loadingMore}
-                                        className={`w-full py-2.5 rounded-xl border text-sm font-medium transition-colors ${isDark
+                                        className={`w-full py-2.5 rounded-xl border text-sm font-medium transition-colors ${(isDark || isThemed)
                                             ? 'border-[#3A3A3C] text-[#F35713] hover:bg-[#3A3A3C] disabled:opacity-50'
                                             : 'border-[#114A65]/30 text-[#114A65] hover:bg-[#114A65]/10 disabled:opacity-50'
                                             }`}

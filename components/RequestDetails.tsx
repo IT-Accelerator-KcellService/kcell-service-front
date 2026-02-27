@@ -129,6 +129,8 @@ export interface RequestDetailsProps {
   onRateRequest?: (request: any) => void;
   /** executor/client: удалить подзаявку */
   onDelete?: (request: any) => void;
+  /** Режим отображения для мобильного варианта: полноэкранный (по умолчанию) или модальное окно */
+  displayMode?: "fullscreen" | "modal";
 }
 
 export function RequestDetails({
@@ -150,6 +152,7 @@ export function RequestDetails({
   onRateClient: onRateClientProp,
   onRateRequest: onRateRequestProp,
   onDelete: onDeleteProp,
+  displayMode = "modal",
 }: RequestDetailsProps) {
   const basePath = fullModeRedirectBase ?? ROLE_BASE_PATH[userRoleProp] ?? "/admin-worker";
   const router = useRouter();
@@ -376,21 +379,38 @@ export function RequestDetails({
     return null;
   }
 
+  const outerClasses =
+    displayMode === "fullscreen"
+      ? "fixed inset-0 z-[100] bg-[#1C1C1E]"
+      : "fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4";
+
+  const outerStyle =
+    displayMode === "fullscreen"
+      ? { paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }
+      : undefined;
+
+  const innerClasses =
+    displayMode === "fullscreen"
+      ? "flex flex-col h-full"
+      : "flex flex-col h-full w-full max-w-3xl max-h-[90vh] bg-[#1C1C1E] rounded-2xl shadow-2xl overflow-hidden";
+
   if (!subRequest) {
     return (
-      <div className="fixed inset-0 z-[100] bg-[#1C1C1E] flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="flex items-center gap-3 p-4 border-b border-gray-800">
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-800"
-            aria-label="Назад к заявкам"
-          >
-            <ArrowLeft className="w-6 h-6 text-white" />
-          </button>
-          <h1 className="text-xl font-bold text-white">Заявка #{selectedRequest.id}</h1>
-        </div>
-        <div className="flex-1 flex items-center justify-center p-4">
-          <p className="text-gray-400">Нет данных заявки</p>
+      <div className={outerClasses} style={outerStyle}>
+        <div className={innerClasses}>
+          <div className="flex items-center gap-3 p-4 border-b border-gray-800">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full hover:bg-gray-800"
+              aria-label="Назад к заявкам"
+            >
+              <ArrowLeft className="w-6 h-6 text-white" />
+            </button>
+            <h1 className="text-xl font-bold text-white">Заявка #{selectedRequest.id}</h1>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4">
+            <p className="text-gray-400">Нет данных заявки</p>
+          </div>
         </div>
       </div>
     );
@@ -398,8 +418,8 @@ export function RequestDetails({
 
   return (
     <>
-      <div className="fixed inset-0 z-[100] bg-[#1C1C1E]" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <div className="flex flex-col h-full">
+      <div className={outerClasses} style={outerStyle}>
+        <div className={innerClasses}>
           <div className="flex items-center gap-3 p-4 border-b border-gray-800">
             <button
               onClick={() => {

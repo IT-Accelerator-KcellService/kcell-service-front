@@ -448,10 +448,22 @@ export const createMeetingRoomBooking = (data: {
     company_name?: string | null;
 }) => api.post<MeetingRoomBooking>('/meeting-room-bookings', data);
 
-// Получить бронирования переговорной комнаты
-export const getMeetingRoomBookings = (meetingRoomId?: number) => {
-    const params = meetingRoomId ? `?meeting_room_id=${meetingRoomId}` : '';
-    return api.get<MeetingRoomBooking[]>(`/meeting-room-bookings${params}`);
+// Получить бронирования переговорной комнаты (все или с фильтрами)
+export const getMeetingRoomBookings = (params?: {
+    meeting_room_id?: number;
+    office_id?: number;
+    date_from?: string; // YYYY-MM-DD
+    date_to?: string;   // YYYY-MM-DD
+    company_name?: string;
+}) => {
+    const search = new URLSearchParams();
+    if (params?.meeting_room_id) search.set('meeting_room_id', String(params.meeting_room_id));
+    if (params?.office_id) search.set('office_id', String(params.office_id));
+    if (params?.date_from) search.set('date_from', params.date_from);
+    if (params?.date_to) search.set('date_to', params.date_to);
+    if (params?.company_name) search.set('company_name', params.company_name);
+    const qs = search.toString();
+    return api.get<MeetingRoomBooking[]>(`/meeting-room-bookings${qs ? `?${qs}` : ''}`);
 };
 
 // Получить мои бронирования

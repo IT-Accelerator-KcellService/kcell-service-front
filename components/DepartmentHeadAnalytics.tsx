@@ -261,6 +261,18 @@ export default function DepartmentHeadAnalytics() {
               >
                 Детальная статистика
               </TabsTrigger>
+              <TabsTrigger
+                value="executors"
+                className="rounded-lg text-sm whitespace-nowrap data-[state=active]:bg-white/25 data-[state=active]:text-white data-[state=inactive]:text-white/70"
+              >
+                Исполнители
+              </TabsTrigger>
+              <TabsTrigger
+                value="offices"
+                className="rounded-lg text-sm whitespace-nowrap data-[state=active]:bg-white/25 data-[state=active]:text-white data-[state=inactive]:text-white/70"
+              >
+                Офисы
+              </TabsTrigger>
             </TabsList>
           </div>
         </div>
@@ -460,6 +472,198 @@ export default function DepartmentHeadAnalytics() {
               </div>
             </div>
           ))}
+        </TabsContent>
+
+        <TabsContent value="executors" className="space-y-6 mt-4">
+          <div className="mb-3">
+            <div className="text-base font-semibold text-white">Дашборд по исполнителям</div>
+            <div className="text-sm text-white/70">Рейтинг и загрузка исполнителей</div>
+          </div>
+          {(() => {
+            const execRatingMap = new Map(
+              (ratingStats?.byExecutor ?? []).map((e) => [e.executorId, e])
+            );
+            const execDetailMap = new Map(
+              (detailedStats?.byExecutor ?? []).map((e) => [e.executorId, e])
+            );
+            const allIds = new Set([...execRatingMap.keys(), ...execDetailMap.keys()]);
+            const merged = Array.from(allIds).map((id) => {
+              const r = execRatingMap.get(id);
+              const d = execDetailMap.get(id);
+              return {
+                executorId: id,
+                name: getExecutorName(id),
+                avgRating: r?.avgRating ?? "-",
+                totalRatings: r?.totalRatings ?? 0,
+                lowRatings: r?.lowRatings ?? 0,
+                totalAssigned: d?.totalAssigned ?? 0,
+                completedRequests: d?.completedRequests ?? 0,
+                inWorkRequests: d?.inWorkRequests ?? 0,
+              };
+            }).sort((a, b) => (b.totalAssigned || 0) - (a.totalAssigned || 0));
+            if (merged.length === 0) {
+              return (
+                <div className="flex items-center justify-center py-12 text-white/60 text-sm rounded-2xl" style={{ background: "rgba(255,255,255,0.08)" }}>
+                  Нет данных по исполнителям
+                </div>
+              );
+            }
+            return (
+              <>
+                <div className={isDesktop ? "h-72" : "h-64"}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={merged.slice(0, 10).map((m) => ({
+                        name: m.name.length > 15 ? m.name.slice(0, 15) + "…" : m.name,
+                        fullName: m.name,
+                        rating: m.avgRating !== "-" ? parseFloat(String(m.avgRating)) : 0,
+                        assigned: m.totalAssigned,
+                        completed: m.completedRequests,
+                      }))}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
+                      <XAxis type="number" stroke="#9CA3AF" tick={{ fill: "#E5E7EB" }} />
+                      <YAxis dataKey="name" type="category" stroke="#9CA3AF" tick={{ fill: "#E5E7EB", fontSize: 11 }} width={75} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#2C2C2E",
+                          border: "1px solid #3A3A3C",
+                          borderRadius: "8px",
+                        }}
+                        formatter={(value: number, name: string) =>
+                          [value, name === "assigned" ? "Назначено" : "Завершено"]
+                        }
+                      />
+                      <Bar dataKey="assigned" fill="#E25B21" name="Назначено" />
+                      <Bar dataKey="completed" fill="#1A9A8A" name="Завершено" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-3">
+                  {merged.map((m) => (
+                    <div
+                      key={m.executorId}
+                      className="rounded-2xl p-4"
+                      style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <span className="font-medium text-white">{m.name}</span>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-white border-[#E25B21] bg-[#E25B21]/20">
+                            <Star className="w-3 h-3 mr-1 inline" />
+                            {m.avgRating}
+                          </Badge>
+                          <span className="text-sm text-white/70">
+                            Загрузка: {m.inWorkRequests} в работе, {m.completedRequests} выполнено
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-sm text-white/70 flex flex-wrap gap-3">
+                        <span>Назначено: {m.totalAssigned}</span>
+                        <span>Оценок: {m.totalRatings}</span>
+                        {m.lowRatings > 0 && (
+                          <span className="text-[#E25B21]">Низких: {m.lowRatings}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
+        </TabsContent>
+
+        <TabsContent value="offices" className="space-y-6 mt-4">
+          <div className="mb-3">
+            <div className="text-base font-semibold text-white">Дашборд по офисам</div>
+            <div className="text-sm text-white/70">Сравнение офисов по SLA и оценкам</div>
+          </div>
+          {(() => {
+            const slaByOffice = slaStats?.byOffice ?? [];
+            const ratingByOffice = ratingStats?.byOffice ?? [];
+            const officeIds = new Set([
+              ...slaByOffice.map((o) => o.officeId),
+              ...ratingByOffice.map((o) => o.officeId),
+            ]);
+            const merged = Array.from(officeIds).map((officeId) => {
+              const sla = slaByOffice.find((o) => o.officeId === officeId);
+              const rat = ratingByOffice.find((o) => o.officeId === officeId);
+              return {
+                officeId,
+                name: getOfficeName(officeId),
+                avgHours: sla?.avgHours ?? "-",
+                totalCompleted: sla?.totalCompleted ?? 0,
+                avgRating: rat?.avgRating ?? "-",
+                totalRatings: rat?.totalRatings ?? 0,
+                lowRatings: rat?.lowRatings ?? 0,
+              };
+            }).filter((o) => o.totalCompleted > 0 || o.totalRatings > 0);
+            if (merged.length === 0) {
+              return (
+                <div className="flex items-center justify-center py-12 text-white/60 text-sm rounded-2xl" style={{ background: "rgba(255,255,255,0.08)" }}>
+                  Нет данных по офисам
+                </div>
+              );
+            }
+            return (
+              <>
+                <div className={isDesktop ? "h-72" : "h-64"}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={merged.map((m) => ({
+                        ...m,
+                        officeName: m.name.length > 12 ? m.name.slice(0, 12) + "…" : m.name,
+                        hoursNum: m.avgHours !== "-" ? parseFloat(String(m.avgHours)) : 0,
+                      }))}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
+                      <XAxis dataKey="officeName" stroke="#9CA3AF" tick={{ fill: "#E5E7EB" }} />
+                      <YAxis stroke="#9CA3AF" tick={{ fill: "#E5E7EB" }} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#2C2C2E",
+                          border: "1px solid #3A3A3C",
+                          borderRadius: "8px",
+                        }}
+                      />
+                      <Bar dataKey="hoursNum" fill="#E25B21" name="Среднее время (ч)" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="space-y-3">
+                  {merged.map((m) => (
+                    <div
+                      key={m.officeId}
+                      className="rounded-2xl p-4"
+                      style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)" }}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <span className="font-medium text-white">{m.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-white/80">
+                            SLA: {m.avgHours} ч
+                          </span>
+                          <Badge variant="outline" className="text-white border-[#1A9A8A] bg-[#1A9A8A]/20">
+                            <Star className="w-3 h-3 mr-1 inline" />
+                            {m.avgRating}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-sm text-white/70 flex flex-wrap gap-3">
+                        <span>Завершено: {m.totalCompleted}</span>
+                        <span>Оценок: {m.totalRatings}</span>
+                        {m.lowRatings > 0 && (
+                          <span className="text-[#E25B21]">Низких: {m.lowRatings}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="detailed" className="space-y-6 mt-4">
